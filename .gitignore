@@ -1,0 +1,23 @@
+# Go build and test outputs
+/bin/
+/dist/
+/cmd/margo/margo
+*.test
+*.out
+coverage.out
+
+# Local Go workspaces
+go.work
+go.work.sum
+
+# Local worktrees and editor files
+.worktrees/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating-system files
+.DS_Store
+Thumbs.db

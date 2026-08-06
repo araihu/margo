@@ -1,0 +1,70 @@
+name: Required CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: required-ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: '1.26.5'
+
+jobs:
+  required:
+    name: Multi-module CI
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+          cache: false
+
+      - name: Verify every module independently
+        shell: bash
+        env:
+          GOWORK: 'off'
+        run: |
+          set -euo pipefail
+          while IFS= read -r module_file; do
+            module_dir="$(dirname "$module_file")"
+            printf 'Verifying %s\n' "$module_dir"
+            (
+              cd "$module_dir"
+              go mod tidy
+              go vet ./...
+              go test ./... -count=1
+              build_dir="$RUNNER_TEMP/margo-build/${module_dir//\//_}"
+              mkdir -p "$build_dir"
+              package_index=0
+              while IFS= read -r package_name; do
+                package_index=$((package_index + 1))
+                go build -o "$build_dir/$package_index" "$package_name"
+              done < <(go list ./...)
+            )
+          done < <(find . -name go.mod -not -path '*/vendor/*' -print | sort)
+
+      - name: Check formatting and module drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            echo "::error::gofmt drift in:"
+            echo "$unformatted"
+            exit 1
+          fi
+          git diff --exit-code
