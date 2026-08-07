@@ -5,12 +5,22 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 MODE=""
 ENV_FILE=""
 GREP=""
+CONTRAST_HTML=""
+CONTRAST_MODE="both"
+CONTRAST_FORMAT="json"
+CONTRAST_OUTPUT=""
+CONTRAST_ONLY=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --check) MODE=check ;;
     --env-file) shift; ENV_FILE=${1:?environment file required} ;;
     --grep) shift; GREP=${1:?grep required} ;;
+    --contrast-html) shift; CONTRAST_HTML=${1:?contrast HTML required} ;;
+    --contrast-mode) shift; CONTRAST_MODE=${1:?contrast mode required} ;;
+    --contrast-format) shift; CONTRAST_FORMAT=${1:?contrast format required} ;;
+    --contrast-output) shift; CONTRAST_OUTPUT=${1:?contrast output required} ;;
+    --contrast-only) CONTRAST_ONLY=1 ;;
     *) printf '%s\n' "margo.harness_argument_unknown:$1" >&2; exit 1 ;;
   esac
   shift
@@ -19,6 +29,17 @@ done
 test "$MODE" = check || { printf '%s\n' "margo.harness_check_required" >&2; exit 1; }
 case "$ENV_FILE" in /*) ;; *) printf '%s\n' "margo.harness_env_absolute_required" >&2; exit 1 ;; esac
 test -f "$ENV_FILE" || { printf '%s\n' "margo.harness_env_missing" >&2; exit 1; }
+if [ -n "$CONTRAST_HTML" ]; then
+  case "$CONTRAST_HTML" in /*) ;; *) printf '%s\n' "margo.contrast_lint_html_absolute_required" >&2; exit 1 ;; esac
+  test -f "$CONTRAST_HTML" || { printf '%s\n' "margo.contrast_lint_html_missing" >&2; exit 1; }
+else
+  test "$CONTRAST_ONLY" -eq 0 || { printf '%s\n' "margo.contrast_lint_html_required" >&2; exit 1; }
+fi
+case "$CONTRAST_MODE" in light|dark|both) ;; *) printf '%s\n' "margo.contrast_lint_mode_invalid:$CONTRAST_MODE" >&2; exit 1 ;; esac
+case "$CONTRAST_FORMAT" in json|text) ;; *) printf '%s\n' "margo.contrast_lint_format_invalid:$CONTRAST_FORMAT" >&2; exit 1 ;; esac
+if [ -n "$CONTRAST_OUTPUT" ]; then
+  case "$CONTRAST_OUTPUT" in /*) ;; *) printf '%s\n' "margo.contrast_lint_output_absolute_required" >&2; exit 1 ;; esac
+fi
 
 EXPECTED_KEYS='MARGO_NODE_BIN MARGO_NPM_BIN MARGO_PLAYWRIGHT_CLI MARGO_CHROMIUM_EXECUTABLE MARGO_NPM_CACHE MARGO_NPM_CACHE_RECEIPT MARGO_NODE_SHA256 MARGO_NPM_SHA256 MARGO_CHROMIUM_SHA256 MARGO_CHROMIUM_REVISION MARGO_CHROMIUM_VERSION'
 for key in $EXPECTED_KEYS; do
@@ -59,6 +80,21 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 PLAYWRIGHT_BROWSERS_PATH=0 \
   "$MARGO_NODE_BIN" "$MARGO_NPM_BIN" ci --offline --cache "$MARGO_NPM_CACHE" \
   --ignore-scripts --no-audit --no-fund --logs-max=0 --update-notifier=false
 test -f "$MARGO_PLAYWRIGHT_CLI" || { printf '%s\n' "margo.harness_playwright_cli_missing" >&2; exit 1; }
+
+if [ -n "$CONTRAST_HTML" ]; then
+  if [ -n "$CONTRAST_OUTPUT" ]; then
+    "$MARGO_NODE_BIN" "$SCRIPT_DIR/lint-contrast.mjs" \
+      --html "$CONTRAST_HTML" --mode "$CONTRAST_MODE" --format "$CONTRAST_FORMAT" --output "$CONTRAST_OUTPUT"
+  else
+    "$MARGO_NODE_BIN" "$SCRIPT_DIR/lint-contrast.mjs" \
+      --html "$CONTRAST_HTML" --mode "$CONTRAST_MODE" --format "$CONTRAST_FORMAT"
+  fi
+fi
+
+if [ "$CONTRAST_ONLY" -eq 1 ]; then
+  printf '%s\n' "margo.harness_contrast_ok node=$($MARGO_NODE_BIN --version) chromium_revision=$MARGO_CHROMIUM_REVISION chromium_version=$MARGO_CHROMIUM_VERSION network=0"
+  exit 0
+fi
 
 PW_DISABLE_TS_ESM=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 PLAYWRIGHT_BROWSERS_PATH=0 \
   "$MARGO_NODE_BIN" "$MARGO_PLAYWRIGHT_CLI" test --config "$SCRIPT_DIR/playwright.config.mjs" --grep "$GREP"

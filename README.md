@@ -3,8 +3,9 @@
 Margo will compile Markdown into Goshtoso-styled documents, standalone HTML,
 PDFs, and static slide decks.
 
-This repository currently contains bootstrap boilerplate only. It does not yet
-provide parsing, rendering, export, deck, chart, PDF, or CLI behavior.
+The repository includes a deterministic browser preflight for standalone HTML
+before PDF review. See [contrast lint](docs/CONTRAST_LINT.md) to check custom
+themes and styling in print media under both light and dark color modes.
 
 ## Modules
 
