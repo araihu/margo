@@ -48,12 +48,16 @@ func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	rule := regexp.MustCompile(`(?s)\.goshtoso-document \[data-code-block\],\s*\.goshtoso-document div:has\(> \.codeblock\) \{([^}]*)\}`).FindSubmatch(css)
+	if len(rule) != 2 {
+		t.Fatal("document stylesheet is missing the scoped Goshtoso code-block rhythm rule")
+	}
 	for _, want := range [][]byte{
-		[]byte(".goshtoso-document [data-code-block]"),
-		[]byte(".goshtoso-document div:has(> .codeblock)"),
 		[]byte("margin-block-start: calc(var(--spacing) * 4)"),
+		[]byte("margin-block-end: calc(var(--spacing) * 4)"),
+		[]byte("break-inside: avoid"),
 	} {
-		if !bytes.Contains(css, want) {
+		if !bytes.Contains(rule[1], want) {
 			t.Fatalf("document stylesheet missing code-block rhythm rule %q", want)
 		}
 	}
