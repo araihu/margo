@@ -39,6 +39,16 @@
   }
 }
 
+@media print {
+  .goshtoso-document [data-code-block-header],
+  .goshtoso-document [data-code-block] > :first-child,
+  .goshtoso-document div[x-data] > div:first-of-type,
+  .goshtoso-document div[x-data] button,
+  .goshtoso-document [x-show] {
+    display: none !important;
+  }
+}
+
 @layer brand {
   .goshtoso-document__watermark {
     opacity: 0.65;

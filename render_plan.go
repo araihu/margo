@@ -51,7 +51,8 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				return ast.WalkContinue, nil
 			}
 			fenced := node.(*ast.FencedCodeBlock)
-			fence := string(fenced.Language(source.Content))
+			body := parsed.frontmatter.body
+			fence := string(fenced.Language(body))
 			if fence == "" {
 				return ast.WalkContinue, nil
 			}
@@ -63,11 +64,11 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				return ast.WalkStop, nil
 			}
 			segment := fenced.Lines()
-			payload := append([]byte(nil), segment.Value(source.Content)...)
+			payload := append([]byte(nil), segment.Value(body)...)
 			plan.nodes = append(plan.nodes, ExtensionNode{
 				Fence:   fence,
 				Payload: payload,
-				Source:  SourcePosition{Source: source.Name, Line: lineAtOffset(source.Content, segmentAtStart(segment)), Column: 1},
+				Source:  SourcePosition{Source: source.Name, Line: lineAtOffset(source.Content, parsed.frontmatter.bodyOffset+segmentAtStart(segment)), Column: 1},
 			})
 			return ast.WalkContinue, nil
 		})

@@ -316,19 +316,34 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `/tmp/margo-contract-preview/margo-contract-preview.html`, gerado pelo
   `RenderStandalone` do Margo com HTML semântico, tabela, código, CSS embutido,
   fingerprint e sem rede; tem 5.685 bytes e SHA-256
-  `6157f2625a94d23b177a8b10ee999c7ad6aa61d563288bbe0ec87ee87d7a0c88`.
+  `9da32cd65c1cdd2838e5c859d220903f362a08dbcd2682dc0be69634219fa1b6`.
   O helper foi executado com `GOWORK=off GOFLAGS=-mod=mod go run .` em um
   diretório temporário que referencia somente o worktree local do Margo; a
   saída foi validada com exatamente um `doctype`, um `<html>` e um
-  fechamento `</html>`.
+  fechamento `</html>`. A correção de offsets do frontmatter preserva a
+  linguagem `go` no bloco de código e o CSS de impressão remove o cabeçalho
+  interativo de copiar do PDF.
 - PDF local foi produzido a partir do mesmo HTML standalone pelo Chromium
-  instalado, sem download ou fallback: `/tmp/margo-contract-preview/margo-contract-preview.pdf`,
-  115.917 bytes, SHA-256
-  `0d58bdf4ccdf9ab4a530440f6bffb5bdecbd4cfc7ee1dd96437141ec4c3fb881`.
+  instalado, sem download ou fallback:
+  `/tmp/margo-contract-preview/margo-contract-preview.pdf`, 113.762 bytes,
+  SHA-256 `36e89cf0f456fd9079969c51f748afe11345d19127be5ac3b2e0fc4cb9b41597`.
   `file` identifica PDF 1.4 de uma página; `pdfinfo` confirma Letter 612x792,
   tagged, sem JavaScript e sem criptografia; `pdftotext` recupera o título,
   conteúdo, tabela e código. Esta é prova de saída local, não substitui os
   gates P1-P7 nem cria autoridade T6.
+- Corpus humano de produto adicionado em `testdata/markdown/`: o documento
+  otimista `margo-full-feature-set.md` cobre shell, Markdown rico, tabelas,
+  código, charts, Mermaid, paginação, HTML/PDF e a fronteira de release. As
+  fatias executáveis em `testdata/markdown/slices/` isolam shell, tabela,
+  código e composição pequena. O loop obrigatório passa primeiro por uma fatia
+  e só depois pelo documento grande, para não usar uma regressão de composição
+  como diagnóstico de uma feature isolada.
+- HTML/PDF do corpus foram gerados para revisão humana em
+  `/tmp/margo-human-review-latest/`. Manifesto atual:
+  `manifest.tsv`; o documento grande gera HTML de 19.677 bytes, PDF de
+  213.967 bytes e 3 páginas; as quatro fatias geram PDFs de uma página. Esses
+  arquivos são artefatos de revisão local, não entram no handoff T6 nem são
+  tratados como release.
 - A suíte root foi reexecutada no HEAD `6e0fc7e` antes deste registro com
   `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`: os pacotes root,
   `internal/authority`, `internal/canonicaljson`, `internal/htmlpolicy` e

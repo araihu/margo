@@ -65,6 +65,14 @@ func TestSemanticRender(t *testing.T) {
 	}
 }
 
+func TestSemanticRenderUsesFrontmatterBodyForFenceLanguage(t *testing.T) {
+	result := mustRenderSource(t, "---\ntitle: With code\n---\n\n~~~go\nfmt.Println(\"hello\")\n~~~\n")
+	markup := renderComponent(t, result.Content())
+	if !bytes.Contains([]byte(markup), []byte(`aria-label="Copy go code"`)) {
+		t.Fatalf("code fence language was not preserved after frontmatter:\n%s", markup)
+	}
+}
+
 func TestSemanticRenderMatchesGolden(t *testing.T) {
 	got := renderComponent(t, mustRenderSource(t, "# Hello\n\nA [safe link](https://example.com).\n\n- one\n- two\n\n> quoted\n").Content())
 	wantBytes, err := os.ReadFile("testdata/render/semantic.html")

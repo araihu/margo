@@ -9,9 +9,10 @@ import (
 )
 
 type frontmatterResult struct {
-	values   map[string]any
-	goshtoso map[string]any
-	body     []byte
+	values     map[string]any
+	goshtoso   map[string]any
+	body       []byte
+	bodyOffset int
 }
 
 var allowedGoshtosoFields = map[string]map[string]struct{}{
@@ -57,6 +58,10 @@ func parseFrontmatter(source Source) (frontmatterResult, error) {
 	}
 	if value, ok := result.values["goshtoso"].(map[string]any); ok {
 		result.goshtoso = cloneStringAnyMap(value)
+	}
+	result.bodyOffset = 0
+	for _, line := range lines[:closeIndex+1] {
+		result.bodyOffset += len(line)
 	}
 	result.body = bytes.Join(lines[closeIndex+1:], nil)
 	return result, nil
