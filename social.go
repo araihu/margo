@@ -135,7 +135,8 @@ func parseAbsoluteHTTPS(value string) (*url.URL, error) {
 }
 
 // RenderSocialStandalone consumes the C6 owner selection and adds exactly one
-// initial HTML metadata set for public output. Private output is URL-free.
+// initial HTML metadata set for public output. Private output has no social
+// metadata URLs; trusted embedded CSS may retain upstream license URLs.
 func RenderSocialStandalone(result *RenderResult, input SocialRenderInput) (templ.Component, error) {
 	owner := input.HeadOwner
 	if owner.SchemaVersion == "" {

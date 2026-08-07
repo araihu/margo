@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 )
 
 // HeadOwnerSelection freezes one metadata owner before the social task. It is
@@ -94,7 +95,7 @@ type standaloneConfig struct {
 type StandaloneOption func(*standaloneConfig) error
 
 func defaultStandaloneConfig(result *RenderResult) (standaloneConfig, error) {
-	tokens, err := defaultThemeTokens(ThemeGoshtoso)
+	tokens, err := defaultThemeTokens(ThemeModern)
 	if err != nil {
 		return standaloneConfig{}, err
 	}
@@ -103,7 +104,7 @@ func defaultStandaloneConfig(result *RenderResult) (standaloneConfig, error) {
 		title = result.Metadata().Title
 	}
 	return standaloneConfig{
-		lang: "en", title: title, theme: ThemeGoshtoso, tokens: tokens,
+		lang: "en", title: title, theme: ThemeModern, tokens: tokens,
 		assetOverrides: make(map[string]AssetRef),
 	}, nil
 }
@@ -227,6 +228,10 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	if err := selection.Validate(); err != nil {
 		return nil, err
 	}
+	goshtosoCSS, err := goshtosoassets.StylesCSS()
+	if err != nil {
+		return nil, fmt.Errorf("margo: read embedded Goshtoso stylesheet: %w", err)
+	}
 	asset, ok := config.assetOverrides["document.css"]
 	if !ok {
 		asset, err = EmbeddedAsset("document.css")
@@ -241,7 +246,8 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	hash := sha256.Sum256(append([]byte("margo/standalone-document/v1\n"), content...))
 	fingerprint := hex.EncodeToString(hash[:])
 	css := applyThemeTokens(string(asset.Content), config.tokens)
-	return standaloneDocument(config.lang, config.title, config.description, fingerprint, templ.Raw("<style>"+css+"</style>"), config.brand, templ.Raw(string(content))), nil
+	styles := templ.Raw(`<style data-margo-stylesheet="goshtoso">` + string(goshtosoCSS) + `</style><style data-margo-stylesheet="document">` + css + `</style>`)
+	return standaloneDocument(config.lang, config.theme, config.title, config.description, fingerprint, styles, config.brand, templ.Raw(string(content))), nil
 }
 
 // Standalone is a short alias for RenderStandalone.
@@ -266,5 +272,5 @@ func applyThemeTokens(css string, tokens map[DocumentToken]string) string {
 			declarations = append(declarations, fmt.Sprintf("%s:%s", token, value))
 		}
 	}
-	return strings.Replace(css, "/* MARGO_THEME_TOKENS */", strings.Join(declarations, ";"), 1)
+	return strings.Replace(css, "/* MARGO_THEME_TOKENS */", strings.Join(declarations, ";")+";", 1)
 }

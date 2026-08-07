@@ -1,8 +1,8 @@
 package margo
 
-templ standaloneDocument(lang, title, description, fingerprint string, styles templ.Component, brand Brand, content templ.Component) {
+templ standaloneDocument(lang string, theme ThemeName, title, description, fingerprint string, styles templ.Component, brand Brand, content templ.Component) {
 	<!doctype html>
-	<html lang={ lang }>
+	<html lang={ lang } data-theme={ string(theme) }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

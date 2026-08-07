@@ -3,7 +3,10 @@ package margo
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
+
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 )
 
 func TestHeadOwnerSelectionIsFrozenBeforeSocialTask(t *testing.T) {
@@ -37,7 +40,7 @@ func TestHeadOwnerSelectionRejectsUnknownAndTrailingFields(t *testing.T) {
 
 func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 	result := mustRenderSource(t, "# Standalone\n\ncontent")
-	component, err := RenderStandalone(result, WithPageTitle("Standalone"), WithTheme(ThemeMinimal))
+	component, err := RenderStandalone(result, WithPageTitle("Standalone"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,8 +51,11 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 	html := got.String()
 	for _, want := range []string{
 		"<!doctype html>",
+		`data-theme="modern"`,
 		`data-margo-render-instance="ri-00000000"`,
 		`class="goshtoso-document"`,
+		`data-margo-stylesheet="goshtoso"`,
+		`data-margo-stylesheet="document"`,
 		"Standalone",
 		"--document-font-body",
 	} {
@@ -57,7 +63,56 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 			t.Fatalf("standalone HTML missing %q:\n%s", want, html)
 		}
 	}
-	if bytes.Contains(got.Bytes(), []byte("http://")) || bytes.Contains(got.Bytes(), []byte("https://")) {
-		t.Fatalf("offline standalone unexpectedly contains network URLs:\n%s", html)
+	for _, forbidden := range []string{`<link `, `<script src=`, `url(http://`, `url(https://`} {
+		if strings.Contains(html, forbidden) {
+			t.Fatalf("offline standalone unexpectedly contains %q:\n%s", forbidden, html)
+		}
+	}
+}
+
+func TestStandaloneEmbedsExactGoshtosoCSSBeforeDocumentAdjustments(t *testing.T) {
+	result := mustRenderSource(t, "# Styled")
+	component, err := RenderStandalone(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got bytes.Buffer
+	if err := component.Render(context.Background(), &got); err != nil {
+		t.Fatal(err)
+	}
+
+	want, err := goshtosoassets.StylesCSS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := got.String()
+	goshtosoStart := strings.Index(html, `<style data-margo-stylesheet="goshtoso">`)
+	documentStart := strings.Index(html, `<style data-margo-stylesheet="document">`)
+	if goshtosoStart < 0 || documentStart < 0 || goshtosoStart >= documentStart {
+		t.Fatalf("stylesheet order invalid: goshtoso=%d document=%d", goshtosoStart, documentStart)
+	}
+	prefix := `<style data-margo-stylesheet="goshtoso">`
+	cssStart := goshtosoStart + len(prefix)
+	cssEnd := strings.Index(html[cssStart:], `</style>`)
+	if cssEnd < 0 {
+		t.Fatal("Goshtoso stylesheet has no closing style tag")
+	}
+	if gotCSS := html[cssStart : cssStart+cssEnd]; gotCSS != string(want) {
+		t.Fatalf("embedded Goshtoso CSS differs: got %d bytes, want %d", len(gotCSS), len(want))
+	}
+}
+
+func TestStandaloneThemeOverrideChangesDocumentAttribute(t *testing.T) {
+	result := mustRenderSource(t, "# Minimal")
+	component, err := RenderStandalone(result, WithStandaloneTheme(ThemeMinimal))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got bytes.Buffer
+	if err := component.Render(context.Background(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got.String(), `data-theme="minimal"`) {
+		t.Fatalf("minimal theme attribute missing: %s", got.String())
 	}
 }

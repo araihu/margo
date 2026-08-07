@@ -10,6 +10,7 @@ import (
 type ThemeName string
 
 const (
+	ThemeModern   = "modern"
 	ThemeGoshtoso = "goshtoso"
 	ThemeMinimal  = "minimal"
 )
@@ -49,23 +50,23 @@ func ValidateDocumentToken(token DocumentToken, value string) error {
 
 func defaultThemeTokens(theme ThemeName) (map[DocumentToken]string, error) {
 	switch theme {
-	case "", ThemeGoshtoso:
+	case "", ThemeModern, ThemeGoshtoso:
 		return map[DocumentToken]string{
-			TokenFontBody:       "ui-sans-serif, system-ui, sans-serif",
-			TokenFontHeading:    "ui-sans-serif, system-ui, sans-serif",
+			TokenFontBody:       "var(--font-body)",
+			TokenFontHeading:    "var(--font-title)",
 			TokenContentWidth:   "72rem",
 			TokenLineHeight:     "1.6",
 			TokenCodeTheme:      "chroma",
-			TokenPageBackground: "#ffffff",
+			TokenPageBackground: "var(--color-surface)",
 		}, nil
 	case ThemeMinimal:
 		return map[DocumentToken]string{
-			TokenFontBody:       "system-ui, sans-serif",
-			TokenFontHeading:    "system-ui, sans-serif",
+			TokenFontBody:       "var(--font-body)",
+			TokenFontHeading:    "var(--font-title)",
 			TokenContentWidth:   "64rem",
 			TokenLineHeight:     "1.55",
 			TokenCodeTheme:      "chroma",
-			TokenPageBackground: "#ffffff",
+			TokenPageBackground: "var(--color-surface)",
 		}, nil
 	default:
 		return nil, fmt.Errorf("margo: unknown theme %q", theme)

@@ -93,7 +93,7 @@ func TestPrivateStandaloneOmitsSocialURLs(t *testing.T) {
 	if err := component.Render(context.Background(), &got); err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{"rel=\"canonical\"", "og:", "twitter:", "https://"} {
+	for _, marker := range []string{"rel=\"canonical\"", "og:", "twitter:", `href="https://`, `content="https://`} {
 		if strings.Contains(got.String(), marker) {
 			t.Fatalf("private HTML contains social marker %q", marker)
 		}

@@ -2,7 +2,7 @@
 title: Margo full feature set
 description: Human-facing acceptance document for Margo Markdown, HTML, PDF, charts, decks, and runtime composition.
 goshtoso:
-  theme: goshtoso
+  theme: modern
   security:
     rawHTML: deny
     mermaid: deny

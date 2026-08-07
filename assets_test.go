@@ -23,6 +23,26 @@ func TestLibraryCSSNeverTargetsHostRoot(t *testing.T) {
 	}
 }
 
+func TestDocumentCSSRestoresSemanticMarkdownRhythmAfterGoshtosoPreflight(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte("font-size: var(--text-4xl)"),
+		[]byte("max-width: 75ch"),
+		[]byte("list-style-type: disc"),
+		[]byte("color: var(--color-primary)"),
+		[]byte("border-inline-start: 1px solid var(--color-outline)"),
+		[]byte(".goshtoso-document [x-cloak]"),
+		[]byte(".goshtoso-document:is(.dark *)"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document stylesheet missing semantic rhythm rule %q", want)
+		}
+	}
+}
+
 func TestAssetOverrideRejectsInvalidPathWithoutFallback(t *testing.T) {
 	result := mustRenderSource(t, "# override")
 	_, err := RenderStandalone(result, WithAssetOverride("document.css", AssetRef{Path: "../outside.css"}))
