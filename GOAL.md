@@ -30,11 +30,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `ea73b12e9d16e09dd9a78ecb5d248986eb219935`,
-  tree `1166139ab2667b520a0e90cf1810f3ca70a33da2`, enviado para
-  `origin/impl/v0.0.1-core`. Fontes Mermaid agora usam disclosure semântico
-  aberto por padrão, continuam recolhíveis no HTML e imprimem a fonte completa
-  com wrapping e `break-inside: avoid`. M0-M4 ainda são
+- Último checkpoint funcional: `c38b3f77e05d0e177475764deb3baebb8608316e`,
+  tree `fe41b94dc7b1bdb2a30f1277bebfa76a1dc0e4a1`, enviado para
+  `origin/impl/v0.0.1-core`. Código inline agora combina tokens Goshtoso
+  `surface-alt`/`outline` em OKLCH, com borda e padding temáticos para ficar
+  distinto no `modern` sem assumir aparência de controle. M0-M4 ainda são
   candidatos: faltam os runners restantes, I1b, validação M5, executor M6,
   readiness M7 e revisão independente; o preview otimista não antecipa essa
   aceitação.
@@ -684,6 +684,33 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `git diff --check` passaram. Commit funcional
   `ea73b12e9d16e09dd9a78ecb5d248986eb219935`, tree
   `1166139ab2667b520a0e90cf1810f3ca70a33da2`, enviado ao origin.
+- Feedback visual da página 4 mostrou que o fundo `surface-alt` isolado era
+  quase indistinguível do papel no tema `modern`. A primeira variante com
+  `outline-strong` resolveu contraste, mas foi rejeitada na inspeção por fazer
+  os literais parecerem campos de formulário. O override final permanece
+  escopado a `.goshtoso-document :not(pre) > code`: mistura 50/50 os tokens
+  `surface-alt` e `outline` em OKLCH, usa borda `outline`, foreground forte e
+  2 px de padding vertical; dark mode usa os pares `*-dark`. Não há cor fixa ou
+  substituição do CSS base Goshtoso.
+- `2026-08-07T04:47:55-03:00`: o Chromium pinado mediu os dez literais inline
+  no HTML e no perfil de impressão. No `modern`, texto/fundo ficou 14,47:1,
+  fundo/papel 1,24:1 e borda/papel 1,48:1, com borda sólida de 1 px e padding
+  vertical de 2 px. As amostras larga e estreita foram inspecionadas, inclusive
+  um literal quebrado entre linhas; as 16 páginas do PDF também foram
+  rasterizadas e revisadas. Zero request remoto/bloqueado e zero erro de
+  console.
+- Artefatos regenerados: HTML 389.787 bytes, SHA-256
+  `2d851630ff13b305bcc8283f546a93029e59579a253c4db4bf2a4274e68f3054`;
+  PDF A4/PDF 1.4 de 16 páginas, 440.985 bytes, SHA-256
+  `df382db2e3e4ffd129c285054d001279de8bb0da0fda6b3d90073ff2afc57d89`;
+  evidência browser 14.055 bytes, SHA-256
+  `baca422a8ff9b22fc479215538215cf68269c67129b16d7f153f768fdefaceff`;
+  texto extraído 22.847 bytes, SHA-256
+  `11916b19bf4ab4ef14e6a394100b9004759b410927dc66259e032a23ecff1cc1`.
+  `go test ./...`, `go vet ./...`, race focado, hashes imutáveis de
+  `go.mod`/`go.sum` e `git diff --check` passaram. Commit funcional
+  `c38b3f77e05d0e177475764deb3baebb8608316e`, tree
+  `fe41b94dc7b1bdb2a30f1277bebfa76a1dc0e4a1`, enviado ao origin.
 
 ## Decisões e limites
 
