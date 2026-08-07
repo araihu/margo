@@ -264,6 +264,30 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `c0f58dda43471246d3eabb50b6a9ef267acef072bee1d12e48ed782fa489a427` e
   `assets/js/goshtoso.min.js`
   `d1fc46d93b7100a3a0772cc671874c6bb7567eacd4057931fe6caac41d4c9e39`.
+- T5 foi executado em `/private/tmp/gs-margo-v001-t5`, derivada do T4
+  `3e12fc6326b03c507cd4d96c506df68d9728b0a6`. O RED de impressão foi
+  reproduzido com o fixture DOM antes da restauração; o GREEN/REFACTOR passou
+  `beforeprint` para a ordem de origem e `afterprint` para a ordem ativa,
+  preservando o botão focado e `aria-sort`. A cobertura E2E injeta uma tabela
+  client-only na página real, prova ordenação natural, ciclo reverso,
+  impressão e ausência de requests de sorting. `templ generate`, `just js`,
+  `just js-check`, `skillgen`, root tests, integração current-source,
+  deployability pinned e o E2E focado passaram com o workspace temporário
+  explícito `go.work` quando necessário.
+- T5 commit externo: `dafb16aefdffd424d99e46d40fdec40de66509c7`, tree
+  `9b6849fec23041aa602f811aaa90ab4b5910a3eb`; checkpoint staged somente os
+  seis caminhos T5 e passou manifestos name-status/summary/raw, modo e
+  `git diff --cached --check`. Hashes finais:
+  `assets/js/src/components/table.js`
+  `6b1532f48fb55e26aec87091af88124f3d93c15fe51ec94b1bf97a20c4f31461`,
+  `assets/js/src/components/table_test.go`
+  `bc8fde103200ce3d5e0ddf5fae5e502393275801c83857648e43dd3bdbb42847`,
+  `assets/js/goshtoso.min.js`
+  `ef42642a39b9d843761610231d9b1a77acf505155e811611c8d683a32b63736b`,
+  `site/tests/e2e/table_client_sort_test.go`
+  `ba6a37874086be664cff2bfeafde0ae40301da4e90b916bcb0b2d48865595eab`, e as
+  duas referências geradas têm SHA-256
+  `2e94489a5fbbbf6e1c30a44c7e029baa548ca6c5979c82ebaf06327aee544d4b`.
 
 ## Decisões e limites
 
@@ -293,5 +317,11 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   (os valores continuam `0eb36e99...` e `1c7ae9b8...`); esta divergência do
   texto do plano precisa ser reconciliada antes da aceitação independente do
   gate, sem alterar os módulos ou inventar uma identidade.
+- Atenção de invocação: o comando E2E literal do plano, executado da raiz com
+  `GOWORK=off`, não alcança o módulo separado `site/`; a prova T5 usou o
+  `go.work` temporário do checkout e `-tags='e2e table'`, mantendo
+  `GOWORK=off GOFLAGS=-mod=readonly` nos gates root/site que não dependem do
+  workspace. O erro da forma literal é um limite de invocação do plano, não
+  uma falha do runtime T5.
 - Registrar aqui qualquer bloqueio reproduzível antes de alterar a ordem ou o
   contrato do plano.
