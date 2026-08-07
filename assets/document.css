@@ -222,6 +222,14 @@
   .goshtoso-document [x-show] {
     display: none !important;
   }
+  .goshtoso-document .margo-mermaid__source {
+    break-inside: avoid;
+  }
+  .goshtoso-document .margo-mermaid__source pre {
+    font-size: var(--text-sm);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
 }
 
 @layer brand {

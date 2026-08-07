@@ -63,6 +63,24 @@ func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestDocumentCSSKeepsExpandedMermaidSourceReadableWhenPrinted(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".goshtoso-document .margo-mermaid__source {\n    break-inside: avoid;"),
+		[]byte(".goshtoso-document .margo-mermaid__source pre"),
+		[]byte("font-size: var(--text-sm)"),
+		[]byte("white-space: pre-wrap"),
+		[]byte("overflow-wrap: anywhere"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document stylesheet missing printed Mermaid source rule %q", want)
+		}
+	}
+}
+
 func TestAssetOverrideRejectsInvalidPathWithoutFallback(t *testing.T) {
 	result := mustRenderSource(t, "# override")
 	_, err := RenderStandalone(result, WithAssetOverride("document.css", AssetRef{Path: "../outside.css"}))
