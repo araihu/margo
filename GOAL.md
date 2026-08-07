@@ -591,6 +591,27 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   gate foram removidos depois da prova. Commit funcional
   `0853bf932e264f33f06f373870d376edd0f96cfc`, tree
   `e39bfb79f6c95d96f1d4203d0039ad94abfeb053`, enviado ao origin.
+- Feedback visual do PDF otimista na página 3 identificou o grande `M` como o
+  `Brand.Backdrop`: em impressão ele ainda usava `inset-block-start: 35%` e o
+  posicionamento inline direito herdado, deslocando o centro para a direita.
+  `TestStandalonePrintBackdropUsesPageCenter` preserva o watermark textual no
+  canto e exige backdrop fixo em 50%/50% com tradução de -50% nos dois eixos.
+  Gates passaram: `go test ./...`, `go vet ./...`, race focado no benchmark e
+  standalone, `git diff --check`. Commit funcional
+  `0eee6ed0d49361fbc1b70572866d53089e5430e3`, tree
+  `7578d57d8fdab46a44dbeeef9b36315e6edd673b`, enviado ao origin.
+- Artefatos humanos regenerados após a correção: HTML
+  `output/html/margo-v0.0.1-optimistic.html`, 389.094 bytes, SHA-256
+  `56605f6fef46dcb6faf78945125c369646fa8ea45190464564c6eb4b14bd0e86`;
+  PDF A4 de 14 páginas `output/pdf/margo-v0.0.1-optimistic.pdf`, 427.346
+  bytes, SHA-256
+  `4a2a42a877ded8aa51597a138789a16755087168965f49f7c096655429ac9046`.
+  Chromium pinado `136.0.7103.25` mediu backdrop 384x384 no viewport A4,
+  centro `(397, 561.5)` exatamente igual ao centro do viewport, sem request
+  remoto ou erro de console. Todas as 14 páginas foram rasterizadas em contact
+  sheet; página 3 foi inspecionada em 1190x1684 e o `M` ficou centralizado, sem
+  clipping. Texto extraído tem SHA-256
+  `b735c507c50206b6f932dd9099357319b866a0d219415cb9388a8ca1e64e24d6`.
 
 ## Decisões e limites
 
