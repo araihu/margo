@@ -661,12 +661,25 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   o path owned `internal/mermaid/normalization_test.go`; M4 não criou nem
   alterou `internal/svgprofile`. A revisão M4 precisa aceitar essa correção de
   invocação ou corrigir o plano antes da promoção.
-- O CSS base real de Mermaid 11.16.1 emite `@keyframes`, `:root`, custom
-  property, seletores por atributo e `filter: drop-shadow(...)` mesmo nos
-  fixtures estritos. O design rejeita at-rules, custom properties e seletores
-  por atributo. M4/M5 precisam definir e provar remoção determinística de regras
-  mortas antes da validação, ou o contrato deve ser corrigido; M1 não ampliou o
-  perfil automaticamente a partir dessa observação.
+- M5 possui contradição reproduzida no corpus pinado. Auditoria dos oito
+  fixtures Mermaid 11.16.1, Chromium `136.0.7103.25`, zero request não local:
+  444 style rules, 118 vivas, 326 mortas e 16 `@keyframes` (todos sem animação
+  viva). Flowchart não tem seletor/propriedade proibida viva. Cada um dos quatro
+  sequence outputs tem três seletores vivos `[id$="-arrowhead"]`,
+  `[id$="-crosshead"]` e `[id$="-sequencenumber"]`; conditional/style-heavy
+  também têm `filter: none` vivo em `.labelBox`. O normalizador M4 deve rejeitar
+  at-rules e seletores de atributo antes de M5, enquanto o design exige que o
+  mesmo corpus positivo normalize/valide. Evidências locais:
+  `/tmp/margo-mermaid-audit/render-audit.json`, SHA-256
+  `d051d53d2dd7a47e48ff2956d43dd915f933b94b08605e3f219f515d0bd227c1`, e
+  `live-css-audit.json`, SHA-256
+  `55c4e5a85b528a159da8b68a2265e31f54a2828564b058571d29b68428859294`.
+  Correção recomendada requer decisão de contrato: pré-normalização fechada
+  que remove somente regras sem match/at-rules não referenciadas, expande apenas
+  os três padrões upstream sequence para IDs normalizados exatos e remove o
+  no-op `filter: none`; qualquer outra at-rule, atributo selector ou `filter`
+  continua falhando. Isso altera explicitamente o design/perfil M1/M4 e não
+  pode ser aplicado silenciosamente por M5.
 - Bytes upstream exatos de alguns chunks Mermaid contêm whitespace terminal,
   inclusive dentro de template literals de shader. `muamba verify --strict`
   prova esses bytes; `git diff --check` foi aplicado a todos os arquivos M1
