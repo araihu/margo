@@ -30,13 +30,14 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último commit funcional: `e9a6abd3f37167272d0f3b499ba7d873c96a9bb6`,
-  tree `394b10c1138f4088d16ffe8ad5e6986b2f6b64aa`; ele define o protocolo
-  `margo-runtime/v1` em Go e JavaScript, validadores, allocator, registry,
-  máquina de estados e projeção canônica sem `ExecutionID`. O commit foi
-  enviado para `origin/impl/v0.0.1-core`. M0-M3 ainda são candidatos: faltam
-  os runners restantes, I1b, normalização/validação M4-M5, executor M6,
-  readiness M7 e revisão independente.
+- Último checkpoint funcional: `cec4a4954325552c2fb4387a2848721a63d165f1`,
+  tree `1c690453dbce004044c0fb48d39a5361f6cd7d31`, enviado para
+  `origin/impl/v0.0.1-core`. Ele fecha o benchmark Markdown otimista exaustivo,
+  shell standalone com tema modern/Goshtoso, TOC e furniture de documento,
+  além do preview HTML/PDF humano com três diagramas Mermaid reais. M0-M3
+  ainda são candidatos: faltam os runners restantes, I1b,
+  normalização/validação M4-M5, executor M6, readiness M7 e revisão
+  independente; o preview não antecipa essa aceitação.
 
 ## Ordem de execução vinculante
 
@@ -542,12 +543,42 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   composição longa/paginação, TOC, cabeçalho, rodapé, logo/ícone, watermark,
   stamps e backdrops. O próximo checkpoint deve testar a presença e a saída de
   cada família antes de regenerar HTML/PDF.
+- Benchmark exaustivo implementado e enviado em três checkpoints:
+  `1a0e16f` adicionou o corpus de 434 linhas/14.710 bytes e o teste de matriz
+  semântica; `08c2d7c` compôs TOC, logo, backdrop, stamps, watermark e shell
+  standalone; `cec4a49` corrigiu a família Mermaid incompatível, glifo sem
+  cobertura e paginação do TOC. O renderer agora prova `del`, task checkboxes,
+  footnotes/backlinks, título de imagem e três placements Mermaid, preservando
+  o CSS Goshtoso como base e `document.css`/`standalone.css` apenas para
+  composição Margo.
+- Preview final regenerado com Chromium pinado `136.0.7103.25`: HTML
+  `output/html/margo-v0.0.1-optimistic.html`, 388.969 bytes, SHA-256
+  `2ac835345ad60748ddab0f416cb6db9e8d0cc07797286f49d205ff69dca193d7`;
+  PDF A4 `output/pdf/margo-v0.0.1-optimistic.pdf`, PDF 1.4, 14 páginas,
+  416.908 bytes, SHA-256
+  `81b320222362f1167f559f5387f8ff78ceb24be9056b0f9e4d395bc13faabaa7`.
+  Todas as 14 páginas foram renderizadas e inspecionadas; header/logo,
+  footer, `Page N / 14`, TOC, imagens vetorial/raster, listas, tabelas, code,
+  footnotes, watermark/backdrop e três SVGs Mermaid estão legíveis e sem
+  clipping. O report browser registra três diagramas, 32 requests locais,
+  zero request bloqueado e zero console error; SHA-256 do report
+  `a1bdf027f0ffb971249b87ad9e71ee9ac09e91514c87ed1dab5e6a78653930da`.
+- A tentativa de usar `stateDiagram-v2` falhou fechada porque a closure ESM M1
+  deliberadamente suporta apenas `flowchart` e `sequence`; o benchmark foi
+  corrigido para um segundo flowchart de readiness, sem download, fallback ou
+  falsa alegação de suporte. A transformação browser do preview insere os SVGs
+  reais, mas não substitui a futura aceitação M4-M7.
+- Gates finais do checkpoint passaram: foco benchmark/standalone, `go test
+  ./...`, `go vet ./...`, `go test -race ./...`, browser pinado com network
+  denial, `pdfinfo`, extração de furniture em páginas alternadas e `git diff
+  --check`.
 
 ## Decisões e limites
 
 - Não editar o worktree R17 aceito nem qualquer snapshot rejeitado.
-- Não fazer push, PR, merge, tag, release, publicação, deploy ou limpeza de
-  worktrees sem autorização explícita.
+- Push frequente do branch `impl/v0.0.1-core` foi explicitamente autorizado e
+  deve acompanhar checkpoints verdes. PR, merge, tag, release, publicação,
+  deploy e limpeza de worktrees continuam proibidos sem autorização explícita.
 - Manter um escritor por caminho; C0 é o único escritor dos módulos root.
 - Toda tarefa usa o RED/GREEN/REFACTOR do plano, o gate de paths e o checkpoint
   de commit correspondente.
