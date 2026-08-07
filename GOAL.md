@@ -402,6 +402,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   matriz visual passou em 390/1440 px, temas modern/goshtoso/minimal e modos
   claro/escuro, sem overflow de página, erros de console ou requests remotos.
   O tamanho ainda é Letter; A4 pertence ao pipeline PDF/frontmatter posterior.
+- Lane de suporte Goshtoso reconhecida na task
+  `019fda89-cab7-7ea2-871e-4c5a1673bbb1`. Ela pode ser acionada para pesquisa
+  de comportamento do repositório, dúvidas de integração/API ou mudanças
+  Goshtoso estritamente escopadas. Nenhum trabalho foi delegado neste
+  checkpoint. Qualquer mudança de código nessa lane deve usar worktree novo de
+  `origin/main`, executar geração/testes relevantes e devolver branch, arquivos
+  e gates exatos. O recebimento foi confirmado diretamente para a task.
 
 ## Decisões e limites
 
