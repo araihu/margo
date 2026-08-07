@@ -1036,6 +1036,30 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `351767e14440c29e98c334480ed2ca7c3488b294c8a29191697fe747f35222f9`, dark
   PDF A4/PDF 1.4 de 16 páginas, 434.622 bytes SHA-256
   `3708427a5df06701e3266ee8d7868a18c4bddf2abc21a00706f8abedcc5dda48`.
+- `2026-08-07T14:00:00-03:00`: revisão humana encontrou lista começando no
+  fim de página. O RED `TestStandalonePrintBlocksAvoidInternalFragmentation`
+  falhou antes do contrato; o GREEN adicionou no `document.css` uma política
+  print explícita: headings usam `break-after: avoid-page`; listas, citações,
+  definições, disclosure, figuras, tabelas, imagens, pre/code e wrappers
+  Goshtoso de tabela/código/Mermaid usam `break-inside: avoid-page`. O escopo é
+  somente `article.margo-document`; TOC permanece `break-inside: auto` e
+  multicoluna.
+- O harness ganhou `@pagination`, que verifica os estilos computados de todos
+  esses blocos e confirma TOC fragmentável. O gate direcionado passou 2/2
+  (contraste light/dark e paginação), Chromium `136.0.7103.25`, revision
+  `1169`, rede bloqueada. `go test ./... -count=1`, `go vet ./...` e
+  `git diff --check` passaram. A suíte completa passou 21/22; o único erro é
+  o fixture independente de assinatura GPG (`signature-contract`, exit 2).
+  Commits enviados: `b61dc9b` (CSS/test unitário) e `9ac3e18` (teste
+  Playwright), branch `origin/impl/v0.0.1-core`.
+- Artefatos regenerados e inspecionados em light/dark: HTML light 331.795
+  bytes SHA-256 `cb6d1d45f228caa11818c1e50ac84205bbbca668c6ca3ffc371c00c827b786b3`,
+  HTML dark 331.798 bytes SHA-256
+  `ed687d3368d3738efb97d978bc88ed9ae105757d70b6d04ccc9ecc9a55472348`, PDF
+  light A4/PDF 1.4 de 17 páginas, 425.934 bytes, SHA-256
+  `909dae7bf2314c7a1202f1d33a9b59ed7716e549ce7b98e5103b5bccdb351f3f`, PDF
+  dark A4/PDF 1.4 de 17 páginas, 437.874 bytes, SHA-256
+  `ebe381c46bc5b38ce6c9572551141466560e6c2c58cc3e700c52f1df0aa1d567`.
 
 ## Decisões e limites
 
