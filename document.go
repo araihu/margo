@@ -14,6 +14,7 @@ type Document struct {
 	diagnostics         []Diagnostic
 	parsed              any
 	effectivePolicy     EffectivePolicy
+	plan                renderPlan
 }
 
 func (d *Document) sourceBytesForTest() []byte {

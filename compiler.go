@@ -22,6 +22,7 @@ type Compiler struct {
 	mu          sync.RWMutex
 	config      compilerConfig
 	fingerprint CompilerConfigFingerprint
+	registry    extensionRegistry
 }
 
 type sourceNormalization struct {
@@ -44,7 +45,11 @@ func New(options ...Option) *Compiler {
 		panic(err)
 	}
 	config = config.clone()
-	return &Compiler{config: config, fingerprint: compilerConfigFingerprint(config.values)}
+	return &Compiler{
+		config:      config,
+		fingerprint: compilerConfigFingerprint(config.values),
+		registry:    registryFromConfig(config),
+	}
 }
 
 // Compile snapshots source and returns an opaque immutable document.
@@ -58,6 +63,7 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 	c.mu.RLock()
 	config := c.config.clone()
 	fingerprint := c.fingerprint
+	registry := c.registry.clone()
 	c.mu.RUnlock()
 	snapshot := source.clone()
 	normalized, err := normalizeSource(snapshot)
@@ -71,6 +77,10 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 	}
 	sourceHash := sha256.Sum256(snapshot.Content)
 	docFingerprint := documentFingerprint(snapshot, fingerprint, config.values)
+	plan, err := buildRenderPlan(snapshot, normalized, registry, fingerprint, docFingerprint, effectivePolicy)
+	if err != nil {
+		return nil, err
+	}
 	return &Document{
 		source:              snapshot,
 		sourceHash:          sourceHash,
@@ -80,6 +90,7 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 		diagnostics:         cloneDiagnostics(normalized.diagnostics),
 		parsed:              normalized.parsed,
 		effectivePolicy:     effectivePolicy,
+		plan:                plan,
 	}, nil
 }
 
@@ -98,14 +109,21 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 	c.mu.RLock()
 	fingerprint := c.fingerprint
 	c.mu.RUnlock()
-	if fingerprint != document.compilerFingerprint {
+	if fingerprint != document.compilerFingerprint || fingerprint != document.plan.compilerFingerprint {
 		return nil, ErrCompilerDocumentMismatch
 	}
 	if _, err := applyRenderOptions(options); err != nil {
 		return nil, err
 	}
+	bytes, err := executeRenderPlan(ctx, document.plan.clone())
+	if err != nil {
+		return nil, err
+	}
 	return &RenderResult{
-		content:     templ.ComponentFunc(func(context.Context, io.Writer) error { return nil }),
+		content: templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
+			_, err := out.Write(bytes)
+			return err
+		}),
 		metadata:    document.Metadata(),
 		assets:      document.Assets(),
 		diagnostics: document.Diagnostics(),
