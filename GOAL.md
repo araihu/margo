@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `35dd641b6dfb41b2f39e3a32d1e70fa5d72c4705`,
-  tree `0297faf6678fd25565cd61cdacb25b79a16270f9`.
+- HEAD atual da implementação: `854e3e88cf9571681669f03140f1e08b17c161de`,
+  tree `bff6cb22773a2e5074b76e9f67e5881a38d4db11`.
 
 ## Ordem de execução vinculante
 
@@ -224,6 +224,15 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `d1e39f28b4fe1159eafdb0ffa8d13a169345ff5a`; os hashes de `go.mod`/`go.sum`
   permaneceram `ef79634c...`/`144bd7e6...`. O checkpoint contém somente os
   quatro caminhos T1 e não toca templates ou JavaScript gerados.
+- T2 foi executado na worktree serial `/private/tmp/gs-margo-v001-t2`, derivada
+  do T1 `243212745e09f920762feba6454927d4d3858351`. O RED mostrou que `none`
+  ainda emitia `hx-get`; a correção limitou o header sortable aos modos `auto`
+  e `server`, regenerou `components/table/table_templ.go` com o templ pinado e
+  manteve o servidor legado intacto. O foco T2 e a suíte completa de
+  `components/table` passaram sob `GOWORK=off GOFLAGS=-mod=readonly`.
+  T2 commit externo: `bccff2fdf35ddcac975181ef9c2f083c866c4147`, tree
+  `8644cecc9fabd69823db6d0b3c3f55b40ab40d31`; checkpoint contém somente
+  `table.templ`, `table_templ.go` e `sort_render_test.go`.
 
 ## Decisões e limites
 
