@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `d41fe882a0e944efd4a8cd3ab66e3c8e59b0c222`,
-  tree `48aa14bea58be57be213adde8f9baf0daa758677`.
+- HEAD atual da implementação: `11d3d193b40d6810a77edf88f89d50a5eeffc43f`,
+  tree `015d2dd2da617e4b1c344c914498a2fe316a06e5`.
 
 ## Ordem de execução vinculante
 
@@ -171,6 +171,18 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `48aa14bea58be57be213adde8f9baf0daa758677`. O checkpoint staged apenas os
   12 caminhos C6 efetivamente existentes e passou `git diff --cached --check`,
   manifestos name-status/summary/raw e filtro de paths proibidos.
+- C7 RED confirmou a ausência de autoridade, metadata social e verificador de
+  preview. GREEN/REFACTOR passaram geração templ, suíte completa, race focado e
+  a prova de PNG `1280x640`, 28.740 bytes, SHA-256
+  `9d570d7851a54e2024da10b3e48cbdd19f544c12f06ca4e372b426f0609b2974`.
+  O modo público emite exatamente um conjunto inicial de tags; o modo privado
+  rejeita/omite URLs sociais. `AuthorityRecord` usa JSON fechado, digest
+  canônico sem campo `recordDigest`, origem HTTPS e transporte sem redirects.
+- C7 preserva a seleção C6 `margo/socialMetadataTags` sem editar `standalone.go`
+  ou qualquer módulo root. Hashes C0 continuaram estáveis antes/depois de
+  templ/testes. C7 commit local: `11d3d193b40d6810a77edf88f89d50a5eeffc43f`,
+  tree `015d2dd2da617e4b1c344c914498a2fe316a06e5`; checkpoint com 14 paths
+  exatos passou os manifestos staged e `git diff --cached --check`.
 
 ## Decisões e limites
 
