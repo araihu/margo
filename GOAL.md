@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `109f6035f46a50e6e0aa3f8066b0f592d3315c07`,
-  tree `0e30b9cb9c8f9d482f7dc19798102fae57fd95b6`.
+- HEAD atual da implementação: `6e0fc7ee06fdd641f2141b31440dbb6c9da7e40a`,
+  tree `c916ad92bee97edd6e665c0bd12e907e1e18c50c`.
 
 ## Ordem de execução vinculante
 
@@ -296,6 +296,20 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   autorizado do Goshtoso publique a release/tag imutável e entregue o recibo
   concreto (moduleVersion/tag, releaseCommit/tree, artefatos, CI, owner e
   transporte). Nenhuma identidade, tag ou release será inventada pelo Margo.
+
+### 2026-08-07
+
+- Auditoria de continuidade: o worktree Margo `impl/v0.0.1-core` e o worktree
+  T6 `codex/margo-v001-t6` estão limpos; não existe `release/table-handoff.json`
+  nem diretório `internal/releasehandoff` no predecessor externo. O RED do T6
+  permanece reproduzível e a fronteira externa continua sem mutação.
+- Artefatos HTML verificados e apresentados ao usuário: o preview semântico em
+  `/tmp/margo-semantic-preview/margo-semantic-preview.html` tem 3.225 bytes e
+  SHA-256 `3ae8855b93dbae1d98c21b1ca5cb11b1d965316237fddf025fb528fe8772d155`;
+  o preview de contrato em
+  `/tmp/margo-contract-preview/margo-contract-preview.html` tem 772 bytes e
+  SHA-256 `eb733827d0db7af91e3710d0e3b2abd78be517b2b6593830dfd720f73205e38f`.
+  Nenhum PDF foi produzido nesta etapa; isso não substitui o gate P1-P7.
 
 ## Decisões e limites
 
