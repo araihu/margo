@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `fe7c77956700c2fea48ca4b24a40d176be173de2`,
-  tree `af706f547f0edc25ac1ebc79a178dece93f40f66`.
+- HEAD atual da implementação: `35dd641b6dfb41b2f39e3a32d1e70fa5d72c4705`,
+  tree `0297faf6678fd25565cd61cdacb25b79a16270f9`.
 
 ## Ordem de execução vinculante
 
@@ -212,6 +212,18 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   SHA-256 `b1c9775a3fbdbb6d9704416fae3292650ebec2ab38cd574e8165fea4eb450642`.
   O T0 checkpoint staged somente `go.mod`, `go.sum` e
   `tools/table-toolchain.lock`; a worktree permanece preservada para revisão.
+- T1 foi executado numa segunda worktree externa
+  `/private/tmp/gs-margo-v001-t1`, derivada do T0 aceito local
+  `fe63b98b673e9e17bff026de6b8ef9010b072957`. O RED de teste foi inconclusivo
+  porque o checkout ainda não tinha os testes/símbolos novos e o filtro não
+  encontrou testes; a implementação então adicionou `SortModeAuto|None|Server|Client`,
+  `Cell.SortValue`, resolução matricial, validação fail-closed e wrappers de
+  render que validam antes do primeiro byte. O foco T1 e a suíte completa de
+  `components/table` passaram sob `GOWORK=off GOFLAGS=-mod=readonly`.
+  T1 commit externo: `243212745e09f920762feba6454927d4d3858351`, tree
+  `d1e39f28b4fe1159eafdb0ffa8d13a169345ff5a`; os hashes de `go.mod`/`go.sum`
+  permaneceram `ef79634c...`/`144bd7e6...`. O checkpoint contém somente os
+  quatro caminhos T1 e não toca templates ou JavaScript gerados.
 
 ## Decisões e limites
 
