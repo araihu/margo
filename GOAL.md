@@ -35,7 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `origin/impl/v0.0.1-core`. Código inline agora combina tokens Goshtoso
   `surface-alt`/`outline` em OKLCH, com borda e padding temáticos para ficar
   distinto no `modern` sem assumir aparência de controle. M0-M4 ainda são
-  candidatos: faltam os runners restantes, I1b, validação M5, executor M6,
+  candidatos: `darwin-arm64` e `darwin-x64` já passaram; faltam os runners
+  Linux/Windows, I1b, validação M5, executor M6,
   readiness M7 e revisão independente; o preview otimista não antecipa essa
   aceitação.
 
@@ -463,6 +464,30 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   name-status/summary/raw, `git diff --cached --check`, filtros proibidos e
   hashes C0 intactos. Cache, `node_modules` e resultados foram movidos para
   fora da árvore; são regeneráveis e o checkout voltou a conter só fonte.
+- `2026-08-07T04:54:00-03:00`: o segundo runner M0, `darwin-x64`, foi
+  executado integralmente neste host via Rosetta, não apenas inspecionado. A
+  primeira tentativa falhou fechada antes de `npm ci` porque `/tmp` não é o
+  realpath canônico no macOS; a repetição usou
+  `/private/tmp/margo-m0-darwin-x64-r17`. Node `v26.5.0` reproduziu SHA-256
+  `272dc3281fd8aec27d7306dac185c34bfea8c02563b73a223716ca11240913a1`,
+  npm `11.17.0` reproduziu
+  `8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7`
+  e Chromium revision `1169`/version `136.0.7103.25` reproduziu executável
+  SHA-256
+  `09fe8230222c6045bca032a8a1d29cced4b871b4b1ce20b8e44960bbf5acdf86`.
+  Os cinco testes `@margo-harness` passaram duas vezes, a segunda em 11,9 s,
+  com `network=0`. O manifesto do cache tem 17 arquivos, SHA-256
+  `947b0e1d9542cf89462054ef27d0f0c25bec514883624288c927f3857811c274`
+  e ficou byte-idêntico antes/depois (`cmp` verde). Identidades auxiliares:
+  browser receipt
+  `66a46413425eb1ffa555386ee214247a70370fad6fa04ee85e46527c73726e95`,
+  npm-cache receipt
+  `50294c99b9718c3410ab68e4e15b999586cb4d695cc599e871daa6e7c58f0792`
+  e checked env
+  `65043a57b49f04f5fed8163911706f38e0697db31cfdda2c48d4bc27a78dae9e`.
+  Material regenerável foi preservado fora da árvore em
+  `/private/tmp/margo-m0-darwin-x64-r17/worktree-generated`; o worktree
+  rastreado voltou a ficar limpo antes deste registro.
 - M1 RED falhou primeiro porque `github.com/araihu/margo/assets` e o perfil
   ainda não existiam. O comando literal também referencia
   `./internal/svgprofile`, embora esse pacote e seus arquivos pertençam
@@ -744,8 +769,8 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   (os valores continuam `0eb36e99...` e `1c7ae9b8...`); esta divergência do
   texto do plano precisa ser reconciliada antes da aceitação independente do
   gate, sem alterar os módulos ou inventar uma identidade.
-- M0 candidato, não aceito: somente `darwin-arm64` executou o provisionamento
-  e o browser gate. Os locks cobrem quatro runners, mas `darwin-x64`,
+- M0 candidato, não aceito: `darwin-arm64` e `darwin-x64` executaram o
+  provisionamento e o browser gate. Os locks cobrem quatro runners, mas
   `linux-x64` e `windows-x64` ainda precisam executar o fluxo limpo. Este host
   não possui `pwsh`, portanto os scripts PowerShell foram inspecionados e
   mantidos simétricos, mas não receberam prova runtime local. I1b e revisão
