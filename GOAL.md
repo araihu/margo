@@ -30,11 +30,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `9c0f1541bc23d6a8472ae686053f47a3e2251f7e`,
-  tree `d06f48ebeb5783787e004fb8162a2ee2090b5edd`, enviado para
-  `origin/impl/v0.0.1-core`. Ele aplica ritmo bidirecional de 16 px aos
-  componentes CodeBlock: entre blocos consecutivos e entre um bloco e a prosa
-  seguinte, mantendo `break-inside: avoid` em impressão. M0-M4 ainda são
+- Último checkpoint funcional: `ea73b12e9d16e09dd9a78ecb5d248986eb219935`,
+  tree `1166139ab2667b520a0e90cf1810f3ca70a33da2`, enviado para
+  `origin/impl/v0.0.1-core`. Fontes Mermaid agora usam disclosure semântico
+  aberto por padrão, continuam recolhíveis no HTML e imprimem a fonte completa
+  com wrapping e `break-inside: avoid`. M0-M4 ainda são
   candidatos: faltam os runners restantes, I1b, validação M5, executor M6,
   readiness M7 e revisão independente; o preview otimista não antecipa essa
   aceitação.
@@ -658,6 +658,32 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `pdftotext` e `git diff --check` passaram. Commit funcional
   `9c0f1541bc23d6a8472ae686053f47a3e2251f7e`, tree
   `d06f48ebeb5783787e004fb8162a2ee2090b5edd`, enviado ao origin.
+- Feedback visual da página 10 mostrou `Mermaid source` fechado no PDF. Uma
+  tentativa somente por CSS foi rejeitada porque o elemento nativo `details`
+  fechado continuou ocultando o conteúdo no Chromium. O renderer agora emite
+  `<details open>`: o HTML começa expandido, mas o controle continua podendo
+  recolher e reabrir a fonte. Em impressão, `document.css` reduz a fonte,
+  permite quebra de linha, impede overflow horizontal e mantém resumo e código
+  no mesmo bloco. O browser pinado confirmou três disclosures abertos e
+  visíveis, alternância fechado/aberto no HTML, `white-space: pre-wrap`,
+  `break-inside: avoid` e `scrollWidth == clientWidth` nos três blocos de
+  impressão. A inspeção também eliminou o resumo órfão que antes aparecia no
+  fim da página 12.
+- `2026-08-07T04:38:56-03:00`: benchmark regenerado com três SVGs Mermaid
+  (20.919, 26.022 e 20.875 bytes), 32 requests locais na etapa de runtime, zero
+  request bloqueado/remoto e zero erro de console. HTML final 389.546 bytes,
+  SHA-256 `abf7aa1c6db07f6bbf55fdf8e4e36ba6049a129f12ed02ca7d7a2e620ee53bee`;
+  PDF A4/PDF 1.4 de 16 páginas, 437.012 bytes, SHA-256
+  `6a4a33b4f15bf57c81fb3034b19b873bea1f08f2c0268116b7f854cd384a5a1e`;
+  evidência browser 3.526 bytes, SHA-256
+  `4374211a0eedd522480029d1043c6fdece37e709d41d5bc064048222245d1f59`;
+  texto extraído 22.847 bytes, SHA-256
+  `11916b19bf4ab4ef14e6a394100b9004759b410927dc66259e032a23ecff1cc1`.
+  Todas as 16 páginas foram rasterizadas e inspecionadas. `go test ./...`,
+  `go vet ./...`, race focado, hashes imutáveis de `go.mod`/`go.sum` e
+  `git diff --check` passaram. Commit funcional
+  `ea73b12e9d16e09dd9a78ecb5d248986eb219935`, tree
+  `1166139ab2667b520a0e90cf1810f3ca70a33da2`, enviado ao origin.
 
 ## Decisões e limites
 
