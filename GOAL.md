@@ -30,11 +30,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último commit funcional: `c27b06d6b5405ccab830ad25832eea54d925ed2b`,
-  tree `56b0324a58dfc46f51ffd973f8cf8a3102675be7`; ele adiciona o candidato M1
-  com Mermaid 11.16.1, closure ESM offline, perfil e corpus positivo. M0/M1
-  ainda não são declarados aceitos: faltam quatro runners, revisão independente,
-  executor/validador M5 e o predecessor formal I1b.
+- Último commit funcional: `41bc8a94a4785b2a69e0c774fa2fc94ba8505edd`,
+  tree `28b5ec4d7789486a1f4d5811d27ad11fe2dab7ea`; ele compila os fences
+  Mermaid em tarefas estritas e imutáveis durante `Compile`, antes de qualquer
+  sessão ou byte de renderização. O commit foi enviado para
+  `origin/impl/v0.0.1-core`. M0-M2 ainda são candidatos: faltam os runners
+  restantes, I1b, execução browser M3-M4, normalização/validação M5 e revisão
+  independente.
 
 ## Ordem de execução vinculante
 
@@ -490,6 +492,31 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   O checkpoint contém exatamente 48 paths M1. Commit local:
   `c27b06d6b5405ccab830ad25832eea54d925ed2b`, tree
   `56b0324a58dfc46f51ffd973f8cf8a3102675be7`.
+- M2 RED confirmou a ausência do compilador/preflight Mermaid. GREEN/REFACTOR
+  congelaram `TaskDescriptor` com ordinal, SHA-256 da fonte, runtime digest,
+  profile fingerprint, ID determinístico e hash da configuração fixa. O
+  preflight rejeita frontmatter dentro do fence e diretivas `init` ou
+  `initialize` mesmo com variação de case/whitespace; a política aceita somente
+  o literal `strict`. O hook privado roda durante `Compile`; M2 não antecipa a
+  execução browser ou SVG pertencentes a M3-M6.
+- Gates M2 passaram: suíte focada, `GOWORK=off GOFLAGS=-mod=readonly go test
+  ./... -count=1`, race focado repetido dez vezes e `git diff --check`. Commit
+  funcional `41bc8a94a4785b2a69e0c774fa2fc94ba8505edd`, tree
+  `28b5ec4d7789486a1f4d5811d27ad11fe2dab7ea`, enviado para
+  `origin/impl/v0.0.1-core`.
+- Preview humano otimista gerado a partir de
+  `testdata/markdown/margo-full-feature-set.md`: HTML standalone com o CSS
+  Goshtoso embutido diretamente e `data-theme="modern"`, seguido de impressão
+  pelo Chromium local pinado 136.0.7103.25. Saídas locais:
+  `output/html/margo-v0.0.1-optimistic.html` (290994 bytes, SHA-256
+  `3915d8f8cf78a4f9e348d4000dfa9b9c25bcc4b8bcdac63e8843e1b55f9631f7`) e
+  `output/pdf/margo-v0.0.1-optimistic.pdf` (155609 bytes, PDF 1.4, Letter,
+  cinco páginas, SHA-256
+  `5a7c7e787b5963508c66d8a3878b8e553cc4d622a6402cd149667b3b2c9cfbba`).
+  Todas as páginas foram renderizadas para PNG e inspecionadas: sem cortes,
+  sobreposições ou tabela quebrada. É um preview otimista do HTML atual,
+  impresso externamente; não é evidência de que o backend PDF nativo P1-P7 ou
+  a execução Mermaid M3-M6 estejam concluídos.
 
 ## Decisões e limites
 
