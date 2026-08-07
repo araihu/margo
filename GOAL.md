@@ -1008,7 +1008,9 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   ./...`, `node --check` e `git diff --check` passaram. Commit funcional
   `0a91c81a2be409f071743930a0c53b9c42857e03`, tree
   `7fd44f6b5a4345158d1a4c7f02e0612d14143e9d`, enviado para
-  `origin/impl/v0.0.1-core`.
+  `origin/impl/v0.0.1-core`. A correção `6e15c68` mantém metadados de
+  navegação como `canonical` fora do bloqueio e continua rejeitando apenas
+  recursos realmente carregáveis; commit enviado ao mesmo branch.
 
 ## Decisões e limites
 
