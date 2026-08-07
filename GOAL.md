@@ -30,14 +30,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `cec4a4954325552c2fb4387a2848721a63d165f1`,
-  tree `1c690453dbce004044c0fb48d39a5361f6cd7d31`, enviado para
-  `origin/impl/v0.0.1-core`. Ele fecha o benchmark Markdown otimista exaustivo,
-  shell standalone com tema modern/Goshtoso, TOC e furniture de documento,
-  além do preview HTML/PDF humano com três diagramas Mermaid reais. M0-M3
-  ainda são candidatos: faltam os runners restantes, I1b,
-  normalização/validação M4-M5, executor M6, readiness M7 e revisão
-  independente; o preview não antecipa essa aceitação.
+- Último checkpoint funcional: `0853bf932e264f33f06f373870d376edd0f96cfc`,
+  tree `e39bfb79f6c95d96f1d4203d0039ad94abfeb053`, enviado para
+  `origin/impl/v0.0.1-core`. Ele implementa o candidato M4 de normalização SVG
+  determinística sobre DOM/XML, css-tree e CSSOM, com vetores browser/Go. M0-M4
+  ainda são candidatos: faltam os runners restantes, I1b, validação M5,
+  executor M6, readiness M7 e revisão independente; o preview otimista não
+  antecipa essa aceitação.
 
 ## Ordem de execução vinculante
 
@@ -572,6 +571,26 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   ./...`, `go vet ./...`, `go test -race ./...`, browser pinado com network
   denial, `pdfinfo`, extração de furniture em páginas alternadas e `git diff
   --check`.
+- M4 RED chegou ao Playwright verificado e falhou nos três testes exatamente
+  por `assets/runtime/svg-normalize.js` ausente. O primeiro ensaio foi
+  corretamente descartado porque o recibo de cache npm estava vinculado a
+  outro caminho absoluto; o cache foi materializado no path registrado antes
+  de repetir o RED, sem rede ou fallback ambient.
+- M4 GREEN/REFACTOR implementou os cinco estágios aceitos: parse SVG/XML
+  destacado, mapas disjuntos root/descendentes, IDs por ordem documental,
+  reescrita de `href`/`xlink:href`, ARIA IDREF, presentation/marker URLs,
+  inline CSS e stylesheets via css-tree/CSSOM, ancoragem única no root,
+  remoção de branches sem match, serialização/reparse e varredura final de
+  resolução. O corpus cobre dez IDs descendentes e rejeita root/descendant
+  duplicado, referência não resolvida/externa, site desconhecido e root
+  divergente antes de inserção.
+- Gates M4 passaram: três testes Playwright `@svg-normalize` em Chromium
+  `136.0.7103.25` com network 0, `TestNormalizationVectors`, `go test ./...`,
+  race focado vinte vezes, `git diff --check` e auditoria staged literal dos
+  onze paths M4. Cache, `node_modules` e resultados regeneráveis criados pelo
+  gate foram removidos depois da prova. Commit funcional
+  `0853bf932e264f33f06f373870d376edd0f96cfc`, tree
+  `e39bfb79f6c95d96f1d4203d0039ad94abfeb053`, enviado ao origin.
 
 ## Decisões e limites
 
@@ -615,6 +634,12 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `internal/svgprofile` é ownership de M5. A prova M1 usa `./profiles` e
   `./internal/mermaid`; o comando literal M1 que inclui `./internal/svgprofile`
   não é executável sem violar o plano.
+- M4 candidato, não aceito: o Step 4 literal manda executar
+  `go test ./internal/svgprofile -run TestNormalizationVectors`, mas esse
+  pacote não existe e pertence exclusivamente a M5. A prova M4 executável usa
+  o path owned `internal/mermaid/normalization_test.go`; M4 não criou nem
+  alterou `internal/svgprofile`. A revisão M4 precisa aceitar essa correção de
+  invocação ou corrigir o plano antes da promoção.
 - O CSS base real de Mermaid 11.16.1 emite `@keyframes`, `:root`, custom
   property, seletores por atributo e `filter: drop-shadow(...)` mesmo nos
   fixtures estritos. O design rejeita at-rules, custom properties e seletores
