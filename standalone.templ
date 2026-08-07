@@ -39,7 +39,7 @@ templ standaloneDocument(lang string, theme ThemeName, colorMode ColorMode, titl
 				}
 				@content
 				if brand.Watermark != "" {
-					<span class="goshtoso-document__watermark">{ brand.Watermark }</span>
+					<span class="goshtoso-document__watermark" aria-hidden="true">{ brand.Watermark }</span>
 				}
 				if brand.Footer != nil {
 					<footer class="goshtoso-document__footer">
