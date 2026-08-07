@@ -994,6 +994,21 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   dark HTML 398.717 bytes `f26bf26c23523a761ee90946574b12a3bcce6f752fe893d44652b55d99807b70`,
   dark PDF A4/PDF 1.4 de 18 páginas, 418.878 bytes
   `316e208e8b3ca37870d6e37d7c808f95922bb8d5950b8e26a8dc009e15d5493e`.
+- `2026-08-07`: o auditor de contraste virou preflight determinístico embutido
+  no harness M0. `test/browser/lint-contrast.mjs` recebe HTML completo, fixa
+  mídia `print`, projeta `light`/`dark`, aplica WCAG AA (4.5:1 texto normal,
+  3:1 texto grande), rejeita recursos de rede e emite
+  `margo/contrast-lint/v1` em JSON ou texto. `run-playwright.sh` e
+  `run-playwright.ps1` expõem `--contrast-html`, `--contrast-mode`,
+  `--contrast-format`, `--contrast-output` e `--contrast-only`, sempre usando
+  os binários/Chromium do receipt M0. O teste unitário do CLI passou (3/3), o
+  HTML fixture aprovado passou em ambos os modos, uma mutação de baixo
+  contraste retornou exit 1 com três falhas, e uma folha CSS HTTPS externa
+  retornou exit 1 com recurso bloqueado. `go test ./... -count=1`, `go vet
+  ./...`, `node --check` e `git diff --check` passaram. Commit funcional
+  `0a91c81a2be409f071743930a0c53b9c42857e03`, tree
+  `7fd44f6b5a4345158d1a4c7f02e0612d14143e9d`, enviado para
+  `origin/impl/v0.0.1-core`.
 
 ## Decisões e limites
 
