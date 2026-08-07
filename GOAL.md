@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `e227eb4fdad56fee02936adc60f5d3a36e6f3f1d`,
-  tree `a16a1724f5ca97285d882af9fdc4f394c70d1cea`.
+- HEAD atual da implementação: `d41fe882a0e944efd4a8cd3ab66e3c8e59b0c222`,
+  tree `48aa14bea58be57be213adde8f9baf0daa758677`.
 
 ## Ordem de execução vinculante
 
@@ -151,6 +151,26 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `b2457e8da0f95d6d86d8da720cbd223602b8a50d`. Golden HTML:
   `testdata/render/semantic.html`. Amostra gerada do renderer:
   `/tmp/margo-semantic-preview/margo-semantic-preview.html`.
+- C6 RED confirmou a ausência de assets, tokens, marca e shell standalone com
+  `GOWORK=off GOFLAGS=-mod=readonly go test . -run
+  'Test(Offline|LibraryCSS|HeadOwnerSelection|Theme|Brand|AssetOverride|Standalone)' -count=1`.
+- C6 GREEN/REFACTOR passaram geração templ determinística, foco C6, suíte
+  completa do root e race focado. O shell agora embute `assets/document.css`,
+  expõe tokens validados, rejeita override inválido sem fallback, aceita
+  componentes de marca confiáveis e produz HTML offline determinístico com
+  `ri-00000000`, fingerprint de conteúdo e escopo `.goshtoso-document`.
+  `HeadOwnerSelection` foi congelado como `margo/socialMetadataTags` porque o
+  Goshtoso `v0.1.2` inspecionado não expõe `head.Metadata`; o caminho e digest
+  da fonte de API são registrados em `standalone.go` para verificação pelo
+  handoff T6/I1a.
+- C6 executou a prova de hashes C0 antes/depois da geração e testes: `go.mod`
+  permaneceu `0eb36e99f0c59989a8c8772899acafa7b30dd205c241801b2d1c52ad775617fe`
+  e `go.sum` permaneceu
+  `1c7ae9b89ad246a943998c8e7a4a4f19bd59a53f84409e0d930ebe9b1670ddbb`.
+- C6 commit local: `d41fe882a0e944efd4a8cd3ab66e3c8e59b0c222`, tree
+  `48aa14bea58be57be213adde8f9baf0daa758677`. O checkpoint staged apenas os
+  12 caminhos C6 efetivamente existentes e passou `git diff --cached --check`,
+  manifestos name-status/summary/raw e filtro de paths proibidos.
 
 ## Decisões e limites
 
