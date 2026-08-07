@@ -106,6 +106,8 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 		"background: var(--color-surface-dark-alt);",
 		"color: var(--color-on-surface-dark);",
 		"border-color: var(--color-outline-dark);",
+		".goshtoso-document:is(.dark *) details",
+		".goshtoso-document:is(.dark *) :where(summary, dt)",
 	} {
 		if !strings.Contains(string(documentCSS.Content), want) {
 			t.Errorf("dark Mermaid source stylesheet missing %q", want)
@@ -217,7 +219,7 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 	}
 	printTOCCSS := printCSS[printTOCStart : printTOCStart+printTOCEnd]
 	for _, want := range []string{
-		"columns: 2 12rem;",
+		"columns: auto 12rem;",
 		"column-fill: balance;",
 		"column-gap: 8mm;",
 	} {

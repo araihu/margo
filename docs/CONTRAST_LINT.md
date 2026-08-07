@@ -8,7 +8,8 @@ visible text against WCAG AA contrast thresholds:
 
 - 4.5:1 for normal text;
 - 3:1 for large text;
-- zero tolerance for a blocked network dependency.
+- zero tolerance for a blocked network dependency. Local `file:` assets next to
+  the supplied HTML remain offline and are allowed; remote URLs are blocked.
 
 The check uses the exact Node, npm, and Chromium receipt already provisioned by
 the M0 browser harness. It does not use ambient Node, npm, Playwright, or a
@@ -59,8 +60,9 @@ stamps, table cells, blockquotes, code, Mermaid source disclosures, and footer
 content. It ignores decorative or hidden content such as the standalone
 watermark when it is marked `aria-hidden="true"`. Custom HTML must embed the
 reviewed Goshtoso stylesheet and document CSS; external stylesheets, fonts,
-images, scripts, and other requests are intentionally rejected by the offline
-boundary.
+images, scripts, and other remote requests are intentionally rejected by the
+offline boundary. Local `file:` images can be used for a human-facing artifact
+and are resolved from the supplied HTML path.
 
 This is a deterministic preflight, not a replacement for semantic tests, PDF
 text extraction, pagination review, or human inspection of diagrams and

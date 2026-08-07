@@ -203,6 +203,13 @@
     color: var(--color-on-surface-dark);
     border-color: var(--color-outline-dark);
   }
+  .goshtoso-document:is(.dark *) details {
+    border-color: var(--color-outline-dark);
+    background: var(--color-surface-dark-alt);
+  }
+  .goshtoso-document:is(.dark *) :where(summary, dt) {
+    color: var(--color-on-surface-dark-strong);
+  }
   .goshtoso-document:is(.dark *) a {
     color: var(--color-primary-dark);
   }

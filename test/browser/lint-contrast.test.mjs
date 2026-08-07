@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { formatText, parseArgs } from "./lint-contrast.mjs";
+import { formatText, isLocalResourceURL, parseArgs } from "./lint-contrast.mjs";
 
 describe("contrast lint command", () => {
   test("parses the checked runner contract", () => {
@@ -19,6 +19,13 @@ describe("contrast lint command", () => {
 
   test("rejects relative source paths", () => {
     assert.throws(() => parseArgs(["--html", "custom.html"]), /margo\.contrast_lint_html_absolute_required/);
+  });
+
+  test("allows only offline resource protocols", () => {
+    assert.equal(isLocalResourceURL("file:///tmp/logo.svg"), true);
+    assert.equal(isLocalResourceURL("data:image/svg+xml;base64,abc"), true);
+    assert.equal(isLocalResourceURL("https://example.com/theme.css"), false);
+    assert.equal(isLocalResourceURL("not a URL"), false);
   });
 
   test("formats stable human-readable evidence", () => {

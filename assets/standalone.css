@@ -107,7 +107,7 @@
   }
 
   .goshtoso-document__toc ol {
-    columns: 2 18rem;
+    columns: auto 16rem;
     column-fill: balance;
     column-gap: calc(var(--spacing) * 10);
     margin-block-start: calc(var(--spacing) * 4);
@@ -218,7 +218,7 @@
   }
 
   .goshtoso-document__toc ol {
-    columns: 2 12rem;
+    columns: auto 12rem;
     column-fill: balance;
     column-gap: 8mm;
     margin-block-start: 3mm;

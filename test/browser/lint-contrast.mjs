@@ -8,6 +8,15 @@ import { auditTextContrast } from "./harness/contrast.mjs";
 
 const MODES = ["light", "dark"];
 const EXIT_USAGE = 2;
+const LOCAL_RESOURCE_PROTOCOLS = new Set(["file:", "data:", "blob:", "about:"]);
+
+export function isLocalResourceURL(value) {
+  try {
+    return LOCAL_RESOURCE_PROTOCOLS.has(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
 
 function usage(message) {
   const prefix = message ? `${message}\n\n` : "";
@@ -114,6 +123,10 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
     const context = await browser.newContext({ javaScriptEnabled: false });
     await context.route("**/*", async (route) => {
       const request = route.request();
+      if (isLocalResourceURL(request.url())) {
+        await route.continue();
+        return;
+      }
       blocked.push({ method: request.method(), resourceType: request.resourceType(), url: request.url() });
       await route.abort("blockedbyclient");
     });
@@ -121,7 +134,7 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
     for (const selectedMode of selectedModes(mode)) {
       const page = await context.newPage();
       await page.emulateMedia({ media: "print" });
-      await page.setContent(bytes.toString("utf8"), { waitUntil: "load" });
+      await page.goto(pathToFileURL(html).href, { waitUntil: "load" });
       const declaredResources = await page.evaluate(() => {
         const resources = [];
         for (const element of document.querySelectorAll("img[src],script[src],link[href],iframe[src],video[src],audio[src],source[src],object[data]")) {
@@ -129,7 +142,15 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
           const attribute = element.hasAttribute("src") ? "src" : element.hasAttribute("href") ? "href" : "data";
           const value = element.getAttribute(attribute)?.trim() ?? "";
           if (!value || /^(data|blob|about|javascript):/i.test(value) || value.startsWith("#")) continue;
-          resources.push({ method: "GET", resourceType: element.tagName.toLowerCase(), url: value });
+          let resolved;
+          try {
+            resolved = new URL(value, document.baseURI);
+          } catch {
+            resources.push({ method: "GET", resourceType: element.tagName.toLowerCase(), url: value });
+            continue;
+          }
+          if (["file:", "data:", "blob:", "about:"].includes(resolved.protocol)) continue;
+          resources.push({ method: "GET", resourceType: element.tagName.toLowerCase(), url: resolved.href });
         }
         return resources;
       });
