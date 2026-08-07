@@ -16,7 +16,9 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 - Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. HTML/PDF otimista
   está preservado. Emenda v2 foi aprovada e o replay obrigatório
-  M1 -> M4 -> M5 está autorizado.
+  M1 -> M4 -> M5 está autorizado. M1 e M4 estão verdes; M5 está parado na
+  fronteira humana do perfil porque o corpus pinado contém `max-width` e o
+  allowlist aprovado ainda não contém essa propriedade.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -862,6 +864,24 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `5580d37a405a18f06f52b29abda32d0b1b07fc43`, enviado ao origin. Cache,
   `node_modules` e resultados do harness foram preservados fora do worktree em
   `/tmp/margo-m4-harness.HhM9Px`. Próximo checkpoint obrigatório: M5.
+- `2026-08-07T11:01:46-03:00`: M5 RED e implementação fail-closed inicial
+  reproduziram uma lacuna do perfil, sem alterar `profiles/`. O corpus negativo
+  fechado rejeita script, `foreignObject`, evento, namespace/elemento/atributo
+  desconhecido, referência externa, ID não normalizado, seletores host/
+  atributo/universal/sibling/pseudo proibido, custom property, at-rule,
+  propriedade/função/valor CSS não listado. Os 19 vetores e os testes Go do
+  schema/corpus passam. Porém os oito SVGs positivos normalizados são rejeitados
+  por `mermaid.svg_css_forbidden`: todos carregam no root exatamente uma
+  declaração `max-width:<número finito>px`, com valores auditados entre
+  `394.9765625px` e `769.453125px`; `max-width` não está em
+  `profile.cssProperties`. A correção mínima proposta é adicionar somente
+  `"max-width":"length"`, mudando o fingerprint de
+  `cd9edc30096cae2622b8e3489361465b6bcba66ad891934353bfdfb0035fff24`
+  para `fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16`.
+  Isso é uma correção humana M1 exigida pelo próprio ownership de M5 e não foi
+  aplicada silenciosamente. Evidência Playwright preservada em
+  `/tmp/margo-m5-blocker.M4seUU/test-results`, incluindo error-context SHA-256
+  `b2fffe6438dd9d0ef87aa3c280c1053423a50cc45a48d0ea216f1cdb0fdcda5f`.
 
 ## Decisões e limites
 
@@ -884,6 +904,14 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 
 ## Bloqueios e dúvidas
 
+- Bloqueio atual M5: o perfil fechado não lista `max-width`, embora todos os
+  oito outputs positivos pinados emitam essa declaração root com um valor
+  finito em `px`. M5 não pode aceitá-la como propriedade não listada e não pode
+  editar o perfil sem correção humana retornada a M1. Autoridade mínima
+  solicitada: aprovar `cssProperties["max-width"] = "length"` e o novo
+  fingerprint
+  `fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16`,
+  mantendo toda outra linha do perfil byte-semanticamente igual.
 - Bloqueio M5 encerrado em `2026-08-07T10:22:54-03:00`: product owner aprovou
   explicitamente `margo-mermaid-svg-normalization/v2` e o replay
   M1 -> M4 -> M5. A implementação continua limitada às linhas congeladas no
