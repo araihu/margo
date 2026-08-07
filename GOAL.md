@@ -32,14 +32,17 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `ceea76b4f08622d40a9174a9ec5c1113b5f0b6b5`,
-  tree `b6b0a8bb097fc35111083f7ec869e3a2dc5496dc`, enviado para
-  `origin/impl/v0.0.1-core`. Ele adiciona `ColorModeLight`/`ColorModeDark`,
-  `WithStandaloneColorMode`, estado explícito no elemento `html`, impressão
-  escura com cor preservada, contraste escuro na fonte Mermaid e o caso
-  edge-case-first no benchmark. M0-M5 ainda
-  são candidatos: falta o runner Windows, além de I1b, executor M6, readiness
-  M7 e revisão independente; o preview otimista não antecipa essa aceitação.
+- Último checkpoint funcional: `753bb366dd99899a110185198c9c0362f6fe1c43`,
+  tree `413a4e8072a81eb5fe34cc1bd24206fa913ce04f`, enviado para
+  `origin/impl/v0.0.1-core`. Além do modo claro/escuro e contraste Mermaid,
+  este checkpoint torna a TOC transparente sobre a superfície da página,
+  adapta duas colunas para uma coluna quando o espaço horizontal não comporta
+  o mínimo, permite fragmentação paginada sem clipping e corrige contrastes
+  escuros de `details`, `summary` e `dt`. O linter agora resolve recursos
+  locais `file:` de forma offline e continua bloqueando recursos remotos.
+  M0-M5 ainda são candidatos: falta o runner Windows, além de I1b, executor
+  M6, readiness M7 e revisão independente; o preview otimista não antecipa
+  essa aceitação.
 
 ## Ordem de execução vinculante
 
@@ -1011,6 +1014,28 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `origin/impl/v0.0.1-core`. A correção `6e15c68` mantém metadados de
   navegação como `canonical` fora do bloqueio e continua rejeitando apenas
   recursos realmente carregáveis; commit enviado ao mesmo branch.
+- `2026-08-07T13:55:00-03:00`: revisão humana da TOC do PDF escuro exigiu
+  superfície transparente, duas colunas adaptativas e continuação paginada.
+  O RED `TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable` foi criado;
+  o GREEN/REFACTOR adicionou `columns: auto 12rem` no print, `break-inside:
+  auto`, `overflow: visible`, `overflow-wrap: anywhere` e `column-fill:
+  balance`. A inspeção Chromium/Poppler mostra 36 entradas em duas colunas
+  na página 1, página 2 iniciando o artigo, sem texto cortado, em light e dark.
+  A regra de tela usa `auto 16rem`; uma verificação em 360px produz uma coluna
+  e em 794px produz duas.
+- No mesmo checkpoint, o preflight completo do HTML otimista passou em ambos
+  os modos: `checked=495`, `failures=0`, `network.blocked=0`, Chromium
+  `136.0.7103.25`/revision `1169`. `GOWORK=off GOFLAGS=-mod=readonly go test
+  ./... -count=1`, `go vet ./...`, `node --test lint-contrast.test.mjs` (4/4),
+  a especificação `@contrast` e `git diff --check` passaram. Artefatos atuais:
+  light HTML 331.268 bytes SHA-256
+  `16e4c48e3f666025f522140af3ad0557b44ed32fef67c7da49bce36930caee74`, dark
+  HTML 331.271 bytes SHA-256
+  `a786d58eb8680a10305ebae75e075d43cc0e75a023e14460110fd011cfdc4826`, light
+  PDF A4/PDF 1.4 de 16 páginas, 422.704 bytes SHA-256
+  `351767e14440c29e98c334480ed2ca7c3488b294c8a29191697fe747f35222f9`, dark
+  PDF A4/PDF 1.4 de 16 páginas, 434.622 bytes SHA-256
+  `3708427a5df06701e3266ee8d7868a18c4bddf2abc21a00706f8abedcc5dda48`.
 
 ## Decisões e limites
 
