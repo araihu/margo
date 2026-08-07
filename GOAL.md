@@ -71,6 +71,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Decks: `docs/superpowers/plans/2026-08-06-margo-v0.0.1-decks-marpit.md`.
 - CLI: `docs/superpowers/plans/2026-08-06-margo-v0.0.1-cli-output.md`.
 - Traceability: `docs/superpowers/plans/2026-08-06-margo-v0.0.1-traceability.md`.
+- Emenda proposta para desbloquear M5, ainda sem autoridade de implementação:
+  `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`.
 - Goshtoso predecessor repository/worktrees: `/Users/guilhermecastro/repos/araihu/goshtoso` and `/private/tmp/gs-*`.
 - Accepted/rejected review snapshots: `/private/tmp/margo-v001-plan-integration-r17` and the preserved `r4`-`r16` worktrees/refs in the Margo repository.
 - Control-plane ledgers: `/Users/guilhermecastro/.codex/state/orchestrating-control-planes/019fd537-7d93-7982-bbb4-467aa50e3a9b.yaml`, its `.branches.yaml`, `.worktrees.yaml`, and `registry.lock`.
@@ -788,6 +790,27 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `go.mod`/`go.sum` e `git diff --check` passaram. Commit funcional
   `e9f490795efe3388b4fd1a60b63617f5590baef4`, tree
   `637669bee842968300f6d61b316dc571357ea670`, enviado ao origin.
+- `2026-08-07T05:16:23-03:00`: a trilha PDF P1-P7 foi reavaliada contra o
+  roadmap. P1 exige I2; I2 exige M7; M7 permanece atrás de M5. Portanto iniciar
+  `pdf/` agora violaria predecessores e ownership, mesmo sendo o próximo foco
+  de produto.
+- A contradição M5 foi convertida em uma emenda proposta verificável em
+  `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`. Ela preserva o validador
+  fail-closed e cria uma redução M4 fechada, perfilada e fingerprinted: remove
+  somente branches mortos listados, expande somente os três seletores sequence
+  provados, descarta somente os dois keyframes não referenciados e remove
+  somente `filter:none` comprovadamente no-op. Nenhum seletor de atributo,
+  at-rule ou `filter` sobrevive para M5.
+- Os três artefatos de auditoria foram re-hashados e continuam exatos. O corpus
+  soma 444 regras, 118 vivas, 326 mortas e 16 keyframes; as quatro provas
+  sequence somam 12 expansões, todas com um carrier e um target, zero nome de
+  animação vivo e zero request não local. A emenda permanece `PROPOSED`: não
+  autoriza edição M1/M4/M5 sem aceitação humana explícita.
+- Checkpoint documental da emenda: commit
+  `3a53838f2bb87da4c5b7d9afc44c3a80b071416a`, tree
+  `01ccb259f9c4661b3019da326a105402221cf518`, enviado para
+  `origin/impl/v0.0.1-core`; arquivo com 221 linhas e SHA-256
+  `59e203a19e196e297b93c4b8af95a77949a5834b064ca1ca94eb09e8e2b209b1`.
 
 ## Decisões e limites
 
@@ -869,6 +892,12 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   elementos atingidos. O browser registrou zero request. A evidência reduz a
   correção necessária, mas a alteração da ordem fail-closed do design continua
   aguardando autorização explícita antes de qualquer edição M1/M4/M5.
+- A correção proposta está congelada em
+  `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`. O gate de autorização exato é:
+  `Approve margo-mermaid-svg-normalization/v2 as specified in
+  docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md, including the human-reviewed
+  reduction profile and M1 -> M4 -> M5 replay.` Até essa aprovação, M5, M6,
+  M7, I2 e P1 permanecem bloqueados por contrato, não por ausência de código.
 - Bytes upstream exatos de alguns chunks Mermaid contêm whitespace terminal,
   inclusive dentro de template literals de shader. `muamba verify --strict`
   prova esses bytes; `git diff --check` foi aplicado a todos os arquivos M1
