@@ -30,11 +30,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último commit funcional: `ea5960fe714f9d3824b878dbfaf1982e148c4685`,
-  tree `d81be549d0f80327dff1ac2322f29af1ed4f1e4b`; ele adiciona o candidato M0
-  de harness browser offline. O gate completo passou em `darwin-arm64`, mas o
-  M0 ainda não é declarado aceito: faltam execução nos outros três runners,
-  revisão independente e o predecessor formal I1b.
+- Último commit funcional: `c27b06d6b5405ccab830ad25832eea54d925ed2b`,
+  tree `56b0324a58dfc46f51ffd973f8cf8a3102675be7`; ele adiciona o candidato M1
+  com Mermaid 11.16.1, closure ESM offline, perfil e corpus positivo. M0/M1
+  ainda não são declarados aceitos: faltam quatro runners, revisão independente,
+  executor/validador M5 e o predecessor formal I1b.
 
 ## Ordem de execução vinculante
 
@@ -460,6 +460,36 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   name-status/summary/raw, `git diff --cached --check`, filtros proibidos e
   hashes C0 intactos. Cache, `node_modules` e resultados foram movidos para
   fora da árvore; são regeneráveis e o checkout voltou a conter só fonte.
+- M1 RED falhou primeiro porque `github.com/araihu/margo/assets` e o perfil
+  ainda não existiam. O comando literal também referencia
+  `./internal/svgprofile`, embora esse pacote e seus arquivos pertençam
+  exclusivamente a M5; M1 não antecipou esse ownership.
+- A inspeção do byte pinado descobriu que `mermaid.esm.min.mjs` não é
+  standalone: ele importa chunks relativos. O manifest Muamba foi ampliado
+  dentro do ownership `assets/mermaid/*` para a closure ESM estritamente
+  necessária às famílias fechadas `flowchart` e `sequence`: 35 downloads no
+  total, incluindo runtime, licença e 33 módulos. `TestMermaidSupportedFamilyESMClosureIsEmbedded`
+  percorre imports estáticos e os imports dinâmicos admitidos e rejeita arquivo
+  ausente ou extra.
+- Identidades M1: runtime SHA-256
+  `028ee006287b85ea6ee0a670f5d9f10e22e8e46e33c7e345fbf1f60d443a5c21`,
+  hash Muamba
+  `sha384:4ebed2d056672dc504310c8a5be4d28abe2b2a08c0c11487650801f9528cb8cb2ad6faf66bbb1ae9db2aeff023fd414f`,
+  asset-set digest
+  `sha256:cacf0c0b392817ddbf4c9cdab673c511a77eb13789178965820d7a41365dd390`
+  e `ValidatorProfileFingerprint`
+  `e77eb18195f8509b1c52ea4f32c1bcb5ba948122a3f196438e3646e09c2dc5cf`.
+- O corpus M1 contém oito fontes: `basic`, `conditional`,
+  `id-reference-heavy` e `style-heavy` para flowchart e sequence. Chromium
+  verificado renderizou todas usando somente os arquivos locais, com zero
+  requests não-`file:`. O audit temporário está em
+  `/tmp/margo-mermaid-audit/render-audit.json`; não é artefato de release.
+- Gates M1 passaram: `muamba verify --strict`, `generate-go --check` com
+  `--package assets`, testes focados de identidade/preimage/corpus, suíte root,
+  `go vet` e race dos pacotes M1. `go.mod`/`go.sum` continuaram nos hashes C0.
+  O checkpoint contém exatamente 48 paths M1. Commit local:
+  `c27b06d6b5405ccab830ad25832eea54d925ed2b`, tree
+  `56b0324a58dfc46f51ffd973f8cf8a3102675be7`.
 
 ## Decisões e limites
 
@@ -498,6 +528,24 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   não possui `pwsh`, portanto os scripts PowerShell foram inspecionados e
   mantidos simétricos, mas não receberam prova runtime local. I1b e revisão
   independente também continuam predecessores formais da aceitação M0.
+- M1 candidato, não aceito: além dos predecessores formais M0/I1b, o pacote
+  `internal/svgprofile` é ownership de M5. A prova M1 usa `./profiles` e
+  `./internal/mermaid`; o comando literal M1 que inclui `./internal/svgprofile`
+  não é executável sem violar o plano.
+- O CSS base real de Mermaid 11.16.1 emite `@keyframes`, `:root`, custom
+  property, seletores por atributo e `filter: drop-shadow(...)` mesmo nos
+  fixtures estritos. O design rejeita at-rules, custom properties e seletores
+  por atributo. M4/M5 precisam definir e provar remoção determinística de regras
+  mortas antes da validação, ou o contrato deve ser corrigido; M1 não ampliou o
+  perfil automaticamente a partir dessa observação.
+- Bytes upstream exatos de alguns chunks Mermaid contêm whitespace terminal,
+  inclusive dentro de template literals de shader. `muamba verify --strict`
+  prova esses bytes; `git diff --check` foi aplicado a todos os arquivos M1
+  autorais excluindo `assets/mermaid/**`. Alterar vendor para satisfazer o
+  whitespace checker quebraria os hashes pinados.
+- `muamba generate-go` não infere package em `assets/` quando o único arquivo Go
+  é o próprio output gerado; os gates M1 usam `--package assets`. A forma literal
+  do plano sem esse argumento falha com `package name required`.
 - Atenção de invocação: o comando E2E literal do plano, executado da raiz com
   `GOWORK=off`, não alcança o módulo separado `site/`; a prova T5 usou o
   `go.work` temporário do checkout e `-tags='e2e table'`, mantendo
