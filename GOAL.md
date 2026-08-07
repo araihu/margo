@@ -14,8 +14,9 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ## Estado atual
 
-- Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. O verificador
-  local permanece preservado, mas o foco atual é produzir HTML e PDF.
+- Status: `IN_PROGRESS / BLOCKED_AWAITING_M5_APPROVAL`; T6 foi movido para o
+  fim do backlog. HTML/PDF otimista está preservado, mas o caminho crítico
+  M5 -> M6 -> M7 -> I2 -> P1 não pode avançar sem autoridade para a emenda v2.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -828,6 +829,12 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `8337d531e1b3e2b68be6d304683e88ca3d9ebb39`, enviado ao origin. A emenda
   revisada tem SHA-256
   `4bcb0bd9a7cb282fe1abf379c0fb426ea32ca1a97ae54e35cfe7ac38d3218b9a`.
+- `2026-08-07T05:23:54-03:00`: terceiro ciclo consecutivo confirmou o mesmo
+  bloqueio. Branch local e remoto estão limpos e iguais em
+  `9a4d80f95c832319abe9789f392429a6356b8c28`; não há aprovação posterior aos
+  bytes `PROPOSED`. Iniciar M1/M4/M5 mudaria o design sem autoridade; iniciar
+  P1 violaria I2/M7. A sessão deve permanecer preservada até a resposta humana
+  exata registrada no gate da emenda.
 
 ## Decisões e limites
 
@@ -850,6 +857,11 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 
 ## Bloqueios e dúvidas
 
+- Bloqueio ativo: falta a aprovação humana explícita de
+  `margo-mermaid-svg-normalization/v2`. O mesmo limite foi confirmado em três
+  ciclos consecutivos após congelar tanto a emenda quanto as 120 linhas de
+  redução. Não há sucessor executável no caminho crítico sem essa mudança de
+  autoridade.
 - T6 deferred: ainda não há `release/table-handoff.json` concreto. O revisor
   não cria tag/publicação; o gate volta ao caminho crítico somente antes de
   I1a e do release final. Os arquivos locais do verificador permanecem
