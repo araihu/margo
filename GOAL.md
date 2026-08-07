@@ -1204,7 +1204,7 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `@pagination` passou 4/4 em light/dark, com html/body/document na mesma
   superfície; o lint WCAG passou 495 nós nos dois modos, zero falhas e zero
   requests bloqueados. Commit `1ebe09b` enviado ao origin.
-  Artefatos A4/PDF 1.4 de 17 páginas: HTML light 333.433 bytes,
+  Artefatos A4/PDF 1.4 de 17 páginas: HTML light 334.524 bytes,
   SHA-256 `aa7520741fd2a23b3efc004ad3a930d0116b06ccecd3b0dfdcb866387b16581a`;
   PDF light 424.724 bytes,
   SHA-256 `6da4d2db99df4d45bb6df3203c3b287b22ecdcaa866f44f986b52df7ba0e78e2`;
