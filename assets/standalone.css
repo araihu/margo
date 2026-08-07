@@ -215,11 +215,13 @@
   .goshtoso-document__toc {
     margin-block: 0;
     padding: 4mm;
+    page-break-after: page;
+    break-after: page;
   }
 
   .goshtoso-document__toc ol {
-    columns: auto 12rem;
-    column-fill: balance;
+    columns: 1;
+    column-fill: auto;
     column-gap: 8mm;
     margin-block-start: 3mm;
     padding-inline-start: 6mm;
@@ -229,8 +231,15 @@
 
   .goshtoso-document__toc li {
     margin-block: 0.5mm;
+    page-break-inside: avoid;
+    break-inside: avoid-page;
     orphans: 2;
     widows: 2;
+  }
+
+  .goshtoso-document__toc[data-margo-toc-columns="2"] ol {
+    columns: auto 12rem;
+    column-fill: balance;
   }
 
   .goshtoso-document__backdrop {

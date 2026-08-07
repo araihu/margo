@@ -219,12 +219,25 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 	}
 	printTOCCSS := printCSS[printTOCStart : printTOCStart+printTOCEnd]
 	for _, want := range []string{
-		"columns: auto 12rem;",
-		"column-fill: balance;",
 		"column-gap: 8mm;",
 	} {
 		if !strings.Contains(printTOCCSS, want) {
 			t.Errorf("adaptive print table-of-contents layout missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		"columns: 1;",
+		"column-fill: auto;",
+		"columns: auto 12rem;",
+		"column-fill: balance;",
+		"page-break-after: page;",
+		"break-after: page;",
+		"page-break-inside: avoid;",
+		"break-inside: avoid-page;",
+		`.goshtoso-document__toc[data-margo-toc-columns="2"] ol`,
+	} {
+		if !strings.Contains(printCSS, want) {
+			t.Errorf("adaptive print table-of-contents flow missing %q", want)
 		}
 	}
 }

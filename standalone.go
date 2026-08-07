@@ -44,6 +44,44 @@ var frozenHeadOwnerSelection = HeadOwnerSelection{
 	APISourceSHA256: "833562eafa47d917587c21e300d28c45006b855a569266b96041123ca870b3fb",
 }
 
+const standalonePrintPaginationScript = `<script data-margo-print-pagination>
+(() => {
+  "use strict";
+  const toc = document.querySelector(".goshtoso-document__toc");
+  if (!toc || !toc.querySelector(":scope > ol")) return;
+
+  const pageMarginBottomMillimeters = 22;
+  const millimetersToPixels = () => {
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
+    document.body.appendChild(probe);
+    const pixels = probe.getBoundingClientRect().height;
+    probe.remove();
+    return pixels;
+  };
+
+  const prepare = () => {
+    toc.dataset.margoTocColumns = "1";
+    const pageBottom = window.innerHeight - pageMarginBottomMillimeters * millimetersToPixels();
+    if (toc.getBoundingClientRect().bottom > pageBottom + 0.5) {
+      toc.dataset.margoTocColumns = "2";
+    }
+  };
+
+  window.margoPreparePrintTOC = prepare;
+  window.addEventListener("beforeprint", prepare);
+  window.addEventListener("afterprint", () => delete toc.dataset.margoTocColumns);
+  const printMedia = window.matchMedia("print");
+  if (typeof printMedia.addEventListener === "function") {
+    printMedia.addEventListener("change", (event) => {
+      if (event.matches) prepare();
+      else delete toc.dataset.margoTocColumns;
+    });
+  }
+  if (printMedia.matches) prepare();
+})();
+</script>`
+
 // FrozenHeadOwnerSelection returns the C6 selection by value.
 func FrozenHeadOwnerSelection() HeadOwnerSelection { return frozenHeadOwnerSelection }
 

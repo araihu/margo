@@ -9,6 +9,13 @@ async function stylesheet(name) {
   return readFile(path.join(root, "assets", name), "utf8");
 }
 
+async function printPaginationScript() {
+  const source = await readFile(path.join(root, "standalone.go"), "utf8");
+  const match = source.match(/const standalonePrintPaginationScript = `([\s\S]*?)`/);
+  if (!match) throw new Error("standalone print pagination script is missing");
+  return match[1];
+}
+
 test("@pagination keeps hard-to-read document blocks together in print", async ({ page }) => {
   const [documentCSS, standaloneCSS] = await Promise.all([
     stylesheet("document.css"),
@@ -51,6 +58,8 @@ source --> target</code></pre></details></figure>
         className: element.className,
         breakInside: getComputedStyle(element).breakInside,
       })),
+      tocBreakAfter: getComputedStyle(documentRoot.querySelector(".goshtoso-document__toc")).breakAfter,
+      tocColumnCount: getComputedStyle(documentRoot.querySelector(".goshtoso-document__toc ol")).columnCount,
       tocBreakInside: getComputedStyle(documentRoot.querySelector(".goshtoso-document__toc")).breakInside,
     };
   });
@@ -58,5 +67,45 @@ source --> target</code></pre></details></figure>
   expect(result.headings).toEqual(["avoid-page"]);
   expect(result.protectedBlocks).toHaveLength(7);
   expect(result.protectedBlocks.every((block) => block.breakInside === "avoid-page")).toBe(true);
+  expect(result.tocBreakAfter).toBe("page");
+  expect(result.tocColumnCount).toBe("1");
   expect(result.tocBreakInside).toBe("auto");
+});
+
+test("@pagination keeps a short TOC in one column", async ({ page }) => {
+  const [documentCSS, standaloneCSS, script] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+    printPaginationScript(),
+  ]);
+  await page.setViewportSize({ width: 794, height: 1123 });
+  await page.setContent(`<!doctype html>
+    <html><head><style>${documentCSS}</style><style>${standaloneCSS}</style></head>
+    <body><div class="goshtoso-document">
+      <nav class="goshtoso-document__toc"><p class="goshtoso-document__toc-title">Contents</p><ol><li>One</li><li>Two</li></ol></nav>
+    </div>${script}</body></html>`);
+  await page.emulateMedia({ media: "print" });
+  await page.evaluate(() => window.margoPreparePrintTOC());
+  await expect(page.locator(".goshtoso-document__toc")).toHaveAttribute("data-margo-toc-columns", "1");
+  await expect(page.locator(".goshtoso-document__toc ol")).toHaveCSS("column-count", "1");
+});
+
+test("@pagination falls back to two columns only when a TOC is too tall", async ({ page }) => {
+  const [documentCSS, standaloneCSS, script] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+    printPaginationScript(),
+  ]);
+  const entries = Array.from({ length: 120 }, (_, index) => `<li>Long entry ${index + 1}</li>`).join("");
+  await page.setViewportSize({ width: 794, height: 1123 });
+  await page.setContent(`<!doctype html>
+    <html><head><style>${documentCSS}</style><style>${standaloneCSS}</style></head>
+    <body><div class="goshtoso-document">
+      <nav class="goshtoso-document__toc"><p class="goshtoso-document__toc-title">Contents</p><ol>${entries}</ol></nav>
+    </div>${script}</body></html>`);
+  await page.emulateMedia({ media: "print" });
+  await page.evaluate(() => window.margoPreparePrintTOC());
+  await expect(page.locator(".goshtoso-document__toc")).toHaveAttribute("data-margo-toc-columns", "2");
+  await expect(page.locator(".goshtoso-document__toc ol")).toHaveCSS("column-count", "auto");
+  await expect(page.locator(".goshtoso-document__toc ol")).toHaveCSS("column-width", "192px");
 });

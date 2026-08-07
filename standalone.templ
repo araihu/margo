@@ -47,6 +47,7 @@ templ standaloneDocument(lang string, theme ThemeName, colorMode ColorMode, titl
 					</footer>
 				}
 			</div>
+			@templ.Raw(standalonePrintPaginationScript)
 		</body>
 	</html>
 }
