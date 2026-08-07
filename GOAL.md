@@ -141,6 +141,16 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   do contrato C4 de extensão, não a saída semântica final do C5.
 - Próximo marco: C5 (renderer semântico, adapters de tabela/código e HTML),
   mantendo o handoff C0 read-only.
+- C5 RED confirmou a ausência de HTML semântico, adapters Goshtoso e golden
+  output. GREEN/REFACTOR passaram a geração templ determinística, o foco
+  semântico/tabela/código, a suíte completa do root e o race focado. O renderer
+  agora produz headings, listas, quotes, links, imagens, tabelas client-only e
+  CodeBlock/Chroma; rejeita sorting server-side e mantém raw HTML sob a política
+  sanitizada.
+- C5 commit local: `a6b09ac7617c649e5f03389752a1bafb5722fc6`, tree
+  `b2457e8da0f95d6d86d8da720cbd223602b8a50d`. Golden HTML:
+  `testdata/render/semantic.html`. Amostra gerada do renderer:
+  `/tmp/margo-semantic-preview/margo-semantic-preview.html`.
 
 ## Decisões e limites
 
@@ -163,5 +173,12 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 ## Bloqueios e dúvidas
 
 - Nenhum bloqueio confirmado neste momento.
+- Atenção de reprodutibilidade: o transfer record C0 guarda SHA-256 bruto dos
+  arquivos `go.mod`/`go.sum`, mas o comando literal do plano C5 usa
+  `git hash-object`, que neste repositório produz SHA-1 de blob e nunca pode
+  igualar aqueles campos. O checkpoint C5 usou `shasum -a 256` sobre os bytes
+  (os valores continuam `0eb36e99...` e `1c7ae9b8...`); esta divergência do
+  texto do plano precisa ser reconciliada antes da aceitação independente do
+  gate, sem alterar os módulos ou inventar uma identidade.
 - Registrar aqui qualquer bloqueio reproduzível antes de alterar a ordem ou o
   contrato do plano.
