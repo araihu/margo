@@ -35,8 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `origin/impl/v0.0.1-core`. Código inline agora combina tokens Goshtoso
   `surface-alt`/`outline` em OKLCH, com borda e padding temáticos para ficar
   distinto no `modern` sem assumir aparência de controle. M0-M4 ainda são
-  candidatos: `darwin-arm64` e `darwin-x64` já passaram; faltam os runners
-  Linux/Windows, I1b, validação M5, executor M6,
+  candidatos: `darwin-arm64`, `darwin-x64` e `linux-x64` já passaram; falta o
+  runner Windows, além de I1b, validação M5, executor M6,
   readiness M7 e revisão independente; o preview otimista não antecipa essa
   aceitação.
 
@@ -488,6 +488,35 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   Material regenerável foi preservado fora da árvore em
   `/private/tmp/margo-m0-darwin-x64-r17/worktree-generated`; o worktree
   rastreado voltou a ficar limpo antes deste registro.
+- `2026-08-07T05:02:50-03:00`: o terceiro runner M0, `linux-x64`, foi
+  executado em container `linux/amd64` sob Colima arm64/QEMU. Um bind inicial
+  por VirtioFS foi rejeitado como prova porque não preservou os symlinks
+  `bin/npm`/`bin/npx`; essa tentativa permanece em
+  `/Users/guilhermecastro/Documents/Codex/2026-08-07/margo-m0-linux-x64-evidence/failed-bind-generated`.
+  A prova aceita usou o container preservado
+  `margo-m0-linux-x64-r17-v2`, filesystem Linux nativo e somente
+  `git archive` do commit `c7ce6494b5b80935b788da7ad6ac41c597244729` como
+  fonte. Node `v26.5.0` reproduziu SHA-256
+  `3de740a941a630439b22b79aafb383f4912b76354a2694765e8d59a033746538`,
+  npm `11.17.0` reproduziu
+  `8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7`
+  e Chromium revision `1169`/version `136.0.7103.25` reproduziu executável
+  SHA-256
+  `88aa5dcd6b16a1692c77445b64343e192fef3051ad6537bb2819ff97392b2ee2`.
+  Os cinco testes `@margo-harness` passaram três vezes (`13,1 s`, `11,6 s` e
+  `11,8 s`) com `network=0`. A terceira passagem comparou 17 arquivos do cache
+  byte a byte; manifesto SHA-256
+  `fa14db6c0077865b9b7519625312d566dbf11e6a7ac44ceac82ed0395685374d`.
+  Recibos copiados para
+  `/Users/guilhermecastro/Documents/Codex/2026-08-07/margo-m0-linux-x64-evidence-v2`:
+  browser
+  `759576d47162ca39323324d10c11b84e2b3610c5fa4bc7c3222c8b1231f774af`,
+  npm cache
+  `d02174cea1cfda2e9b4448359382761c177f6be003b287211683c6255569d3c2`
+  e checked env
+  `2a7c8db9fe5e22b9a0b42d3a8a97133f5cfddb00242c02334599f838ff41147c`.
+  O worktree detached Linux e o worktree principal ficaram limpos; container e
+  caches foram preservados, sem merge, publicação ou cleanup.
 - M1 RED falhou primeiro porque `github.com/araihu/margo/assets` e o perfil
   ainda não existiam. O comando literal também referencia
   `./internal/svgprofile`, embora esse pacote e seus arquivos pertençam
@@ -769,9 +798,9 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   (os valores continuam `0eb36e99...` e `1c7ae9b8...`); esta divergência do
   texto do plano precisa ser reconciliada antes da aceitação independente do
   gate, sem alterar os módulos ou inventar uma identidade.
-- M0 candidato, não aceito: `darwin-arm64` e `darwin-x64` executaram o
-  provisionamento e o browser gate. Os locks cobrem quatro runners, mas
-  `linux-x64` e `windows-x64` ainda precisam executar o fluxo limpo. Este host
+- M0 candidato, não aceito: `darwin-arm64`, `darwin-x64` e `linux-x64`
+  executaram o provisionamento e o browser gate. Os locks cobrem quatro
+  runners, mas `windows-x64` ainda precisa executar o fluxo limpo. Este host
   não possui `pwsh`, portanto os scripts PowerShell foram inspecionados e
   mantidos simétricos, mas não receberam prova runtime local. I1b e revisão
   independente também continuam predecessores formais da aceitação M0.
