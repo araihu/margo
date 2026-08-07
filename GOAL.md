@@ -309,9 +309,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `/tmp/margo-semantic-preview/margo-semantic-preview.html` tem 3.225 bytes e
   SHA-256 `3ae8855b93dbae1d98c21b1ca5cb11b1d965316237fddf025fb528fe8772d155`;
   o preview de contrato em
-  `/tmp/margo-contract-preview/margo-contract-preview.html` tem 772 bytes e
-  SHA-256 `eb733827d0db7af91e3710d0e3b2abd78be517b2b6593830dfd720f73205e38f`.
-  Nenhum PDF foi produzido nesta etapa; isso não substitui o gate P1-P7.
+  `/tmp/margo-contract-preview/margo-contract-preview.html` tem 3.060 bytes e
+  SHA-256 `1ef261dcd62a08642c0405f9be8230ed93bfeb12aa07800ecd29c709fe2bb13d`.
+  O helper foi regenerado com `GOWORK=off GOFLAGS=-mod=readonly go run .` e
+  agora encapsula o fragmento em um documento HTML válido. Nenhum PDF foi
+  produzido nesta etapa; isso não substitui o gate P1-P7.
 - A suíte root foi reexecutada no HEAD `6e0fc7e` antes deste registro com
   `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`: os pacotes root,
   `internal/authority`, `internal/canonicaljson`, `internal/htmlpolicy` e
