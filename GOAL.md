@@ -30,10 +30,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `dfa9a3b49aeab94ebc5a8be127234bc9534ecc44`,
-  tree `55ff7052e1cd6e4351559240cb7df220465ec2ad`, enviado para
-  `origin/impl/v0.0.1-core`. Ele restaura o ritmo de 16 px entre componentes
-  CodeBlock no documento e impede quebra interna em impressão. M0-M4 ainda são
+- Último checkpoint funcional: `9c0f1541bc23d6a8472ae686053f47a3e2251f7e`,
+  tree `d06f48ebeb5783787e004fb8162a2ee2090b5edd`, enviado para
+  `origin/impl/v0.0.1-core`. Ele aplica ritmo bidirecional de 16 px aos
+  componentes CodeBlock: entre blocos consecutivos e entre um bloco e a prosa
+  seguinte, mantendo `break-inside: avoid` em impressão. M0-M4 ainda são
   candidatos: faltam os runners restantes, I1b, validação M5, executor M6,
   readiness M7 e revisão independente; o preview otimista não antecipa essa
   aceitação.
@@ -633,6 +634,30 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `pdfinfo`, `pdftotext`, inspeção visual de todas as páginas e
   `git diff --check`. Commit funcional `dfa9a3b49aeab94ebc5a8be127234bc9534ecc44`,
   tree `55ff7052e1cd6e4351559240cb7df220465ec2ad`, enviado ao origin.
+- Feedback visual adicional da página 9 mostrou que a prosa imediatamente após
+  o último bloco HTML ainda encostava na borda. O primeiro teste novo encontrou
+  um falso positivo global em `document.css`; ele foi reforçado para extrair a
+  regra exata dos CodeBlocks e então reproduziu o RED pela ausência de
+  `margin-block-end`. A regra agora possui 16 px lógicos antes e depois. O
+  Chromium pinado mediu `marginTop: 16px`, `marginBottom: 16px`, gaps
+  consecutivos `[16,16,16,16,16]` e exatamente 16 px entre o bloco HTML e o
+  parágrafo "The long unbroken literal...". Margens colapsadas preservam um
+  único intervalo de 16 px entre blocos, sem duplicá-lo.
+- Artefatos humanos regenerados após a correção bidirecional: HTML 389.115
+  bytes, SHA-256
+  `7cfd39d791a89604309f889237ff7176f2e8bf3ea9c64ecc8aa2827d3703f7ee`;
+  PDF A4/PDF 1.4 de 14 páginas, 418.018 bytes, SHA-256
+  `fbb223e1854230495bb15d00bc9640e77a71274e34c8c254c5adc48b4f0f61a3`;
+  texto extraído SHA-256
+  `56b5159e9bdc969cfef9ff37c1e132def8a2104e6f2e3237a567347b2fefccec`;
+  evidência browser SHA-256
+  `37422044c29359b96231534caf9d49368779597b51a28cbc07f331a362dcbec6`.
+  Zero request remoto e zero erro de console; backdrop permaneceu centrado.
+  Todas as 14 páginas foram rasterizadas e inspecionadas, com revisão original
+  da página 9. `go test ./...`, `go vet ./...`, race focado, `pdfinfo`,
+  `pdftotext` e `git diff --check` passaram. Commit funcional
+  `9c0f1541bc23d6a8472ae686053f47a3e2251f7e`, tree
+  `d06f48ebeb5783787e004fb8162a2ee2090b5edd`, enviado ao origin.
 
 ## Decisões e limites
 
