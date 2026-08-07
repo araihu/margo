@@ -355,11 +355,21 @@
     "keyword-text-decoration": "none-or-underline-or-overline-or-line-through",
     "keyword-vector-effect": "none-or-non-scaling-stroke",
     "keyword-white-space": "normal-or-pre-or-nowrap-or-pre-wrap-or-pre-line",
-    "length": "finite-number-with-optional-px-percent-em-rem-unit",
+    "length": "finite-number-with-profile-listed-optional-unit",
     "length-list-or-none": "none-or-one-or-more-space-or-comma-separated-lengths",
     "length-or-finite-number": "length-or-finite-number",
     "local-fragment-or-none": "none-or-url-of-normalized-local-id",
     "paint": "color-or-none-or-transparent-or-url-of-normalized-local-id"
+  },
+  "valueGrammarParameters": {
+    "lengthUnits": [
+      "",
+      "%",
+      "em",
+      "pt",
+      "px",
+      "rem"
+    ]
   },
   "limits": {
     "maxSvgBytes": 2097152,

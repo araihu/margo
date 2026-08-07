@@ -17,26 +17,31 @@ import (
 	"github.com/araihu/margo/internal/canonicaljson"
 )
 
-const expectedProfileFingerprint = "fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16"
+const expectedProfileFingerprint = "6e4899904bf55acdd2b5c39a290dbac378a7f6fdf8e904b41c38c4d9c3fdda75"
 
 type profile struct {
-	AssetCount              int                 `json:"assetCount"`
-	AssetSetDigest          string              `json:"assetSetDigest"`
-	SchemaVersion           string              `json:"schemaVersion"`
-	MermaidVersion          string              `json:"mermaidVersion"`
-	MermaidDigest           string              `json:"mermaidDigest"`
-	NormalizationAlgorithm  string              `json:"normalizationAlgorithm"`
-	NormalizationReductions json.RawMessage     `json:"normalizationReductions"`
-	SupportedFamilies       []family            `json:"supportedFamilies"`
-	Namespaces              map[string]string   `json:"namespaces"`
-	AllowedElements         []string            `json:"allowedElements"`
-	GlobalAttributes        []string            `json:"globalAttributes"`
-	ElementAttributes       map[string][]string `json:"elementAttributes"`
-	IDReferenceSites        idReferenceSites    `json:"idReferenceSites"`
-	SelectorGrammar         selectorGrammar     `json:"selectorGrammar"`
-	CSSProperties           map[string]string   `json:"cssProperties"`
-	ValueGrammars           map[string]string   `json:"valueGrammars"`
-	Limits                  limits              `json:"limits"`
+	AssetCount              int                    `json:"assetCount"`
+	AssetSetDigest          string                 `json:"assetSetDigest"`
+	SchemaVersion           string                 `json:"schemaVersion"`
+	MermaidVersion          string                 `json:"mermaidVersion"`
+	MermaidDigest           string                 `json:"mermaidDigest"`
+	NormalizationAlgorithm  string                 `json:"normalizationAlgorithm"`
+	NormalizationReductions json.RawMessage        `json:"normalizationReductions"`
+	SupportedFamilies       []family               `json:"supportedFamilies"`
+	Namespaces              map[string]string      `json:"namespaces"`
+	AllowedElements         []string               `json:"allowedElements"`
+	GlobalAttributes        []string               `json:"globalAttributes"`
+	ElementAttributes       map[string][]string    `json:"elementAttributes"`
+	IDReferenceSites        idReferenceSites       `json:"idReferenceSites"`
+	SelectorGrammar         selectorGrammar        `json:"selectorGrammar"`
+	CSSProperties           map[string]string      `json:"cssProperties"`
+	ValueGrammars           map[string]string      `json:"valueGrammars"`
+	ValueGrammarParameters  valueGrammarParameters `json:"valueGrammarParameters"`
+	Limits                  limits                 `json:"limits"`
+}
+
+type valueGrammarParameters struct {
+	LengthUnits []string `json:"lengthUnits"`
 }
 
 type family struct {
@@ -178,6 +183,10 @@ func TestProfileContainsClosedSecurityGrammar(t *testing.T) {
 	p := decodeProfile(t)
 	if len(p.AllowedElements) == 0 || len(p.GlobalAttributes) == 0 || len(p.ElementAttributes) == 0 {
 		t.Fatal("SVG element and attribute allowlists must be non-empty")
+	}
+	wantLengthUnits := []string{"", "%", "em", "pt", "px", "rem"}
+	if !reflect.DeepEqual(p.ValueGrammarParameters.LengthUnits, wantLengthUnits) {
+		t.Fatalf("length units = %v, want %v", p.ValueGrammarParameters.LengthUnits, wantLengthUnits)
 	}
 	if len(p.IDReferenceSites.FragmentAttributes) == 0 || len(p.IDReferenceSites.PresentationAttributes) == 0 || len(p.IDReferenceSites.ARIAIDREFAttributes) == 0 || len(p.IDReferenceSites.CSS) == 0 {
 		t.Fatal("ID reference registry must declare every site family")
