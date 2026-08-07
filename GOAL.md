@@ -73,6 +73,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Traceability: `docs/superpowers/plans/2026-08-06-margo-v0.0.1-traceability.md`.
 - Emenda proposta para desbloquear M5, ainda sem autoridade de implementação:
   `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`.
+- Linhas exatas propostas para o perfil de redução M5:
+  `docs/proposals/MERMAID_NORMALIZATION_REDUCTIONS_V2.proposed.json`.
 - Goshtoso predecessor repository/worktrees: `/Users/guilhermecastro/repos/araihu/goshtoso` and `/private/tmp/gs-*`.
 - Accepted/rejected review snapshots: `/private/tmp/margo-v001-plan-integration-r17` and the preserved `r4`-`r16` worktrees/refs in the Margo repository.
 - Control-plane ledgers: `/Users/guilhermecastro/.codex/state/orchestrating-control-planes/019fd537-7d93-7982-bbb4-467aa50e3a9b.yaml`, its `.branches.yaml`, `.worktrees.yaml`, and `registry.lock`.
@@ -811,6 +813,21 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `01ccb259f9c4661b3019da326a105402221cf518`, enviado para
   `origin/impl/v0.0.1-core`; arquivo com 221 linhas e SHA-256
   `59e203a19e196e297b93c4b8af95a77949a5834b064ca1ca94eb09e8e2b209b1`.
+- `2026-08-07T05:23:08-03:00`: a identidade de cada linha proposta foi corrigida
+  para excluir `OriginalRootID` e `NormalizedRootID`. O AST canônico substitui
+  o root por `#margo-reduction-root` e IDs descendentes por ordinais estáveis.
+  Uma segunda geração com todos os roots substituídos produziu bytes idênticos.
+- O inventário exato foi congelado em
+  `docs/proposals/MERMAID_NORMALIZATION_REDUCTIONS_V2.proposed.json`: 120 linhas
+  únicas cobrem 427 branches mortos em 326 regras, três rewrites cobrem as 12
+  expansões sequence, quatro linhas família/keyframe cobrem 16 ocorrências e
+  uma linha `filter:none` cobre dois rules/três elementos. Manifest SHA-256
+  `cd703d58c45b3e7f0ae5ab23f4d4d7ee023c419420925674855dcd8785790826`.
+- Checkpoint do inventário: commit
+  `61c6ce09b2f6b8ccdc4e046c5fd70b6e473e4a84`, tree
+  `8337d531e1b3e2b68be6d304683e88ca3d9ebb39`, enviado ao origin. A emenda
+  revisada tem SHA-256
+  `4bcb0bd9a7cb282fe1abf379c0fb426ea32ca1a97ae54e35cfe7ac38d3218b9a`.
 
 ## Decisões e limites
 
@@ -896,8 +913,10 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`. O gate de autorização exato é:
   `Approve margo-mermaid-svg-normalization/v2 as specified in
   docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md, including the human-reviewed
-  reduction profile and M1 -> M4 -> M5 replay.` Até essa aprovação, M5, M6,
-  M7, I2 e P1 permanecem bloqueados por contrato, não por ausência de código.
+  reduction profile and M1 -> M4 -> M5 replay.` A aprovação inclui as linhas
+  propostas de SHA-256 `cd703d58...` referenciadas pela emenda. Até essa
+  aprovação, M5, M6, M7, I2 e P1 permanecem bloqueados por contrato, não por
+  ausência de código.
 - Bytes upstream exatos de alguns chunks Mermaid contêm whitespace terminal,
   inclusive dentro de template literals de shader. `muamba verify --strict`
   prova esses bytes; `git diff --check` foi aplicado a todos os arquivos M1
