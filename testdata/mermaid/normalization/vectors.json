@@ -3,6 +3,7 @@
   "positive": [
     {
       "path": "sequence-ids.svg",
+      "family": "sequence",
       "sourceRootID": "msrc-sequence",
       "renderInstanceID": "ri-0000000a",
       "blockOrdinal": 0,

@@ -3,7 +3,6 @@
     #msrc-sequence .edge-pattern-dashed, #msrc-sequence .default { marker-end: url(#arrow); fill: url(#gradient); }
     .label { clip-path: url(#clip); }
     #clip-node { stroke: url(#gradient); }
-    .unused { fill: red; }
   </style>
   <defs>
     <linearGradient id="gradient"><stop offset="0" stop-color="#fff"/></linearGradient>

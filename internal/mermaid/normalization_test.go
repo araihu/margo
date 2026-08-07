@@ -11,6 +11,7 @@ type normalizationVectors struct {
 	SchemaVersion string `json:"schemaVersion"`
 	Positive      []struct {
 		Path             string `json:"path"`
+		Family           string `json:"family"`
 		SourceRootID     string `json:"sourceRootID"`
 		RenderInstanceID string `json:"renderInstanceID"`
 		BlockOrdinal     int    `json:"blockOrdinal"`
@@ -42,6 +43,9 @@ func TestNormalizationVectors(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for _, vector := range vectors.Positive {
+		if vector.Family != "flowchart" && vector.Family != "sequence" {
+			t.Fatalf("unsupported positive vector family: %+v", vector)
+		}
 		if vector.SourceRootID == "" || vector.RenderInstanceID == "" || vector.NormalizedRootID == "" || vector.DescendantCount <= 0 {
 			t.Fatalf("incomplete positive vector: %+v", vector)
 		}
