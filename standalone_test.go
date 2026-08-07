@@ -229,6 +229,33 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 	}
 }
 
+func TestStandalonePrintBlocksAvoidInternalFragmentation(t *testing.T) {
+	asset, err := EmbeddedAsset("document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(asset.Content)
+	printStart := strings.Index(css, "@media print {")
+	if printStart < 0 {
+		t.Fatal("document stylesheet has no print media block")
+	}
+	printCSS := css[printStart:]
+	for _, want := range []string{
+		".goshtoso-document > .margo-document :where(h1, h2, h3, h4, h5, h6)",
+		"break-after: avoid-page;",
+		".goshtoso-document > .margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre)",
+		".goshtoso-document > .margo-document [data-table-client-sort=\"true\"]",
+		".goshtoso-document > .margo-document [data-code-block]",
+		".goshtoso-document > .margo-document div:has(> .codeblock)",
+		".goshtoso-document > .margo-document .margo-mermaid",
+		"break-inside: avoid-page;",
+	} {
+		if !strings.Contains(printCSS, want) {
+			t.Errorf("print block-fragmentation contract missing %q", want)
+		}
+	}
+}
+
 func TestStandaloneThemeOverrideChangesDocumentAttribute(t *testing.T) {
 	result := mustRenderSource(t, "# Minimal")
 	component, err := RenderStandalone(result, WithStandaloneTheme(ThemeMinimal))

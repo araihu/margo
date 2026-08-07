@@ -236,6 +236,18 @@
     max-width: none;
     padding: 0;
   }
+  .goshtoso-document > .margo-document :where(h1, h2, h3, h4, h5, h6) {
+    break-after: avoid-page;
+  }
+  .goshtoso-document > .margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre) {
+    break-inside: avoid-page;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"],
+  .goshtoso-document > .margo-document [data-code-block],
+  .goshtoso-document > .margo-document div:has(> .codeblock),
+  .goshtoso-document > .margo-document .margo-mermaid {
+    break-inside: avoid-page;
+  }
   .goshtoso-document [data-code-block-header],
   .goshtoso-document [data-code-block] > :first-child,
   .goshtoso-document div[x-data] > div:first-of-type,
