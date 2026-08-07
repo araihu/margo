@@ -40,6 +40,18 @@ records. Exit status is:
   resource;
 - `2`: the invocation or checked browser environment is invalid.
 
+PowerShell uses the same checked receipt and report contract:
+
+```powershell
+pwsh -NoProfile -File .\test\browser\run-playwright.ps1 `
+  -Check `
+  -EnvironmentJson (Resolve-Path .\test\browser\.cache\node-env.checked.json) `
+  -ContrastHtml (Resolve-Path .\output\html\custom.html) `
+  -ContrastMode both `
+  -ContrastFormat text `
+  -ContrastOnly
+```
+
 ## What the lint covers
 
 The auditor walks visible text in the composed DOM, including headings, links,
