@@ -40,7 +40,7 @@ func TestMarkdownProfile(t *testing.T) {
 }
 
 func TestRawHTMLRemainsASTNode(t *testing.T) {
-	doc, err := New().Compile(context.Background(), Source{Name: "raw.md", Content: []byte("<span>raw</span>")})
+	doc, err := New(WithHostPolicy(Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes})).Compile(context.Background(), Source{Name: "raw.md", Content: []byte("---\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n<span>raw</span>")})
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}

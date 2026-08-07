@@ -13,6 +13,7 @@ type Document struct {
 	assets              AssetSet
 	diagnostics         []Diagnostic
 	parsed              any
+	effectivePolicy     EffectivePolicy
 }
 
 func (d *Document) sourceBytesForTest() []byte {

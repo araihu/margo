@@ -28,11 +28,14 @@ type sourceNormalization struct {
 	metadata    Metadata
 	diagnostics []Diagnostic
 	parsed      any
+	sourceBytes int64
 }
 
 var normalizeSource = func(source Source) (sourceNormalization, error) {
 	return sourceNormalization{metadata: Metadata{Name: source.Name, BaseURL: source.BaseURL}}, nil
 }
+
+var evaluatePolicy = defaultEvaluatePolicy
 
 // New freezes options and returns a reusable compiler.
 func New(options ...Option) *Compiler {
@@ -61,6 +64,11 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 	if err != nil {
 		return nil, err
 	}
+	normalized.sourceBytes = int64(len(snapshot.Content))
+	effectivePolicy, err := evaluatePolicy(config, normalized)
+	if err != nil {
+		return nil, err
+	}
 	sourceHash := sha256.Sum256(snapshot.Content)
 	docFingerprint := documentFingerprint(snapshot, fingerprint, config.values)
 	return &Document{
@@ -71,6 +79,7 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 		metadata:            normalized.metadata,
 		diagnostics:         cloneDiagnostics(normalized.diagnostics),
 		parsed:              normalized.parsed,
+		effectivePolicy:     effectivePolicy,
 	}, nil
 }
 
