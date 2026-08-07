@@ -91,8 +91,18 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - C1 commit local: `00bc4be4fac5c624cadeed37333f722443478020`, tree
   `564e407e87cc5aeaa2e43f6f92f35073e2710c9a`; `go test ./... -count=1`
   também passou.
-- Próximo marco: C2 (diagnósticos, frontmatter e perfil Markdown), mantendo
-  C0 read-only e sem alterar `go.mod`, `go.sum` ou o lock.
+- Commit de integração do hook de normalização C1 -> C2:
+  `9bdcb81` (somente `compiler.go`/`document.go`), mantendo os módulos
+  congelados.
+- C2 RED confirmou que parser, diagnósticos e canonicalização ainda estavam
+  ausentes. C2 GREEN/REFACTOR passaram frontmatter estrito (inclusive
+  `goshtoso.unknown_field` com line/column/pointer), YAML limits, perfil
+  Goldmark GFM/footnotes/linkify/task list e IDs determinísticos de headings.
+- C2 commit local: `b6a4b22ad82a4e5da756de5b9cda22731bcf0299`, tree
+  `3b54c9baa174431f958af8f0b0d7b753340c971f`; `go test ./... -count=1`
+  passou. `go.mod`, `go.sum` e `tools/toolchain.lock` não foram alterados.
+- Próximo marco: C3 (política de capacidades, HTML, recursos e tokens), sempre
+  read-only para o handoff C0.
 
 ## Decisões e limites
 
