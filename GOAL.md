@@ -30,11 +30,12 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `c38b3f77e05d0e177475764deb3baebb8608316e`,
-  tree `fe41b94dc7b1bdb2a30f1277bebfa76a1dc0e4a1`, enviado para
-  `origin/impl/v0.0.1-core`. Código inline agora combina tokens Goshtoso
-  `surface-alt`/`outline` em OKLCH, com borda e padding temáticos para ficar
-  distinto no `modern` sem assumir aparência de controle. M0-M4 ainda são
+- Último checkpoint funcional: `e9f490795efe3388b4fd1a60b63617f5590baef4`,
+  tree `637669bee842968300f6d61b316dc571357ea670`, enviado para
+  `origin/impl/v0.0.1-core`. O wrapper de Table do adaptador Margo agora mantém
+  16 px de ritmo antes da prosa seguinte, sem alterar o componente Goshtoso;
+  os ajustes anteriores de código inline, blocos, Mermaid e watermark permanecem.
+  M0-M4 ainda são
   candidatos: `darwin-arm64`, `darwin-x64` e `linux-x64` já passaram; falta o
   runner Windows, além de I1b, validação M5, executor M6,
   readiness M7 e revisão independente; o preview otimista não antecipa essa
@@ -765,6 +766,28 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `go.mod`/`go.sum` e `git diff --check` passaram. Commit funcional
   `c38b3f77e05d0e177475764deb3baebb8608316e`, tree
   `fe41b94dc7b1bdb2a30f1277bebfa76a1dc0e4a1`, enviado ao origin.
+- `2026-08-07T05:11:20-03:00`: feedback visual da página 8 reproduziu ausência
+  de ritmo depois da tabela densa. O DOM usa o wrapper
+  `[data-table-client-sort="true"]`, portanto a regra semântica aplicada ao
+  elemento `table` não alcançava a prosa irmã. O teste
+  `TestDocumentCSSSpacesGoshtosoTableFromFollowingProse` falhou antes da regra
+  e passou após adicionar `margin-block-end: calc(var(--spacing) * 4)` somente
+  ao wrapper do adaptador Margo.
+- O Chromium pinado mediu 16 px entre tabela e parágrafo no perfil de tela e
+  16 px no perfil de impressão, com `margin-bottom: 16px`, zero request
+  remoto/bloqueado e zero erro de console. As 15 páginas foram rasterizadas e
+  revisadas; a página 8 mostra separação clara sem regressão no heading ou nos
+  blocos seguintes. O detector visual retornou zero achados.
+- Artefatos regenerados: HTML SHA-256
+  `62bc549f4afe541f75761cc2cfbd24c24cfc43149009568f477c6316a2cd78d2`;
+  PDF A4 de 15 páginas, 437.197 bytes, SHA-256
+  `3a5e591e3df50aac88bef9029802121cecf893a88653bb283df45856d9543ccf`;
+  evidência browser SHA-256
+  `8c33b59f23296a6c51af283c0ae54aba0751c28ddd2b6787dafdcdfd3098ee8c`.
+  `go test ./...`, `go vet ./...`, race focado, hashes imutáveis de
+  `go.mod`/`go.sum` e `git diff --check` passaram. Commit funcional
+  `e9f490795efe3388b4fd1a60b63617f5590baef4`, tree
+  `637669bee842968300f6d61b316dc571357ea670`, enviado ao origin.
 
 ## Decisões e limites
 
