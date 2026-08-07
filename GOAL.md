@@ -30,10 +30,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último commit funcional: `5d17d4d1ff67d6c39500307578c72b07982ba93f`, tree
-  `7af2b1bdcfe5308faa1c091fea2bd70bf0758b7e`; ele integra o CSS compilado
-  do Goshtoso no HTML standalone, adota `modern` como tema padrão e reduz o
-  CSS próprio do Margo a ajustes editoriais e de impressão.
+- Último commit funcional: `ea5960fe714f9d3824b878dbfaf1982e148c4685`,
+  tree `d81be549d0f80327dff1ac2322f29af1ed4f1e4b`; ele adiciona o candidato M0
+  de harness browser offline. O gate completo passou em `darwin-arm64`, mas o
+  M0 ainda não é declarado aceito: faltam execução nos outros três runners,
+  revisão independente e o predecessor formal I1b.
 
 ## Ordem de execução vinculante
 
@@ -409,6 +410,56 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   checkpoint. Qualquer mudança de código nessa lane deve usar worktree novo de
   `origin/main`, executar geração/testes relevantes e devolver branch, arquivos
   e gates exatos. O recebimento foi confirmado diretamente para a task.
+- Lane de suporte Manja/control-plane reconhecida na task
+  `019fda8e-05e5-7aa0-a9c9-0cf42c470dd9`. Ela permanece sob demanda e sem
+  mutações: pode pesquisar comportamento, arquitetura, integração ou API e só
+  faz mudança escopada com isolamento e gates quando solicitada. Nenhum merge,
+  push, tag, release, publicação, promoção ou cleanup foi autorizado.
+- Auditoria de próxima tarefa detectou uma lacuna no plano D1: a API pública
+  atual do `Compiler` não oferece a `deck.Compile` uma forma de provar que
+  `deck.Extension()` está registrado, enquanto D1 não possui os caminhos do
+  compiler root. Nenhuma API pública foi inventada; D1 permanece aguardando
+  reconciliação desse seam.
+- O M0 foi iniciado como trabalho de infraestrutura reversível para destravar
+  runtime/PDF, apesar de I1b permanecer deferred junto com a cerimônia T6. O
+  RED exato partiu de `test/browser/.cache` ausente e falhou em
+  `cd test/browser`, comprovando que não havia harness ou fallback ambient.
+- Os locks M0 fixam Node `v26.5.0`, npm `11.17.0`, Playwright `1.52.0`,
+  css-tree `3.1.0` e Chromium revision `1169`/version `136.0.7103.25` para
+  `darwin-arm64`, `darwin-x64`, `linux-x64` e `windows-x64`. Os quatro
+  arquivos Node e Chromium foram baixados e tiveram os SHA-256 do plano
+  reproduzidos; os executáveis Node registrados têm SHA-256
+  `cbee2298...`, `272dc328...`, `3de740a9...` e `119d6fa7...`. O npm CLI
+  POSIX tem `8e5f6f34...`; o Windows tem `3ce7cba6...`.
+- No runner local, a assinatura Node passou com `GOODSIG` e `VALIDSIG
+  C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`; fixtures de keyring errado e
+  assinatura adulterada falham. O Chromium `darwin-arm64` instalado tem
+  executável SHA-256
+  `76ed7250f9edf622ce49b35b3d9b999d0200fad34654c5603fc6bb3313814b68`.
+- O cache npm agora usa schema canônico `margo/npm-cache/v1`, digest próprio e
+  nove linhas (root omitido mais oito tarballs). Os bytes verificados são
+  inseridos diretamente no cacache do npm pinado; check mode compara receipt,
+  lock, root, versões, conjunto exato de cache keys e bytes SHA-256. Provas
+  negativas cobrem root errado, lock stale, pacote ausente, bytes adulterados
+  e entrada extra, sempre antes de `npm ci`.
+- A primeira execução Playwright travou antes de criar Chromium. A reprodução
+  mínima isolou incompatibilidade entre o loader ESM de Playwright 1.52
+  (`module.register`) e Node 26.5.0. `PW_DISABLE_TS_ESM=1` faz o Playwright usar
+  ESM nativo e preserva os `.spec.mjs`. Depois, um segundo RED mostrou
+  `executablePath` no nível incorreto; movê-lo para `use.launchOptions` fez o
+  runner usar somente o Chromium verificado, sem download silencioso.
+- Gate M0 local final: cache imutável durante bootstrap `--check`, `npm ci
+  --offline`, cinco testes Playwright em um worker e zero requests de página.
+  Passaram locks, cache, DOMParser/XMLSerializer, CSSOM/computed style,
+  css-tree, estrutura/CSS desconhecido e signer/signature negativos. Saída:
+  `margo.harness_ok node=v26.5.0 npm=11.17.0 chromium_revision=1169
+  chromium_version=136.0.7103.25 network=0`.
+- M0 commit local: `ea5960fe714f9d3824b878dbfaf1982e148c4685`, tree
+  `d81be549d0f80327dff1ac2322f29af1ed4f1e4b`, exatamente 25 caminhos sob
+  `test/browser` pertencentes a M0. O checkpoint passou manifestos staged
+  name-status/summary/raw, `git diff --cached --check`, filtros proibidos e
+  hashes C0 intactos. Cache, `node_modules` e resultados foram movidos para
+  fora da árvore; são regeneráveis e o checkout voltou a conter só fonte.
 
 ## Decisões e limites
 
@@ -441,6 +492,12 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   (os valores continuam `0eb36e99...` e `1c7ae9b8...`); esta divergência do
   texto do plano precisa ser reconciliada antes da aceitação independente do
   gate, sem alterar os módulos ou inventar uma identidade.
+- M0 candidato, não aceito: somente `darwin-arm64` executou o provisionamento
+  e o browser gate. Os locks cobrem quatro runners, mas `darwin-x64`,
+  `linux-x64` e `windows-x64` ainda precisam executar o fluxo limpo. Este host
+  não possui `pwsh`, portanto os scripts PowerShell foram inspecionados e
+  mantidos simétricos, mas não receberam prova runtime local. I1b e revisão
+  independente também continuam predecessores formais da aceitação M0.
 - Atenção de invocação: o comando E2E literal do plano, executado da raiz com
   `GOWORK=off`, não alcança o módulo separado `site/`; a prova T5 usou o
   `go.work` temporário do checkout e `-tags='e2e table'`, mantendo
