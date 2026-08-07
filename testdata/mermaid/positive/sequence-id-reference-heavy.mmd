@@ -1,0 +1,8 @@
+sequenceDiagram
+  participant actor1 as actor1
+  participant root1 as root-1
+  participant torso1 as actor-man-torso1
+  actor1->>+root1: Open request
+  root1->>+torso1: Resolve identity
+  torso1-->>-root1: Identity result
+  root1-->>-actor1: Close request

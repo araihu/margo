@@ -1,0 +1,7 @@
+flowchart LR
+  actor1[actor1] --> root1[root-1]
+  root1 --> torso1[actor-man-torso1]
+  subgraph refs[Reference group]
+    first[(First)] --> second[(Second)]
+  end
+  torso1 --> first

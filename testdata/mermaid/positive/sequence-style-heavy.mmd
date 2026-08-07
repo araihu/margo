@@ -1,0 +1,16 @@
+sequenceDiagram
+  participant Client
+  participant Compiler
+  participant Runtime
+  rect rgb(239, 246, 255)
+    Client->>Compiler: Compile
+    activate Compiler
+    Compiler->>Runtime: Execute tasks
+    Runtime-->>Compiler: Reports
+    deactivate Compiler
+  end
+  critical Validate output
+    Compiler-->>Client: Artifact
+  option Invalid output
+    Compiler--xClient: Diagnostic
+  end

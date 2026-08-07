@@ -1,0 +1,7 @@
+sequenceDiagram
+  participant Author
+  participant Margo
+  participant Browser
+  Author->>Margo: Compile Markdown
+  Margo->>Browser: Render HTML
+  Browser-->>Author: Ready document

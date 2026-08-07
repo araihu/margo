@@ -1,0 +1,9 @@
+flowchart LR
+  A[Input] --> B{Valid?}
+  B -->|yes| C[Render]
+  B -->|no| D[Diagnostic]
+  classDef success fill:#dcfce7,stroke:#166534,color:#14532d,stroke-width:2px,cursor:pointer;
+  classDef failure fill:#fee2e2,stroke:#991b1b,color:#7f1d1d,stroke-width:2px;
+  class C success;
+  class D failure;
+  linkStyle 0 stroke:#2563eb,stroke-width:2px;

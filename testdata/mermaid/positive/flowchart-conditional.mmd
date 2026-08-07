@@ -1,0 +1,6 @@
+flowchart TD
+  Start([Start]) --> Decision{Format?}
+  Decision -->|HTML| Browser[Browser runtime]
+  Decision -->|PDF| Print[Print pipeline]
+  Browser -. ready .-> Done([Done])
+  Print ==> Done
