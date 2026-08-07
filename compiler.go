@@ -38,6 +38,8 @@ var normalizeSource = func(source Source) (sourceNormalization, error) {
 
 var evaluatePolicy = defaultEvaluatePolicy
 
+var renderDocumentBytes = renderExtensionPlanBytes
+
 // New freezes options and returns a reusable compiler.
 func New(options ...Option) *Compiler {
 	config := newCompilerConfig()
@@ -112,10 +114,7 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 	if fingerprint != document.compilerFingerprint || fingerprint != document.plan.compilerFingerprint {
 		return nil, ErrCompilerDocumentMismatch
 	}
-	if _, err := applyRenderOptions(options); err != nil {
-		return nil, err
-	}
-	bytes, err := executeRenderPlan(ctx, document.plan.clone())
+	bytes, err := renderDocumentBytes(ctx, document, options)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +127,13 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 		assets:      document.Assets(),
 		diagnostics: document.Diagnostics(),
 	}, nil
+}
+
+func renderExtensionPlanBytes(ctx context.Context, document *Document, options []RenderOption) ([]byte, error) {
+	if _, err := applyRenderOptions(options); err != nil {
+		return nil, err
+	}
+	return executeRenderPlan(ctx, document.plan.clone())
 }
 
 func contextError(ctx context.Context) error {
