@@ -78,8 +78,21 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   falharam com `no such tool`; as consultas `go list -m -json` para Goshtoso
   v0.1.2 e x/mod v0.30.1-0.20251115032019-269c237cf350 retornaram zero, sem
   escrever módulo. O RED confirma que não há fallback para executável ambient.
-- Próximo marco: executar o único write de C0 (módulos, ferramentas e
-  `rootModuleToC5.v1`) usando os pins e os gates do plano.
+- `2026-08-06T22:25`: C0 GREEN/REFACTOR passaram: `go mod verify`, `go tool
+  templ version`, `go tool muamba --version`, `go list -deps ./...` e a prova
+  independente do x/mod (sums, `.info`/`.mod`/`.zip` e source manifest).
+- C0 commit local: `19df7d9dcb17eadea9bd01b144fbb6c70252b312`, tree
+  `ffad0a7760a0827694adf926c1e3093a2b63f46f`; `go.mod` SHA-256
+  `0eb36e99f0c59989a8c8772899acafa7b30dd205c241801b2d1c52ad775617fe`,
+  `go.sum` SHA-256
+  `1c7ae9b89ad246a943998c8e7a4a4f19bd59a53f84409e0d930ebe9b1670ddbb`.
+- C1 RED confirmou `undefined: New`/`undefined: Marshal`; C1 GREEN/REFACTOR
+  passaram testes unitários, canonical JSON, snapshot defensivo e race.
+- C1 commit local: `00bc4be4fac5c624cadeed37333f722443478020`, tree
+  `564e407e87cc5aeaa2e43f6f92f35073e2710c9a`; `go test ./... -count=1`
+  também passou.
+- Próximo marco: C2 (diagnósticos, frontmatter e perfil Markdown), mantendo
+  C0 read-only e sem alterar `go.mod`, `go.sum` ou o lock.
 
 ## Decisões e limites
 
