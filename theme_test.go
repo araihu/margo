@@ -50,3 +50,15 @@ func TestApplyThemeTokensTerminatesLastDeclaration(t *testing.T) {
 		t.Fatalf("last theme declaration is not terminated: %s", css)
 	}
 }
+
+func TestApplyThemeTokensMaterializesEveryThemeScope(t *testing.T) {
+	tokens, err := defaultThemeTokens(ThemeModern)
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := applyThemeTokens(`:root{/* MARGO_THEME_TOKENS */}.document{/* MARGO_THEME_TOKENS */}`, tokens)
+	want := string(TokenPageBackground) + ":var(--color-surface);"
+	if strings.Count(css, want) != 2 {
+		t.Fatalf("theme declarations were not materialized in both scopes: %s", css)
+	}
+}

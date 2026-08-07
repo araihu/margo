@@ -1,4 +1,21 @@
 @layer shell {
+  :root {
+    /* MARGO_THEME_TOKENS */
+    --margo-print-page-background: var(--document-page-background, var(--color-surface));
+    --margo-print-chrome-background: var(--margo-print-page-background);
+    --margo-print-chrome-foreground: var(--color-on-surface);
+    --margo-print-chrome-muted: var(--color-on-surface);
+    --margo-print-chrome-outline: var(--color-outline);
+  }
+
+  html.dark {
+    --margo-print-page-background: var(--color-surface-dark);
+    --margo-print-chrome-background: var(--margo-print-page-background);
+    --margo-print-chrome-foreground: var(--color-on-surface-dark);
+    --margo-print-chrome-muted: var(--color-on-surface-dark);
+    --margo-print-chrome-outline: var(--color-outline-dark);
+  }
+
   :where(html, body) {
     min-height: 100%;
   }
@@ -183,15 +200,21 @@
 }
 
 @media print {
+  :root,
+  html,
+  body {
+    background: var(--margo-print-page-background);
+  }
+
   body {
     padding: 0;
-    background: #fff;
+    background: var(--margo-print-page-background);
   }
 
   html.dark,
   html.dark body {
     color-scheme: dark;
-    background: var(--color-surface-dark);
+    background: var(--margo-print-page-background);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -201,6 +224,7 @@
     overflow: visible;
     border: 0;
     border-radius: 0;
+    background: var(--margo-print-page-background);
   }
 
   .goshtoso-document__header,

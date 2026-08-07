@@ -318,7 +318,8 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	hash := sha256.Sum256(append([]byte("margo/standalone-document/v1\n"), content...))
 	fingerprint := hex.EncodeToString(hash[:])
 	css := applyThemeTokens(string(asset.Content), config.tokens)
-	styles := templ.Raw(`<style data-margo-stylesheet="goshtoso">` + string(goshtosoCSS) + `</style><style data-margo-stylesheet="document">` + css + `</style><style data-margo-stylesheet="shell">` + string(shellAsset.Content) + `</style>`)
+	shellCSS := applyThemeTokens(string(shellAsset.Content), config.tokens)
+	styles := templ.Raw(`<style data-margo-stylesheet="goshtoso">` + string(goshtosoCSS) + `</style><style data-margo-stylesheet="document">` + css + `</style><style data-margo-stylesheet="shell">` + shellCSS + `</style>`)
 	toc := templ.Component(nil)
 	if config.tableOfContents {
 		toc, err = tableOfContentsComponent(content)
@@ -353,7 +354,7 @@ func applyThemeTokens(css string, tokens map[DocumentToken]string) string {
 			declarations = append(declarations, fmt.Sprintf("%s:%s", token, value))
 		}
 	}
-	return strings.Replace(css, "/* MARGO_THEME_TOKENS */", strings.Join(declarations, ";")+";", 1)
+	return strings.ReplaceAll(css, "/* MARGO_THEME_TOKENS */", strings.Join(declarations, ";")+";")
 }
 
 func assetDataURL(asset AssetRef) string {

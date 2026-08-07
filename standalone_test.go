@@ -90,7 +90,8 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 	}
 	for _, want := range []string{
 		"html.dark body",
-		"background: var(--color-surface-dark);",
+		"--margo-print-page-background: var(--color-surface-dark);",
+		"background: var(--margo-print-page-background);",
 		"print-color-adjust: exact;",
 	} {
 		if !strings.Contains(string(asset.Content), want) {

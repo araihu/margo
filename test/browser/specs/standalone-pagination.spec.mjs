@@ -109,3 +109,57 @@ test("@pagination falls back to two columns only when a TOC is too tall", async 
   await expect(page.locator(".goshtoso-document__toc ol")).toHaveCSS("column-count", "auto");
   await expect(page.locator(".goshtoso-document__toc ol")).toHaveCSS("column-width", "192px");
 });
+
+test("@pagination keeps print margins, document, and chrome on one surface", async ({ page }) => {
+  const [documentCSS, standaloneCSS] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+  ]);
+  const tokenCSS = `:root {
+    --color-surface: #ffffff;
+    --color-surface-alt: #fafafa;
+    --color-on-surface: #4b5563;
+    --color-on-surface-strong: #1f2937;
+    --color-outline: #d1d5db;
+    --color-surface-dark: #171717;
+    --color-surface-dark-alt: #262626;
+    --color-on-surface-dark: #d1d5db;
+    --color-on-surface-dark-strong: #f5f5f5;
+    --color-outline-dark: #525252;
+    --document-page-background: var(--color-surface);
+  }`;
+  for (const mode of ["light", "dark"]) {
+    await page.setContent(`<!doctype html>
+      <html class="${mode === "dark" ? "dark" : ""}" data-color-mode="${mode}">
+        <head><style>${tokenCSS}</style><style>${documentCSS}</style><style>${standaloneCSS}</style></head>
+        <body><div class="goshtoso-document">
+          <header class="goshtoso-document__header">Header</header>
+          <article class="margo-document"><h1>Surface</h1><p>Print chrome contract.</p></article>
+          <footer class="goshtoso-document__footer">Footer</footer>
+        </div></body>
+      </html>`);
+    await page.emulateMedia({ media: "print" });
+    const result = await page.evaluate(() => {
+      const styles = (selector) => {
+        const element = document.querySelector(selector);
+        const computed = getComputedStyle(element);
+        return {
+          background: computed.backgroundColor,
+          pageBackground: computed.getPropertyValue("--margo-print-page-background").trim(),
+          chromeBackground: computed.getPropertyValue("--margo-print-chrome-background").trim(),
+          chromeOutline: computed.getPropertyValue("--margo-print-chrome-outline").trim(),
+        };
+      };
+      return {
+        html: styles("html"),
+        body: styles("body"),
+        document: styles(".goshtoso-document"),
+      };
+    });
+    expect(result.html.background, mode).toBe(result.body.background);
+    expect(result.body.background, mode).toBe(result.document.background);
+    expect(result.document.pageBackground, mode).toBeTruthy();
+    expect(result.document.chromeBackground, mode).toBe(result.document.pageBackground);
+    expect(result.document.chromeOutline, mode).toBeTruthy();
+  }
+});
