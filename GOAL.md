@@ -30,13 +30,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último commit funcional: `41bc8a94a4785b2a69e0c774fa2fc94ba8505edd`,
-  tree `28b5ec4d7789486a1f4d5811d27ad11fe2dab7ea`; ele compila os fences
-  Mermaid em tarefas estritas e imutáveis durante `Compile`, antes de qualquer
-  sessão ou byte de renderização. O commit foi enviado para
-  `origin/impl/v0.0.1-core`. M0-M2 ainda são candidatos: faltam os runners
-  restantes, I1b, execução browser M3-M4, normalização/validação M5 e revisão
-  independente.
+- Último commit funcional: `e9a6abd3f37167272d0f3b499ba7d873c96a9bb6`,
+  tree `394b10c1138f4088d16ffe8ad5e6986b2f6b64aa`; ele define o protocolo
+  `margo-runtime/v1` em Go e JavaScript, validadores, allocator, registry,
+  máquina de estados e projeção canônica sem `ExecutionID`. O commit foi
+  enviado para `origin/impl/v0.0.1-core`. M0-M3 ainda são candidatos: faltam
+  os runners restantes, I1b, normalização/validação M4-M5, executor M6,
+  readiness M7 e revisão independente.
 
 ## Ordem de execução vinculante
 
@@ -517,6 +517,31 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   sobreposições ou tabela quebrada. É um preview otimista do HTML atual,
   impresso externamente; não é evidência de que o backend PDF nativo P1-P7 ou
   a execução Mermaid M3-M6 estejam concluídos.
+- O RED browser M3 revelou que `playwright.config.mjs` descobria somente
+  `harness/*.spec.mjs`; por isso os specs downstream reservados a M3-M7 nunca
+  executariam. O seam M0 foi corrigido para `**/*.spec.mjs`, mantendo os cinco
+  testes `@margo-harness` verdes. Commit isolado
+  `b8dbbf24e3a9acd7e30b14b87d9bc68af51eebf6`, tree
+  `0a95686587f7c392c6a35f71477cc0ba0e4ecba0`, enviado ao origin.
+- M3 RED confirmou `RuntimeDescriptor`, `RuntimeReport`, `ExecutionID` e o
+  allocator ausentes. A segunda rodada RED demonstrou que Go aceitava
+  `tasks:null` e chaves JSON duplicadas e que o JavaScript projetava report
+  não terminal. GREEN/REFACTOR alinharam Go/Chromium em protocolo, IDs,
+  grafo de dependências, duplicatas, forged/malformed reports, transições,
+  isolamento, allocator base36 e projeção canônica sem routing state.
+- Gates M3 passaram: suíte Go focada, `go test ./...`, `go vet ./...`, race
+  focado dez vezes, quatro testes Playwright `@runtime-schema` em Chromium
+  136.0.7103.25 com network 0, `git diff --check`, ownership exato de oito
+  arquivos e hashes C0 intactos. Commit funcional
+  `e9a6abd3f37167272d0f3b499ba7d873c96a9bb6`, tree
+  `394b10c1138f4088d16ffe8ad5e6986b2f6b64aa`, enviado ao origin.
+- Novo requisito humano: `testdata/markdown/margo-full-feature-set.md` deve se
+  tornar o benchmark de integração exaustivo da biblioteca, não um exemplo
+  curto. Ele precisa exercitar imagens/figuras, famílias de listas,
+  CommonMark/GFM/footnotes, tabelas, links, code, HTML sob policy, Mermaid real,
+  composição longa/paginação, TOC, cabeçalho, rodapé, logo/ícone, watermark,
+  stamps e backdrops. O próximo checkpoint deve testar a presença e a saída de
+  cada família antes de regenerar HTML/PDF.
 
 ## Decisões e limites
 
