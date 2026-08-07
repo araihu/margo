@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `9feb239abd2ca703a6fa888cb5e3e77d5f0caf65`,
-  tree `2ede64ac769373fd5bfa1ee30259478da6a6df4b`.
+- HEAD atual da implementação: `109f6035f46a50e6e0aa3f8066b0f592d3315c07`,
+  tree `0e30b9cb9c8f9d482f7dc19798102fae57fd95b6`.
 
 ## Ordem de execução vinculante
 
@@ -243,6 +243,27 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `0a4a67aca943854fdfffa2c7cd6a4b3790ee665c`, tree
   `6d3a03c55f02fcefb8b6ec6244957b35e8beb04d`; checkpoint contém somente
   `table.templ`, `table_templ.go` e `client_sort_render_test.go`.
+- T4 foi executado em `/private/tmp/gs-margo-v001-t4`, derivada do T3
+  `0a4a67aca943854fdfffa2c7cd6a4b3790ee665c`. O RED inicial do teste
+  `TestTableClientSort` falhou porque o runtime ainda não inicializava o modo
+  client; o GREEN/REFACTOR adicionou comparação natural estável, ciclo
+  source/ascending/descending/source, ordenação apenas no `tbody`, preservação
+  de grupos de linhas e sentinelas, foco nativo do botão e atualização de
+  `aria-sort`, sem requisições HTMX. O fixture DOM executado pelo Node passou
+  para ordem natural `item 1`, `item 2`, `item 10`, ordem reversa e retorno à
+  ordem de origem. O comando exato do Step 4 passou: teste Go/Node focado,
+  `just js`, `just js-check` e suíte `components/table`, todos sob
+  `GOWORK=off GOFLAGS=-mod=readonly`.
+- T4 commit externo: `3e12fc6326b03c507cd4d96c506df68d9728b0a6`, tree
+  `9079b75bbc15215785063d0c6fff9375ddd3ffd0`; checkpoint staged somente os
+  três caminhos T4 e passou os manifestos name-status/summary/raw,
+  `git diff --cached --check` e o filtro de paths proibidos. Hashes finais:
+  `assets/js/src/components/table.js`
+  `3a74ecf87998ca72f7ecadede7d92726447791b374e0775dc4bb449634713e1a`,
+  `assets/js/src/components/table_test.go`
+  `c0f58dda43471246d3eabb50b6a9ef267acef072bee1d12e48ed782fa489a427` e
+  `assets/js/goshtoso.min.js`
+  `d1fc46d93b7100a3a0772cc671874c6bb7567eacd4057931fe6caac41d4c9e39`.
 
 ## Decisões e limites
 
