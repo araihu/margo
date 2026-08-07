@@ -1,6 +1,7 @@
 # Proposed Mermaid normalization amendment v2
 
-Status: `PROPOSED`; not yet part of the accepted v0.0.1 design.
+Status: `ACCEPTED_FOR_IMPLEMENTATION` by the product owner on
+`2026-08-07T10:22:54-03:00`.
 
 This amendment closes one contradiction between the accepted Mermaid contract
 and the bytes produced by the pinned Mermaid 11.16.1 runtime. It does not
@@ -234,13 +235,18 @@ Generating the proposal again after replacing every fixture's
 the same SHA-256. The proposed row identity is therefore independent of render
 instance naming.
 
-## Approval gate
+## Approval record
 
-Implementation requires the product owner to accept this exact statement:
+The requested product-owner statement was:
 
 > Approve `margo-mermaid-svg-normalization/v2` as specified in
 > `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`, including the human-reviewed
 > reduction profile and M1 -> M4 -> M5 replay.
 
-Until that approval exists, this file is evidence of a proposed correction,
-not authority to change the accepted design or runtime.
+The product owner replied `aprovado` on `2026-08-07T10:22:54-03:00`, while
+reviewing proposal manifest
+`cd703d58c45b3e7f0ae5ab23f4d4d7ee023c419420925674855dcd8785790826` at
+implementation branch commit `8b680725bcde20c9a31efcd52956226db045b952`.
+This authorizes the exact M1 -> M4 -> M5 replay defined here. It does not
+authorize a broader grammar, different reduction rows, release, publication,
+deployment, merge, or tag.

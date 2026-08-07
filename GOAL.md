@@ -14,9 +14,9 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ## Estado atual
 
-- Status: `IN_PROGRESS / BLOCKED_AWAITING_M5_APPROVAL`; T6 foi movido para o
-  fim do backlog. HTML/PDF otimista está preservado, mas o caminho crítico
-  M5 -> M6 -> M7 -> I2 -> P1 não pode avançar sem autoridade para a emenda v2.
+- Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. HTML/PDF otimista
+  está preservado. Emenda v2 foi aprovada e o replay obrigatório
+  M1 -> M4 -> M5 está autorizado.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -807,8 +807,7 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Os três artefatos de auditoria foram re-hashados e continuam exatos. O corpus
   soma 444 regras, 118 vivas, 326 mortas e 16 keyframes; as quatro provas
   sequence somam 12 expansões, todas com um carrier e um target, zero nome de
-  animação vivo e zero request não local. A emenda permanece `PROPOSED`: não
-  autoriza edição M1/M4/M5 sem aceitação humana explícita.
+  animação vivo e zero request não local.
 - Checkpoint documental da emenda: commit
   `3a53838f2bb87da4c5b7d9afc44c3a80b071416a`, tree
   `01ccb259f9c4661b3019da326a105402221cf518`, enviado para
@@ -835,6 +834,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   bytes `PROPOSED`. Iniciar M1/M4/M5 mudaria o design sem autoridade; iniciar
   P1 violaria I2/M7. A sessão deve permanecer preservada até a resposta humana
   exata registrada no gate da emenda.
+- `2026-08-07T10:22:54-03:00`: product owner respondeu `aprovado` ao gate
+  exato de `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`. Aprovação vincula o
+  manifest proposto
+  `cd703d58c45b3e7f0ae5ab23f4d4d7ee023c419420925674855dcd8785790826` e o
+  commit-base `8b680725bcde20c9a31efcd52956226db045b952`. M1/M4/M5 devem ser
+  reexecutados em TDD, nesta ordem. Nenhuma ampliação de gramática, release,
+  publicação, deploy, merge ou tag foi autorizada.
 
 ## Decisões e limites
 
@@ -857,11 +863,10 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 
 ## Bloqueios e dúvidas
 
-- Bloqueio ativo: falta a aprovação humana explícita de
-  `margo-mermaid-svg-normalization/v2`. O mesmo limite foi confirmado em três
-  ciclos consecutivos após congelar tanto a emenda quanto as 120 linhas de
-  redução. Não há sucessor executável no caminho crítico sem essa mudança de
-  autoridade.
+- Bloqueio M5 encerrado em `2026-08-07T10:22:54-03:00`: product owner aprovou
+  explicitamente `margo-mermaid-svg-normalization/v2` e o replay
+  M1 -> M4 -> M5. A implementação continua limitada às linhas congeladas no
+  manifest `cd703d58...`.
 - T6 deferred: ainda não há `release/table-handoff.json` concreto. O revisor
   não cria tag/publicação; o gate volta ao caminho crítico somente antes de
   I1a e do release final. Os arquivos locais do verificador permanecem
@@ -918,17 +923,16 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   são `dash` e `edge-animation-frame`, com zero `animation-name` computado. Nos
   fixtures conditional/style-heavy, remover `filter:none` de `.labelBox`
   preservou `getComputedStyle(...).filter == "none"` para todos os três
-  elementos atingidos. O browser registrou zero request. A evidência reduz a
-  correção necessária, mas a alteração da ordem fail-closed do design continua
-  aguardando autorização explícita antes de qualquer edição M1/M4/M5.
+  elementos atingidos. O browser registrou zero request. Esta é a evidência
+  aceita para a redução fechada v2; implementação deve reproduzi-la sem ampliar
+  o perfil.
 - A correção proposta está congelada em
   `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`. O gate de autorização exato é:
   `Approve margo-mermaid-svg-normalization/v2 as specified in
   docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md, including the human-reviewed
-  reduction profile and M1 -> M4 -> M5 replay.` A aprovação inclui as linhas
-  propostas de SHA-256 `cd703d58...` referenciadas pela emenda. Até essa
-  aprovação, M5, M6, M7, I2 e P1 permanecem bloqueados por contrato, não por
-  ausência de código.
+  reduction profile and M1 -> M4 -> M5 replay.` A resposta `aprovado` foi
+  registrada em `2026-08-07T10:22:54-03:00`; M1/M4/M5 estão autorizados nesta
+  ordem. M6, M7, I2 e P1 continuam sucessores e não podem antecipar o replay.
 - Bytes upstream exatos de alguns chunks Mermaid contêm whitespace terminal,
   inclusive dentro de template literals de shader. `muamba verify --strict`
   prova esses bytes; `git diff --check` foi aplicado a todos os arquivos M1
