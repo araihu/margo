@@ -237,15 +237,18 @@
     padding: 0;
   }
   .goshtoso-document > .margo-document :where(h1, h2, h3, h4, h5, h6) {
+    page-break-after: avoid;
     break-after: avoid-page;
   }
   .goshtoso-document > .margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre) {
+    page-break-inside: avoid;
     break-inside: avoid-page;
   }
   .goshtoso-document > .margo-document [data-table-client-sort="true"],
   .goshtoso-document > .margo-document [data-code-block],
   .goshtoso-document > .margo-document div:has(> .codeblock),
   .goshtoso-document > .margo-document .margo-mermaid {
+    page-break-inside: avoid;
     break-inside: avoid-page;
   }
   .goshtoso-document [data-code-block-header],
