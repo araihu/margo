@@ -18,6 +18,29 @@ type optimisticMermaidNegativeVector struct {
 	Code string `json:"code"`
 }
 
+func TestOptimisticBenchmarkPresentsColorModeProjectionBeforeFeatureTour(t *testing.T) {
+	source, err := os.ReadFile("testdata/markdown/margo-full-feature-set.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection := bytes.Index(source, []byte("Color mode projection edge cases"))
+	featureTour := bytes.Index(source, []byte("## 1. Document anatomy and navigation"))
+	if projection < 0 || featureTour < 0 || projection >= featureTour {
+		t.Fatal("color-mode projection contract must appear before the feature tour")
+	}
+	for _, required := range []string{
+		"same immutable document",
+		"light PDF",
+		"dark PDF",
+		"unsupported color mode",
+		"before output",
+	} {
+		if !bytes.Contains(source, []byte(required)) {
+			t.Errorf("optimistic benchmark missing color-mode contract %q", required)
+		}
+	}
+}
+
 func TestOptimisticBenchmarkPresentsMermaidEdgeCasesBeforeHappyPath(t *testing.T) {
 	manifestBytes, err := os.ReadFile("testdata/mermaid/negative/vectors.json")
 	if err != nil {

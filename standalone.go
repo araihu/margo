@@ -90,6 +90,7 @@ type standaloneConfig struct {
 	title           string
 	description     string
 	theme           ThemeName
+	colorMode       ColorMode
 	tokens          map[DocumentToken]string
 	brand           Brand
 	assetOverrides  map[string]AssetRef
@@ -109,9 +110,21 @@ func defaultStandaloneConfig(result *RenderResult) (standaloneConfig, error) {
 		title = result.Metadata().Title
 	}
 	return standaloneConfig{
-		lang: "en", title: title, theme: ThemeModern, tokens: tokens,
+		lang: "en", title: title, theme: ThemeModern, colorMode: ColorModeLight, tokens: tokens,
 		assetOverrides: make(map[string]AssetRef),
 	}, nil
+}
+
+// WithStandaloneColorMode selects the light or dark Goshtoso token family for
+// both screen rendering and print/PDF projection.
+func WithStandaloneColorMode(mode ColorMode) StandaloneOption {
+	return func(config *standaloneConfig) error {
+		if err := validateColorMode(mode); err != nil {
+			return err
+		}
+		config.colorMode = mode
+		return nil
+	}
 }
 
 // WithStandaloneTheme selects the closed theme set for standalone output.
@@ -277,7 +290,7 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	}
 	logoURL := assetDataURL(config.brand.Logo)
 	backdropURL := assetDataURL(config.brand.Backdrop)
-	return standaloneDocument(config.lang, config.theme, config.title, config.description, fingerprint, styles, config.brand, logoURL, backdropURL, toc, templ.Raw(string(content))), nil
+	return standaloneDocument(config.lang, config.theme, config.colorMode, config.title, config.description, fingerprint, styles, config.brand, logoURL, backdropURL, toc, templ.Raw(string(content))), nil
 }
 
 // Standalone is a short alias for RenderStandalone.

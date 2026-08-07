@@ -34,6 +34,15 @@ full integration corpus.
 > HTML source. Headings, lists, tables, figures, notes, diagrams, headers,
 > footers, and page furniture are product behavior.
 
+## Color mode projection edge cases
+
+The host must project this same immutable document as a light PDF and a dark PDF
+without changing Markdown, theme, semantic markup, or artifact content.
+The light projection uses the light Goshtoso token family. The dark projection
+uses the dark token family on screen and in print, preserves backgrounds and
+contrast, and keeps diagrams and other self-contained figures bounded. An
+unsupported color mode fails before output; it never falls back to light.
+
 ---
 
 ## 1. Document anatomy and navigation

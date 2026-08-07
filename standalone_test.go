@@ -53,6 +53,7 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 	for _, want := range []string{
 		"<!doctype html>",
 		`data-theme="modern"`,
+		`data-color-mode="light"`,
 		`data-margo-render-instance="ri-00000000"`,
 		`class="goshtoso-document"`,
 		`data-margo-stylesheet="goshtoso"`,
@@ -68,6 +69,36 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 		if strings.Contains(html, forbidden) {
 			t.Fatalf("offline standalone unexpectedly contains %q:\n%s", forbidden, html)
 		}
+	}
+}
+
+func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
+	result := mustRenderSource(t, "# Dark PDF\n\ncontent")
+	component, err := RenderStandalone(result, WithStandaloneColorMode(ColorModeDark))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, component)
+	for _, want := range []string{`class="dark"`, `data-color-mode="dark"`} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("dark standalone missing %q", want)
+		}
+	}
+	asset, err := EmbeddedAsset("standalone.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"html.dark body",
+		"background: var(--color-surface-dark);",
+		"print-color-adjust: exact;",
+	} {
+		if !strings.Contains(string(asset.Content), want) {
+			t.Errorf("dark print stylesheet missing %q", want)
+		}
+	}
+	if _, err := RenderStandalone(result, WithStandaloneColorMode(ColorMode("sepia"))); err == nil {
+		t.Fatal("unsupported standalone color mode unexpectedly accepted")
 	}
 }
 

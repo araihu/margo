@@ -1,8 +1,8 @@
 package margo
 
-templ standaloneDocument(lang string, theme ThemeName, title, description, fingerprint string, styles templ.Component, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
+templ standaloneDocument(lang string, theme ThemeName, colorMode ColorMode, title, description, fingerprint string, styles templ.Component, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
 	<!doctype html>
-	<html lang={ lang } data-theme={ string(theme) }>
+	<html lang={ lang } class={ templ.KV("dark", colorMode == ColorModeDark) } data-theme={ string(theme) } data-color-mode={ string(colorMode) }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

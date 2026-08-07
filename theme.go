@@ -15,6 +15,22 @@ const (
 	ThemeMinimal  = "minimal"
 )
 
+// ColorMode selects the light or dark Goshtoso token family independently
+// from the document theme.
+type ColorMode string
+
+const (
+	ColorModeLight ColorMode = "light"
+	ColorModeDark  ColorMode = "dark"
+)
+
+func validateColorMode(mode ColorMode) error {
+	if mode != ColorModeLight && mode != ColorModeDark {
+		return fmt.Errorf("margo: unknown color mode %q", mode)
+	}
+	return nil
+}
+
 // DocumentToken is the versioned, bounded CSS custom-property surface.
 type DocumentToken string
 
