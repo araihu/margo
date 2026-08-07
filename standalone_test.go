@@ -103,6 +103,31 @@ func TestStandaloneEmbedsExactGoshtosoCSSBeforeDocumentAdjustments(t *testing.T)
 	}
 }
 
+func TestStandalonePrintBackdropUsesPageCenter(t *testing.T) {
+	asset, err := EmbeddedAsset("standalone.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(asset.Content)
+	printStart := strings.Index(css, "@media print {")
+	if printStart < 0 {
+		t.Fatal("standalone stylesheet has no print media block")
+	}
+	printCSS := css[printStart:]
+	for _, want := range []string{
+		".goshtoso-document__backdrop {",
+		"inset-block-start: 50%;",
+		"inset-inline-start: 50%;",
+		"inset-inline-end: auto;",
+		"transform: translate(-50%, -50%);",
+		"transform-origin: center;",
+	} {
+		if !strings.Contains(printCSS, want) {
+			t.Errorf("print backdrop centering missing %q", want)
+		}
+	}
+}
+
 func TestStandaloneThemeOverrideChangesDocumentAttribute(t *testing.T) {
 	result := mustRenderSource(t, "# Minimal")
 	component, err := RenderStandalone(result, WithStandaloneTheme(ThemeMinimal))

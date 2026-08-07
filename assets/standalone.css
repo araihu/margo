@@ -177,8 +177,12 @@
 
   .goshtoso-document__backdrop {
     position: fixed;
-    inset-block-start: 35%;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inset-inline-end: auto;
     opacity: 0.025;
+    transform: translate(-50%, -50%);
+    transform-origin: center;
   }
 
   .goshtoso-document__stamp {
