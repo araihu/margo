@@ -151,7 +151,28 @@
 
   .goshtoso-document__header,
   .goshtoso-document__footer {
-    font-size: 9pt;
+    display: none;
+  }
+
+  .goshtoso-document__stamps {
+    margin-block-end: 5mm;
+  }
+
+  .goshtoso-document__toc {
+    margin-block: 0;
+    padding: 4mm;
+  }
+
+  .goshtoso-document__toc ol {
+    columns: 1;
+    margin-block-start: 3mm;
+    padding-inline-start: 6mm;
+    font-size: 8.5pt;
+    line-height: 1.2;
+  }
+
+  .goshtoso-document__toc li {
+    margin-block: 0.5mm;
   }
 
   .goshtoso-document__backdrop {

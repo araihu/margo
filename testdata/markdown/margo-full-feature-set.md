@@ -78,7 +78,7 @@ structure.
 
 Smart typography stays authored: “quoted text”, an em dash —, an en dash –,
 ellipsis …, non-breaking concepts such as Margo v0.0.1, accents in Português,
-日本語, and restrained symbols ✓ § ¶. HTML entities remain text: &amp;, &lt;, and
+Español, and restrained symbols ✓ § ¶. HTML entities remain text: &amp;, &lt;, and
 &copy;.
 
 An [inline HTTPS link](https://example.com/margo "Margo example"), a
@@ -320,16 +320,16 @@ sequenceDiagram
     Margo-->>Author: HTML and PDF evidence
 ```
 
-### State diagram
+### Readiness decision flow
 
 ```mermaid
-stateDiagram-v2
-    [*] --> pending
-    pending --> running
-    running --> ready
-    running --> failed
-    ready --> [*]
-    failed --> [*]
+flowchart TD
+    pending[Pending tasks] --> running[Run in dependency order]
+    running --> fonts{Fonts ready?}
+    fonts -->|no| failed[Fail closed]
+    fonts -->|yes| layout{Layout stable for two frames?}
+    layout -->|no| running
+    layout -->|yes| ready[Terminal ready report]
 ```
 
 ## 10. Document furniture
