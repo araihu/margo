@@ -893,6 +893,20 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `6560f0ca68667df2b232c1a40ddca27f3103b796`, tree
   `1d5fa8217c71ff3436f1192531757f6980ff2e32`, enviado ao origin. M5 pode
   retomar o corpus positivo contra esses bytes exatos.
+- `2026-08-07T11:20:00-03:00`: o replay positivo M5 passou pelos quatro
+  flowcharts depois que o validador tipou `data-points` como base64 canônico de
+  JSON ASCII `[{"x":<finito>,"y":<finito>},...]`, em vez de tratá-lo
+  incorretamente como path SVG. Os quatro fixtures sequence ainda falham
+  fechados: cada output possui exatamente um atributo
+  `stroke-width="1pt"`; `stroke-width` está listado como `length`, mas
+  `valueGrammar.length` admite somente unidade opcional `px`, `%`, `em` ou
+  `rem`. A emenda mínima proposta muda somente a descrição para
+  `finite-number-with-optional-px-percent-em-rem-pt-unit` e o parser M5 para
+  admitir `pt`; o fingerprint resultante seria
+  `ff794dccb3bcb8261ab08dd5568f4eca7d49086d5f9e3dd2a88bfdae813da15b`.
+  Nenhuma dessas mudanças de perfil foi aplicada sem aprovação. Error-context
+  Playwright SHA-256
+  `01cc2363ff2c6b92572fb1019f9daeb9a4576e0045b6934d41c9495100ee05d4`.
 
 ## Decisões e limites
 
@@ -923,6 +937,14 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16`,
   mantendo toda outra linha do perfil byte-semanticamente igual. Replay M1 e
   regressão M4 passaram; M5 retomado.
+- Bloqueio atual M5: os quatro outputs sequence pinados emitem exatamente um
+  `stroke-width="1pt"`, enquanto `valueGrammar.length` exclui `pt`. Autoridade
+  mínima solicitada: aprovar somente
+  `valueGrammar.length =
+  "finite-number-with-optional-px-percent-em-rem-pt-unit"`, a admissão de
+  `pt` pelo parser M5 e o fingerprint
+  `ff794dccb3bcb8261ab08dd5568f4eca7d49086d5f9e3dd2a88bfdae813da15b`.
+  Toda outra linha do perfil e gramática permanece igual.
 - Bloqueio M5 encerrado em `2026-08-07T10:22:54-03:00`: product owner aprovou
   explicitamente `margo-mermaid-svg-normalization/v2` e o replay
   M1 -> M4 -> M5. A implementação continua limitada às linhas congeladas no
