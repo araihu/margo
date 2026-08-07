@@ -921,6 +921,36 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   Checkpoints enviados: perfil M1/M4 em `4458f6e`; validador M5 em
   `2310d94ebf6ca42125703c26bd414372d898dbc2`, tree
   `d0ea7ced9f662a5da9b78aaa5ff61464c9f13935`.
+- `2026-08-07T12:27:26-03:00`: corpus humano passou a seguir edge-case-first.
+  O RED `TestOptimisticBenchmarkPresentsMermaidEdgeCasesBeforeHappyPath`
+  falhou pela slice ausente; o GREEN adicionou
+  `testdata/markdown/slices/05-mermaid-profile.md` e espelhou no benchmark os
+  21 vetores negativos M5, mismatch de perfil/família, cinco limites reais,
+  `pt` positivo, `cm` negativo e `data-points` canônico antes do primeiro fence
+  Mermaid. Commit `1043804`, enviado ao origin.
+- A primeira inspeção PDF expôs uma nova regressão: células Goshtoso Table
+  recebiam `` `script`` em vez de `script`. O RED
+  `TestMarkdownTableFlattensInlineCodeWithoutMarkdownDelimiters` reproduziu a
+  perda; `plainInlineText` agora preserva filhos de `CodeSpan` sem delimitador.
+  A regra geral slice/falha/full-artifact foi registrada no README. `go test
+  ./...`, race focado, `go vet ./...`, hashes imutáveis de `go.mod`/`go.sum` e
+  `git diff --check` passaram. Commit `1593ee5`, tree
+  `e5f026d7b9158ebe17473a6253c17a11bd2ca015`, enviado ao origin.
+- Artefato completo regenerado: fonte 17.191 bytes, SHA-256
+  `8555682d1ef72b08c634d26096f1f30846ffeccddfd3e9adbf5258c4a81273fc`;
+  HTML 396.762 bytes, SHA-256
+  `30d1c09c4e9583faceea980d85d27c895eee692baabc42b1b89f873ddd53c2fc`;
+  PDF A4/PDF 1.4 de 18 páginas, 408.088 bytes, SHA-256
+  `ed99e402762cfce39c40d4efd44a117625533875417d227fcb62563df74021a9`.
+  Slice Mermaid: fonte 3.060 bytes, SHA-256
+  `ff15fb1272b9afdaf180c09bd4270f3da8154fbaae5091b459dfadbb07ff67ae`;
+  HTML 334.812 bytes, SHA-256
+  `3c0bc104353edd613933bf356d6af45d3f031f0c9a34a0efdc9daec3cf14a73a`;
+  PDF A4/PDF 1.4 de cinco páginas, 170.603 bytes, SHA-256
+  `4baadb62fdf27231a0521c7964b646e1e668f02b3c4f96b4cda13c14e256edca`.
+  Chromium pinado 136.0.7103.25 confirmou 21 linhas, três/dois SVGs, fontes
+  abertas, zero request remoto/bloqueado e zero erro de console. Páginas do
+  bloco negativo e transição ao happy path foram rasterizadas e inspecionadas.
 
 ## Decisões e limites
 
