@@ -1,6 +1,6 @@
 package margo
 
-templ standaloneDocument(lang string, theme ThemeName, title, description, fingerprint string, styles templ.Component, brand Brand, content templ.Component) {
+templ standaloneDocument(lang string, theme ThemeName, title, description, fingerprint string, styles templ.Component, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
 	<!doctype html>
 	<html lang={ lang } data-theme={ string(theme) }>
 		<head>
@@ -14,15 +14,37 @@ templ standaloneDocument(lang string, theme ThemeName, title, description, finge
 		</head>
 		<body>
 			<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint }>
-				if brand.Header != nil {
-					@brand.Header
+				if backdropURL != "" {
+					<img class="goshtoso-document__backdrop" src={ backdropURL } alt="" aria-hidden="true"/>
+				}
+				if logoURL != "" || brand.Header != nil {
+					<header class="goshtoso-document__header">
+						if logoURL != "" {
+							<img class="goshtoso-document__logo" src={ logoURL } alt={ brand.LogoAlt }/>
+						}
+						if brand.Header != nil {
+							@brand.Header
+						}
+					</header>
+				}
+				if len(brand.Stamps) > 0 {
+					<aside class="goshtoso-document__stamps" aria-label="Document status">
+						for _, stamp := range brand.Stamps {
+							<span class="goshtoso-document__stamp">{ stamp }</span>
+						}
+					</aside>
+				}
+				if toc != nil {
+					@toc
 				}
 				@content
 				if brand.Watermark != "" {
 					<span class="goshtoso-document__watermark">{ brand.Watermark }</span>
 				}
 				if brand.Footer != nil {
-					@brand.Footer
+					<footer class="goshtoso-document__footer">
+						@brand.Footer
+					</footer>
 				}
 			</div>
 		</body>

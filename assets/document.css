@@ -124,6 +124,56 @@
     display: block;
     max-width: 100%;
     height: auto;
+    margin-block: calc(var(--spacing) * 6);
+    border-radius: var(--radius-radius);
+  }
+  .goshtoso-document li > input[type="checkbox"] {
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin-inline-end: calc(var(--spacing) * 2);
+    accent-color: var(--color-primary);
+  }
+  .goshtoso-document :where(details, dl, .footnotes, .margo-runtime-task) {
+    max-width: 75ch;
+    margin-block: calc(var(--spacing) * 6);
+  }
+  .goshtoso-document details {
+    padding: calc(var(--spacing) * 4);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-radius);
+    background: var(--color-surface-alt);
+  }
+  .goshtoso-document summary {
+    color: var(--color-on-surface-strong);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+  }
+  .goshtoso-document dt {
+    color: var(--color-on-surface-strong);
+    font-weight: var(--font-weight-semibold);
+  }
+  .goshtoso-document dd {
+    margin-inline-start: calc(var(--spacing) * 5);
+    margin-block-end: calc(var(--spacing) * 3);
+  }
+  .goshtoso-document .footnotes {
+    font-size: var(--text-sm);
+  }
+  .goshtoso-document .margo-mermaid {
+    padding: calc(var(--spacing) * 5);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-radius);
+    background: var(--color-surface-alt);
+    break-inside: avoid;
+  }
+  .goshtoso-document .margo-mermaid__canvas:empty::before {
+    content: "Mermaid runtime pending";
+    display: block;
+    color: var(--color-on-surface);
+    font-size: var(--text-sm);
+  }
+  .goshtoso-document .margo-mermaid__source {
+    margin-block: calc(var(--spacing) * 3) 0;
   }
   .goshtoso-document > :first-child {
     margin-block-start: 0;

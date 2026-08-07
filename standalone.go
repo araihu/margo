@@ -4,15 +4,19 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"regexp"
 	"strings"
 
 	"github.com/a-h/templ"
 	goshtosoassets "github.com/araihu/goshtoso/assets"
+	nethtml "golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // HeadOwnerSelection freezes one metadata owner before the social task. It is
@@ -82,13 +86,14 @@ func ParseHeadOwnerSelection(data []byte) (HeadOwnerSelection, error) {
 }
 
 type standaloneConfig struct {
-	lang           string
-	title          string
-	description    string
-	theme          ThemeName
-	tokens         map[DocumentToken]string
-	brand          Brand
-	assetOverrides map[string]AssetRef
+	lang            string
+	title           string
+	description     string
+	theme           ThemeName
+	tokens          map[DocumentToken]string
+	brand           Brand
+	assetOverrides  map[string]AssetRef
+	tableOfContents bool
 }
 
 // StandaloneOption configures the self-contained HTML shell.
@@ -139,6 +144,15 @@ func WithPageDescription(description string) StandaloneOption {
 			return fmt.Errorf("margo: standalone description is too long")
 		}
 		config.description = description
+		return nil
+	}
+}
+
+// WithTableOfContents inserts one deterministic navigation landmark before the
+// article. Entries cover heading levels two through four and reuse compiled IDs.
+func WithTableOfContents() StandaloneOption {
+	return func(config *standaloneConfig) error {
+		config.tableOfContents = true
 		return nil
 	}
 }
@@ -239,6 +253,13 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 			return nil, err
 		}
 	}
+	shellAsset, ok := config.assetOverrides["standalone.css"]
+	if !ok {
+		shellAsset, err = EmbeddedAsset("standalone.css")
+		if err != nil {
+			return nil, err
+		}
+	}
 	content, err := renderComponentBytes(result.Content())
 	if err != nil {
 		return nil, fmt.Errorf("margo: render standalone content: %w", err)
@@ -246,8 +267,17 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	hash := sha256.Sum256(append([]byte("margo/standalone-document/v1\n"), content...))
 	fingerprint := hex.EncodeToString(hash[:])
 	css := applyThemeTokens(string(asset.Content), config.tokens)
-	styles := templ.Raw(`<style data-margo-stylesheet="goshtoso">` + string(goshtosoCSS) + `</style><style data-margo-stylesheet="document">` + css + `</style>`)
-	return standaloneDocument(config.lang, config.theme, config.title, config.description, fingerprint, styles, config.brand, templ.Raw(string(content))), nil
+	styles := templ.Raw(`<style data-margo-stylesheet="goshtoso">` + string(goshtosoCSS) + `</style><style data-margo-stylesheet="document">` + css + `</style><style data-margo-stylesheet="shell">` + string(shellAsset.Content) + `</style>`)
+	toc := templ.Component(nil)
+	if config.tableOfContents {
+		toc, err = tableOfContentsComponent(content)
+		if err != nil {
+			return nil, err
+		}
+	}
+	logoURL := assetDataURL(config.brand.Logo)
+	backdropURL := assetDataURL(config.brand.Backdrop)
+	return standaloneDocument(config.lang, config.theme, config.title, config.description, fingerprint, styles, config.brand, logoURL, backdropURL, toc, templ.Raw(string(content))), nil
 }
 
 // Standalone is a short alias for RenderStandalone.
@@ -273,4 +303,67 @@ func applyThemeTokens(css string, tokens map[DocumentToken]string) string {
 		}
 	}
 	return strings.Replace(css, "/* MARGO_THEME_TOKENS */", strings.Join(declarations, ";")+";", 1)
+}
+
+func assetDataURL(asset AssetRef) string {
+	if len(asset.Content) == 0 || asset.MediaType == "" {
+		return ""
+	}
+	return "data:" + asset.MediaType + ";base64," + base64.StdEncoding.EncodeToString(asset.Content)
+}
+
+func tableOfContentsComponent(content []byte) (templ.Component, error) {
+	contextNode := &nethtml.Node{Type: nethtml.ElementNode, DataAtom: atom.Div, Data: "div"}
+	nodes, err := nethtml.ParseFragment(bytes.NewReader(content), contextNode)
+	if err != nil {
+		return nil, fmt.Errorf("margo: parse standalone content for table of contents: %w", err)
+	}
+	type entry struct {
+		level int
+		id    string
+		label string
+	}
+	entries := make([]entry, 0)
+	var walk func(*nethtml.Node)
+	walk = func(node *nethtml.Node) {
+		if node.Type == nethtml.ElementNode && len(node.Data) == 2 && node.Data[0] == 'h' && node.Data[1] >= '2' && node.Data[1] <= '4' {
+			id := ""
+			for _, attribute := range node.Attr {
+				if attribute.Key == "id" {
+					id = attribute.Val
+				}
+			}
+			if id != "" {
+				entries = append(entries, entry{level: int(node.Data[1] - '0'), id: id, label: nodeText(node)})
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	for _, node := range nodes {
+		walk(node)
+	}
+	var markup strings.Builder
+	markup.WriteString(`<nav class="goshtoso-document__toc" aria-label="Table of contents"><p class="goshtoso-document__toc-title">Contents</p><ol>`)
+	for _, entry := range entries {
+		fmt.Fprintf(&markup, `<li data-level="%d"><a href="#%s">%s</a></li>`, entry.level, html.EscapeString(entry.id), html.EscapeString(entry.label))
+	}
+	markup.WriteString(`</ol></nav>`)
+	return templ.Raw(markup.String()), nil
+}
+
+func nodeText(node *nethtml.Node) string {
+	var text strings.Builder
+	var walk func(*nethtml.Node)
+	walk = func(current *nethtml.Node) {
+		if current.Type == nethtml.TextNode {
+			text.WriteString(current.Data)
+		}
+		for child := current.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(node)
+	return strings.TrimSpace(text.String())
 }
