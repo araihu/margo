@@ -79,6 +79,11 @@
   .goshtoso-document :where(p, ul, ol, blockquote, table, pre, hr) + :where(p, ul, ol, blockquote, table, pre, hr) {
     margin-block-start: calc(var(--spacing) * 4);
   }
+  .goshtoso-document [data-code-block],
+  .goshtoso-document div:has(> .codeblock) {
+    margin-block-start: calc(var(--spacing) * 4);
+    break-inside: avoid;
+  }
   .goshtoso-document :where(ul, ol) {
     padding-inline-start: calc(var(--spacing) * 6);
   }

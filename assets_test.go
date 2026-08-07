@@ -43,6 +43,22 @@ func TestDocumentCSSRestoresSemanticMarkdownRhythmAfterGoshtosoPreflight(t *test
 	}
 }
 
+func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".goshtoso-document [data-code-block]"),
+		[]byte(".goshtoso-document div:has(> .codeblock)"),
+		[]byte("margin-block-start: calc(var(--spacing) * 4)"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document stylesheet missing code-block rhythm rule %q", want)
+		}
+	}
+}
+
 func TestAssetOverrideRejectsInvalidPathWithoutFallback(t *testing.T) {
 	result := mustRenderSource(t, "# override")
 	_, err := RenderStandalone(result, WithAssetOverride("document.css", AssetRef{Path: "../outside.css"}))
