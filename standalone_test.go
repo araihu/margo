@@ -173,6 +173,60 @@ func TestStandalonePrintBackdropUsesPageCenter(t *testing.T) {
 	}
 }
 
+func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
+	asset, err := EmbeddedAsset("standalone.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(asset.Content)
+	tocStart := strings.Index(css, ".goshtoso-document__toc {")
+	if tocStart < 0 {
+		t.Fatal("standalone stylesheet has no table-of-contents block")
+	}
+	tocEnd := strings.Index(css[tocStart:], "\n  }\n\n  .goshtoso-document__toc-title")
+	if tocEnd < 0 {
+		t.Fatal("table-of-contents block has no stable end")
+	}
+	tocCSS := css[tocStart : tocStart+tocEnd]
+	for _, want := range []string{
+		"background: transparent;",
+		"break-after: page;",
+		"break-inside: auto;",
+		"overflow: visible;",
+	} {
+		if !strings.Contains(tocCSS, want) {
+			t.Errorf("table-of-contents shell missing %q", want)
+		}
+	}
+	linkStart := strings.Index(css, ".goshtoso-document__toc a {")
+	if linkStart < 0 || !strings.Contains(css[linkStart:], "overflow-wrap: anywhere;") {
+		t.Fatal("table-of-contents links must wrap long labels")
+	}
+	printStart := strings.Index(css, "@media print {")
+	if printStart < 0 {
+		t.Fatal("standalone stylesheet has no print media block")
+	}
+	printCSS := css[printStart:]
+	printTOCStart := strings.Index(printCSS, ".goshtoso-document__toc ol {")
+	if printTOCStart < 0 {
+		t.Fatal("print stylesheet has no table-of-contents list block")
+	}
+	printTOCEnd := strings.Index(printCSS[printTOCStart:], "\n  }")
+	if printTOCEnd < 0 {
+		t.Fatal("print table-of-contents list block has no stable end")
+	}
+	printTOCCSS := printCSS[printTOCStart : printTOCStart+printTOCEnd]
+	for _, want := range []string{
+		"columns: 2 12rem;",
+		"column-fill: balance;",
+		"column-gap: 8mm;",
+	} {
+		if !strings.Contains(printTOCCSS, want) {
+			t.Errorf("adaptive print table-of-contents layout missing %q", want)
+		}
+	}
+}
+
 func TestStandaloneThemeOverrideChangesDocumentAttribute(t *testing.T) {
 	result := mustRenderSource(t, "# Minimal")
 	component, err := RenderStandalone(result, WithStandaloneTheme(ThemeMinimal))
