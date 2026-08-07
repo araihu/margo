@@ -29,6 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
+- HEAD atual da implementação: `e227eb4fdad56fee02936adc60f5d3a36e6f3f1d`,
+  tree `a16a1724f5ca97285d882af9fdc4f394c70d1cea`.
 
 ## Ordem de execução vinculante
 
@@ -119,7 +121,25 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - O teste C2 de preservação de raw HTML foi atualizado para declarar
   explicitamente `rawHTML: sanitized` e executar sob um host que permite essa
   capacidade; isso mantém a prova de AST sem violar o gate fail-closed C3.
-- Próximo marco: C4 (extensões, `RenderContext` e plano de renderização),
+- C4 RED confirmou que a API de extensões, o `RenderContext`, o registro
+  imutável e o plano de renderização ainda não existiam.
+- C4 GREEN/REFACTOR passaram o foco do plano com
+  `GOWORK=off GOFLAGS=-mod=readonly go test . -run
+  'Test(Extension|Registry|DivergentCompiler|CompilerPolicyMutation|EquivalentCompiler|MissingChart)' -count=1`
+  e o gate de concorrência com
+  `GOWORK=off GOFLAGS=-mod=readonly go test -race . -run
+  'TestConcurrent.*Extension|TestConcurrentRenderPlan' -count=20`.
+- C4 criou `ExtensionRegistration`, `ExtensionFactory`, `RenderContext`,
+  sessões por render, fences reconhecidos, falha fechada para
+  `goshtosochart` sem integração e execução em buffer privado antes da saída.
+  Durante a prova foi corrigido o clone do plano para preservar também os nós
+  (antes eles eram zerados antes da cópia).
+- C4 commits locais: `30a168a` (`feat: freeze extension render plans`) e
+  `e227eb4` (`refactor: connect compiler to frozen render plans`), HEAD/tree
+  registrados acima. O artefato de prova HTML foi gerado em
+  `/tmp/margo-contract-preview/margo-contract-preview.html`; ele é um preview
+  do contrato C4 de extensão, não a saída semântica final do C5.
+- Próximo marco: C5 (renderer semântico, adapters de tabela/código e HTML),
   mantendo o handoff C0 read-only.
 
 ## Decisões e limites
