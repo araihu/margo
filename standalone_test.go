@@ -97,6 +97,20 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 			t.Errorf("dark print stylesheet missing %q", want)
 		}
 	}
+	documentCSS, err := EmbeddedAsset("document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		".goshtoso-document:is(.dark *) .margo-mermaid__source",
+		"background: var(--color-surface-dark-alt);",
+		"color: var(--color-on-surface-dark);",
+		"border-color: var(--color-outline-dark);",
+	} {
+		if !strings.Contains(string(documentCSS.Content), want) {
+			t.Errorf("dark Mermaid source stylesheet missing %q", want)
+		}
+	}
 	if _, err := RenderStandalone(result, WithStandaloneColorMode(ColorMode("sepia"))); err == nil {
 		t.Fatal("unsupported standalone color mode unexpectedly accepted")
 	}

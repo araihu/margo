@@ -214,6 +214,14 @@
   .goshtoso-document:is(.dark *) hr {
     border-color: var(--color-outline-dark);
   }
+  .goshtoso-document:is(.dark *) .margo-mermaid__source {
+    color: var(--color-on-surface-dark);
+    background: var(--color-surface-dark-alt);
+    border-color: var(--color-outline-dark);
+  }
+  .goshtoso-document:is(.dark *) .margo-mermaid__source summary {
+    color: var(--color-on-surface-dark-strong);
+  }
 }
 
 @media print {
