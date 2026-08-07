@@ -125,6 +125,7 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
       const declaredResources = await page.evaluate(() => {
         const resources = [];
         for (const element of document.querySelectorAll("img[src],script[src],link[href],iframe[src],video[src],audio[src],source[src],object[data]")) {
+          if (element.tagName === "LINK" && !/\b(stylesheet|preload|modulepreload|icon|manifest)\b/i.test(element.getAttribute("rel") ?? "")) continue;
           const attribute = element.hasAttribute("src") ? "src" : element.hasAttribute("href") ? "href" : "data";
           const value = element.getAttribute(attribute)?.trim() ?? "";
           if (!value || /^(data|blob|about|javascript):/i.test(value) || value.startsWith("#")) continue;
