@@ -71,16 +71,29 @@ row. Duplicate rows fail profile verification.
 
 ### CSS node identity
 
-M0's pinned css-tree 3.1.0 parses each stylesheet. For a rule, selector branch,
-at-rule, or declaration node, `sourceCSS` is the UTF-8 result of
-`csstree.generate(node)` from that parsed AST. Its identity is:
+M0's pinned css-tree 3.1.0 parses each stylesheet. Before hashing a selector or
+declaration block, M4 clones its AST and constructs an execution-independent
+reduction form:
+
+1. the leading ID selector equal to `OriginalRootID` becomes the literal valid
+   CSS ID `#margo-reduction-root`;
+2. every descendant source ID is resolved through the already frozen descendant
+   map and becomes `#margo-reduction-id-<eight-digit-document-order-ordinal>`;
+3. same-SVG local fragment values use those same reduction IDs; and
+4. any original ID that cannot be mapped fails instead of entering the hash.
+
+`sourceCSS` is the UTF-8 result of `csstree.generate(node)` from that cloned
+reduction AST. At-rules and declarations without ID references are generated
+directly from their parsed AST. Node identity is:
 
 ```text
 SHA-256("margo/mermaid-css-node/v1\n" || sourceCSS)
 ```
 
-No raw substring, regular expression, browser-normalized `cssText`, or computed
-style string can substitute for this identity.
+No runtime `OriginalRootID`, `NormalizedRootID`, raw substring, regular
+expression, browser-normalized `cssText`, or computed style string can enter or
+substitute for this identity. Two render instances of the same parsed CSS must
+therefore produce the same row bytes.
 
 ### Dead selector rows
 
@@ -205,9 +218,21 @@ The proposal is derived from these preserved, read-only audit artifacts:
 - bounded correction proof SHA-256
   `adc80c85cc487328f70d8193fbcabd8ce73234439d1bf63b3cff3f9b5552d686`.
 
+The exact proposed `normalizationReductions` bytes are preserved at
+`docs/proposals/MERMAID_NORMALIZATION_REDUCTIONS_V2.proposed.json`, SHA-256
+`cd703d58c45b3e7f0ae5ab23f4d4d7ee023c419420925674855dcd8785790826`.
+They contain 120 unique dead-selector rows covering 427 dead selector branches
+across all 326 observed dead style rules, three sequence rewrites, four
+family/keyframe rows covering 16 at-rule occurrences, and one no-op declaration
+row covering two rule occurrences and three matched elements.
+
 The correction proof shows one carrier and one target for each listed sequence
 rewrite, zero live animation names for the two keyframes, preserved computed
 `filter: none` after declaration removal, and zero non-local request.
+Generating the proposal again after replacing every fixture's
+`OriginalRootID` with a different valid ID produced byte-identical output and
+the same SHA-256. The proposed row identity is therefore independent of render
+instance naming.
 
 ## Approval gate
 
