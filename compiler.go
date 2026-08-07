@@ -43,6 +43,9 @@ var renderDocumentBytes = renderExtensionPlanBytes
 // New freezes options and returns a reusable compiler.
 func New(options ...Option) *Compiler {
 	config := newCompilerConfig()
+	if err := installDefaultExtensions(&config); err != nil {
+		panic(err)
+	}
 	if err := applyOptions(&config, options); err != nil {
 		panic(err)
 	}

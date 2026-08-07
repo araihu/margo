@@ -20,6 +20,17 @@ type ExtensionRegistration struct {
 	Identity ExtensionIdentity
 	Fences   []string
 	Factory  ExtensionFactory
+	compile  extensionCompileHook
+}
+
+type extensionCompileContext struct {
+	normalized sourceNormalization
+}
+
+type extensionCompileHook func(extensionCompileContext, ExtensionNode, uint32) (ExtensionNode, error)
+
+type compiledExtensionNode interface {
+	cloneCompiledExtensionNode() compiledExtensionNode
 }
 
 // RenderContext is the only root-to-extension policy delivery seam. It is a
@@ -38,13 +49,17 @@ type SourcePosition struct {
 
 // ExtensionNode is an immutable detached fence payload.
 type ExtensionNode struct {
-	Fence   string
-	Payload []byte
-	Source  SourcePosition
+	Fence    string
+	Payload  []byte
+	Source   SourcePosition
+	compiled compiledExtensionNode
 }
 
 func (n ExtensionNode) clone() ExtensionNode {
 	n.Payload = append([]byte(nil), n.Payload...)
+	if n.compiled != nil {
+		n.compiled = n.compiled.cloneCompiledExtensionNode()
+	}
 	return n
 }
 

@@ -39,14 +39,16 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		registrations:       registry.clone().registrations,
 	}
 	if parsed, ok := normalized.parsed.(normalizedMarkdown); ok && parsed.root != nil {
-		fenceOwners := make(map[string]struct{})
-		for _, registration := range plan.registrations {
+		fenceOwners := make(map[string]int)
+		for registrationIndex, registration := range plan.registrations {
 			for _, fence := range registration.Fences {
-				fenceOwners[fence] = struct{}{}
+				fenceOwners[fence] = registrationIndex
 			}
 		}
+		extensionOrdinals := make(map[int]uint32)
+		compileContext := extensionCompileContext{normalized: normalized}
 		var missing *Diagnostic
-		_ = ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 			if !entering || node.Kind() != ast.KindFencedCodeBlock {
 				return ast.WalkContinue, nil
 			}
@@ -56,7 +58,8 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			if fence == "" {
 				return ast.WalkContinue, nil
 			}
-			if _, registered := fenceOwners[fence]; !registered {
+			registrationIndex, registered := fenceOwners[fence]
+			if !registered {
 				if fence != "goshtosochart" {
 					return ast.WalkContinue, nil
 				}
@@ -65,13 +68,27 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			}
 			segment := fenced.Lines()
 			payload := append([]byte(nil), segment.Value(body)...)
-			plan.nodes = append(plan.nodes, ExtensionNode{
+			extensionNode := ExtensionNode{
 				Fence:   fence,
 				Payload: payload,
 				Source:  SourcePosition{Source: source.Name, Line: lineAtOffset(source.Content, parsed.frontmatter.bodyOffset+segmentAtStart(segment)), Column: 1},
-			})
+			}
+			registration := plan.registrations[registrationIndex]
+			if registration.compile != nil {
+				ordinal := extensionOrdinals[registrationIndex]
+				compiled, err := registration.compile(compileContext, extensionNode.clone(), ordinal)
+				if err != nil {
+					return ast.WalkStop, err
+				}
+				extensionNode = compiled
+				extensionOrdinals[registrationIndex] = ordinal + 1
+			}
+			plan.nodes = append(plan.nodes, extensionNode)
 			return ast.WalkContinue, nil
 		})
+		if walkErr != nil {
+			return renderPlan{}, walkErr
+		}
 		if missing != nil {
 			return renderPlan{}, &DiagnosticError{Diagnostics: []Diagnostic{*missing}}
 		}
