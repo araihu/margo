@@ -101,8 +101,26 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - C2 commit local: `b6a4b22ad82a4e5da756de5b9cda22731bcf0299`, tree
   `3b54c9baa174431f958af8f0b0d7b753340c971f`; `go test ./... -count=1`
   passou. `go.mod`, `go.sum` e `tools/toolchain.lock` não foram alterados.
-- Próximo marco: C3 (política de capacidades, HTML, recursos e tokens), sempre
-  read-only para o handoff C0.
+- C3 RED confirmou os símbolos de política, allowlist HTML, limites de recurso
+  e validação de tokens ausentes. GREEN/REFACTOR passaram o comando focado do
+  plano e o corpus de bypass 20 vezes:
+  `GOWORK=off GOFLAGS=-mod=readonly go test . ./internal/htmlpolicy -run
+  'Test(Policy|HTML|URL|Token|Resource|YAML)' -count=1` e
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./internal/htmlpolicy -run
+  TestSanitizerBypassCorpus -count=20`.
+- C3 commit local: `3c819da` (`feat: enforce fail-closed document policy`),
+  seguido do commit de integração `0ff4d94` (`refactor: freeze effective
+  policy during compile`). A política usa `RawHTMLDeny`/`RawHTMLSanitized`,
+  `OutputBytes` positivo limitado a `64<<20`, rejeita raw HTML não declarado,
+  mismatch de host e HTML/URL/CSS inseguros; `Compile` armazena o valor
+  efetivo no `Document`. `GOWORK=off GOFLAGS=-mod=readonly go test ./...
+  -count=1` passou. HEAD atual é `0ff4d943ef5d55e60e8fe23d0cd532738d6c9a07`,
+  tree `44899657863b92d4856d41740c7c91f7b13198ce`.
+- O teste C2 de preservação de raw HTML foi atualizado para declarar
+  explicitamente `rawHTML: sanitized` e executar sob um host que permite essa
+  capacidade; isso mantém a prova de AST sem violar o gate fail-closed C3.
+- Próximo marco: C4 (extensões, `RenderContext` e plano de renderização),
+  mantendo o handoff C0 read-only.
 
 ## Decisões e limites
 
