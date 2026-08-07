@@ -32,11 +32,12 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `d424f02888c4a994e7eef20f6a0dfd53a75f0cb1`,
-  tree `fa50df4627944bdc177f034d2df9b1aa9f061284`, enviado para
+- Último checkpoint funcional: `ceea76b4f08622d40a9174a9ec5c1113b5f0b6b5`,
+  tree `b6b0a8bb097fc35111083f7ec869e3a2dc5496dc`, enviado para
   `origin/impl/v0.0.1-core`. Ele adiciona `ColorModeLight`/`ColorModeDark`,
   `WithStandaloneColorMode`, estado explícito no elemento `html`, impressão
-  escura com cor preservada e o caso edge-case-first no benchmark. M0-M5 ainda
+  escura com cor preservada, contraste escuro na fonte Mermaid e o caso
+  edge-case-first no benchmark. M0-M5 ainda
   são candidatos: falta o runner Windows, além de I1b, executor M6, readiness
   M7 e revisão independente; o preview otimista não antecipa essa aceitação.
 
@@ -978,6 +979,21 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   rasterizados e inspecionados. Os SVGs Mermaid aceitos foram reutilizados
   porque a fonte dos fences não mudou e M6 ainda não está implementado; nenhum
   runtime futuro foi alegado.
+- `2026-08-07T12:45:00-03:00`: revisão humana encontrou contraste insuficiente
+  no `<details>Mermaid source` do PDF escuro. O RED ampliado
+  `TestStandaloneDarkColorModeIsExplicitAndPrintSafe` falhou pela ausência do
+  seletor escuro; o GREEN adicionou ao `document.css` o fundo, texto, borda e
+  título escuros para `.margo-mermaid__source`, mantendo o SVG auto-contido
+  claro. A evidência computada confirmou fundo `oklch(0.205 0 0)` e texto
+  `oklch(0.87 0 0)` no modo escuro; a página 13 foi rasterizada e reinspecionada.
+  `templ generate`, `go test ./...`, race focado, `go vet ./...`, hashes
+  imutáveis de `go.mod`/`go.sum` e `git diff --check` passaram. Commit
+  `ceea76b`, tree `b6b0a8b`, enviado ao origin. Artefatos finais agora são:
+  light HTML 398.714 bytes `089a3256477d95a0595cdfe51a8ca128614b1332a0ca597c6ed7d07145967d84`,
+  light PDF 408.515 bytes `f1b6e927b9ea70e7f9aca1baf7c56b7c28df985cd5979f27fed26e41907d0a30`,
+  dark HTML 398.717 bytes `f26bf26c23523a761ee90946574b12a3bcce6f752fe893d44652b55d99807b70`,
+  dark PDF A4/PDF 1.4 de 18 páginas, 418.878 bytes
+  `316e208e8b3ca37870d6e37d7c808f95922bb8d5950b8e26a8dc009e15d5493e`.
 
 ## Decisões e limites
 
