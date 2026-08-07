@@ -315,6 +315,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `internal/authority`, `internal/canonicaljson`, `internal/htmlpolicy` e
   `internal/socialcheck` passaram; não houve alteração de módulos ou arquivos
   de implementação.
+- Consulta remota somente-leitura com `git ls-remote --tags` confirmou tags
+  Goshtoso `v0.1.2` (`29838e67aa4b28aaa43fd5b6e15b0116ca597347`) e posteriores,
+  mas não forneceu `release/table-handoff.json` nem a prova de que uma dessas
+  tags é o release autorizado derivado do T5 desta sessão. Uma tag existente,
+  sem recibo canônico, owner, CI e digests do T5, não satisfaz o T6.
 
 ## Decisões e limites
 
