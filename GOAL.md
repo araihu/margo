@@ -1049,14 +1049,17 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   o fixture independente de assinatura GPG (`signature-contract`, exit 2).
   Commits enviados: `b61dc9b` (CSS/test unitário) e `9ac3e18` (teste
   Playwright), branch `origin/impl/v0.0.1-core`.
-- Artefatos regenerados e inspecionados em light/dark: HTML light 331.795
-  bytes SHA-256 `cb6d1d45f228caa11818c1e50ac84205bbbca668c6ca3ffc371c00c827b786b3`,
-  HTML dark 331.798 bytes SHA-256
-  `ed687d3368d3738efb97d978bc88ed9ae105757d70b6d04ccc9ecc9a55472348`, PDF
+- Artefatos regenerados e inspecionados em light/dark: HTML light 331.884
+  bytes SHA-256 `135d1c341dc83fa2c2ffdc4e328bc1b42a5a78439403018d3e20f2f68d824715`,
+  HTML dark 331.887 bytes SHA-256
+  `9b688a3c20ececfad5f3a411af8f4274f36d686258ad74cc25733f91a49a2603`, PDF
   light A4/PDF 1.4 de 17 páginas, 425.934 bytes, SHA-256
-  `909dae7bf2314c7a1202f1d33a9b59ed7716e549ce7b98e5103b5bccdb351f3f`, PDF
+  `f48cd62d3e254700db3178203229a56a666849d55c7ae84fe37ac89591d3a8d3`, PDF
   dark A4/PDF 1.4 de 17 páginas, 437.874 bytes, SHA-256
-  `ebe381c46bc5b38ce6c9572551141466560e6c2c58cc3e700c52f1df0aa1d567`.
+  `2bf473b4a3141a4df8b575a9a87f186b460629d622e6711993ac99699b2ea613`.
+- O mesmo contrato recebeu fallback `page-break-after: avoid`/
+  `page-break-inside: avoid` para engines legados de impressão; a projeção
+  Chromium permanece byte/layout-equivalente: 17 páginas A4 em cada modo.
 
 ## Decisões e limites
 
