@@ -195,6 +195,23 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   do source root. C8 commit local: `fe7c77956700c2fea48ca4b24a40d176be173de2`,
   tree `af706f547f0edc25ac1ebc79a178dece93f40f66`; checkpoint staged com os seis
   caminhos exatos e filtros proibidos passou.
+- T0 foi executado numa worktree externa dedicada
+  `/private/tmp/gs-margo-v001-t0`, baseada em `origin/main` após `git fetch`.
+  O RED literal do plano não falhou porque o cache local já continha o templ;
+  a verificação não usou binário ambient e retornou `v0.3.1020`. O comando de
+  download literal do plano para `github.com/a-h/templ/cmd/templ@...` é
+  inválido no Go (esse caminho é pacote de ferramenta, não módulo); a execução
+  verificável usou o módulo correto `github.com/a-h/templ@v0.3.1020`, mantendo o
+  `go get -tool` exato como único escritor. `go mod verify`, versão e geração
+  templ passaram sob `GOWORK=off GOFLAGS=-mod=readonly`, sem drift de módulos.
+  T0 commit externo: `fe63b98b673e9e17bff026de6b8ef9010b072957`, tree
+  `8f79fb236c08a84f4b66c4c5592a2964ecee4e0e`; `go.mod` SHA-256
+  `ef79634c6c638af738e2376cf5ad5def138d5ee895d4b21196e014afec05531f`,
+  `go.sum` SHA-256
+  `144bd7e6c648060d43c19d985516b300f3f7ae199cfc86a00c5378f4849bcf80`, lock
+  SHA-256 `b1c9775a3fbdbb6d9704416fae3292650ebec2ab38cd574e8165fea4eb450642`.
+  O T0 checkpoint staged somente `go.mod`, `go.sum` e
+  `tools/table-toolchain.lock`; a worktree permanece preservada para revisão.
 
 ## Decisões e limites
 
