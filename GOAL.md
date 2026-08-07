@@ -14,8 +14,9 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ## Estado atual
 
-- Status: `BLOCKED` por handoff externo autorizado do T6; retomar somente quando
-  o recibo canônico for fornecido pelo owner responsável.
+- Status: `IN_PROGRESS`; o verificador T6 está implementado e testado no
+  worktree externo, mas a aceitação final ainda depende do recibo canônico de
+  release fornecido pelo owner autorizado.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -302,10 +303,12 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ### 2026-08-07
 
-- Auditoria de continuidade: o worktree Margo `impl/v0.0.1-core` e o worktree
-  T6 `codex/margo-v001-t6` estão limpos; não existe `release/table-handoff.json`
-  nem diretório `internal/releasehandoff` no predecessor externo. O RED do T6
-  permanece reproduzível e a fronteira externa continua sem mutação.
+- Auditoria de continuidade: o worktree Margo `impl/v0.0.1-core` permanece
+  limpo. O worktree T6 `codex/margo-v001-t6`, derivado do T5 aceito
+  `dafb16aefdffd424d99e46d40fdec40de66509c7`, agora contém somente os caminhos
+  de implementação do verificador T6 como alterações não commitadas; o
+  `release/table-handoff.json` concreto ainda não existe. Nenhuma tag, release,
+  push ou mutação externa foi feita.
 - Artefatos HTML verificados e apresentados ao usuário: o preview semântico em
   `/tmp/margo-semantic-preview/margo-semantic-preview.html` tem 3.225 bytes e
   SHA-256 `3ae8855b93dbae1d98c21b1ca5cb11b1d965316237fddf025fb528fe8772d155`;
@@ -335,6 +338,17 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `goshtoso-theme.css`; não há asset `table-handoff.json` ou equivalente. O
   mesmo bloqueio T6 persistiu em várias continuações, e não resta uma ação
   segura dentro deste checkout que possa produzir a autoridade externa.
+- T6 local avançou sem inventar autoridade: `internal/releasehandoff` e
+  `tools/verify-table-handoff.go` implementam o schema fechado, digest
+  canônico sem `recordDigest` no preimage, validação do owner distinto do
+  reviewer, identidade da árvore revisada, artefatos gerados, recibo do owner
+  e digest dos bytes da fonte de `head`.
+- Gates locais T6 passaram no worktree `/private/tmp/gs-margo-v001-t6`:
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./internal/releasehandoff
+  -count=1`, `GOWORK=off GOFLAGS=-mod=readonly go test ./components/table
+  ./internal/releasehandoff -count=1`, `go vet ./internal/releasehandoff
+  ./tools` e `git diff --check`. O CLI também falha fechado com
+  `table.handoff_arguments_required` sem argumentos.
 
 ## Decisões e limites
 
@@ -359,7 +373,9 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Bloqueio atual: T6 depende de um handoff externo autorizado e ainda não há
   `release/table-handoff.json` concreto para verificar. O revisor não tem
   autorização para criar tag, publicar módulo ou substituir o dono externo;
-  essa é a condição de retomada da sessão.
+  essa é a condição de retomada da sessão. Os arquivos locais do verificador
+  permanecem deliberadamente fora de um checkpoint aceito até que o record
+  concreto seja recebido e os seis caminhos de T6 possam ser validados juntos.
 - Atenção de reprodutibilidade: o transfer record C0 guarda SHA-256 bruto dos
   arquivos `go.mod`/`go.sum`, mas o comando literal do plano C5 usa
   `git hash-object`, que neste repositório produz SHA-1 de blob e nunca pode
