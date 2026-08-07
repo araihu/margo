@@ -726,6 +726,19 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   no-op `filter: none`; qualquer outra at-rule, atributo selector ou `filter`
   continua falhando. Isso altera explicitamente o design/perfil M1/M4 e não
   pode ser aplicado silenciosamente por M5.
+- Prova adicional limitada da proposta M5 foi executada sem editar o contrato:
+  `/tmp/margo-mermaid-audit/m5-correction-proof.json`, SHA-256
+  `adc80c85cc487328f70d8193fbcabd8ce73234439d1bf63b3cff3f9b5552d686`.
+  Em cada um dos quatro fixtures sequence, cada seletor upstream
+  `[id$="-arrowhead"] path`, `[id$="-crosshead"] path` e
+  `[id$="-sequencenumber"]` atinge exatamente um carrier e um target, podendo
+  ser expandido para um seletor de ID normalizado exato. Os únicos keyframes
+  são `dash` e `edge-animation-frame`, com zero `animation-name` computado. Nos
+  fixtures conditional/style-heavy, remover `filter:none` de `.labelBox`
+  preservou `getComputedStyle(...).filter == "none"` para todos os três
+  elementos atingidos. O browser registrou zero request. A evidência reduz a
+  correção necessária, mas a alteração da ordem fail-closed do design continua
+  aguardando autorização explícita antes de qualquer edição M1/M4/M5.
 - Bytes upstream exatos de alguns chunks Mermaid contêm whitespace terminal,
   inclusive dentro de template literals de shader. `muamba verify --strict`
   prova esses bytes; `git diff --check` foi aplicado a todos os arquivos M1
