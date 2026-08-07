@@ -12,6 +12,7 @@ import (
 )
 
 func TestMermaidTaskDescriptorIsDeterministic(t *testing.T) {
+	const wantProfileFingerprint = "cd9edc30096cae2622b8e3489361465b6bcba66ad891934353bfdfb0035fff24"
 	source := []byte("flowchart TD\n  A --> B\n")
 	wantSource := sha256.Sum256(source)
 
@@ -34,8 +35,8 @@ func TestMermaidTaskDescriptorIsDeterministic(t *testing.T) {
 	if descriptor.Input.RuntimeDigest != internalmermaid.RuntimeDigest {
 		t.Fatalf("runtime digest = %q", descriptor.Input.RuntimeDigest)
 	}
-	if got := hex.EncodeToString(descriptor.Input.ProfileFingerprint[:]); got != internalmermaid.ProfileFingerprintHex {
-		t.Fatalf("profile fingerprint = %s", got)
+	if got := hex.EncodeToString(descriptor.Input.ProfileFingerprint[:]); got != wantProfileFingerprint {
+		t.Fatalf("profile fingerprint = %s, want %s", got, wantProfileFingerprint)
 	}
 	if descriptor.ConfigurationHash != internalmermaid.StrictConfigurationHash() {
 		t.Fatal("strict configuration hash mismatch")
