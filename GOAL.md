@@ -882,6 +882,17 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   aplicada silenciosamente. Evidência Playwright preservada em
   `/tmp/margo-m5-blocker.M4seUU/test-results`, incluindo error-context SHA-256
   `b2fffe6438dd9d0ef87aa3c280c1053423a50cc45a48d0ea216f1cdb0fdcda5f`.
+- `2026-08-07T11:16:35-03:00`: product owner aprovou a correção mínima M1
+  `cssProperties["max-width"] = "length"`. Nenhuma outra linha semântica do
+  perfil mudou. O fingerprint novo é
+  `fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16`.
+  `muamba verify --strict`, `generate-go --strict --check --package assets`,
+  `go test ./profiles ./internal/mermaid ./internal/svgprofile -count=1`, os
+  checks de sintaxe JavaScript e os oito testes oficiais `@svg-normalize`
+  passaram com `network=0`. Commit
+  `6560f0ca68667df2b232c1a40ddca27f3103b796`, tree
+  `1d5fa8217c71ff3436f1192531757f6980ff2e32`, enviado ao origin. M5 pode
+  retomar o corpus positivo contra esses bytes exatos.
 
 ## Decisões e limites
 
@@ -904,14 +915,14 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 
 ## Bloqueios e dúvidas
 
-- Bloqueio atual M5: o perfil fechado não lista `max-width`, embora todos os
-  oito outputs positivos pinados emitam essa declaração root com um valor
-  finito em `px`. M5 não pode aceitá-la como propriedade não listada e não pode
-  editar o perfil sem correção humana retornada a M1. Autoridade mínima
-  solicitada: aprovar `cssProperties["max-width"] = "length"` e o novo
+- Bloqueio M5 encerrado em `2026-08-07T11:16:35-03:00`: o perfil fechado não
+  listava `max-width`, embora todos os oito outputs positivos pinados emitam
+  essa declaração root com um valor finito em `px`. A autoridade mínima
+  solicitada aprovou `cssProperties["max-width"] = "length"` e o novo
   fingerprint
   `fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16`,
-  mantendo toda outra linha do perfil byte-semanticamente igual.
+  mantendo toda outra linha do perfil byte-semanticamente igual. Replay M1 e
+  regressão M4 passaram; M5 retomado.
 - Bloqueio M5 encerrado em `2026-08-07T10:22:54-03:00`: product owner aprovou
   explicitamente `margo-mermaid-svg-normalization/v2` e o replay
   M1 -> M4 -> M5. A implementação continua limitada às linhas congeladas no
