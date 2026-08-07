@@ -7,6 +7,7 @@ import (
 	"html"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -29,11 +30,12 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 	}
 	body := templ.ComponentFunc(func(renderCtx context.Context, out io.Writer) error {
 		renderer := markdownRenderer{
-			ctx:       renderCtx,
-			out:       out,
-			source:    parsed.frontmatter.body,
-			policy:    document.effectivePolicy,
-			tableSort: tableSortMode(renderOptions),
+			ctx:                 renderCtx,
+			out:                 out,
+			source:              parsed.frontmatter.body,
+			policy:              document.effectivePolicy,
+			tableSort:           tableSortMode(renderOptions),
+			runtimeTaskOrdinals: make(map[string]uint32),
 		}
 		return renderer.renderBlock(parsed.root)
 	})
@@ -57,11 +59,12 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 }
 
 type markdownRenderer struct {
-	ctx       context.Context
-	out       io.Writer
-	source    []byte
-	policy    EffectivePolicy
-	tableSort TableSortMode
+	ctx                 context.Context
+	out                 io.Writer
+	source              []byte
+	policy              EffectivePolicy
+	tableSort           TableSortMode
+	runtimeTaskOrdinals map[string]uint32
 }
 
 func (r markdownRenderer) renderBlock(node goldast.Node) error {
@@ -145,11 +148,32 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 		return err
 	case *goldast.FencedCodeBlock:
 		language := string(value.Language(r.source))
+		if language == "mermaid" {
+			return r.renderRuntimeFence(language, value.Lines().Value(r.source))
+		}
 		return renderCodeBlock(r.ctx, r.out, language, value.Lines().Value(r.source))
 	case *goldast.CodeBlock:
 		return renderCodeBlock(r.ctx, r.out, "", value.Lines().Value(r.source))
 	case *tableast.Table:
 		return renderMarkdownTable(r.ctx, r.out, value, r.source, r.tableSort)
+	case *tableast.FootnoteList:
+		if _, err := io.WriteString(r.out, `<section class="footnotes" aria-label="Footnotes" role="doc-endnotes"><hr><ol>`); err != nil {
+			return err
+		}
+		if err := r.renderBlock(value); err != nil {
+			return err
+		}
+		_, err := io.WriteString(r.out, `</ol></section>`)
+		return err
+	case *tableast.Footnote:
+		if _, err := fmt.Fprintf(r.out, `<li id="fn:%d">`, value.Index); err != nil {
+			return err
+		}
+		if err := r.renderBlock(value); err != nil {
+			return err
+		}
+		_, err := io.WriteString(r.out, `</li>`)
+		return err
 	case *goldast.HTMLBlock:
 		return r.renderRawHTML(value.Lines().Value(r.source))
 	default:
@@ -237,6 +261,36 @@ func (r markdownRenderer) renderInline(node goldast.Node) error {
 		}
 		_, err := fmt.Fprintf(r.out, "</%s>", tag)
 		return err
+	case *tableast.Strikethrough:
+		if _, err := io.WriteString(r.out, `<del>`); err != nil {
+			return err
+		}
+		if err := r.renderInlineChildren(value); err != nil {
+			return err
+		}
+		_, err := io.WriteString(r.out, `</del>`)
+		return err
+	case *tableast.TaskCheckBox:
+		if value.IsChecked {
+			_, err := io.WriteString(r.out, `<input checked="" disabled="" type="checkbox" aria-label="Completed task"> `)
+			return err
+		}
+		_, err := io.WriteString(r.out, `<input disabled="" type="checkbox" aria-label="Incomplete task"> `)
+		return err
+	case *tableast.FootnoteLink:
+		refID := "fnref:" + strconv.Itoa(value.Index)
+		if value.RefIndex > 0 {
+			refID = "fnref" + strconv.Itoa(value.RefIndex) + ":" + strconv.Itoa(value.Index)
+		}
+		_, err := fmt.Fprintf(r.out, `<sup id="%s"><a href="#fn:%d" role="doc-noteref" aria-label="Footnote %d">%d</a></sup>`, refID, value.Index, value.Index, value.Index)
+		return err
+	case *tableast.FootnoteBacklink:
+		refID := "fnref:" + strconv.Itoa(value.Index)
+		if value.RefIndex > 0 {
+			refID = "fnref" + strconv.Itoa(value.RefIndex) + ":" + strconv.Itoa(value.Index)
+		}
+		_, err := fmt.Fprintf(r.out, `&#160;<a href="#%s" role="doc-backlink" aria-label="Back to footnote reference %d">↩</a>`, refID, value.Index)
+		return err
 	case *goldast.Link:
 		return r.renderLink(value.Destination, value.Title, value)
 	case *goldast.Image:
@@ -283,7 +337,28 @@ func (r markdownRenderer) renderImage(image *goldast.Image) error {
 		return fmt.Errorf("render.image_invalid: %w", err)
 	}
 	alt := plainInlineText(image, r.source)
-	_, err := fmt.Fprintf(r.out, `<img src="%s" alt="%s">`, html.EscapeString(destination), html.EscapeString(alt))
+	if _, err := fmt.Fprintf(r.out, `<img src="%s" alt="%s"`, html.EscapeString(destination), html.EscapeString(alt)); err != nil {
+		return err
+	}
+	if len(image.Title) > 0 {
+		if _, err := fmt.Fprintf(r.out, ` title="%s"`, html.EscapeString(string(image.Title))); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(r.out, `>`)
+	return err
+}
+
+func (r markdownRenderer) renderRuntimeFence(kind string, source []byte) error {
+	ordinal := r.runtimeTaskOrdinals[kind]
+	r.runtimeTaskOrdinals[kind] = ordinal + 1
+	if _, err := fmt.Fprintf(r.out, `<figure class="margo-runtime-task margo-mermaid" data-margo-runtime-task="%s" data-margo-runtime-task-ordinal="%d"><div class="margo-mermaid__canvas" role="img" aria-label="Mermaid diagram"></div><details class="margo-mermaid__source"><summary>Mermaid source</summary><pre><code>`, html.EscapeString(kind), ordinal); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(r.out, html.EscapeString(string(source))); err != nil {
+		return err
+	}
+	_, err := io.WriteString(r.out, `</code></pre></details></figure>`)
 	return err
 }
 
