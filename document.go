@@ -12,6 +12,7 @@ type Document struct {
 	metadata            Metadata
 	assets              AssetSet
 	diagnostics         []Diagnostic
+	parsed              any
 }
 
 func (d *Document) sourceBytesForTest() []byte {

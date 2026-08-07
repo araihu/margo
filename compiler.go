@@ -24,6 +24,16 @@ type Compiler struct {
 	fingerprint CompilerConfigFingerprint
 }
 
+type sourceNormalization struct {
+	metadata    Metadata
+	diagnostics []Diagnostic
+	parsed      any
+}
+
+var normalizeSource = func(source Source) (sourceNormalization, error) {
+	return sourceNormalization{metadata: Metadata{Name: source.Name, BaseURL: source.BaseURL}}, nil
+}
+
 // New freezes options and returns a reusable compiler.
 func New(options ...Option) *Compiler {
 	config := newCompilerConfig()
@@ -47,6 +57,10 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 	fingerprint := c.fingerprint
 	c.mu.RUnlock()
 	snapshot := source.clone()
+	normalized, err := normalizeSource(snapshot)
+	if err != nil {
+		return nil, err
+	}
 	sourceHash := sha256.Sum256(snapshot.Content)
 	docFingerprint := documentFingerprint(snapshot, fingerprint, config.values)
 	return &Document{
@@ -54,8 +68,9 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 		sourceHash:          sourceHash,
 		compilerFingerprint: fingerprint,
 		documentFingerprint: docFingerprint,
-		metadata:            Metadata{Name: snapshot.Name, BaseURL: snapshot.BaseURL},
-		diagnostics:         nil,
+		metadata:            normalized.metadata,
+		diagnostics:         cloneDiagnostics(normalized.diagnostics),
+		parsed:              normalized.parsed,
 	}, nil
 }
 
