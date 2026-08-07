@@ -90,7 +90,8 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 	}
 	for _, want := range []string{
 		"html.dark body",
-		"--margo-print-page-background: var(--color-surface-dark);",
+		"--margo-page-background: var(--color-surface-dark);",
+		"--margo-print-page-background: var(--margo-page-background);",
 		"background: var(--margo-print-page-background);",
 		"print-color-adjust: exact;",
 	} {
@@ -192,7 +193,9 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 	}
 	tocCSS := css[tocStart : tocStart+tocEnd]
 	for _, want := range []string{
-		"background: transparent;",
+		"border: 0;",
+		"border-radius: 0;",
+		"background: var(--margo-page-background);",
 		"break-after: page;",
 		"break-inside: auto;",
 		"overflow: visible;",

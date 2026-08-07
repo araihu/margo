@@ -1,7 +1,8 @@
 @layer shell {
   :root {
     /* MARGO_THEME_TOKENS */
-    --margo-print-page-background: var(--document-page-background, var(--color-surface));
+    --margo-page-background: var(--document-page-background, var(--color-surface));
+    --margo-print-page-background: var(--margo-page-background);
     --margo-print-chrome-background: var(--margo-print-page-background);
     --margo-print-chrome-foreground: var(--color-on-surface);
     --margo-print-chrome-muted: var(--color-on-surface);
@@ -9,7 +10,8 @@
   }
 
   html.dark {
-    --margo-print-page-background: var(--color-surface-dark);
+    --margo-page-background: var(--color-surface-dark);
+    --margo-print-page-background: var(--margo-page-background);
     --margo-print-chrome-background: var(--margo-print-page-background);
     --margo-print-chrome-foreground: var(--color-on-surface-dark);
     --margo-print-chrome-muted: var(--color-on-surface-dark);
@@ -108,9 +110,9 @@
     z-index: 1;
     margin-block: calc(var(--spacing) * 8) calc(var(--spacing) * 12);
     padding: calc(var(--spacing) * 6);
-    border: 1px solid var(--color-outline);
-    border-radius: var(--radius-radius);
-    background: transparent;
+    border: 0;
+    border-radius: 0;
+    background: var(--margo-page-background);
     break-after: page;
     break-inside: auto;
     overflow: visible;
@@ -173,8 +175,7 @@
   html.dark :where(
     .goshtoso-document__header,
     .goshtoso-document__footer,
-    .goshtoso-document__stamp,
-    .goshtoso-document__toc
+    .goshtoso-document__stamp
   ) {
     border-color: var(--color-outline-dark);
   }
@@ -186,7 +187,6 @@
 
   html.dark .goshtoso-document__toc {
     color: var(--color-on-surface-dark);
-    background: transparent;
   }
 
   html.dark .goshtoso-document__toc-title {

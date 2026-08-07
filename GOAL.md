@@ -1212,3 +1212,15 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   SHA-256 `782e7b64e9a212e65171fe314a137eefffc374111848ae2e95236d5539b11b16`;
   PDF dark 436.758 bytes,
   SHA-256 `c6526f9f0ca392d396d97c2b83853a35cfbc5b601646c59d2391b8147e0ff931`.
+- `2026-08-07T15:39:46-03:00`: o TOC do standalone deixou de parecer um painel:
+  não tem borda nem raio, usa exatamente `--margo-page-background` do documento
+  em light e dark, e mantém a regra de paginação/colunas intacta. O teste
+  Playwright verificou background e bordas em ambos os modos; a geração offline
+  de HTML/PDF foi refeita sem requests externos. HTML light 334.553 bytes,
+  SHA-256 `f8007a2314a7a0c52c96802569293467bf7af5fb4c6969ba0a762e70a63e8c7f`;
+  HTML dark 334.556 bytes,
+  SHA-256 `1a02a23a5954e0486786aa90dd3b9272e17e493550bf5eeabed3f6196ef0c6c9`;
+  PDF light 424.326 bytes,
+  SHA-256 `f24b64a0f9cfc3f15c1d39244105557de2fde44bb825ab926abd32e98fe2ebb6`;
+  PDF dark 436.358 bytes,
+  SHA-256 `ef69d3e78da15f1af9caaa0aeb910792b759a90a8b7487f2c2a59e5c876e3cf8`.

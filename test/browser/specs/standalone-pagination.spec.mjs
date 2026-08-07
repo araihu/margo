@@ -163,3 +163,47 @@ test("@pagination keeps print margins, document, and chrome on one surface", asy
     expect(result.document.chromeOutline, mode).toBeTruthy();
   }
 });
+
+test("@shell keeps the TOC visually inside the page surface", async ({ page }) => {
+  const [documentCSS, standaloneCSS] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+  ]);
+  const tokenCSS = `:root {
+    --color-surface: #ffffff;
+    --color-surface-alt: #fafafa;
+    --color-on-surface: #4b5563;
+    --color-on-surface-strong: #1f2937;
+    --color-outline: #d1d5db;
+    --color-surface-dark: #171717;
+    --color-surface-dark-alt: #262626;
+    --color-on-surface-dark: #d1d5db;
+    --color-on-surface-dark-strong: #f5f5f5;
+    --color-outline-dark: #525252;
+    --document-page-background: var(--color-surface);
+  }`;
+  for (const mode of ["light", "dark"]) {
+    await page.setContent(`<!doctype html>
+      <html class="${mode === "dark" ? "dark" : ""}">
+        <head><style>${tokenCSS}</style><style>${documentCSS}</style><style>${standaloneCSS}</style></head>
+        <body><div class="goshtoso-document">
+          <nav class="goshtoso-document__toc"><p class="goshtoso-document__toc-title">Contents</p><ol><li>One</li></ol></nav>
+          <article class="margo-document"><h1>Surface</h1></article>
+        </div></body>
+      </html>`);
+    const result = await page.evaluate(() => {
+      const toc = document.querySelector(".goshtoso-document__toc");
+      const documentRoot = document.querySelector(".goshtoso-document");
+      const tocStyle = getComputedStyle(toc);
+      return {
+        tocBackground: tocStyle.backgroundColor,
+        documentBackground: getComputedStyle(documentRoot).backgroundColor,
+        borderWidths: [tocStyle.borderTopWidth, tocStyle.borderRightWidth, tocStyle.borderBottomWidth, tocStyle.borderLeftWidth],
+        borderRadii: [tocStyle.borderTopLeftRadius, tocStyle.borderTopRightRadius, tocStyle.borderBottomRightRadius, tocStyle.borderBottomLeftRadius],
+      };
+    });
+    expect(result.tocBackground, mode).toBe(result.documentBackground);
+    expect(result.borderWidths, mode).toEqual(["0px", "0px", "0px", "0px"]);
+    expect(result.borderRadii, mode).toEqual(["0px", "0px", "0px", "0px"]);
+  }
+});
