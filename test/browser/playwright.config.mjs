@@ -7,7 +7,7 @@ if (!executablePath) {
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["harness/*.spec.mjs"],
+  testMatch: ["**/*.spec.mjs"],
   workers: 1,
   retries: 0,
   fullyParallel: false,
