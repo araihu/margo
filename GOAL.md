@@ -32,8 +32,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `c09e4dd56810cec982bf309002f7c2b4ecfeea28`,
-  tree `8c49f15f396f20821cd01aa1b2187ac05c2c4dfe`, enviado para
+- Último checkpoint funcional: `00739fd13aea44326a3992c7d1adf0a4169f7812`,
+  tree `968e843aebd27c0eca6f64ef9f8064007b1db5ac`, enviado para
   `origin/impl/v0.0.1-core`. Além do modo claro/escuro, contraste Mermaid e
   TOC adaptativa, este checkpoint impede fragmentação interna de headings,
   listas, tabelas, figuras, disclosures, código e Mermaid no print; mantém TOC
@@ -1060,6 +1060,19 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - O mesmo contrato recebeu fallback `page-break-after: avoid`/
   `page-break-inside: avoid` para engines legados de impressão; a projeção
   Chromium permanece byte/layout-equivalente: 17 páginas A4 em cada modo.
+- `2026-08-07T14:25:00-03:00`: revisão humana corrigiu a regra da TOC: ela
+  reserva a página inteira, usa uma coluna por padrão e só ativa duas colunas
+  quando a medição no `beforeprint` mostra que a lista não cabe na altura útil.
+  Itens mantêm `page-break-inside: avoid`; `@pagination` cobre TOC curto e
+  TOC alto. Commit `00739fd` enviado para `origin/impl/v0.0.1-core`.
+  Artefatos atuais: HTML light 333.433 bytes SHA-256
+  `e9cd17e62d5c188d468bcbd6a3f12ad5a339a07396f977b1d758ef1bf8a663a8`, HTML
+  dark 333.436 bytes SHA-256
+  `43ab7c61016fa4c1a40a9ed994687e4317b2bdfbbc73ca12841ecb9e30ae635a`, PDF
+  light A4/PDF 1.4 de 17 páginas, 425.077 bytes SHA-256
+  `7874e7bc7953e096291f6aa05cb299be8e3568f18506a03d09f69d3d41cb0959`, PDF
+  dark A4/PDF 1.4 de 17 páginas, 437.020 bytes SHA-256
+  `72c1425f83919b88532099a3f64295d3f0c74ae5064e2bf8b10c9d16ad737051`.
 
 ## Decisões e limites
 
