@@ -317,6 +317,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `internal/authority`, `internal/canonicaljson`, `internal/htmlpolicy` e
   `internal/socialcheck` passaram; não houve alteração de módulos ou arquivos
   de implementação.
+- Os gates adicionais de qualidade passaram no mesmo checkout: `GOWORK=off
+  GOFLAGS=-mod=readonly go vet ./...` e `GOWORK=off
+  GOFLAGS=-mod=readonly go test -race ./... -count=1`. A prova de corrida passou
+  para os mesmos pacotes; o resultado não altera o bloqueio de integração T6.
 - Consulta remota somente-leitura com `git ls-remote --tags` confirmou tags
   Goshtoso `v0.1.2` (`29838e67aa4b28aaa43fd5b6e15b0116ca597347`) e posteriores,
   mas não forneceu `release/table-handoff.json` nem a prova de que uma dessas
