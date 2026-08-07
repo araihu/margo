@@ -1195,3 +1195,20 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   uma falha do runtime T5.
 - Registrar aqui qualquer bloqueio reproduzível antes de alterar a ordem ou o
   contrato do plano.
+- `2026-08-07T14:44:53-03:00`: a revisão humana encontrou que a área de
+  margem do PDF escuro, o documento e o chrome de impressão usavam superfícies
+  diferentes. O shell agora publica `margo-print-page-background` e a paleta
+  de chrome a partir dos tokens Goshtoso; a aplicação de tokens também cobre
+  o stylesheet shell. O gerador de PDF de revisão deriva background, texto e
+  borda dos valores computados, sem cores literais por modo. O Playwright
+  `@pagination` passou 4/4 em light/dark, com html/body/document na mesma
+  superfície; o lint WCAG passou 495 nós nos dois modos, zero falhas e zero
+  requests bloqueados. Commit `1ebe09b` enviado ao origin.
+  Artefatos A4/PDF 1.4 de 17 páginas: HTML light 333.433 bytes,
+  SHA-256 `aa7520741fd2a23b3efc004ad3a930d0116b06ccecd3b0dfdcb866387b16581a`;
+  PDF light 424.724 bytes,
+  SHA-256 `6da4d2db99df4d45bb6df3203c3b287b22ecdcaa866f44f986b52df7ba0e78e2`;
+  HTML dark 334.527 bytes,
+  SHA-256 `782e7b64e9a212e65171fe314a137eefffc374111848ae2e95236d5539b11b16`;
+  PDF dark 436.758 bytes,
+  SHA-256 `c6526f9f0ca392d396d97c2b83853a35cfbc5b601646c59d2391b8147e0ff931`.
