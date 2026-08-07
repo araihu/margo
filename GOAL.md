@@ -841,6 +841,15 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   commit-base `8b680725bcde20c9a31efcd52956226db045b952`. M1/M4/M5 devem ser
   reexecutados em TDD, nesta ordem. Nenhuma ampliação de gramática, release,
   publicação, deploy, merge ou tag foi autorizada.
+- `2026-08-07T10:26:45-03:00`: replay M1 verde. Teste RED exigiu algoritmo v2
+  e o objeto `normalizationReductions` byte-equivalente ao manifest aprovado.
+  Perfil agora usa `margo-mermaid-svg-normalization/v2`; fingerprint RFC 8785
+  é `cd9edc30096cae2622b8e3489361465b6bcba66ad891934353bfdfb0035fff24`.
+  `muamba verify --strict`, geração `--check`, `go test ./profiles
+  ./internal/mermaid` e `git diff --check` passaram. Commits `26042c6` e
+  `54e0888cf0337e60529fc7ef36fefc508dc14a77`, tree
+  `f4b3658d4efcc470f60f75c2ccf7a841c9702959`, enviados ao origin. Próximo
+  checkpoint obrigatório: M4.
 
 ## Decisões e limites
 
