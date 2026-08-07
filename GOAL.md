@@ -31,14 +31,12 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `e9f490795efe3388b4fd1a60b63617f5590baef4`,
-  tree `637669bee842968300f6d61b316dc571357ea670`, enviado para
-  `origin/impl/v0.0.1-core`. O wrapper de Table do adaptador Margo agora mantém
-  16 px de ritmo antes da prosa seguinte, sem alterar o componente Goshtoso;
-  os ajustes anteriores de código inline, blocos, Mermaid e watermark permanecem.
-  M0-M4 ainda são
-  candidatos: `darwin-arm64`, `darwin-x64` e `linux-x64` já passaram; falta o
-  runner Windows, além de I1b, validação M5, executor M6,
+- Último checkpoint funcional: `5baa7d6757363abc8020926b73286f52906c0f45`,
+  tree `5580d37a405a18f06f52b29abda32d0b1b07fc43`, enviado para
+  `origin/impl/v0.0.1-core`. O replay M4 implementa a redução fechada v2 e a
+  normalização canônica do SVG Mermaid sob o perfil humano aprovado. M0-M4
+  ainda são candidatos: `darwin-arm64`, `darwin-x64` e `linux-x64` já
+  passaram; falta o runner Windows, além de I1b, validação M5, executor M6,
   readiness M7 e revisão independente; o preview otimista não antecipa essa
   aceitação.
 
@@ -72,7 +70,7 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Decks: `docs/superpowers/plans/2026-08-06-margo-v0.0.1-decks-marpit.md`.
 - CLI: `docs/superpowers/plans/2026-08-06-margo-v0.0.1-cli-output.md`.
 - Traceability: `docs/superpowers/plans/2026-08-06-margo-v0.0.1-traceability.md`.
-- Emenda proposta para desbloquear M5, ainda sem autoridade de implementação:
+- Emenda aprovada para desbloquear M5 e vinculada ao replay M1 -> M4 -> M5:
   `docs/MERMAID_NORMALIZATION_AMENDMENT_V2.md`.
 - Linhas exatas propostas para o perfil de redução M5:
   `docs/proposals/MERMAID_NORMALIZATION_REDUCTIONS_V2.proposed.json`.
@@ -850,6 +848,20 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `54e0888cf0337e60529fc7ef36fefc508dc14a77`, tree
   `f4b3658d4efcc470f60f75c2ccf7a841c9702959`, enviados ao origin. Próximo
   checkpoint obrigatório: M4.
+- `2026-08-07T10:50:33-03:00`: replay M4 verde. O normalizador agora aplica
+  somente as reduções aprovadas pelo perfil v2: 427 branches mortos, 12
+  expansões dos três seletores sequence, 16 keyframes não referenciados e duas
+  declarações `filter:none` comprovadamente no-op. IDs e todas as referências
+  SVG/CSS são reescritos e reparsados canonicamente; remoção de qualquer linha
+  aprovada e reduções não perfiladas falham fechadas. O runner M0 oficial
+  reprovisionou Node `v26.5.0`, npm `11.17.0` e Chromium
+  `136.0.7103.25`/revision `1169`; os oito testes `@svg-normalize` passaram com
+  `network=0`. `GOWORK=off GOFLAGS=-mod=readonly go test ./internal/mermaid
+  -count=1` e `git diff --check` passaram. Commit
+  `5baa7d6757363abc8020926b73286f52906c0f45`, tree
+  `5580d37a405a18f06f52b29abda32d0b1b07fc43`, enviado ao origin. Cache,
+  `node_modules` e resultados do harness foram preservados fora do worktree em
+  `/tmp/margo-m4-harness.HhM9Px`. Próximo checkpoint obrigatório: M5.
 
 ## Decisões e limites
 
