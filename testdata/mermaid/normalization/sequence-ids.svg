@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="msrc-sequence" class="diagram-root" viewBox="0 0 400 180">
+  <style>
+    #msrc-sequence .edge-pattern-dashed, #msrc-sequence .default { marker-end: url(#arrow); fill: url(#gradient); }
+    .label { clip-path: url(#clip); }
+    #clip-node { stroke: url(#gradient); }
+    .unused { fill: red; }
+  </style>
+  <defs>
+    <linearGradient id="gradient"><stop offset="0" stop-color="#fff"/></linearGradient>
+    <marker id="arrow"><path d="M0,0 L10,5 L0,10 z"/></marker>
+    <clipPath id="clip"><rect width="100" height="40"/></clipPath>
+  </defs>
+  <g id="actor" class="label" aria-labelledby="title desc" aria-describedby="desc">
+    <title id="title">Actor</title>
+    <desc id="desc">Normalized actor</desc>
+    <path id="edge" class="edge-pattern-dashed default" d="M0,20 L300,20" marker-end="url(#arrow)" fill="url(#gradient)" clip-path="url(#clip)"/>
+    <a id="link" href="#actor" xlink:href="#actor">
+      <text><textPath id="path-label" href="#edge" xlink:href="#edge" style="marker-start: url(#arrow)">message</textPath></text>
+    </a>
+    <path id="clip-node" class="default" d="M0,60 L300,60"/>
+  </g>
+</svg>
