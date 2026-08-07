@@ -14,9 +14,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ## Estado atual
 
-- Status: `IN_PROGRESS`; o verificador T6 está implementado e testado no
-  worktree externo, mas a aceitação final ainda depende do recibo canônico de
-  release fornecido pelo owner autorizado.
+- Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. O verificador
+  local permanece preservado, mas o foco atual é produzir HTML e PDF.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -349,6 +348,9 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   ./internal/releasehandoff -count=1`, `go vet ./internal/releasehandoff
   ./tools` e `git diff --check`. O CLI também falha fechado com
   `table.handoff_arguments_required` sem argumentos.
+- Decisão de prioridade: o handoff externo T6 não bloqueia mais a produção de
+  HTML/PDF. Ele fica deferred até o fim do backlog; nenhuma release/tag será
+  inventada, e o recibo continuará sendo exigido antes de I1a/publicação final.
 
 ## Decisões e limites
 
@@ -370,12 +372,10 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 
 ## Bloqueios e dúvidas
 
-- Bloqueio atual: T6 depende de um handoff externo autorizado e ainda não há
-  `release/table-handoff.json` concreto para verificar. O revisor não tem
-  autorização para criar tag, publicar módulo ou substituir o dono externo;
-  essa é a condição de retomada da sessão. Os arquivos locais do verificador
-  permanecem deliberadamente fora de um checkpoint aceito até que o record
-  concreto seja recebido e os seis caminhos de T6 possam ser validados juntos.
+- T6 deferred: ainda não há `release/table-handoff.json` concreto. O revisor
+  não cria tag/publicação; o gate volta ao caminho crítico somente antes de
+  I1a e do release final. Os arquivos locais do verificador permanecem
+  preservados no worktree T6 até que o record concreto seja recebido.
 - Atenção de reprodutibilidade: o transfer record C0 guarda SHA-256 bruto dos
   arquivos `go.mod`/`go.sum`, mas o comando literal do plano C5 usa
   `git hash-object`, que neste repositório produz SHA-1 de blob e nunca pode
