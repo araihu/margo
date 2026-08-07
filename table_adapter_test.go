@@ -30,3 +30,13 @@ func TestMarkdownTableRejectsServerSortMode(t *testing.T) {
 		t.Fatal("server table sorting unexpectedly accepted")
 	}
 }
+
+func TestMarkdownTableFlattensInlineCodeWithoutMarkdownDelimiters(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "| Vector | Diagnostic |\n| --- | --- |\n| `script` | `mermaid.svg_element_forbidden` |\n").Content())
+	if !bytes.Contains([]byte(markup), []byte(`>script<`)) || !bytes.Contains([]byte(markup), []byte(`>mermaid.svg_element_forbidden<`)) {
+		t.Fatalf("table did not preserve inline-code text:\n%s", markup)
+	}
+	if bytes.Contains([]byte(markup), []byte("`script")) || bytes.Contains([]byte(markup), []byte("`mermaid.svg_element_forbidden")) {
+		t.Fatalf("table leaked Markdown code delimiters:\n%s", markup)
+	}
+}

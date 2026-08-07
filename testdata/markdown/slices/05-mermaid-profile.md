@@ -58,15 +58,21 @@ These snippets are literal XML, not executable Mermaid input:
 
 ```mermaid
 flowchart LR
-    source[Markdown] --> normalize[Normalize SVG]
-    normalize --> validate[Validate closed profile]
-    validate --> commit[Commit output]
+    source[Markdown source] --> compile[Compile immutable document]
+    compile --> render[Render semantic HTML]
+    render --> ready{Runtime ready?}
+    ready -->|yes| html[Standalone HTML]
+    ready -->|yes| pdf[PDF artifact]
+    ready -->|no| fail[Fail before commit]
 ```
 
 ```mermaid
 sequenceDiagram
+    participant Author
     participant Margo
     participant Browser
-    Margo->>Browser: Frozen profile and Mermaid source
-    Browser-->>Margo: Normalized validated SVG
+    Author->>Margo: Markdown plus host policy
+    Margo->>Browser: Frozen runtime descriptor
+    Browser-->>Margo: Terminal runtime report
+    Margo-->>Author: HTML and PDF evidence
 ```

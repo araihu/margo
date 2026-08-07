@@ -1,6 +1,7 @@
 package margo
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"html"
@@ -125,7 +126,16 @@ func plainInlineText(node goldast.Node, source []byte) string {
 		case *goldast.AutoLink:
 			builder.Write(value.Label(source))
 		case *goldast.CodeSpan:
-			builder.WriteString("`")
+			for child := value.FirstChild(); child != nil; child = child.NextSibling() {
+				text := child.(*goldast.Text).Segment.Value(source)
+				if bytes.HasSuffix(text, []byte("\n")) {
+					builder.Write(text[:len(text)-1])
+					builder.WriteByte(' ')
+				} else {
+					builder.Write(text)
+				}
+			}
+			return goldast.WalkSkipChildren, nil
 		case *goldast.RawHTML:
 			builder.WriteString(html.UnescapeString(string(value.Segments.Value(source))))
 		}
