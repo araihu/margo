@@ -907,6 +907,20 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   Nenhuma dessas mudanças de perfil foi aplicada sem aprovação. Error-context
   Playwright SHA-256
   `01cc2363ff2c6b92572fb1019f9daeb9a4576e0045b6934d41c9495100ee05d4`.
+- `2026-08-07T11:31:33-03:00`: product owner autorizou a solução durável para
+  unidades CSS/SVG. O perfil agora é a única autoridade executável:
+  `valueGrammarParameters.lengthUnits` contém o conjunto fechado, único e
+  byte-ordenado `["", "%", "em", "pt", "px", "rem"]`; o validador
+  interpreta esse conjunto diretamente e não duplica `pt` em regex. O
+  fingerprint resultante é
+  `6e4899904bf55acdd2b5c39a290dbac378a7f6fdf8e904b41c38c4d9c3fdda75`.
+  A regressão M4 passou nos oito testes com `network=0`; M5 passou nos oito
+  fixtures positivos, 21 vetores negativos, mismatches e cinco limites reais
+  de recurso. `pt` é positivo pelo corpus sequence, `cm` falha fechado e
+  `data-points` aceita somente base64 canônico do JSON finito esperado.
+  Checkpoints enviados: perfil M1/M4 em `4458f6e`; validador M5 em
+  `2310d94ebf6ca42125703c26bd414372d898dbc2`, tree
+  `d0ea7ced9f662a5da9b78aaa5ff61464c9f13935`.
 
 ## Decisões e limites
 
@@ -937,14 +951,12 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16`,
   mantendo toda outra linha do perfil byte-semanticamente igual. Replay M1 e
   regressão M4 passaram; M5 retomado.
-- Bloqueio atual M5: os quatro outputs sequence pinados emitem exatamente um
-  `stroke-width="1pt"`, enquanto `valueGrammar.length` exclui `pt`. Autoridade
-  mínima solicitada: aprovar somente
-  `valueGrammar.length =
-  "finite-number-with-optional-px-percent-em-rem-pt-unit"`, a admissão de
-  `pt` pelo parser M5 e o fingerprint
-  `ff794dccb3bcb8261ab08dd5568f4eca7d49086d5f9e3dd2a88bfdae813da15b`.
-  Toda outra linha do perfil e gramática permanece igual.
+- Bloqueio M5 encerrado em `2026-08-07T11:31:33-03:00`: em vez de codificar
+  `pt` novamente no JavaScript, a lista fechada de unidades passou ao perfil
+  tipado e o validador consome essa autoridade. `cm` e qualquer unidade não
+  listada continuam falhando. Alterações futuras exigem diff do perfil, novo
+  fingerprint, corpus positivo/negativo e revisão humana; não há ampliação por
+  observação em runtime.
 - Bloqueio M5 encerrado em `2026-08-07T10:22:54-03:00`: product owner aprovou
   explicitamente `margo-mermaid-svg-normalization/v2` e o replay
   M1 -> M4 -> M5. A implementação continua limitada às linhas congeladas no
