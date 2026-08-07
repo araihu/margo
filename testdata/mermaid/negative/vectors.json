@@ -1,0 +1,23 @@
+[
+  {"name":"script","path":"script.svg","family":"flowchart","code":"mermaid.svg_element_forbidden"},
+  {"name":"foreign-object","path":"foreign-object.svg","family":"flowchart","code":"mermaid.svg_element_forbidden"},
+  {"name":"event-handler","path":"event-handler.svg","family":"flowchart","code":"mermaid.svg_attribute_forbidden"},
+  {"name":"external-link","path":"external-link.svg","family":"flowchart","code":"mermaid.svg_reference_forbidden"},
+  {"name":"unknown-namespace","path":"unknown-namespace.svg","family":"flowchart","code":"mermaid.svg_namespace_forbidden"},
+  {"name":"unknown-element","path":"unknown-element.svg","family":"flowchart","code":"mermaid.svg_element_forbidden"},
+  {"name":"unknown-attribute","path":"unknown-attribute.svg","family":"flowchart","code":"mermaid.svg_attribute_forbidden"},
+  {"name":"css-body","path":"css-body.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-attribute-selector","path":"css-attribute-selector.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-universal-selector","path":"css-universal-selector.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-sibling-selector","path":"css-sibling-selector.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-pseudo","path":"css-pseudo.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-custom-property","path":"css-custom-property.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-at-rule","path":"css-at-rule.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-unknown-property","path":"css-unknown-property.svg","family":"flowchart","code":"mermaid.svg_css_forbidden"},
+  {"name":"css-forbidden-function","path":"css-forbidden-function.svg","family":"flowchart","code":"mermaid.svg_css_value_forbidden"},
+  {"name":"cross-svg-url","path":"cross-svg-url.svg","family":"flowchart","code":"mermaid.svg_reference_forbidden"},
+  {"name":"invalid-opacity","path":"invalid-opacity.svg","family":"flowchart","code":"mermaid.svg_css_value_forbidden"},
+  {"name":"invalid-data-points","path":"invalid-data-points.svg","family":"flowchart","code":"mermaid.svg_attribute_forbidden"},
+  {"name":"invalid-length-unit","path":"invalid-length-unit.svg","family":"sequence","code":"mermaid.svg_css_value_forbidden"},
+  {"name":"unrooted-id","path":"unrooted-id.svg","family":"flowchart","code":"mermaid.svg_id_forbidden"}
+]
