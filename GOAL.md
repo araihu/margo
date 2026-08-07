@@ -340,8 +340,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   como diagnóstico de uma feature isolada.
 - HTML/PDF do corpus foram gerados para revisão humana em
   `/tmp/margo-human-review-latest/`. Manifesto atual:
-  `manifest.tsv`; o documento grande gera HTML de 19.677 bytes, PDF de
-  213.967 bytes e 3 páginas; as quatro fatias geram PDFs de uma página. Esses
+  `manifest.tsv`; o documento grande gera HTML de 21.353 bytes, PDF de
+  222.948 bytes e 4 páginas; as quatro fatias geram PDFs de uma página. O
+  corpus também cobre decks estáticos, CLI/mapeamento, acessibilidade e
+  metadata social como contratos otimistas para as próximas tarefas. Esses
   arquivos são artefatos de revisão local, não entram no handoff T6 nem são
   tratados como release.
 - A suíte root foi reexecutada no HEAD `6e0fc7e` antes deste registro com

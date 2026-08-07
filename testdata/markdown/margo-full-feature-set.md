@@ -152,6 +152,38 @@ when split. Code should remain legible. A heading should not be stranded at the
 bottom of a page. Repeated rendering should keep the same HTML bytes even when
 PDF bytes differ between engines.
 
+## Static decks
+
+The same source can be mapped to a Marp-compatible deck when the caller selects
+the deck output. Deck generation keeps slide boundaries explicit, preserves
+speaker notes, rejects unsupported overflow, and reports the exact Marp and
+browser provenance used for preview. A deck is another projection of the
+compiled document; it does not mutate the HTML or PDF source.
+
+## CLI and artifact mapping
+
+The CLI reads one Markdown input and writes only explicit destinations. Native
+HTML is the default output. PDF requires an explicit installed engine when the
+caller does not accept the native platform default. Missing engines fail before
+staging, with no download and no silent fallback. Batch mapping uses supplied
+paths only; it never discovers files by globbing.
+
+Each output carries a document fingerprint, artifact fingerprint, byte digest,
+compiler configuration, theme, assets, engine name and version, and terminal
+runtime projection. Execution IDs route live runs but do not change the stable
+artifact fingerprint.
+
+## Accessibility and social metadata
+
+Charts, tables, and diagrams expose bounded text alternatives with deterministic
+ordering. Headings, captions, table headers, links, and code labels remain
+usable in a screen reader and in extracted PDF text.
+
+Public social metadata is emitted only with an authorized CanonicalOrigin
+record, route-specific evidence, and a verified preview image. Private output
+omits canonical and social URL tags. The renderer never guesses a production
+hostname from the local file path.
+
 ## Release and evidence boundary
 
 The external Goshtoso Table handoff is a release ceremony, not a prerequisite
