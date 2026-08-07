@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `11d3d193b40d6810a77edf88f89d50a5eeffc43f`,
-  tree `015d2dd2da617e4b1c344c914498a2fe316a06e5`.
+- HEAD atual da implementação: `fe7c77956700c2fea48ca4b24a40d176be173de2`,
+  tree `af706f547f0edc25ac1ebc79a178dece93f40f66`.
 
 ## Ordem de execução vinculante
 
@@ -183,6 +183,18 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   templ/testes. C7 commit local: `11d3d193b40d6810a77edf88f89d50a5eeffc43f`,
   tree `015d2dd2da617e4b1c344c914498a2fe316a06e5`; checkpoint com 14 paths
   exatos passou os manifestos staged e `git diff --cached --check`.
+- C8 RED confirmou a ausência dos contratos de identidade de artefato,
+  manifesto e mapeadores com o comando focado do plano. GREEN/REFACTOR passaram
+  o foco e `GOWORK=off GOFLAGS=-mod=readonly go test -race ./... -count=1`.
+  `ArtifactFingerprint` usa o domínio `margo/artifact/v1`, inclui documento,
+  instância, tipo, serializer, configuração, engine e projeção terminal
+  canônica, mas exclui `ExecutionID`; `ArtifactDigest` cobre exatamente os
+  bytes emitidos. `Manifest` clona defensivamente, valida caminhos/duplicatas e
+  digere entradas ordenadas; `AdjacentMapper`, `PreserveMapper` e `FlatMapper`
+  mapeiam apenas caminhos fornecidos, sem descoberta/globbing, rejeitando escape
+  do source root. C8 commit local: `fe7c77956700c2fea48ca4b24a40d176be173de2`,
+  tree `af706f547f0edc25ac1ebc79a178dece93f40f66`; checkpoint staged com os seis
+  caminhos exatos e filtros proibidos passou.
 
 ## Decisões e limites
 
