@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `6e0fc7ee06fdd641f2141b31440dbb6c9da7e40a`,
-  tree `c916ad92bee97edd6e665c0bd12e907e1e18c50c`.
+- HEAD atual da implementação: `3a7435876554129a2ee0e20319f2f2bda328e7d9`,
+  tree `ca47aa8cef3364dbb44f93aed3f6c8bcf526ea42`.
 
 ## Ordem de execução vinculante
 
