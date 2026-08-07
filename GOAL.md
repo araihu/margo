@@ -30,13 +30,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `0853bf932e264f33f06f373870d376edd0f96cfc`,
-  tree `e39bfb79f6c95d96f1d4203d0039ad94abfeb053`, enviado para
-  `origin/impl/v0.0.1-core`. Ele implementa o candidato M4 de normalização SVG
-  determinística sobre DOM/XML, css-tree e CSSOM, com vetores browser/Go. M0-M4
-  ainda são candidatos: faltam os runners restantes, I1b, validação M5,
-  executor M6, readiness M7 e revisão independente; o preview otimista não
-  antecipa essa aceitação.
+- Último checkpoint funcional: `dfa9a3b49aeab94ebc5a8be127234bc9534ecc44`,
+  tree `55ff7052e1cd6e4351559240cb7df220465ec2ad`, enviado para
+  `origin/impl/v0.0.1-core`. Ele restaura o ritmo de 16 px entre componentes
+  CodeBlock no documento e impede quebra interna em impressão. M0-M4 ainda são
+  candidatos: faltam os runners restantes, I1b, validação M5, executor M6,
+  readiness M7 e revisão independente; o preview otimista não antecipa essa
+  aceitação.
 
 ## Ordem de execução vinculante
 
@@ -612,6 +612,27 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   sheet; página 3 foi inspecionada em 1190x1684 e o `M` ficou centralizado, sem
   clipping. Texto extraído tem SHA-256
   `b735c507c50206b6f932dd9099357319b866a0d219415cb9388a8ca1e64e24d6`.
+- Feedback visual da página 8 mostrou componentes CodeBlock consecutivos com
+  bordas encostadas. O Goshtoso atual já oferece `data-code-block`, mas o Margo
+  fixa Goshtoso v0.1.2; `document.css` agora usa o atributo público e um fallback
+  fechado `div:has(> .codeblock)`. A margem pertence à composição documental,
+  não ao componente base, evitando interferência em cards e layouts compactos.
+  `TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks` passou por RED/GREEN e o
+  Chromium pinado mediu `margin-top: 16px` e gaps `[16,16,16,16,16]` nos seis
+  blocos consecutivos da seção 7, com zero request remoto e zero erro de console.
+  `break-inside: avoid` preserva cada painel em PDF.
+- Artefatos regenerados e revisados nas 14 páginas: HTML 389.232 bytes,
+  SHA-256 `32de0d8734c9c4034918da8c94d33ee3a0308312103fa6f690d034135c264b18`;
+  PDF A4/PDF 1.4 de 14 páginas, 418.028 bytes, SHA-256
+  `6586e739d03b38be1be5b3325253fabe574454e25d6aa3a17c821895e150a4e3`;
+  texto extraído SHA-256
+  `37176e3f8bd292a77e913424c9e447ff10acbb7c62f9368e48f56d5f4b08cd7c`;
+  evidência browser SHA-256
+  `e5ef0d7c7e1a13eb76337722199ab30f5d22aa5e4567fdc8ca3211fd25425acc`.
+  Gates completos passaram: `go test ./...`, `go vet ./...`, race focado,
+  `pdfinfo`, `pdftotext`, inspeção visual de todas as páginas e
+  `git diff --check`. Commit funcional `dfa9a3b49aeab94ebc5a8be127234bc9534ecc44`,
+  tree `55ff7052e1cd6e4351559240cb7df220465ec2ad`, enviado ao origin.
 
 ## Decisões e limites
 
