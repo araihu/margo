@@ -114,9 +114,11 @@
   }
   .goshtoso-document :not(pre) > code {
     color: var(--color-on-surface-strong);
-    background: var(--color-surface-alt);
+    background: color-mix(in oklch, var(--color-surface-alt) 50%, var(--color-outline) 50%);
+    border: 1px solid var(--color-outline);
     border-radius: var(--radius-radius);
     padding-inline: var(--spacing);
+    padding-block: calc(var(--spacing) / 2);
   }
   .goshtoso-document pre {
     overflow-x: auto;
@@ -203,7 +205,8 @@
   }
   .goshtoso-document:is(.dark *) :not(pre) > code {
     color: var(--color-on-surface-dark-strong);
-    background: var(--color-surface-dark-alt);
+    background: color-mix(in oklch, var(--color-surface-dark-alt) 50%, var(--color-outline-dark) 50%);
+    border-color: var(--color-outline-dark);
   }
   .goshtoso-document:is(.dark *) hr {
     border-color: var(--color-outline-dark);

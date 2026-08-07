@@ -63,6 +63,32 @@ func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := regexp.MustCompile(`(?s)\.goshtoso-document :not\(pre\) > code \{([^}]*)\}`).FindSubmatch(css)
+	if len(rule) != 2 {
+		t.Fatal("document stylesheet is missing the scoped inline-code rule")
+	}
+	for _, want := range [][]byte{
+		[]byte("color: var(--color-on-surface-strong)"),
+		[]byte("background: color-mix(in oklch, var(--color-surface-alt) 50%, var(--color-outline) 50%)"),
+		[]byte("border: 1px solid var(--color-outline)"),
+		[]byte("padding-block: calc(var(--spacing) / 2)"),
+	} {
+		if !bytes.Contains(rule[1], want) {
+			t.Fatalf("document stylesheet missing inline-code contrast rule %q", want)
+		}
+	}
+	if !bytes.Contains(css, []byte(".goshtoso-document:is(.dark *) :not(pre) > code {")) ||
+		!bytes.Contains(css, []byte("background: color-mix(in oklch, var(--color-surface-dark-alt) 50%, var(--color-outline-dark) 50%)")) ||
+		!bytes.Contains(css, []byte("border-color: var(--color-outline-dark)")) {
+		t.Fatal("document stylesheet is missing the dark inline-code boundary token")
+	}
+}
+
 func TestDocumentCSSKeepsExpandedMermaidSourceReadableWhenPrinted(t *testing.T) {
 	css, err := os.ReadFile("assets/document.css")
 	if err != nil {
