@@ -29,8 +29,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- HEAD atual da implementação: `854e3e88cf9571681669f03140f1e08b17c161de`,
-  tree `bff6cb22773a2e5074b76e9f67e5881a38d4db11`.
+- HEAD atual da implementação: `9feb239abd2ca703a6fa888cb5e3e77d5f0caf65`,
+  tree `2ede64ac769373fd5bfa1ee30259478da6a6df4b`.
 
 ## Ordem de execução vinculante
 
@@ -233,6 +233,16 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   T2 commit externo: `bccff2fdf35ddcac975181ef9c2f083c866c4147`, tree
   `8644cecc9fabd69823db6d0b3c3f55b40ab40d31`; checkpoint contém somente
   `table.templ`, `table_templ.go` e `sort_render_test.go`.
+- T3 foi executado em `/private/tmp/gs-margo-v001-t3`, derivada do T2
+  `bccff2fdf35ddcac975181ef9c2f083c866c4147`. O RED não encontrava
+  `data-table-client-sort`; o GREEN adicionou botão nativo, `aria-sort`,
+  `data-table-sort-key`, índices de origem zero-based e `data-sort-value` com
+  prioridade para `Cell.SortValue` e fallback textual normalizado, sem HTMX em
+  modo client. A geração templ pinada e foco T3/T2 passaram; a suíte completa
+  de `components/table` também passou. T3 commit externo:
+  `0a4a67aca943854fdfffa2c7cd6a4b3790ee665c`, tree
+  `6d3a03c55f02fcefb8b6ec6244957b35e8beb04d`; checkpoint contém somente
+  `table.templ`, `table_templ.go` e `client_sort_render_test.go`.
 
 ## Decisões e limites
 
