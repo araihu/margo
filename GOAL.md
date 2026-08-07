@@ -73,8 +73,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - O branch `main` do Margo está limpo no bootstrap `608c0f4`.
 - Worktree novo criado em `/private/tmp/margo-v001-implementation` a partir do
   R17 aceito; snapshots R17 e anteriores permanecem preservados.
-- Próximo marco: executar o RED de C0 e registrar o resultado antes do primeiro
-  write de dependências.
+- `2026-08-06T22:15:05-03:00`: C0 RED executado no worktree novo com os quatro
+  comandos do plano. `go tool templ version` e `go tool muamba --version`
+  falharam com `no such tool`; as consultas `go list -m -json` para Goshtoso
+  v0.1.2 e x/mod v0.30.1-0.20251115032019-269c237cf350 retornaram zero, sem
+  escrever módulo. O RED confirma que não há fallback para executável ambient.
+- Próximo marco: executar o único write de C0 (módulos, ferramentas e
+  `rootModuleToC5.v1`) usando os pins e os gates do plano.
 
 ## Decisões e limites
 
