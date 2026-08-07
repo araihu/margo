@@ -14,11 +14,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ## Estado atual
 
-- Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. HTML/PDF otimista
-  está preservado. Emenda v2 foi aprovada e o replay obrigatório
-  M1 -> M4 -> M5 está autorizado. M1 e M4 estão verdes; M5 está parado na
-  fronteira humana do perfil porque o corpus pinado contém `max-width` e o
-  allowlist aprovado ainda não contém essa propriedade.
+- Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. Emenda v2 e o
+  replay M1 -> M4 -> M5 estão verdes. O standalone agora projeta o mesmo
+  documento em modo claro ou escuro e os HTML/PDF otimistas dos dois modos
+  estão preservados; M6/M7 e os sucessores formais continuam pendentes.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -33,14 +32,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `5baa7d6757363abc8020926b73286f52906c0f45`,
-  tree `5580d37a405a18f06f52b29abda32d0b1b07fc43`, enviado para
-  `origin/impl/v0.0.1-core`. O replay M4 implementa a redução fechada v2 e a
-  normalização canônica do SVG Mermaid sob o perfil humano aprovado. M0-M4
-  ainda são candidatos: `darwin-arm64`, `darwin-x64` e `linux-x64` já
-  passaram; falta o runner Windows, além de I1b, validação M5, executor M6,
-  readiness M7 e revisão independente; o preview otimista não antecipa essa
-  aceitação.
+- Último checkpoint funcional: `d424f02888c4a994e7eef20f6a0dfd53a75f0cb1`,
+  tree `fa50df4627944bdc177f034d2df9b1aa9f061284`, enviado para
+  `origin/impl/v0.0.1-core`. Ele adiciona `ColorModeLight`/`ColorModeDark`,
+  `WithStandaloneColorMode`, estado explícito no elemento `html`, impressão
+  escura com cor preservada e o caso edge-case-first no benchmark. M0-M5 ainda
+  são candidatos: falta o runner Windows, além de I1b, executor M6, readiness
+  M7 e revisão independente; o preview otimista não antecipa essa aceitação.
 
 ## Ordem de execução vinculante
 
@@ -951,6 +949,35 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   Chromium pinado 136.0.7103.25 confirmou 21 linhas, três/dois SVGs, fontes
   abertas, zero request remoto/bloqueado e zero erro de console. Páginas do
   bloco negativo e transição ao happy path foram rasterizadas e inspecionadas.
+- `2026-08-07T12:33:00-03:00`: modo escuro standalone implementado por TDD.
+  O RED `TestStandaloneDarkColorModeIsExplicitAndPrintSafe` falhou pelos
+  símbolos ausentes; o GREEN adicionou o conjunto fechado
+  `ColorModeLight`/`ColorModeDark`, `WithStandaloneColorMode`,
+  `data-color-mode`, classe `dark`, validação fail-closed e impressão com
+  `color-scheme: dark` mais `print-color-adjust: exact`. O segundo RED
+  `TestOptimisticBenchmarkPresentsColorModeProjectionBeforeFeatureTour`
+  obrigou o corpus a declarar, antes do passeio de funcionalidades, projeções
+  light/dark do mesmo documento e rejeição de modo desconhecido antes da saída.
+  `templ generate` não deixou update pendente; `go test ./...`, race focado,
+  `go vet ./...`, hashes imutáveis de `go.mod`/`go.sum` e `git diff --check`
+  passaram. Commit funcional `d424f02`, tree `fa50df4`, enviado ao origin.
+- Artefatos completos claro/escuro regenerados do mesmo Markdown de 17.686
+  bytes, SHA-256
+  `364a4a82a2dc868a9f7002386fe652df33000f6d6a6f15188e56c629747322f3`.
+  Light: HTML 398.401 bytes
+  `8f42f27d9fa80d145427f173493006118fd1b05b0511c0759edcc86b09017a06`;
+  PDF 408.515 bytes
+  `d574dc1383f351146d9c5f5b90c5af7d2b1dced09033d3c3d12a0ac9b6cd6749`.
+  Dark: HTML 398.404 bytes
+  `77c69c2fda36d5bd2b1374150b8af1e7d80f23123d067bbb0f8314bb87bc5d09`;
+  PDF A4/PDF 1.4 de 18 páginas, 417.694 bytes,
+  `14e7c119d2c90449596ad2d575e4dd592acc2b65d636d783d0789244579c4829`.
+  Chromium 136.0.7103.25 confirmou `darkClass=true`, superfícies screen/print
+  escuras, três SVGs, 21 vetores, zero request bloqueado e zero erro de
+  console/página. TOC, tabela negativa, transição Mermaid e página final foram
+  rasterizados e inspecionados. Os SVGs Mermaid aceitos foram reutilizados
+  porque a fonte dos fences não mudou e M6 ainda não está implementado; nenhum
+  runtime futuro foi alegado.
 
 ## Decisões e limites
 
