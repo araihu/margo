@@ -308,16 +308,27 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   de implementação do verificador T6 como alterações não commitadas; o
   `release/table-handoff.json` concreto ainda não existe. Nenhuma tag, release,
   push ou mutação externa foi feita.
-- Artefatos HTML verificados e apresentados ao usuário: o preview semântico em
-  `/tmp/margo-semantic-preview/margo-semantic-preview.html` tem 3.225 bytes e
-  SHA-256 `3ae8855b93dbae1d98c21b1ca5cb11b1d965316237fddf025fb528fe8772d155`;
-  o preview de contrato em
-  `/tmp/margo-contract-preview/margo-contract-preview.html` tem 2.543 bytes e
-  SHA-256 `d3d5c8b53aa4be44d466353a3703e285b255f28cae0b559525a7533ed65b498c`.
-  O helper foi regenerado com `GOWORK=off GOFLAGS=-mod=readonly go run .`,
-  emitiu exatamente um `doctype`, um `<html>` e um fechamento `</html>`, e
-  encapsula o fragmento da extensão em um documento HTML válido. Nenhum PDF foi
-  produzido nesta etapa; isso não substitui o gate P1-P7.
+- Artefatos HTML verificados e apresentados ao usuário: o preview semântico
+  fragmentário em `/tmp/margo-semantic-preview/margo-semantic-preview.html`
+  permanece com 3.225 bytes e SHA-256
+  `3ae8855b93dbae1d98c21b1ca5cb11b1d965316237fddf025fb528fe8772d155`.
+  O preview atual é um documento standalone completo em
+  `/tmp/margo-contract-preview/margo-contract-preview.html`, gerado pelo
+  `RenderStandalone` do Margo com HTML semântico, tabela, código, CSS embutido,
+  fingerprint e sem rede; tem 5.685 bytes e SHA-256
+  `6157f2625a94d23b177a8b10ee999c7ad6aa61d563288bbe0ec87ee87d7a0c88`.
+  O helper foi executado com `GOWORK=off GOFLAGS=-mod=mod go run .` em um
+  diretório temporário que referencia somente o worktree local do Margo; a
+  saída foi validada com exatamente um `doctype`, um `<html>` e um
+  fechamento `</html>`.
+- PDF local foi produzido a partir do mesmo HTML standalone pelo Chromium
+  instalado, sem download ou fallback: `/tmp/margo-contract-preview/margo-contract-preview.pdf`,
+  115.917 bytes, SHA-256
+  `0d58bdf4ccdf9ab4a530440f6bffb5bdecbd4cfc7ee1dd96437141ec4c3fb881`.
+  `file` identifica PDF 1.4 de uma página; `pdfinfo` confirma Letter 612x792,
+  tagged, sem JavaScript e sem criptografia; `pdftotext` recupera o título,
+  conteúdo, tabela e código. Esta é prova de saída local, não substitui os
+  gates P1-P7 nem cria autoridade T6.
 - A suíte root foi reexecutada no HEAD `6e0fc7e` antes deste registro com
   `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`: os pacotes root,
   `internal/authority`, `internal/canonicaljson`, `internal/htmlpolicy` e
