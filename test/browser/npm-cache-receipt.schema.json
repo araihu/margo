@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "margo/npm-cache/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "lockfileSHA256", "nodeVersion", "npmVersion", "cacheRoot", "receiptSHA256", "packages"],
+  "properties": {
+    "schemaVersion": { "const": "margo/npm-cache/v1" },
+    "lockfileSHA256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nodeVersion": { "const": "v26.5.0" },
+    "npmVersion": { "const": "11.17.0" },
+    "cacheRoot": { "type": "string", "minLength": 1 },
+    "receiptSHA256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "packages": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "version", "lockPath", "omittedReason"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "version": { "type": "string", "minLength": 1 },
+              "lockPath": { "const": "" },
+              "omittedReason": { "const": "root-project" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "version", "lockPath", "resolvedURL", "integrity", "bytes", "sha256", "cacheKey"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "version": { "type": "string", "minLength": 1 },
+              "lockPath": { "type": "string", "minLength": 1 },
+              "resolvedURL": { "type": "string", "pattern": "^https://registry\\.npmjs\\.org/" },
+              "integrity": { "type": "string", "pattern": "^sha512-" },
+              "bytes": { "type": "integer", "minimum": 1 },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "cacheKey": { "type": "string", "pattern": "^make-fetch-happen:request-cache:https://registry\\.npmjs\\.org/" }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

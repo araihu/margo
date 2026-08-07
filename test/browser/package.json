@@ -1,0 +1,15 @@
+{
+  "name": "margo-browser-harness",
+  "private": true,
+  "version": "0.0.1",
+  "engines": {
+    "node": "26.5.0",
+    "npm": "11.17.0"
+  },
+  "devDependencies": {
+    "@playwright/browser-chromium": "1.52.0",
+    "@playwright/test": "1.52.0",
+    "css-tree": "3.1.0",
+    "playwright": "1.52.0"
+  }
+}
