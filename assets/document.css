@@ -1,0 +1,47 @@
+@layer reset, goshtoso, document, brand, overrides;
+
+@layer reset {
+  .goshtoso-document,
+  .goshtoso-document *,
+  .goshtoso-document *::before,
+  .goshtoso-document *::after {
+    box-sizing: border-box;
+  }
+  .goshtoso-document :where(h1, h2, h3, h4, h5, h6, p, ul, ol, pre, blockquote) {
+    margin-block: 0;
+  }
+}
+
+@layer goshtoso {
+  .goshtoso-document {
+    /* MARGO_THEME_TOKENS */
+    color: #1c1c1c;
+    background: var(--document-page-background);
+    font-family: var(--document-font-body);
+    line-height: var(--document-line-height);
+    max-width: var(--document-content-width);
+    margin-inline: auto;
+    padding: 2rem;
+  }
+}
+
+@layer document {
+  .goshtoso-document h1,
+  .goshtoso-document h2,
+  .goshtoso-document h3,
+  .goshtoso-document h4,
+  .goshtoso-document h5,
+  .goshtoso-document h6 {
+    font-family: var(--document-font-heading);
+  }
+  .goshtoso-document pre {
+    overflow-x: auto;
+  }
+}
+
+@layer brand {
+  .goshtoso-document__watermark {
+    opacity: 0.65;
+    font-size: 0.8rem;
+  }
+}

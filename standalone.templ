@@ -1,0 +1,30 @@
+package margo
+
+templ standaloneDocument(lang, title, description, fingerprint string, styles templ.Component, brand Brand, content templ.Component) {
+	<!doctype html>
+	<html lang={ lang }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			if description != "" {
+				<meta name="description" content={ description }/>
+			}
+			@styles
+		</head>
+		<body>
+			<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint }>
+				if brand.Header != nil {
+					@brand.Header
+				}
+				@content
+				if brand.Watermark != "" {
+					<span class="goshtoso-document__watermark">{ brand.Watermark }</span>
+				}
+				if brand.Footer != nil {
+					@brand.Footer
+				}
+			</div>
+		</body>
+	</html>
+}
