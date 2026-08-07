@@ -63,6 +63,20 @@ func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestDocumentCSSSpacesGoshtosoTableFromFollowingProse(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := regexp.MustCompile(`(?s)\.goshtoso-document \[data-table-client-sort="true"\] \{([^}]*)\}`).FindSubmatch(css)
+	if len(rule) != 2 {
+		t.Fatal("document stylesheet is missing the scoped Goshtoso table rhythm rule")
+	}
+	if want := []byte("margin-block-end: calc(var(--spacing) * 4)"); !bytes.Contains(rule[1], want) {
+		t.Fatalf("document stylesheet missing table rhythm rule %q", want)
+	}
+}
+
 func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 	css, err := os.ReadFile("assets/document.css")
 	if err != nil {
