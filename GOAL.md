@@ -30,10 +30,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação e do corpus de saída: `1735fffc516f8ac23c193fffd29a3448bd6ba70b`,
-  tree `cc63d7a8a76e7d8b9d98351ce0f3c83340c4d380`; o branch segue limpo. O
-  checkpoint anterior `c0e0d3e77081bb638337020ba18552e11f6b7006` registrou os
-  primeiros artefatos standalone HTML/PDF.
+- Último commit funcional: `5d17d4d1ff67d6c39500307578c72b07982ba93f`, tree
+  `7af2b1bdcfe5308faa1c091fea2bd70bf0758b7e`; ele integra o CSS compilado
+  do Goshtoso no HTML standalone, adota `modern` como tema padrão e reduz o
+  CSS próprio do Margo a ajustes editoriais e de impressão.
 
 ## Ordem de execução vinculante
 
@@ -379,6 +379,29 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Decisão de prioridade: o handoff externo T6 não bloqueia mais a produção de
   HTML/PDF. Ele fica deferred até o fim do backlog; nenhuma release/tag será
   inventada, e o recibo continuará sendo exigido antes de I1a/publicação final.
+- Integração visual standalone concluída em `5d17d4d`: o render chama
+  `github.com/araihu/goshtoso/assets.StylesCSS()`, embute esses bytes antes de
+  `assets/document.css` e emite `data-theme="modern"` por padrão. Testes
+  comprovam igualdade byte a byte do CSS Goshtoso, ordem dos estilos, override
+  `minimal`, ausência de dependência de rede e terminação correta dos tokens.
+- `assets/document.css` permanece escopado a `.goshtoso-document` e agora cobre
+  somente ritmo de headings/prosa/listas, largura de leitura, links, inline
+  code, blockquote, dark mode, overflow e print. O contrato visual do produto
+  foi registrado em `PRODUCT.md` para impedir a criação de um segundo design
+  system dentro do Margo.
+- Gates finais desta mudança passaram: `templ generate` sem atualizações,
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`, `go vet ./...`,
+  `go test -race ./... -count=1`, `git diff --check` e detector Impeccable sem
+  findings. `go.mod` e `go.sum` permaneceram byte-idênticos.
+- Artefatos humanos atuais: HTML
+  `/tmp/margo-human-review-latest/html/margo-full-feature-set.html`, SHA-256
+  `1767ff89c0ba9853ec809f2609447c4256b0d42439ad1cc90f26b1924b7b5e4b`;
+  PDF `/tmp/margo-human-review-latest/pdf/margo-full-feature-set.pdf`, SHA-256
+  `1ce0e006a52ab7aa2824d5a9a145a12d64f9b7a438b61bf6c57addae404d5b95`,
+  155.463 bytes, cinco páginas, tagged, sem JavaScript ou criptografia. A
+  matriz visual passou em 390/1440 px, temas modern/goshtoso/minimal e modos
+  claro/escuro, sem overflow de página, erros de console ou requests remotos.
+  O tamanho ainda é Letter; A4 pertence ao pipeline PDF/frontmatter posterior.
 
 ## Decisões e limites
 
