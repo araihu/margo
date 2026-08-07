@@ -32,8 +32,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `64e78d9c460ba6c446a9ba834fe31ba64ef25aac`,
-  tree `7315f16b52c6bf71418ddf36b2081c6f69e0185e`, enviado para
+- Último checkpoint funcional: `c09e4dd56810cec982bf309002f7c2b4ecfeea28`,
+  tree `8c49f15f396f20821cd01aa1b2187ac05c2c4dfe`, enviado para
   `origin/impl/v0.0.1-core`. Além do modo claro/escuro, contraste Mermaid e
   TOC adaptativa, este checkpoint impede fragmentação interna de headings,
   listas, tabelas, figuras, disclosures, código e Mermaid no print; mantém TOC
