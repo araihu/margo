@@ -288,6 +288,14 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `ba6a37874086be664cff2bfeafde0ae40301da4e90b916bcb0b2d48865595eab`, e as
   duas referências geradas têm SHA-256
   `2e94489a5fbbbf6e1c30a44c7e029baa548ca6c5979c82ebaf06327aee544d4b`.
+- T6 RED foi executado em `/private/tmp/gs-margo-v001-t6`, derivada do T5
+  `dafb16aefdffd424d99e46d40fdec40de66509c7`: `GOWORK=off GOFLAGS=-mod=readonly
+  go test ./internal/releasehandoff -run TestTableHandoff -count=1` falhou com
+  `directory not found`, como esperado porque o registro/verificador ainda não
+  existe. A implementação do T6 está parada nesta fronteira até que o dono
+  autorizado do Goshtoso publique a release/tag imutável e entregue o recibo
+  concreto (moduleVersion/tag, releaseCommit/tree, artefatos, CI, owner e
+  transporte). Nenhuma identidade, tag ou release será inventada pelo Margo.
 
 ## Decisões e limites
 
@@ -309,7 +317,9 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 
 ## Bloqueios e dúvidas
 
-- Nenhum bloqueio confirmado neste momento.
+- Bloqueio atual: T6 depende de um handoff externo autorizado e ainda não há
+  `release/table-handoff.json` concreto para verificar. O revisor não tem
+  autorização para criar tag, publicar módulo ou substituir o dono externo.
 - Atenção de reprodutibilidade: o transfer record C0 guarda SHA-256 bruto dos
   arquivos `go.mod`/`go.sum`, mas o comando literal do plano C5 usa
   `git hash-object`, que neste repositório produz SHA-1 de blob e nunca pode
