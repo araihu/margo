@@ -4,7 +4,7 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
   const INSTANCE_PATTERN = /^ri-[0-9a-z]{8,32}$/;
   const MAX_ORDINAL = 99999999;
-  const PROFILE_FINGERPRINT = "cd9edc30096cae2622b8e3489361465b6bcba66ad891934353bfdfb0035fff24";
+  const PROFILE_FINGERPRINT = "fdcd7a02605775b63074d40b4786e3f8e29fa6f1e6ec2b060ae6ba44f365fe16";
   const NORMALIZATION_ALGORITHM = "margo-mermaid-svg-normalization/v2";
   const CSS_TREE_VERSION = "3.1.0";
   const ALLOWED_PSEUDO_CLASSES = new Set(["first-child", "last-child", "nth-child"]);

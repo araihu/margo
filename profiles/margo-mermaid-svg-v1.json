@@ -317,6 +317,7 @@
     "font-style": "keyword-font-style",
     "font-weight": "font-weight",
     "line-height": "length-or-finite-number",
+    "max-width": "length",
     "marker-end": "local-fragment-or-none",
     "marker-mid": "local-fragment-or-none",
     "marker-start": "local-fragment-or-none",
