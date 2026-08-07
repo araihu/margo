@@ -14,7 +14,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ## Estado atual
 
-- Status: `IN_PROGRESS`.
+- Status: `BLOCKED` por handoff externo autorizado do T6; retomar somente quando
+  o recibo canônico for fornecido pelo owner responsável.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -329,6 +330,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   mas não forneceu `release/table-handoff.json` nem a prova de que uma dessas
   tags é o release autorizado derivado do T5 desta sessão. Uma tag existente,
   sem recibo canônico, owner, CI e digests do T5, não satisfaz o T6.
+- A API pública de releases foi consultada somente-leitura para `v0.1.2` até
+  `v0.1.7`: os assets publicados são apenas `styles.css` e
+  `goshtoso-theme.css`; não há asset `table-handoff.json` ou equivalente. O
+  mesmo bloqueio T6 persistiu em várias continuações, e não resta uma ação
+  segura dentro deste checkout que possa produzir a autoridade externa.
 
 ## Decisões e limites
 
@@ -352,7 +358,8 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 
 - Bloqueio atual: T6 depende de um handoff externo autorizado e ainda não há
   `release/table-handoff.json` concreto para verificar. O revisor não tem
-  autorização para criar tag, publicar módulo ou substituir o dono externo.
+  autorização para criar tag, publicar módulo ou substituir o dono externo;
+  essa é a condição de retomada da sessão.
 - Atenção de reprodutibilidade: o transfer record C0 guarda SHA-256 bruto dos
   arquivos `go.mod`/`go.sum`, mas o comando literal do plano C5 usa
   `git hash-object`, que neste repositório produz SHA-1 de blob e nunca pode
