@@ -17,25 +17,26 @@ import (
 	"github.com/araihu/margo/internal/canonicaljson"
 )
 
-const expectedProfileFingerprint = "e77eb18195f8509b1c52ea4f32c1bcb5ba948122a3f196438e3646e09c2dc5cf"
+const expectedProfileFingerprint = "cd9edc30096cae2622b8e3489361465b6bcba66ad891934353bfdfb0035fff24"
 
 type profile struct {
-	AssetCount             int                 `json:"assetCount"`
-	AssetSetDigest         string              `json:"assetSetDigest"`
-	SchemaVersion          string              `json:"schemaVersion"`
-	MermaidVersion         string              `json:"mermaidVersion"`
-	MermaidDigest          string              `json:"mermaidDigest"`
-	NormalizationAlgorithm string              `json:"normalizationAlgorithm"`
-	SupportedFamilies      []family            `json:"supportedFamilies"`
-	Namespaces             map[string]string   `json:"namespaces"`
-	AllowedElements        []string            `json:"allowedElements"`
-	GlobalAttributes       []string            `json:"globalAttributes"`
-	ElementAttributes      map[string][]string `json:"elementAttributes"`
-	IDReferenceSites       idReferenceSites    `json:"idReferenceSites"`
-	SelectorGrammar        selectorGrammar     `json:"selectorGrammar"`
-	CSSProperties          map[string]string   `json:"cssProperties"`
-	ValueGrammars          map[string]string   `json:"valueGrammars"`
-	Limits                 limits              `json:"limits"`
+	AssetCount              int                 `json:"assetCount"`
+	AssetSetDigest          string              `json:"assetSetDigest"`
+	SchemaVersion           string              `json:"schemaVersion"`
+	MermaidVersion          string              `json:"mermaidVersion"`
+	MermaidDigest           string              `json:"mermaidDigest"`
+	NormalizationAlgorithm  string              `json:"normalizationAlgorithm"`
+	NormalizationReductions json.RawMessage     `json:"normalizationReductions"`
+	SupportedFamilies       []family            `json:"supportedFamilies"`
+	Namespaces              map[string]string   `json:"namespaces"`
+	AllowedElements         []string            `json:"allowedElements"`
+	GlobalAttributes        []string            `json:"globalAttributes"`
+	ElementAttributes       map[string][]string `json:"elementAttributes"`
+	IDReferenceSites        idReferenceSites    `json:"idReferenceSites"`
+	SelectorGrammar         selectorGrammar     `json:"selectorGrammar"`
+	CSSProperties           map[string]string   `json:"cssProperties"`
+	ValueGrammars           map[string]string   `json:"valueGrammars"`
+	Limits                  limits              `json:"limits"`
 }
 
 type family struct {
@@ -95,9 +96,10 @@ func TestFamilyCorpusIsClosedAndHasRequiredVariants(t *testing.T) {
 	if p.SchemaVersion != "margo-mermaid-svg/v1" {
 		t.Fatalf("schemaVersion = %q", p.SchemaVersion)
 	}
-	if p.NormalizationAlgorithm != "margo-mermaid-svg-normalization/v1" {
+	if p.NormalizationAlgorithm != "margo-mermaid-svg-normalization/v2" {
 		t.Fatalf("normalizationAlgorithm = %q", p.NormalizationAlgorithm)
 	}
+	assertNormalizationReductions(t, p.NormalizationReductions)
 	wantFamilies := []string{"flowchart", "sequence"}
 	wantVariants := []string{"basic", "conditional", "id-reference-heavy", "style-heavy"}
 	var gotFamilies []string
@@ -141,6 +143,34 @@ func TestFamilyCorpusIsClosedAndHasRequiredVariants(t *testing.T) {
 		if !profilePaths[path] {
 			t.Fatalf("unclaimed positive fixture %q", path)
 		}
+	}
+}
+
+func assertNormalizationReductions(t *testing.T, got json.RawMessage) {
+	t.Helper()
+	if len(got) == 0 {
+		t.Fatal("normalizationReductions is required")
+	}
+	wantBytes, err := os.ReadFile("../docs/proposals/MERMAID_NORMALIZATION_REDUCTIONS_V2.proposed.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotValue, wantValue any
+	for name, item := range map[string]struct {
+		data []byte
+		out  *any
+	}{
+		"profile normalizationReductions": {data: got, out: &gotValue},
+		"approved reduction proposal":     {data: wantBytes, out: &wantValue},
+	} {
+		decoder := json.NewDecoder(bytes.NewReader(item.data))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(item.out); err != nil {
+			t.Fatalf("decode %s: %v", name, err)
+		}
+	}
+	if !reflect.DeepEqual(gotValue, wantValue) {
+		t.Fatal("normalizationReductions differs from the approved proposal")
 	}
 }
 
