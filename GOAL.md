@@ -30,10 +30,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD de código da implementação: `6e0fc7ee06fdd641f2141b31440dbb6c9da7e40a`,
-  tree `c916ad92bee97edd6e665c0bd12e907e1e18c50c`. Os commits posteriores
-  `cd80dfe`, `aa3eaae`, `3a74358` e este checkpoint alteram somente este
-  `GOAL.md`; a árvore de código permanece a mesma e o branch segue limpo.
+- Último HEAD da implementação e do corpus de saída: `1735fffc516f8ac23c193fffd29a3448bd6ba70b`,
+  tree `cc63d7a8a76e7d8b9d98351ce0f3c83340c4d380`; o branch segue limpo. O
+  checkpoint anterior `c0e0d3e77081bb638337020ba18552e11f6b7006` registrou os
+  primeiros artefatos standalone HTML/PDF.
 
 ## Ordem de execução vinculante
 
