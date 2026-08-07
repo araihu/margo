@@ -295,6 +295,59 @@ browser execution replaces each task with normalized, validated, scoped SVG.
 Configuration directives, remote resources, and document-controlled Mermaid
 themes remain forbidden.
 
+### Edge cases first
+
+This benchmark follows the development contract: expose every known rejection
+before showing a happy path. Invalid SVG remains literal evidence in this
+successful document; it never becomes an executable Mermaid fence and can never
+produce a plausible partial diagram.
+
+| Vector | Required diagnostic |
+| --- | --- |
+| `script` | `mermaid.svg_element_forbidden` |
+| `foreign-object` | `mermaid.svg_element_forbidden` |
+| `event-handler` | `mermaid.svg_attribute_forbidden` |
+| `external-link` | `mermaid.svg_reference_forbidden` |
+| `unknown-namespace` | `mermaid.svg_namespace_forbidden` |
+| `unknown-element` | `mermaid.svg_element_forbidden` |
+| `unknown-attribute` | `mermaid.svg_attribute_forbidden` |
+| `css-body` | `mermaid.svg_css_forbidden` |
+| `css-attribute-selector` | `mermaid.svg_css_forbidden` |
+| `css-universal-selector` | `mermaid.svg_css_forbidden` |
+| `css-sibling-selector` | `mermaid.svg_css_forbidden` |
+| `css-pseudo` | `mermaid.svg_css_forbidden` |
+| `css-custom-property` | `mermaid.svg_css_forbidden` |
+| `css-at-rule` | `mermaid.svg_css_forbidden` |
+| `css-unknown-property` | `mermaid.svg_css_forbidden` |
+| `css-forbidden-function` | `mermaid.svg_css_value_forbidden` |
+| `cross-svg-url` | `mermaid.svg_reference_forbidden` |
+| `invalid-opacity` | `mermaid.svg_css_value_forbidden` |
+| `invalid-data-points` | `mermaid.svg_attribute_forbidden` |
+| `invalid-length-unit` | `mermaid.svg_css_value_forbidden` |
+| `unrooted-id` | `mermaid.svg_id_forbidden` |
+
+The surrounding contract also exercises failures that are generated rather
+than stored as fixed SVG files:
+
+- profile fingerprint mismatch returns `mermaid.profile_mismatch`;
+- unsupported diagram family returns `mermaid.svg_family_unsupported`;
+- byte limit, element limit, attribute limit, CSS rule limit, and selector-byte limit
+  return `mermaid.svg_resource_limit`;
+- `stroke-width="1pt"` is valid because `pt` belongs to the profile-owned unit
+  list, while `stroke-width="1cm"` fails because `cm` is not listed;
+- `data-points` accepts only canonical base64 ASCII JSON containing finite
+  `{x,y}` points; malformed, non-finite, or non-canonical content fails closed.
+
+The following literal XML displays both unit boundaries without asking the
+runtime to execute a deliberately invalid diagram:
+
+```xml
+<path id="margo-edge" stroke-width="1pt" data-points="W3sieCI6MSwieSI6Mn1d" />
+<path id="margo-edge" stroke-width="1cm" />
+```
+
+### Happy paths after the boundary
+
 ### Flowchart
 
 ```mermaid

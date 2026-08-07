@@ -3,6 +3,7 @@ package margo
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -11,6 +12,61 @@ import (
 	extensionast "github.com/yuin/goldmark/extension/ast"
 	"golang.org/x/net/html"
 )
+
+type optimisticMermaidNegativeVector struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+func TestOptimisticBenchmarkPresentsMermaidEdgeCasesBeforeHappyPath(t *testing.T) {
+	manifestBytes, err := os.ReadFile("testdata/mermaid/negative/vectors.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vectors []optimisticMermaidNegativeVector
+	if err := json.Unmarshal(manifestBytes, &vectors); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, path := range []string{
+		"testdata/markdown/slices/05-mermaid-profile.md",
+		"testdata/markdown/margo-full-feature-set.md",
+	} {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		edgeCases := bytes.Index(source, []byte("Edge cases first"))
+		happyPath := bytes.Index(source, []byte("```mermaid"))
+		if edgeCases < 0 || happyPath < 0 || edgeCases >= happyPath {
+			t.Fatalf("%s must present Mermaid edge cases before its first executable Mermaid fence", path)
+		}
+		for _, vector := range vectors {
+			for _, required := range []string{"`" + vector.Name + "`", "`" + vector.Code + "`"} {
+				if !bytes.Contains(source, []byte(required)) {
+					t.Errorf("%s missing negative vector contract %s", path, required)
+				}
+			}
+		}
+		for _, required := range []string{
+			`stroke-width="1pt"`,
+			`stroke-width="1cm"`,
+			"canonical base64 ASCII JSON",
+			"profile fingerprint mismatch",
+			"unsupported diagram family",
+			"byte limit",
+			"element limit",
+			"attribute limit",
+			"CSS rule limit",
+			"selector-byte limit",
+			"`mermaid.svg_resource_limit`",
+		} {
+			if !bytes.Contains(source, []byte(required)) {
+				t.Errorf("%s missing Mermaid boundary %q", path, required)
+			}
+		}
+	}
+}
 
 func TestOptimisticBenchmarkExercisesFullMarkdownProfile(t *testing.T) {
 	source, err := os.ReadFile("testdata/markdown/margo-full-feature-set.md")
