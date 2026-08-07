@@ -32,17 +32,14 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `753bb366dd99899a110185198c9c0362f6fe1c43`,
-  tree `413a4e8072a81eb5fe34cc1bd24206fa913ce04f`, enviado para
-  `origin/impl/v0.0.1-core`. Além do modo claro/escuro e contraste Mermaid,
-  este checkpoint torna a TOC transparente sobre a superfície da página,
-  adapta duas colunas para uma coluna quando o espaço horizontal não comporta
-  o mínimo, permite fragmentação paginada sem clipping e corrige contrastes
-  escuros de `details`, `summary` e `dt`. O linter agora resolve recursos
-  locais `file:` de forma offline e continua bloqueando recursos remotos.
-  M0-M5 ainda são candidatos: falta o runner Windows, além de I1b, executor
-  M6, readiness M7 e revisão independente; o preview otimista não antecipa
-  essa aceitação.
+- Último checkpoint funcional: `64e78d9c460ba6c446a9ba834fe31ba64ef25aac`,
+  tree `7315f16b52c6bf71418ddf36b2081c6f69e0185e`, enviado para
+  `origin/impl/v0.0.1-core`. Além do modo claro/escuro, contraste Mermaid e
+  TOC adaptativa, este checkpoint impede fragmentação interna de headings,
+  listas, tabelas, figuras, disclosures, código e Mermaid no print; mantém TOC
+  fragmentável e registra o gate Playwright `@pagination`. M0-M5 ainda são
+  candidatos: falta o runner Windows, além de I1b, executor M6, readiness M7
+  e revisão independente; o preview otimista não antecipa essa aceitação.
 
 ## Ordem de execução vinculante
 
