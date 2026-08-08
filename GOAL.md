@@ -1757,3 +1757,21 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   em `test/browser/.cache` como artefato efêmero não versionado. T6,
   `release/table-handoff.json`, I1a/I1b e os sucessores formais continuam
   deliberadamente pendentes.
+
+### 2026-08-08 — M0 checked runner reexecutado
+
+- Com 138 GiB livres, o comando checked foi reexecutado sem alterar código:
+  `./test/browser/run-playwright.sh --check --env-file
+  "$PWD/test/browser/.cache/node-env.checked.sh" --grep
+  '@margo-harness|@contrast|@pagination|@shell'`.
+- Resultado: `14 passed (3.9s)`; receipt reportou Node `v26.5.0`, npm
+  `11.17.0`, Chromium revision `1169`, versão `136.0.7103.25` e
+  `network=0`. O `npm ci` consumiu o cache local e instalou oito pacotes;
+  nenhuma resolução remota foi usada.
+- `node_modules` e `test-results` foram movidos, de forma recuperável, para
+  `/tmp/margo-m0-test-artifacts-0616e7e`; o cache checked permanece em
+  `test/browser/.cache` como artefato efêmero não versionado. O worktree tem
+  apenas esse cache não rastreado; nenhuma fonte de módulo foi alterada.
+- Evidência continua candidata local, não aceite formal independente M0.
+  T6, `release/table-handoff.json`, I1a/I1b e H/P/D/O continuam fora da
+  fronteira executável até o handoff/proveniência correspondente.
