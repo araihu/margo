@@ -224,6 +224,30 @@ test("@pagination keeps a heading with a protected block that moves pages", asyn
   await expect(page.locator("#ordered")).not.toHaveAttribute("data-margo-print-break-before", "page");
 });
 
+test("@pagination reserves a print-header inset for explicit page starts", async ({ page }) => {
+  const [documentCSS, standaloneCSS] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+  ]);
+  await page.setContent(`<!doctype html>
+    <html><head><style>${documentCSS}</style><style>${standaloneCSS}</style></head>
+    <body><div class="goshtoso-document"><article class="margo-document">
+      <h2 id="page-start" data-margo-print-break-before="page">Moved heading</h2>
+    </article></div></body></html>`);
+  await page.emulateMedia({ media: "print" });
+  const result = await page.locator("#page-start").evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      breakBefore: style.breakBefore,
+      marginBlockStart: style.marginBlockStart,
+      inset: getComputedStyle(document.documentElement).getPropertyValue("--margo-print-break-start-inset").trim(),
+    };
+  });
+  expect(result.breakBefore).toBe("page");
+  expect(result.inset).toBe("4mm");
+  expect(Number.parseFloat(result.marginBlockStart)).toBeGreaterThan(0);
+});
+
 test("@pagination lets an oversized table flow while keeping rows together", async ({ page }) => {
   const [documentCSS, standaloneCSS, script] = await Promise.all([
     stylesheet("document.css"),

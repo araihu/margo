@@ -21,6 +21,13 @@ cells must stay inside document width, rows retain positive height and stay
 inside their table, hidden or clipped overflow that would discard content is
 reported, and root-level horizontal overflow fails the preflight.
 
+Explicit page starts also receive the standalone print header inset. This keeps
+the first glyph below a PDF engine's running header when the engine supplies
+header/footer templates outside the document DOM. The inset is the
+`--margo-print-break-start-inset` token (4mm by default) and is covered by the
+pagination regression test; engines must still provide a top margin large
+enough for their own header template.
+
 The lint executes the embedded standalone print-preparation script before
 auditing. This is important because the script is what marks protected blocks,
 selects the TOC fallback, and enables safe table continuation. The audit still

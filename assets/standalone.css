@@ -7,6 +7,7 @@
     --margo-print-chrome-foreground: var(--color-on-surface);
     --margo-print-chrome-muted: var(--color-on-surface);
     --margo-print-chrome-outline: var(--color-outline);
+    --margo-print-break-start-inset: 4mm;
   }
 
   html.dark {
@@ -16,6 +17,7 @@
     --margo-print-chrome-foreground: var(--color-on-surface-dark);
     --margo-print-chrome-muted: var(--color-on-surface-dark);
     --margo-print-chrome-outline: var(--color-outline-dark);
+    --margo-print-break-start-inset: 4mm;
   }
 
   :where(html, body) {

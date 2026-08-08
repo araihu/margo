@@ -302,6 +302,8 @@
   .goshtoso-document > .margo-document [data-margo-print-break-before="page"] {
     page-break-before: always;
     break-before: page;
+    /* Leave room below an engine-provided running header. */
+    margin-block-start: var(--margo-print-break-start-inset, 4mm);
   }
   .goshtoso-document [data-code-block-header],
   .goshtoso-document [data-code-block] > :first-child,
