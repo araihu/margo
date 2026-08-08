@@ -17,8 +17,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. Emenda v2 e o
   replay M1 -> M4 -> M5 estão verdes. O standalone agora projeta o mesmo
   documento em modo claro ou escuro e os HTML/PDF otimistas dos dois modos
-  estão preservados. M6 e M7 estão implementados e publicados; I1b, os gates
-  independentes e os sucessores formais continuam pendentes.
+  estão preservados. O M0 local foi reprovisionado com receipt de Chromium,
+  Node/npm, cache npm e checked environment; a aceitação formal independente
+  ainda não foi inferida. M6 e M7 estão implementados e publicados; I1b, os
+  gates independentes e os sucessores formais continuam pendentes.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -33,20 +35,24 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional de implementação: `ac3877c`, tree
-  `305cdde968d0aa65d5d6dc1b1aa8d741b25a3b80`, enviado para
+- Último checkpoint funcional de implementação: `d9d2ede`, tree
+  `2ce4f48295ad9a23fa68f84bb9b1a0d1ff2224a4`, enviado para
   `origin/impl/v0.0.1-core`. Este checkpoint inclui o HTML otimista versionado,
   modo claro/escuro, contraste Mermaid, TOC adaptativa, fila Mermaid
   process-global, configuração congelada por tarefa, `SourceRootID`
   determinístico, normalização/validação antes da inserção, hashes/tamanhos de
   saída, readiness/composição, quebra protegida de blocos e margens de PDF
-  com fundo por modo. O registro anti-compaction da auditoria visual está no
+  com fundo por modo. Também corrige o instalador M0 para extrair o Chromium
+  antes de criar um receipt aninhado na raiz de extração, adiciona o contrato
+  local sem rede desse caso e aplica `break-before: page` inline com restauração
+  do estilo original. Stamps dark preservam `--color-surface-dark-alt` em vez
+  de ficarem transparentes no print. O registro anti-compaction da auditoria visual está no
   commit documental `551a165`; os checkpoints documentais mais recentes são
   `ba8bc33` (margem PDF regenerada) e `c794a0c` (auditoria readonly), tree
-  atual `6b17a68b26d4ee5bd0e1343e0f342932fc2d0cfb`, enviado para
+  atual `2ce4f48295ad9a23fa68f84bb9b1a0d1ff2224a4`, enviado para
   `origin/impl/v0.0.1-core`. M0-M7 continuam candidatos até revisão
-  independente; o receipt M0 não está presente neste checkout, e I1b/T6 e os
-  sucessores formais seguem pendentes.
+  independente; o receipt M0 está presente apenas como artefato efêmero em
+  `test/browser/.cache`, e I1b/T6 e os sucessores formais seguem pendentes.
 
 ## Ordem de execução vinculante
 
@@ -1696,3 +1702,54 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Nenhum arquivo de módulo foi alterado nesta auditoria. T6 continua no fim
   do backlog por decisão explícita; I1a/I1b e os sucessores formais seguem
   pendentes.
+
+### 2026-08-08 — M0 reprovisionado e correções visuais pós-review
+
+- O RED do instalador M0 foi reproduzido com um ZIP Chromium local mínimo:
+  quando o `--receipt` ficava dentro da raiz de extração ainda inexistente,
+  `install-browser.sh` criava essa raiz antes do teste `-d` e pulava a
+  extração, retornando `margo.browser_executable_missing`. O teste de contrato
+  é `test/browser/harness/install-browser-contract.mjs` e não usa rede.
+- O GREEN move a criação do diretório do receipt para depois da extração e da
+  validação do executável. Checkpoint publicado: commit `331c320`, enviado
+  para `origin/impl/v0.0.1-core`.
+- A sequência POSIX M0 foi executada neste worktree: receipt Chromium
+  `test/browser/.cache/playwright/darwin-arm64/1169/browser-receipt.json`,
+  SHA-256 `f50de873dc047443cb96206760448b3c56892f086a5eee915fea8bdf7e8679bd`;
+  checked env `test/browser/.cache/node-env.checked.sh`, SHA-256
+  `1591fb686c189f5fb38cdf4f9c31731cc1b8e508594cea1d5e8381ec4bdaaecd`;
+  npm cache receipt `test/browser/.cache/npm/v11.17.0/Darwin-arm64/receipt.json`,
+  SHA-256 `46e043e0dbaa8e28de6bfd0a94c2f1dac2bf82bea6ebcabe9b530e8c7e63cff9`.
+  O runner validou Node `v26.5.0`, npm `11.17.0`, Chromium revision `1169`,
+  versão `136.0.7103.25`, cache imutável e `network=0`.
+- O conjunto M0 executado pelo runner checked passou `14/14`: cinco testes
+  `@margo-harness`, contraste claro/escuro, oito testes de paginação/shell,
+  além do contrato local do instalador. Os gates readonly Go (`go test ./...`,
+  `go vet ./...`, `charts`, `pdf` e `cmd/margo`) também passaram. Esta é uma
+  evidência candidata local, não aceite formal independente M0/I1a/I1b.
+- O mesmo checkpoint corrige o comentário visual de blocos divididos: a
+  preparação de impressão aplica `break-before: page` inline nos blocos
+  protegidos e restaura o estilo original após o print. Corrige também o
+  stamp dark, que deixava de ser transparente e passa a usar
+  `--color-surface-dark-alt`. Checkpoint publicado: commit `d9d2ede`, tree
+  `2ce4f48295ad9a23fa68f84bb9b1a0d1ff2224a4`.
+- HTMLs regenerados a partir de `testdata/markdown/margo-full-feature-set.md`:
+  [light](output/html/margo-v0.0.1-optimistic.html), 338.448 bytes, SHA-256
+  `e367c35ce9a2701ae8b18f3a33c12af09bf81cac4af7505115bcbb99d59d9da0`, e
+  [dark](output/html/margo-v0.0.1-optimistic-dark.html), 338.451 bytes, SHA-256
+  `24eb3b4bbf8d691914c094821ecbcf9d60e19a97ecd90bd06504f1698a80aa04`.
+- PDFs A4 tagged regenerados com três diagramas Mermaid renderizados e sem
+  requests externas: [light](output/pdf/margo-v0.0.1-optimistic.pdf), 23
+  páginas, 615.705 bytes, SHA-256
+  `f5610e45854803b769b5a886c09bfb40dae8ec5ba829d59da71a1d2bd3716a5c`; e
+  [dark](output/pdf/margo-v0.0.1-optimistic-dark.pdf), 23 páginas, 620.376
+  bytes, SHA-256
+  `278e3e85dcd44491c2195ac9f8403a6877ad0b76d962164100384060acd4aefa`.
+  A página 4 dark rasterizada inicia o conteúdo em margem respirável; a página
+  1 mantém TOC em uma coluna porque cabe verticalmente, usando duas colunas
+  somente como fallback de altura.
+- Os diretórios gerados `node_modules` e `test-results` foram preservados fora
+  do worktree em `/tmp/margo-m0-test-artifacts-d9d2ede`; o cache M0 permanece
+  em `test/browser/.cache` como artefato efêmero não versionado. T6,
+  `release/table-handoff.json`, I1a/I1b e os sucessores formais continuam
+  deliberadamente pendentes.
