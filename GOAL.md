@@ -2450,7 +2450,23 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Nenhuma alteração de código foi necessária neste checkpoint: a correção
   existente em `assets/document.css` e o teste checked
   `@pagination preserves every Mermaid rejection row across print continuation`
-  continuam sendo a autoridade. O branch permanece em HEAD
+  continuam sendo a autoridade. O checkpoint anterior estava em HEAD
   `9d4e31af03de0329d1c1cb2ae053726617ae64a6`, tree
   `c87bdb960bfb44bdca777312726626368a17af54`; só `test/browser/.cache/` está
   não rastreado de forma intencional.
+
+### 2026-08-08 — replay local independente pós-registro
+
+- `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` e
+  `GOWORK=off GOFLAGS=-mod=readonly go vet ./...` passaram, incluindo o
+  renderer otimista e os pacotes de Mermaid, autoridade, socialcheck e
+  svgprofile.
+- O runner oficial M0, usando o environment checked e cache offline, passou
+  `@contrast` `2/2` com Node `v26.5.0`, npm `11.17.0`, Chromium revision
+  `1169`/versão `136.0.7103.25` e `network=0`. `node_modules` e
+  `test-results` foram movidos de forma recuperável para
+  `/tmp/margo-gate-replay.jEPnuH`; apenas `test/browser/.cache/` permanece
+  intencional e não rastreado.
+- O teste Node direto fora do runner não é evidência válida sem o
+  `node_modules` checked; não alterou o worktree nem o resultado do gate
+  oficial. Nenhuma autoridade T6/I1a/I1b foi inventada.
