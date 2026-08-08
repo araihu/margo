@@ -1475,3 +1475,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - T6 continua deliberadamente deferred por decisão explícita do usuário;
   `release/table-handoff.json`, I1a/I1b e os sucessores formais não foram
   inventados nem promovidos neste checkpoint.
+- Checkpoint versionado: commit `914be1508c3f9bfc191241b430ad8da40f91f7cd`,
+  tree `ed826990bd44fa881024529745f6f3709641c5f9`, enviado para
+  `origin/impl/v0.0.1-core`; a árvore ficou limpa após o push.
