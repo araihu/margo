@@ -1887,3 +1887,32 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `test/browser/.cache` permanece como cache M0 intencional e não versionado.
   Este checkpoint continua candidato local: não infere aceitação formal de
   I1a/I1b/T6 nem altera a posição de `release/table-handoff.json` no backlog.
+
+### 2026-08-08 — O1: spool privado antes da publicação
+
+- O próximo predecessor local escolhido foi O1, a fronteira comum para CLI,
+  PDF e demais saídas: nenhum sink deve tornar bytes visíveis antes de a
+  compilação, runtime e relatório estarem validados. O RED inicial confirmou a
+  ausência de `Spool`, `ArtifactSink`, `CommitOutcome` e `CommitResult`.
+- O GREEN adicionou `spool.go` e `artifact_sink.go`. `Spool` mantém bytes em
+  memória até `MemoryLimit`, cruza para arquivo temporário privado `0600`,
+  impõe `MaximumBytes` sem anexar o chunk que estoura, calcula
+  `ArtifactDigest` dos bytes exatos e oferece replay por `Reader()`. `Close()`
+  é idempotente e remove o estágio privado; cancelamento é observado antes de
+  criar ou mutar o estágio.
+- `CommitOutcome` agora preserva os quatro estados necessários para sinks
+  futuros: `not_committed`, `committed`, `durability_uncertain` e `unknown`.
+  `ArtifactSink` recebe contexto, `io.Reader` e digest esperado, e devolve
+  `CommitResult` com alvo, bytes e identidade do artefato sem prometer
+  atomicidade antecipadamente.
+- Testes O1: cruzamento de limiar/permissão `0600`, overflow sem mutação,
+  cancelamento com limpeza, replay/digest e contrato de sink. Gates passaram:
+  `GOWORK=off GOFLAGS=-mod=readonly go test . -run
+  'Test(Spool|CommitOutcome|ArtifactSink)' -count=1`, race focado `TestSpool`
+  `-count=20`, suíte root `go test ./... -count=1`, `go vet ./...` e
+  `go test -race ./... -count=1`.
+- Arquivos deste checkpoint: `spool.go`, `spool_test.go`,
+  `artifact_sink.go`, `artifact_sink_test.go` e este registro. O1 é candidato
+  local; O2/O3/O4, I3 e a aceitação independente ainda não foram inferidos.
+  O handoff T6/I1a/I1b continua inalterado e Goshtoso não foi editado nem
+  integrado por este checkpoint.
