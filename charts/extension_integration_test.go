@@ -31,6 +31,9 @@ func TestRootCompileDispatchesEveryV1ChartFamily(t *testing.T) {
 			if strings.Join(extractAccessibleRows(string(out)), "\x00") != tc.want {
 				t.Fatalf("rows = %#v", extractAccessibleRows(string(out)))
 			}
+			if !strings.Contains(string(out), `data-margo-chart-print`) {
+				t.Fatalf("%s output missing print policy", tc.name)
+			}
 			if observed != 1<<20 {
 				t.Fatalf("observed policy = %d", observed)
 			}
@@ -51,6 +54,9 @@ func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
 		`data-goshtoso-chart-capability="static-svg"`,
 		`data-goshtoso-chart-export-filename="revenue"`,
 		`assets/js/controls/5/controls.js`,
+		`data-margo-chart-print`,
+		`@media print`,
+		`[data-goshtoso-chart-wrapper] [data-goshtoso-chart-actions-fieldset]`,
 	} {
 		if !strings.Contains(markup, marker) {
 			t.Fatalf("default chart output missing %q", marker)
@@ -72,6 +78,7 @@ func TestRootCanDisableChartControlWrapper(t *testing.T) {
 		`data-goshtoso-chart-wrapper`,
 		`assets/js/controls/5/controls.js`,
 		`data-goshtoso-chart-export-filename`,
+		`data-margo-chart-print`,
 	} {
 		if strings.Contains(markup, marker) {
 			t.Fatalf("disabled chart output contains %q", marker)

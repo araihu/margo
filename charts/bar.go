@@ -110,7 +110,8 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 		Controls:    controlOptions,
 		Export:      exportOptions,
 	})
-	return WithAccessibleData(component, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
+	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 }
 
 func init() {

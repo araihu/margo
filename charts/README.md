@@ -14,8 +14,11 @@ their versioned browser runtime are enabled by default:
 compiler := margo.New(margo.WithExtension(charts.Extension()))
 ```
 
-For a static-only HTML or print input, opt out explicitly. This emits the same
-SVG and accessible table without wrapper DOM, export actions, or runtime:
+When the wrapper is enabled, its action fieldset and expand modal are hidden by
+the chart's print CSS, so browser PDF output contains only the chart and its
+accessible data table while screen HTML keeps the controls. For a static-only
+HTML input, opt out explicitly. This emits the same SVG and accessible table
+without wrapper DOM, export actions, or runtime:
 
 ```go
 compiler := margo.New(margo.WithExtension(charts.Extension(charts.WithControlWrapper(false))))
