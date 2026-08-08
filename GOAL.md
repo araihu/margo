@@ -17,7 +17,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. Emenda v2 e o
   replay M1 -> M4 -> M5 estão verdes. O standalone agora projeta o mesmo
   documento em modo claro ou escuro e os HTML/PDF otimistas dos dois modos
-  estão preservados; M6/M7 e os sucessores formais continuam pendentes.
+  estão preservados. M6 está implementado e publicado; M7 e os sucessores
+  formais continuam pendentes.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -32,14 +33,14 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `00739fd13aea44326a3992c7d1adf0a4169f7812`,
-  tree `968e843aebd27c0eca6f64ef9f8064007b1db5ac`, enviado para
+- Último checkpoint funcional: `5852ae48f618f7c4313d2eb478c18afed991d1b1`,
+  tree `518bf91a7b96cc2ee4ca18b7575219054bd70a49`, enviado para
   `origin/impl/v0.0.1-core`. Além do modo claro/escuro, contraste Mermaid e
-  TOC adaptativa, este checkpoint impede fragmentação interna de headings,
-  listas, tabelas, figuras, disclosures, código e Mermaid no print; mantém TOC
-  fragmentável e registra o gate Playwright `@pagination`. M0-M5 ainda são
-  candidatos: falta o runner Windows, além de I1b, executor M6, readiness M7
-  e revisão independente; o preview otimista não antecipa essa aceitação.
+  TOC adaptativa, este checkpoint executa Mermaid por fila process-global,
+  congela a configuração por tarefa, deriva `SourceRootID` determinístico,
+  normaliza/valida antes da inserção e publica hashes/tamanhos de saída.
+  M0-M5 continuam candidatos: falta runner Windows, I1b, readiness M7 e
+  revisão independente; o preview otimista não antecipa essa aceitação.
 
 ## Ordem de execução vinculante
 
@@ -1224,3 +1225,28 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   SHA-256 `f24b64a0f9cfc3f15c1d39244105557de2fde44bb825ab926abd32e98fe2ebb6`;
   PDF dark 436.358 bytes,
   SHA-256 `ef69d3e78da15f1af9caaa0aeb910792b759a90a8b7487f2c2a59e5c876e3cf8`.
+
+### 2026-08-08
+
+- `2026-08-08T02:52:17-03:00`: M6 RED reproduzido: o spec
+  `test/browser/specs/mermaid-queue.spec.mjs` falhou antes da implementação
+  porque `assets/runtime/mermaid.js` não existia.
+- M6 GREEN/REFACTOR implementaram `assets/runtime/mermaid.js` com fila
+  process-global compartilhada entre instâncias, `initialize`/`render`
+  serializados, configuração base/per-task profundamente congelada,
+  `SourceRootID = msrc-<sha256("margo/mermaid-source-root/v1\\n" + instanceID +
+  "\\n" + decimal8(blockOrdinal))>`, IDs de tarefa compatíveis com
+  `margo-runtime/v1`, execução detached sem `bindFunctions`, normalização e
+  validação antes de `XMLSerializer`/inserção, isolamento de falhas e relatório
+  estrito com `outputSHA256`/`outputBytes`.
+- Gate browser oficial M6 + M4 + M5 passou 15/15 com
+  `./run-playwright.sh --check --env-file /private/tmp/margo-m6-offline-env.sh
+  --grep '@mermaid-queue|@svg-normalize|@svg-validate'`; receipt/cache M0 foi
+  reprovisionado em caminho absoluto temporário, Node `v26.5.0`, Chromium rev
+  `1169`, `network=0`. Go `vet`, `node --check` e `git diff --check` passaram.
+- `go test ./... -count=1` executou packages internos e parou apenas no link do
+  pacote root com `no space left on device`; não houve limpeza de caches ou
+  worktrees para mascarar o bloqueio ambiental. Commit M6
+  `5852ae48f618f7c4313d2eb478c18afed991d1b1`, tree
+  `518bf91a7b96cc2ee4ca18b7575219054bd70a49`, push confirmado em
+  `origin/impl/v0.0.1-core`.
