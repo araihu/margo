@@ -2448,6 +2448,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   existente em `assets/document.css` e o teste checked
   `@pagination preserves every Mermaid rejection row across print continuation`
   continuam sendo a autoridade. O branch permanece em HEAD
-  `25f92116c0409964a338938904196dc5848661b6`, tree
-  `7dcc7aa23ef8b655b021a5fc6321657f5270ea79`; só `test/browser/.cache/` está
+  `76cd975ef55df6779fb917914f4bdcedc00bada6`, tree
+  `a50b699aeeae92322c671b10769c4291337cd704`; só `test/browser/.cache/` está
   não rastreado de forma intencional.
