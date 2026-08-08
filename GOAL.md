@@ -35,8 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação: `1362dd0`, tree
-  `9b959c1fcc2686977cee3fc9d39fe4026cf2fafb`, enviado para
+- Último HEAD da implementação: `3229212`, tree
+  `a31df0f47e6e22f4d9cbded50e2a87f838c4accb`, enviado para
   `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
   `157f2d9505e26df91bb46ae13e7de4edac278eef`, corrige a paginação de tabelas
   oversized no PDF e preserva as linhas. Este checkpoint inclui o HTML otimista versionado,
@@ -2148,3 +2148,24 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   revision `1169`/versão `136.0.7103.25` e `network=0`. Nenhum novo artefato
   ou mutação de dependência foi criado; `.cache/` continua intencional e não
   rastreado.
+
+### 2026-08-08 — auditoria local pós-rechecagem
+
+- O root foi revalidado com
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` e
+  `GOWORK=off GOFLAGS=-mod=readonly go vet ./...`; ambos passaram. O
+  `go.mod`/`go.sum` root não mudou.
+- O lint determinístico de contraste foi executado no HTML dark completo em
+  ambos os modos: status `pass`, 500 nós verificados em `light` e 500 em
+  `dark`, zero falhas e zero requests bloqueados. O relatório está em
+  `/tmp/margo-contrast-recheck.json` e referencia o SHA-256 do HTML
+  `32348c27d4d11f13945a0982d35251c935f63f916dd9eae805187f3e12007fa9`.
+- A execução criou apenas `test/browser/node_modules/`; esse diretório é
+  temporário do harness e será movido de forma recuperável antes do
+  checkpoint. O cache M0 em `test/browser/.cache/` continua intencional e
+  não rastreado.
+- Identidade documental corrente antes deste registro: HEAD `3229212`, tree
+  `a31df0f47e6e22f4d9cbded50e2a87f838c4accb`. O trabalho de implementação
+  local continua verificável, mas não há nova autoridade para I1a/I1b, I3 ou
+  T6; não será criado pin, `replace`, `release/table-handoff.json` ou aceite
+  formal por inferência.
