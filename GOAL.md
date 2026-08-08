@@ -2291,4 +2291,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `@pagination` em um worker. Resultado: `9 passed`, Node `v26.5.0`, npm
   `11.17.0`, Chromium revision `1169`, versão `136.0.7103.25`, `network=0`.
 - Nenhum arquivo de implementação ou módulo mudou nesta reexecução; o cache
-  permanece o único estado não rastreado intencional.
+  permanece o único estado não rastreado intencional. `node_modules` e
+  `test-results` foram movidos de forma recuperável para
+  `/tmp/margo-pagination-browser.OxIgmf`.
