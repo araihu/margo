@@ -128,6 +128,36 @@ test("@pagination moves a protected block that crosses a print page boundary", a
   await expect(page.locator("#crossing")).not.toHaveAttribute("data-margo-print-break-before", "page");
 });
 
+test("@pagination keeps a heading with a protected block that moves pages", async ({ page }) => {
+  const script = await printPaginationScript();
+  await page.setViewportSize({ width: 794, height: 1123 });
+  await page.setContent(`<!doctype html>
+    <html><head><style>
+      .margo-document { margin: 0; }
+      .spacer { block-size: 900px; }
+      .margo-document ol { block-size: 300px; margin: 0; padding: 0; }
+    </style></head><body><div class="goshtoso-document">
+      <article class="margo-document">
+        <div class="spacer"></div>
+        <h2 id="orphan-heading">Ordered, restarted, and mixed lists</h2>
+        <ol id="ordered"><li>protected ordered item</li></ol>
+      </article>
+    </div>${script}</body></html>`);
+  await page.emulateMedia({ media: "print" });
+  await page.evaluate(() => window.margoPreparePrintTOC());
+  await expect(page.locator("#orphan-heading")).toHaveAttribute("data-margo-print-break-before", "page");
+  await expect(page.locator("#orphan-heading")).toHaveCSS("break-before", "page");
+  await expect(page.locator("#ordered")).not.toHaveAttribute("data-margo-print-break-before", "page");
+  const pages = await page.locator("#orphan-heading, #ordered").evaluateAll((elements) => {
+    const pageHeight = Math.max(1, window.innerHeight);
+    return elements.map((element) => Math.floor((element.getBoundingClientRect().top + window.scrollY) / pageHeight));
+  });
+  expect(pages[0]).toBe(pages[1]);
+  await page.evaluate(() => window.margoRestorePrintState());
+  await expect(page.locator("#orphan-heading")).not.toHaveAttribute("data-margo-print-break-before", "page");
+  await expect(page.locator("#ordered")).not.toHaveAttribute("data-margo-print-break-before", "page");
+});
+
 test("@pagination falls back to two columns only when a TOC is too tall", async ({ page }) => {
   const [documentCSS, standaloneCSS, script] = await Promise.all([
     stylesheet("document.css"),

@@ -1785,3 +1785,43 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Root, `charts`, `pdf` e `cmd/margo` permanecem compiláveis; `deck` continua
   pacote estático sem testes. Isso confirma o estado candidato atual, mas não
   substitui o proxy/handoff I1a/I1b nem a revisão independente.
+
+### 2026-08-08 — paginação: heading junto da lista protegida
+
+- O comentário visual da página 5 dark foi reproduzido: o heading `Ordered,
+  restarted, and mixed lists` ficava no fim da página, enquanto o `<ol>` era
+  movido sozinho para a página seguinte por `break-inside: avoid-page`.
+- O script `standalonePrintPaginationScript` agora identifica pares de
+  heading direto + próximo bloco protegido, decide primeiro a quebra do par e
+  só aplica `break-before: page` ao bloco quando não há heading associado a
+  promover. Os marcadores e estilos inline originais continuam sendo
+  restaurados por `margoRestorePrintState`.
+- RED: o primeiro teste revelou que manter os dois marcadores ainda deixava o
+  heading isolado. GREEN: a ordem heading-first passou a manter o heading e o
+  `<ol>` na mesma página; o teste browser verifica o mesmo índice de página e
+  a restauração dos dois elementos.
+- Gates: `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` passou;
+  runner M0 checked com
+  `./test/browser/run-playwright.sh --check --env-file
+  "$PWD/test/browser/.cache/node-env.checked.sh" --grep '@pagination'`
+  passou `7/7`; a rodada M0 completa com
+  `--grep '@margo-harness|@contrast|@pagination|@shell'` passou `15/15`,
+  com Node `v26.5.0`, Chromium `136.0.7103.25` e `network=0`.
+- HTMLs regenerados: light 340.055 bytes,
+  SHA-256 `328d9141fcb03ca509755c03f9e1918b6bebffe6c95b8a30564d3a9c57f37543`;
+  dark 340.058 bytes,
+  SHA-256 `441e5cd46b226bac5294a4d92040b8a178f0741af9f5fdba56ff75c3e8b4dbe8`.
+- PDFs A4 tagged regenerados sem requests bloqueadas, erros de console ou
+  erros de página: light 23 páginas, SHA-256
+  `fda87b63db2d750f79db5d703ea152041dc9f0b085776ebc307d7bfb116d8dc1`;
+  dark 23 páginas, SHA-256
+  `6445213f57944901cd368fe370a49a889fc53515baecc8b975fa5be23ffcbe21`.
+  A inspeção raster da página 6 dark mostra o heading seguido integralmente
+  pela lista ordenada; o espaço restante na página 5 é intencional para não
+  fragmentar o bloco protegido.
+- Alterados: `standalone.go`, `standalone_test.go`,
+  `test/browser/specs/standalone-pagination.spec.mjs` e este registro.
+  `node_modules`/`test-results` do runner foram preservados em
+  `/tmp/margo-m0-test-artifacts-heading-full-fM2J0K`; apenas
+  `test/browser/.cache` permanece como cache M0 não versionado. Nenhuma
+  aceitação formal I1a/I1b/T6 foi inferida.

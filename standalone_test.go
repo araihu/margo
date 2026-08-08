@@ -318,6 +318,16 @@ func TestStandalonePrintBlocksAvoidInternalFragmentation(t *testing.T) {
 			t.Errorf("print block-fragmentation contract missing %q", want)
 		}
 	}
+	for _, want := range []string{
+		"const headingBlockPairs = () =>",
+		"const breakTargets = () =>",
+		"const rememberAndMarkBreakBefore = (element) =>",
+		"const pairs = headingBlockPairs()",
+	} {
+		if !strings.Contains(standalonePrintPaginationScript, want) {
+			t.Errorf("print heading/block contract missing %q", want)
+		}
+	}
 }
 
 func TestStandaloneThemeOverrideChangesDocumentAttribute(t *testing.T) {

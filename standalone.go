@@ -57,6 +57,18 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     ":scope > div:has(> .codeblock), " +
     ":scope > .margo-mermaid",
   )] : [];
+  const headingBlockPairs = () => {
+    if (!article) return [];
+    const blocks = new Set(protectedBlocks());
+    return [...article.querySelectorAll(":scope > :is(h1, h2, h3, h4, h5, h6)")]
+      .map((heading) => ({ heading, block: heading.nextElementSibling }))
+      .filter(({ block }) => block && blocks.has(block));
+  };
+  const breakTargets = () => {
+    const targets = new Set(protectedBlocks());
+    for (const { heading } of headingBlockPairs()) targets.add(heading);
+    return [...targets];
+  };
   if ((!toc || !toc.querySelector(":scope > ol")) && mermaidSources().length === 0 && protectedBlocks().length === 0) return;
 
   const pageMarginBottomMillimeters = 22;
@@ -78,7 +90,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       details.open = originalDetailsState.get(details);
       originalDetailsState.delete(details);
     }
-    for (const block of protectedBlocks()) {
+    for (const block of breakTargets()) {
       if (!originalBreakMarkers.has(block)) continue;
       const original = originalBreakMarkers.get(block);
       if (original === null) block.removeAttribute("data-margo-print-break-before");
@@ -92,11 +104,42 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     if (toc) delete toc.dataset.margoTocColumns;
   };
 
+  const rememberAndMarkBreakBefore = (element) => {
+    if (!originalBreakMarkers.has(element)) originalBreakMarkers.set(element, element.getAttribute("data-margo-print-break-before"));
+    if (!originalBreakBeforeStyles.has(element)) {
+      const value = element.style.getPropertyValue("break-before");
+      originalBreakBeforeStyles.set(element, value ? { value, priority: element.style.getPropertyPriority("break-before") } : null);
+    }
+    let changed = false;
+    if (element.getAttribute("data-margo-print-break-before") !== "page") {
+      element.setAttribute("data-margo-print-break-before", "page");
+      changed = true;
+    }
+    element.style.setProperty("break-before", "page");
+    return changed;
+  };
+
   const markCrossPageBlocks = () => {
     const pageHeight = Math.max(1, window.innerHeight);
     for (let pass = 0; pass < protectedBlocks().length; pass += 1) {
       let changed = false;
+      const pairs = headingBlockPairs();
+      const headingBreaks = new Set();
+      for (const { heading, block } of pairs) {
+        const blockRect = block.getBoundingClientRect();
+        if (blockRect.height > pageHeight + 0.5) continue;
+        const headingRect = heading.getBoundingClientRect();
+        const pairTop = headingRect.top + window.scrollY;
+        const pairBottom = blockRect.bottom + window.scrollY - 0.5;
+        const startsOn = Math.floor(pairTop / pageHeight);
+        const endsOn = Math.floor(pairBottom / pageHeight);
+        if (endsOn <= startsOn || pairTop % pageHeight <= 1) continue;
+        if (rememberAndMarkBreakBefore(heading)) changed = true;
+        headingBreaks.add(heading);
+      }
       for (const block of protectedBlocks()) {
+        const pair = pairs.find(({ block: pairedBlock }) => pairedBlock === block);
+        if (pair && (headingBreaks.has(pair.heading) || pair.heading.getAttribute("data-margo-print-break-before") === "page")) continue;
         const rect = block.getBoundingClientRect();
         if (rect.height > pageHeight + 0.5) continue;
         const top = rect.top + window.scrollY;
@@ -104,16 +147,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
         const startsOn = Math.floor(top / pageHeight);
         const endsOn = Math.floor(bottom / pageHeight);
         if (endsOn <= startsOn || top % pageHeight <= 1) continue;
-        if (!originalBreakMarkers.has(block)) originalBreakMarkers.set(block, block.getAttribute("data-margo-print-break-before"));
-        if (!originalBreakBeforeStyles.has(block)) {
-          const value = block.style.getPropertyValue("break-before");
-          originalBreakBeforeStyles.set(block, value ? { value, priority: block.style.getPropertyPriority("break-before") } : null);
-        }
-        if (block.getAttribute("data-margo-print-break-before") !== "page") {
-          block.setAttribute("data-margo-print-break-before", "page");
-          changed = true;
-        }
-        block.style.setProperty("break-before", "page");
+        if (rememberAndMarkBreakBefore(block)) changed = true;
       }
       if (!changed) break;
     }
