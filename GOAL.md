@@ -2770,3 +2770,20 @@ estão avançados e verificáveis; não há ação legítima restante neste chec
 que feche H/P/D/O5 ou T6 sem novas identidades externas. Não criar
 `replace`, pin, proxy, `release/table-handoff.json`, tag ou release para forçar
 GREEN.
+
+### 2026-08-08 — rechecagem independente dos invariantes R17
+
+- No snapshot aceito R17, os IDs de tarefa reproduzem exatamente 49 itens:
+  `C0-C8`, `T0-T6`, `M0-M7`, `H1-H6`, `P1-P7`, `D1-D5` e `O1-O7`; `I0-I4`
+  são tarefas de integração e não aumentam o inventário de implementação.
+- A matriz reproduz `S01-S34` (34), `AC01-AC22` (22) e os gates
+  `SG01`, `AUTH01`, `HEAD01`. A exceção estrutural esperada permanece C7,
+  que tem GREEN único no plano; não é lacuna de implementação.
+- HEAD de implementação no momento da auditoria:
+  `04ea33c856ba6bed43eabdd690756dfe62d43d4f`, tree
+  `5359656c6898872b822007c3e29c18ca747309b8`; branch remoto sincronizado,
+  `git diff --check` passa e somente `.cache` M0 é não rastreado.
+- Rechecagem dos módulos opcionais confirma o bloqueio real: `charts/go.mod`,
+  `pdf/go.mod`, `cmd/margo/go.mod` e `cmd/margo/main.go` ainda são esqueletos;
+  não há `go.sum`/I3 nem dispatcher O5. Não foi criado pin, `replace` ou
+  artefato de release para mascarar essa fronteira.
