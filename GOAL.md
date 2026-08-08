@@ -35,8 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação: `b30c725`, tree
-  `c1dbb54ef029942d0138dd9a02ce89d9115f7bb4`, enviado para
+- Último HEAD da implementação: `9cde31f`, tree
+  `ceeb2bd2ef6ccdb369341de086c10d327cdbfd8f`, enviado para
   `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
   `157f2d9505e26df91bb46ae13e7de4edac278eef`, corrige a paginação de tabelas
   oversized no PDF e preserva as linhas. Este checkpoint inclui o HTML otimista versionado,
@@ -2204,3 +2204,34 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   Somente `test/browser/.cache/` permanece não rastreado e intencional. A
   alteração não cria `release/table-handoff.json`, pin, `replace` ou aceite
   formal de I1a/I1b/I3/T6.
+
+### 2026-08-08 — tabela Mermaid: continuação sem recorte no wrapper de print
+
+- O comentário visual apontava a perda da última linha de uma tabela longa no
+  PDF dark. A regeneração atual já preservava `unrooted-id`, mas a causa era
+  frágil: o wrapper Goshtoso interno ainda podia manter `overflow-y: clip`
+  enquanto o Chromium continuava a tabela em outra página.
+- GREEN: `assets/document.css` agora força `overflow-y: visible` no wrapper
+  interno de toda tabela Margo durante `@media print`; a largura continua
+  limitada pelo contrato de tabela fixa e quebra segura de células. O teste de
+  paginação também exige explicitamente `overflow-y: visible` no cenário de
+  tabela oversized e mantém a contagem integral de linhas.
+- Gates: `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` passou;
+  a suíte checked `@pagination` passou `9/9`; o lint M0 de contraste passou
+  em light/dark com 505 nós por modo, zero falhas, zero requests bloqueados,
+  Node `v26.5.0`, Chromium revision `1169`/versão `136.0.7103.25` e
+  `network=0`; `git diff --check` passou.
+- HTMLs regenerados: light 343.006 bytes, SHA-256
+  `af87c7e950c08e616a56149bc6e3c25f3878894b7516576a5e742d8b54684a40`;
+  dark 343.009 bytes, SHA-256
+  `7d36d73ddbc4fb92653e0f7e9888565b7a4ce7bf7612955c28b5c676eb8e2246`.
+  PDFs A4/PDF 1.4 regenerados: light 20 páginas, SHA-256
+  `bde7b0119bbb98ec0d8b7743f25e2ef554b2e41441b492c4263f3bf801e84a16`;
+  dark 20 páginas, SHA-256
+  `b3b3278d9715c138bbfc8891d3a0fd7c8a42a9edc7fe4546912241431e021212`.
+  `pdftotext -layout` confirma todas as 21 linhas da tabela (`css-body` até
+  `unrooted-id`), e as páginas 14/15 foram rasterizadas e inspecionadas.
+- Os `node_modules`/`test-results` temporários foram movidos de forma
+  recuperável para `/tmp/margo-table-clip-browser.87azgm`; o cache M0 em
+  `test/browser/.cache/` continua intencional e não rastreado. Nenhuma
+  aceitação formal I1a/I1b/I3/T6 foi inferida.

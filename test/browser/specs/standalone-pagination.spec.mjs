@@ -256,6 +256,7 @@ test("@pagination lets an oversized table flow while keeping rows together", asy
   await expect(page.locator("#oversized")).toHaveAttribute("data-margo-print-oversized", "true");
   await expect(page.locator("#oversized")).toHaveCSS("break-inside", "auto");
   await expect(page.locator("#oversized > div")).toHaveCSS("overflow", "visible");
+  await expect(page.locator("#oversized > div")).toHaveCSS("overflow-y", "visible");
   await expect(page.locator("#oversized tr")).toHaveCount(2);
   const rowBreaks = await page.locator("#oversized tr").evaluateAll((rows) =>
     rows.map((row) => getComputedStyle(row).breakInside),

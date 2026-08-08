@@ -255,6 +255,13 @@
     max-inline-size: 100%;
     overflow: visible;
   }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] > :where(.overflow-y-clip, .margo-table) {
+    /* The table component owns a scroll wrapper for HTML. In print that
+       wrapper must not clip rows when Chromium continues a table on a later
+       page. Width is constrained below; vertical clipping is never useful in
+       a paginated projection. */
+    overflow-y: visible !important;
+  }
   .goshtoso-document > .margo-document [data-margo-print-oversized="true"] {
     page-break-inside: auto;
     break-inside: auto;
