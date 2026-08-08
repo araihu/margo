@@ -2803,3 +2803,18 @@ GREEN.
   avançadas; M0 é candidato local; H/P/D/O5, T6 e I1a/I1b/I2-I4 continuam
   bloqueados por handoffs, proveniência ou autoridade externa ausentes. Não
   inventar `release/table-handoff.json`, pin, `replace`, proxy, tag ou release.
+
+### 2026-08-08 — revalidação local pós-checkpoint
+
+- Gates readonly atuais: `GOWORK=off GOFLAGS=-mod=readonly go test ./...
+  -count=1` e `go vet ./...` passaram. `node --check` dos scripts de print e
+  evidência e `node --test test/browser/generate-evidence.test.mjs` passaram.
+- O runner checked executou novamente a suíte completa: `49 passed (10.7s)`,
+  Node `v26.5.0`, npm `11.17.0`, Chromium revision `1169`, versão
+  `136.0.7103.25`, `network=0`. A cache offline recriou `node_modules` apenas
+  durante a execução; os diretórios `node_modules` e `test-results` foram
+  movidos para diretórios temporários explícitos em `/tmp` ao final.
+- O primeiro `node --test` direto, antes do runner, falhou apenas porque
+  `node_modules` havia sido removido como limpeza intencional do checkpoint
+  anterior; isso não substitui o resultado do runner, que reinstala offline e
+  fechou verde. O worktree permanece limpo salvo o cache M0 intencional.
