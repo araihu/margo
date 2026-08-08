@@ -41,9 +41,12 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   determinístico, normalização/validação antes da inserção, hashes/tamanhos de
   saída, readiness/composição, quebra protegida de blocos e margens de PDF
   com fundo por modo. O registro anti-compaction da auditoria visual está no
-  commit documental `551a165`; o ponteiro foi alinhado em `bd710ad`. M0-M7
-  continuam candidatos até revisão independente, enquanto I1b e os sucessores
-  formais seguem pendentes.
+  commit documental `551a165`; os checkpoints documentais mais recentes são
+  `ba8bc33` (margem PDF regenerada) e `c794a0c` (auditoria readonly), tree
+  atual `6b17a68b26d4ee5bd0e1343e0f342932fc2d0cfb`, enviado para
+  `origin/impl/v0.0.1-core`. M0-M7 continuam candidatos até revisão
+  independente; o receipt M0 não está presente neste checkout, e I1b/T6 e os
+  sucessores formais seguem pendentes.
 
 ## Ordem de execução vinculante
 
