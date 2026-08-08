@@ -2491,3 +2491,7 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `136.0.7103.25`, `network=0`. Temporários do runner foram movidos para
   `/tmp/margo-gate-replay.wnx41d`; somente `test/browser/.cache/` segue
   intencional e não rastreado. T6/I1a/I1b/I3 continuam sem handoff externo.
+- Checkpoint publicado: commit `4090faa09fbe40ab04422dee86b39e9b62e77ab0`,
+  tree `a17147cc71693ee40b067512ecb8f605ca5782be`, branch remoto
+  `origin/impl/v0.0.1-core` sincronizado. O único estado não rastreado continua
+  sendo o cache M0 intencional.
