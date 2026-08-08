@@ -2433,3 +2433,21 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint publicado: HEAD `01e1d9f00d938a3ee278ef80c93423708ee6e80c`, tree
   `7b54e6fa74aeb4569985f202a47aa34e00f36294`; branch remoto sincronizado. O
   único estado não rastreado continua sendo `test/browser/.cache/`.
+
+### 2026-08-08 — reconciliação do comentário da última linha da tabela
+
+- O comentário visual apontava para uma impressão dark anterior, com 23
+  páginas. A saída atual foi revalidada no mesmo worktree: PDF dark A4 com 20
+  páginas, SHA-256
+  `6ff5007fbba99981cfac3fa6afeab253fdc70536606cb85f15536b912e013000`.
+- A página 14 termina com `invalid-data-points` completo; a página 15 repete
+  `Vector / Required diagnostic` e contém `invalid-length-unit` e `unrooted-id`.
+  `pdftotext -layout` encontrou cada uma dessas três linhas uma vez, e a
+  inspeção rasterizada confirmou que não há linha perdida ou cortada.
+- Nenhuma alteração de código foi necessária neste checkpoint: a correção
+  existente em `assets/document.css` e o teste checked
+  `@pagination preserves every Mermaid rejection row across print continuation`
+  continuam sendo a autoridade. O branch permanece em HEAD
+  `25f92116c0409964a338938904196dc5848661b6`, tree
+  `7dcc7aa23ef8b655b021a5fc6321657f5270ea79`; só `test/browser/.cache/` está
+  não rastreado de forma intencional.
