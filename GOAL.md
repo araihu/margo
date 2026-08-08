@@ -35,7 +35,7 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD funcional (sem contar checkpoints documentais): `2b32d8d6bc6218f733ef09ec1fb2a73a1c1b93c7`, enviado
+- Último HEAD funcional (sem contar checkpoints documentais): `c2c72590a16599b758dd8288948399b8c9080be8`, enviado
   para `origin/impl/v0.0.1-core`; os checkpoints documentais posteriores estão
   registrados no histórico e nas notas abaixo. Esse checkpoint corrige a
   paginação de tabelas oversized no PDF e preserva as linhas. A implementação
@@ -2308,3 +2308,18 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   tabela de rejeições aparecem completas no `pdftotext -layout` e na inspeção
   rasterizada. O caso de tabela oversized continua protegido por
   `overflow-y: visible` durante impressão e pelo gate `@pagination`.
+
+### 2026-08-08 — regressão específica da tabela Mermaid longa
+
+- RED/GREEN: o harness checked agora constrói as 21 linhas reais da tabela de
+  rejeições Mermaid e verifica continuação de impressão, `overflow-y: visible`,
+  altura positiva, contagem integral, ordem e texto de cada linha. Isso fecha
+  o caso que antes podia parecer perder a última linha no PDF dark, em vez de
+  depender apenas do fixture genérico de duas linhas.
+- O gate específico passou `1/1` e a suíte completa `@pagination` passou
+  `10/10`, com Node `v26.5.0`, Chromium `1169`/`136.0.7103.25` e `network=0`.
+  `node_modules` e `test-results` foram movidos de forma recuperável para
+  `/tmp/margo-mermaid-pagination-browser.5sYF76`; somente `.cache/` M0 ficou
+  no worktree.
+- Checkpoint funcional publicado: `c2c72590a16599b758dd8288948399b8c9080be8`.
+  Nenhuma identidade I1b/I3, `replace`, proxy ou handoff externo foi criada.
