@@ -2060,3 +2060,33 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   para `/tmp/margo-m0-test-artifacts-oversized-table-d42dn3`; somente
   `test/browser/.cache/` permanece não versionado e intencional. Nenhuma
   aceitação formal Goshtoso/T6/I1a/I1b foi inferida.
+
+### 2026-08-08 — paginação: última linha da tabela Mermaid não pode ser cortada
+
+- O comentário visual apontou a tabela `Edge cases first` no PDF dark: a
+  continuação chegava ao fim da página e a última linha parecia perdida. A
+  investigação isolou o risco no wrapper interno Goshtoso com
+  `overflow-y-clip`; liberar apenas o container externo não garante que uma
+  continuação paginada permaneça visível.
+- RED: o teste `@pagination lets an oversized table flow while keeping rows
+  together` passou a incluir um wrapper interno `overflow-x-auto
+  overflow-y-clip` e exigiu overflow visível. Falhou com `auto hidden`.
+- GREEN: a regra de print para
+  `[data-margo-print-oversized="true"] > *` agora força
+  `overflow: visible !important` e remove limite de bloco. A tabela continua
+  fragmentável entre páginas; cada `tr` permanece `break-inside: avoid-page`.
+  Tabelas que cabem em uma página não recebem essa exceção.
+- Gates: runner M0 checked `--grep '@pagination'` passou `9/9`; Go
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` passou. HTML e PDF
+  light/dark foram regenerados. Extração PDF contém todas as 21 linhas da
+  tabela, inclusive `unrooted-id`; rasterização mostra `css-custom-property`
+  completo no fim da página 12 e `unrooted-id` completo na página 13, sem
+  clipping. A4 permanece com 19 páginas.
+- Hashes atuais: HTML light
+  `62121ca8f9c80d147b9c55c885b1336a247bf14c0468e182e4560126077870e1`, HTML
+  dark `32348c27d4d11f13945a0982d35251c935f63f916dd9eae805187f3e12007fa9`,
+  PDF light `6b8bd435005bae8ba42bd6d7c9cc0ae0fee9876f7eed9e601003ea09a467b5c3`,
+  PDF dark `9813f52ba968b308ce206210f84ddee786c9204038e400da60117c251885b424`.
+- Arquivos: `assets/document.css`,
+  `test/browser/specs/standalone-pagination.spec.mjs` e este registro. O
+  checkpoint ainda não implica aceitação formal Goshtoso/T6/I1a/I1b.

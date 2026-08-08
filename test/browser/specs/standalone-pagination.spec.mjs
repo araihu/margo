@@ -237,12 +237,16 @@ test("@pagination lets an oversized table flow while keeping rows together", asy
       #oversized { block-size: 1200px; }
       #oversized table { block-size: 1200px; }
       #oversized tr { block-size: 600px; }
+      .overflow-x-auto { overflow-x: auto; }
+      .overflow-y-clip { overflow-y: clip; }
     </style></head><body><div class="goshtoso-document">
       <article class="margo-document">
         <h3>Edge cases first</h3>
         <p>Lead context must not strand an almost empty page before a large table.</p>
         <div id="oversized" data-table-client-sort="true">
-          <table><tbody><tr><td>first row</td></tr><tr><td>second row</td></tr></tbody></table>
+          <div class="overflow-x-auto overflow-y-clip">
+            <table><tbody><tr><td>first row</td></tr><tr><td>second row</td></tr></tbody></table>
+          </div>
         </div>
       </article>
     </div>${script}</body></html>`);
@@ -251,6 +255,7 @@ test("@pagination lets an oversized table flow while keeping rows together", asy
 
   await expect(page.locator("#oversized")).toHaveAttribute("data-margo-print-oversized", "true");
   await expect(page.locator("#oversized")).toHaveCSS("break-inside", "auto");
+  await expect(page.locator("#oversized > div")).toHaveCSS("overflow", "visible");
   await expect(page.locator("#oversized tr")).toHaveCount(2);
   const rowBreaks = await page.locator("#oversized tr").evaluateAll((rows) =>
     rows.map((row) => getComputedStyle(row).breakInside),
