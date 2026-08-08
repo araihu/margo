@@ -77,6 +77,17 @@ First repeated heading verifies deterministic IDs.
 
 Second repeated heading must receive a collision suffix.
 
+Setext heading
+==============
+
+Setext syntax remains a first-class heading and participates in the same
+deterministic ID and table-of-contents contract as ATX headings.
+
+Setext subsection
+------------------
+
+The level-two underline is intentionally distinct from a thematic break.
+
 ## 2. Inline CommonMark and GFM
 
 Ordinary text includes **strong emphasis**, *emphasis*, ***combined strong and
@@ -200,6 +211,10 @@ aspect ratio, responsive sizing, print scaling, and optional titles. Missing or
 unsafe image cases belong to negative slices; the benchmark uses real assets.
 
 ![Margo social preview showing a document and diagram motif](../../assets/social/margo-v0.0.1.png "Margo v0.0.1 social preview")
+
+![Referenced Margo mark][reference-image]
+
+[reference-image]: ../../assets/logo.svg "Referenced Margo vector mark"
 
 The landscape preview must fit the reading measure without stretching. The
 compact SVG mark above must remain sharp. Together they cover raster and vector

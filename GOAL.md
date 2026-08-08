@@ -2169,3 +2169,38 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   local continua verificável, mas não há nova autoridade para I1a/I1b, I3 ou
   T6; não será criado pin, `replace`, `release/table-handoff.json` ou aceite
   formal por inferência.
+
+### 2026-08-08 — benchmark CommonMark: headings Setext e imagens referenciadas
+
+- RED: `TestOptimisticBenchmarkExercisesCommonMarkBoundarySyntax` falhou
+  porque o corpus não exercitava headings Setext nem imagem referenciada. A
+  falha foi reproduzida antes de alterar o Markdown.
+- GREEN/REFACTOR: `testdata/markdown/margo-full-feature-set.md` agora inclui
+  `Setext heading`, `Setext subsection` e
+  `![Referenced Margo mark][reference-image]`, com definição local e título;
+  o teste valida os dois headings, a imagem de referência e o hard break já
+  existente. A cobertura continua offline e usa os mesmos tokens/asset do
+  shell Margo.
+- Gates: o teste focado e `GOWORK=off GOFLAGS=-mod=readonly go test ./...
+  -count=1` passaram; `git diff --check` passou. O runner M0 checked passou
+  `17/17` (`@margo-harness|@contrast|@pagination|@shell`) com Node
+  `v26.5.0`, Chromium revision `1169`/versão `136.0.7103.25` e `network=0`.
+  O lint de contraste do HTML dark atualizado passou em ambos os modos, 505
+  nós por modo, zero falhas e zero requests bloqueados.
+- HTMLs regenerados: light 342.590 bytes, SHA-256
+  `e573ff5cd72bc7735e3966f8fa514d9828a900d6ab8bdb35b9d0fd0063bdd247`; dark
+  342.593 bytes, SHA-256
+  `1286e8a3769d7fcbb49fe12431b7f32c20181f566e029fb4b27006b3ac901823`.
+  PDFs A4/PDF 1.4 regenerados: light 22 páginas, SHA-256
+  `4453204f823037fe2d3f71118475995d11814bc5c46db8742a8df140b0eb1396`;
+  dark 22 páginas, SHA-256
+  `68c9d344f360e368339c3404b180046b927f491c1abfd9f692fa9f0fc6408a11`.
+  `pdftotext -layout` confirma `Setext heading`, `Setext subsection` e as
+  21 linhas completas da tabela Mermaid; a página dark rasterizada foi
+  inspecionada visualmente.
+- Os PDFs anteriores foram preservados em
+  `/tmp/margo-pdf-before-commonmark-dLQAx8`; os artefatos temporários do
+  browser foram preservados em `/tmp/margo-commonmark-browser-artifacts-g0pfH9`.
+  Somente `test/browser/.cache/` permanece não rastreado e intencional. A
+  alteração não cria `release/table-handoff.json`, pin, `replace` ou aceite
+  formal de I1a/I1b/I3/T6.

@@ -91,6 +91,63 @@ func TestOptimisticBenchmarkPresentsMermaidEdgeCasesBeforeHappyPath(t *testing.T
 	}
 }
 
+func TestOptimisticBenchmarkExercisesCommonMarkBoundarySyntax(t *testing.T) {
+	source, err := os.ReadFile("testdata/markdown/margo-full-feature-set.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"Setext heading\n==============",
+		"Setext subsection\n------------------",
+		"![Referenced Margo mark][reference-image]",
+		"[reference-image]: ../../assets/logo.svg",
+	} {
+		if !bytes.Contains(source, []byte(required)) {
+			t.Errorf("optimistic benchmark missing CommonMark boundary %q", required)
+		}
+	}
+
+	compiler := New(WithHostPolicy(Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes}))
+	document, err := compiler.Compile(context.Background(), Source{Name: "margo-full-feature-set.md", Content: source})
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	parsed := document.parsed.(normalizedMarkdown)
+	var setextHeadings, referenceImages, hardBreaks int
+	err = goldast.Walk(parsed.root, func(node goldast.Node, entering bool) (goldast.WalkStatus, error) {
+		if !entering {
+			return goldast.WalkContinue, nil
+		}
+		switch node.Kind() {
+		case goldast.KindHeading:
+			value := node.(*goldast.Heading)
+			text := value.Text(parsed.frontmatter.body)
+			if bytes.Equal(text, []byte("Setext heading")) || bytes.Equal(text, []byte("Setext subsection")) {
+				setextHeadings++
+			}
+		case goldast.KindImage:
+			referenceImages++
+		case goldast.KindText:
+			if node.(*goldast.Text).HardLineBreak() {
+				hardBreaks++
+			}
+		}
+		return goldast.WalkContinue, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if setextHeadings != 2 {
+		t.Errorf("setext headings = %d, want 2", setextHeadings)
+	}
+	if referenceImages < 1 {
+		t.Errorf("reference images = %d, want at least 1", referenceImages)
+	}
+	if hardBreaks < 1 {
+		t.Errorf("hard breaks = %d, want at least one hard-break form", hardBreaks)
+	}
+}
+
 func TestOptimisticBenchmarkExercisesFullMarkdownProfile(t *testing.T) {
 	source, err := os.ReadFile("testdata/markdown/margo-full-feature-set.md")
 	if err != nil {
