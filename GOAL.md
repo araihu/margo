@@ -2323,3 +2323,8 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   no worktree.
 - Checkpoint funcional publicado: `c2c72590a16599b758dd8288948399b8c9080be8`.
   Nenhuma identidade I1b/I3, `replace`, proxy ou handoff externo foi criada.
+- Após o teste, `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` e
+  `go vet ./...` passaram. O lint checked de contraste do HTML dark em ambos
+  os modos também passou: 505 nós por modo, zero falhas e zero requests
+  bloqueados; relatório preservado em
+  `/tmp/margo-contrast-current.XXXXXX.json`.
