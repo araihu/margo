@@ -35,8 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação: `c5ef78383e455399ee5366076b7828457ba7666c`, tree
-  `40fda2a58c503f723e4b069a1b222e11235d7fe9`, enviado para
+- Último HEAD da implementação: `3fa4596a3436a421d7a1d13c8a3ca46facb90a02`, tree
+  `aa77b84e531404f6d9a5683dbf0b9390514a92e3`, enviado para
   `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
   `c63a568`, corrige a paginação de tabelas oversized no PDF e preserva as linhas;
   `7556bd1` atualiza a identidade documental desse resultado. Este checkpoint inclui o HTML otimista versionado,
@@ -2255,3 +2255,18 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   locais; a próxima implementação formal depende de I1a/I1b/I2/I3 ou de uma
   nova autoridade explícita. Não foi criado `replace`, pin inventado,
   `release/table-handoff.json`, proxy local, nem aceitação por inferência.
+
+### 2026-08-08 — rechecagem do comentário sobre a última linha Mermaid
+
+- O PDF dark atual foi reaberto e rasterizado: 20 páginas A4. A página de
+  continuação mostra `invalid-length-unit` e `unrooted-id` completos; a
+  extração `pdftotext -layout` encontra cada linha sentinel da tabela uma vez.
+- A página de listas continua deliberadamente protegida contra fragmentação
+  interna: o título `3. List families` e a lista tight ficam juntos; espaço
+  livre remanescente é consequência do contrato de legibilidade para listas,
+  tabelas, Mermaid e blocos de código, não de recorte ou perda de conteúdo.
+- Identidade verificada neste recheck: PDF light
+  `bde7b0119bbb98ec0d8b7743f25e2ef554b2e41441b492c4263f3bf801e84a16`, PDF
+  dark `b3b3278d9715c138bbfc8891d3a0fd7c8a42a9edc7fe4546912241431e021212`;
+  HTML light `af87c7e950c08e616a56149bc6e3c25f3878894b7516576a5e742d8b54684a40`,
+  HTML dark `7d36d73ddbc4fb92653e0f7e9888565b7a4ce7bf7612955c28b5c676eb8e2246`.
