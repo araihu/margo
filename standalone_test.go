@@ -127,6 +127,32 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 	}
 }
 
+func TestStandalonePrintPageLeavesReadableBreathingRoom(t *testing.T) {
+	asset, err := EmbeddedAsset("standalone.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(asset.Content)
+	pageStart := strings.Index(css, "@page {")
+	if pageStart < 0 {
+		t.Fatal("standalone stylesheet has no @page rule")
+	}
+	pageEnd := strings.Index(css[pageStart:], "}")
+	if pageEnd < 0 {
+		t.Fatal("standalone @page rule is not closed")
+	}
+	pageCSS := css[pageStart : pageStart+pageEnd+1]
+	for _, want := range []string{
+		"size: A4 portrait;",
+		"margin: 24mm 22mm 26mm;",
+		"background: var(--margo-print-page-background);",
+	} {
+		if !strings.Contains(pageCSS, want) {
+			t.Errorf("print page rule missing %q: %s", want, pageCSS)
+		}
+	}
+}
+
 func TestStandaloneEmbedsExactGoshtosoCSSBeforeDocumentAdjustments(t *testing.T) {
 	result := mustRenderSource(t, "# Styled")
 	component, err := RenderStandalone(result)

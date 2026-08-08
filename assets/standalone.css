@@ -201,7 +201,8 @@
 
 @page {
   size: A4 portrait;
-  margin: 20mm 18mm 22mm;
+  margin: 24mm 22mm 26mm;
+  background: var(--margo-print-page-background);
 }
 
 @media print {
