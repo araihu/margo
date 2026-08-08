@@ -2675,3 +2675,34 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Após o lint, `test/browser/node_modules/` foi movido de forma reversível para
   `/tmp/margo-node-modules-cleanup.52D720/node_modules`; apenas
   `test/browser/.cache/` M0 permanece não rastreado e intencional.
+
+### 2026-08-08 — runner rastreável de evidência browser
+
+- O gerador temporário `/tmp/margo-optimistic-generator/render-with-runtime.mjs`
+  foi substituído por `test/browser/generate-evidence.mjs`, com argumentos
+  absolutos, Chromium vindo de `MARGO_CHROMIUM_EXECUTABLE`, Playwright/css-tree
+  resolvidos somente da instalação local, Mermaid roteado para
+  `assets/mermaid/11.16.1`, rede externa bloqueada e escrita atômica do JSON.
+- O runner valida três diagramas Mermaid na tela, disclosure de três fontes no
+  print, TOC de uma coluna, superfícies header/footer/document iguais, cinco
+  marcadores de paginação e ausência de requests bloqueados, console errors e
+  page errors. `generate-evidence.test.mjs` cobre caminhos absolutos, modo e
+  argumentos inválidos. README documenta o comando checked light/dark.
+- Execução offline reproduzida com Node `v26.5.0`, Chromium revision `1169`:
+  light HTML `343588` bytes SHA-256
+  `b830a04167d509368d36762bd9da181ce7213eb623f6f99bb51a2389f4b00a02`;
+  dark HTML `343591` bytes SHA-256
+  `6d14c24b8008c720706d35c7bcfcf3ebcac714534a7a216d44ee33f4d2de5c27`;
+  ambos tiveram três Mermaid `succeeded`, zero bloqueios e zero erros. O lint
+  dark manteve 505 nós de texto, zero falhas de contraste/layout e zero rede.
+- Gates: `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`, `go vet
+  ./...`, `node --check` dos dois scripts, `node --test
+  test/browser/generate-evidence.test.mjs`, `run-playwright.sh --check
+  --contrast-only` e `git diff --check` passaram. `node_modules` foi movido de
+  forma reversível para `/tmp/margo-node-modules-cleanup.final.9hKlnk`; só o
+  cache M0 intencional permanece não rastreado.
+- Checkpoint publicado: commit `d7c84c261b04c4584c000e286ab3530321364b4f`,
+  tree `1d7c3eb8a5a3d251d8dbe8d15563dd1dddc3eb97`, branch
+  `origin/impl/v0.0.1-core` sincronizada. T6, I1a/I1b/I3, O5 e aceitação
+  independente formal de M0 continuam pendentes por autoridade/proveniência;
+  nenhum handoff ou release foi inventado.
