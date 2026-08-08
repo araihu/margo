@@ -2008,3 +2008,47 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `2bc0a9a8d740aeae9ad56b42bb9796debe2cd5b7`, remoto
   `origin/impl/v0.0.1-core`. O único arquivo não rastreado continua sendo o
   cache M0 intencional em `test/browser/.cache/`.
+
+### 2026-08-08 — paginação: tabela oversized não deve criar página quase vazia
+
+- O comentário visual da página 12 dark foi reproduzido no PDF atual: o
+  heading `Edge cases first` e seu parágrafo ficavam sozinhos antes da tabela
+  de rejeições Mermaid, deixando a página quase vazia. A causa era o contrato
+  `break-inside: avoid-page` aplicado a uma tabela com altura maior que a área
+  útil; o navegador adiava o wrapper inteiro antes de fragmentá-lo nas páginas
+  seguintes.
+- RED: o novo teste
+  `@pagination lets an oversized table flow while keeping rows together`
+  falhou porque não havia marcador nem regra para distinguir esse caso
+  impossível de um bloco que realmente cabe em uma página.
+- GREEN: `standalonePrintPaginationScript` marca somente wrappers
+  `[data-table-client-sort="true"]` maiores que `window.innerHeight` com
+  `data-margo-print-oversized="true"`; `assets/document.css` permite que
+  wrapper, `table` e `tbody` atravessem páginas, preservando cada `tr` com
+  `break-inside: avoid-page`. `margoRestorePrintState` remove o marcador e
+  restaura o estado original. Listas, código, Mermaid, figuras e tabelas que
+  cabem continuam protegidos.
+- A página 12 regenerada agora contém o texto introdutório e as primeiras
+  linhas da tabela, sem página quase vazia. Rasterização de conferência:
+  `/tmp/margo-pdf-pages-OiEuqz/page-12.png`; extração `pdftotext -layout`
+  confirma `Edge cases first`, o parágrafo e as linhas `script` até
+  `css-custom-property`. A4 dark/light têm 19 páginas.
+- HTMLs regenerados: light 341.940 bytes, SHA-256
+  `41baf72602cf05a394ed96b1d0855e2db62708e081d069696702b4a43d066ef5`;
+  dark 341.943 bytes, SHA-256
+  `b3bf141307c43091b17fe013e9101c7fe1ef960620952b98c736b7b3dd1c4acf`.
+  PDFs regenerados: light SHA-256
+  `9fd4bf5fd947c7c2648a4004395345a2635cea53bf24fb7ad2f358a87307b292`;
+  dark SHA-256
+  `cd3c226f1bcb66a0ee12f53086caab55e56dcecfed98fa7ce97ee105cfdb5331`.
+- Gates: `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` passou;
+  runner M0 checked `--grep '@pagination'` passou `9/9`, com Node
+  `v26.5.0`, Chromium revision `1169`/versão `136.0.7103.25` e `network=0`;
+  `git diff --check` e `git diff --cached --check` passaram. O checkpoint de
+  runtime foi publicado em `157f2d9505e26df91bb46ae13e7de4edac278eef`, tree
+  `cd7c3fe481ed7e3412977fd933c19205f52207ed`, remoto
+  `origin/impl/v0.0.1-core`.
+- `node_modules` e `test-results` do runner foram movidos de forma recuperável
+  para `/tmp/margo-m0-test-artifacts-oversized-table-d42dn3`; somente
+  `test/browser/.cache/` permanece não versionado e intencional. Nenhuma
+  aceitação formal Goshtoso/T6/I1a/I1b foi inferida.
