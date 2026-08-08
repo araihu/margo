@@ -2672,3 +2672,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   texto, 29 itens de layout, zero falhas e zero requests bloqueados.
 - Nenhuma nova correção de renderer justificada. Pendências reais continuam
   externas: I1a/I1b/I3/O5/T6 e aceitação independente M0.
+- Após o lint, `test/browser/node_modules/` foi movido de forma reversível para
+  `/tmp/margo-node-modules-cleanup.52D720/node_modules`; apenas
+  `test/browser/.cache/` M0 permanece não rastreado e intencional.
