@@ -62,6 +62,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   const pageMarginBottomMillimeters = 22;
   const originalDetailsState = new WeakMap();
   const originalBreakMarkers = new WeakMap();
+  const originalBreakBeforeStyles = new WeakMap();
   const millimetersToPixels = () => {
     const probe = document.createElement("div");
     probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
@@ -83,6 +84,10 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       if (original === null) block.removeAttribute("data-margo-print-break-before");
       else block.setAttribute("data-margo-print-break-before", original);
       originalBreakMarkers.delete(block);
+      const originalStyle = originalBreakBeforeStyles.get(block);
+      if (originalStyle === null) block.style.removeProperty("break-before");
+      else if (originalStyle) block.style.setProperty("break-before", originalStyle.value, originalStyle.priority);
+      originalBreakBeforeStyles.delete(block);
     }
     if (toc) delete toc.dataset.margoTocColumns;
   };
@@ -100,10 +105,15 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
         const endsOn = Math.floor(bottom / pageHeight);
         if (endsOn <= startsOn || top % pageHeight <= 1) continue;
         if (!originalBreakMarkers.has(block)) originalBreakMarkers.set(block, block.getAttribute("data-margo-print-break-before"));
+        if (!originalBreakBeforeStyles.has(block)) {
+          const value = block.style.getPropertyValue("break-before");
+          originalBreakBeforeStyles.set(block, value ? { value, priority: block.style.getPropertyPriority("break-before") } : null);
+        }
         if (block.getAttribute("data-margo-print-break-before") !== "page") {
           block.setAttribute("data-margo-print-break-before", "page");
           changed = true;
         }
+        block.style.setProperty("break-before", "page");
       }
       if (!changed) break;
     }
