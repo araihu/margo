@@ -1332,3 +1332,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   estado. Próximo passo seguro: `git diff --check`, commit/push do ajuste e
   reauditoria das fronteiras formais. T6, I1b e os sucessores continuam
   deliberadamente fora deste checkpoint.
+- Checkpoint versionado: commit `68e972df8915298aab0a2c7f3397e028becb7eb7`,
+  tree `2f19fdd23515e1d15c64a09fdd8358b8b206ed57`, enviado com sucesso para
+  `origin/impl/v0.0.1-core`. A árvore ficou limpa após o push.
