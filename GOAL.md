@@ -1406,3 +1406,43 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint versionado: commit `7e15ac6e13156e7bf1bd77fbcc4694e7bb66f0dc`,
   tree `d453807864fc78caab2f7c0d48cfd98f21346c29`, enviado para
   `origin/impl/v0.0.1-core`; worktree limpo.
+
+### 2026-08-08 — auditoria de pressão de disco e limpeza Margo
+
+- `2026-08-08T04:22:29-03:00`: a auditoria foi limitada aos recursos Margo
+  em `/private/tmp`, sem tocar nos worktrees de implementação, nos snapshots
+  de revisão R4-R17, nos worktrees T0-T6, no cache Node/Chromium pinado, nem
+  nas evidências de Mermaid, PDF e revisão humana.
+- Não havia processo ativo com caminho, comando ou ambiente Margo; não houve
+  renderer, Playwright, Chromium, `go test`, `go build`, `templ generate` ou
+  `npm ci` órfão desta lane. O PID `23028` continua sendo o servidor Manja em
+  `/private/tmp/manja-management-demo-ui` e foi preservado. Um Chromium
+  `chromedp-runner` observado anteriormente pertencia ao worktree Xisnove;
+  também não foi tocado.
+- Foram removidos somente sete recursos temporários, todos pertencentes ao
+  usuário, sem handles abertos, sem referência no `GOAL.md` e fora de Git:
+  `/private/tmp/margo-go-cache` e seis diretórios
+  `/private/tmp/margo-pagination-*`. O `du` registrou `446038016` bytes
+  (`~425,3 MiB`) recuperáveis. O espaço livre observado passou de `119 GiB`
+  para `156 GiB`; a diferença APFS inclui compactação/reclaim assíncrono e
+  não é atribuída integralmente aos diretórios removidos.
+- A causa imediata foi acúmulo de um `GOCACHE` descartável e harnesses de
+  paginação antigos. O helper temporário
+  `/private/tmp/margo-optimistic-generator/render-artifacts.mjs` também fecha
+  o browser apenas no caminho de sucesso, portanto uma exceção pode deixar
+  um Chromium órfão; ele não é fonte versionada deste worktree e nenhum
+  processo correspondente estava vivo. O runner versionado
+  `test/browser/lint-contrast.mjs` já usa `try/finally` para `browser.close()`;
+  não foi necessário alterar código de produto nesta limpeza.
+- Recursos intencionais permanecem preservados: M0/M5 e os quatro arquivos
+  Node, o ZIP Chromium, `margo-r5-module.qSyEnw`, `margo-mermaid-audit`,
+  `margo-human-review-latest`, `margo-pdf-review-table-spacing-r17`, todos os
+  worktrees/snapshots Git e os quatro artefatos HTML/PDF canônicos.
+- Após a limpeza: o worktree `impl/v0.0.1-core` permaneceu limpo e alinhado ao
+  remoto; nenhum gate amplo foi executado. A validação foi somente de espaço,
+  ausência de processos/caminhos abertos e integridade dos recursos
+  preservados. O teste unitário focado de contraste passou `4/4` ao ser
+  executado sob o `node_modules` já provisionado do harness M5; a invocação
+  direta no worktree foi recusada apenas porque ele não contém `node_modules`.
+  Os gates completos PDF/WCAG e a aceitação formal de I1a/I1b continuam
+  pendentes; T6 segue deferred por decisão explícita do usuário.
