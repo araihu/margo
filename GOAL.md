@@ -17,8 +17,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. Emenda v2 e o
   replay M1 -> M4 -> M5 estão verdes. O standalone agora projeta o mesmo
   documento em modo claro ou escuro e os HTML/PDF otimistas dos dois modos
-  estão preservados. M6 está implementado e publicado; M7 e os sucessores
-  formais continuam pendentes.
+  estão preservados. M6 e M7 estão implementados e publicados; I1b, os gates
+  independentes e os sucessores formais continuam pendentes.
 - Plano aceito: revisão R17, veredito `acceptable`.
 - Design aceito: commit `bfcf296db63eb18b5e54d61ceb3156c193b98ecd`, SHA-256
   `6b41bc995de83d6835a96fd9e73ddb59d642e87bd6ce13aaac3c0c7852499fc8`.
@@ -33,14 +33,16 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `5852ae48f618f7c4313d2eb478c18afed991d1b1`,
-  tree `518bf91a7b96cc2ee4ca18b7575219054bd70a49`, enviado para
+- Último checkpoint funcional: `21a2652`, tree
+  `5c73b048ac5cfa902cbd64c18249c60e2acf51f4`, enviado para
   `origin/impl/v0.0.1-core`. Além do modo claro/escuro, contraste Mermaid e
   TOC adaptativa, este checkpoint executa Mermaid por fila process-global,
   congela a configuração por tarefa, deriva `SourceRootID` determinístico,
-  normaliza/valida antes da inserção e publica hashes/tamanhos de saída.
-  M0-M5 continuam candidatos: falta runner Windows, I1b, readiness M7 e
-  revisão independente; o preview otimista não antecipa essa aceitação.
+  normaliza/valida antes da inserção, publica hashes/tamanhos de saída e
+  fecha readiness/composição com DOMContentLoaded, fontes, dependências,
+  rede, estabilidade de layout em até oito frames, IDs duplicados e
+  `ExecutionID` estável. M0-M7 continuam candidatos até revisão independente;
+  I1b e os sucessores formais seguem pendentes.
 
 ## Ordem de execução vinculante
 
@@ -1250,3 +1252,30 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `5852ae48f618f7c4313d2eb478c18afed991d1b1`, tree
   `518bf91a7b96cc2ee4ca18b7575219054bd70a49`, push confirmado em
   `origin/impl/v0.0.1-core`.
+- `2026-08-08T03:14:00-03:00`: M7 RED reproduzido com seis specs
+  `@readiness|@composition`; todos falharam antes de
+  `assets/runtime/readiness.js` existir. GREEN/REFACTOR implementaram o
+  collector terminal em `assets/runtime/readiness.js`, sem alterar o schema
+  ou o runtime M6: validação detached de cada tarefa, ordem topológica,
+  timeout, fontes (`document.fonts.ready` e `check`), evidência de requests
+  bloqueados, quantização de métricas em 1/64 CSS px, estabilidade em no
+  máximo oito frames, relatórios profundamente congelados e isolamento de
+  placements/`ExecutionID`. Os fixtures explícitos estão em
+  `testdata/runtime/readiness-vectors.json`; as suítes exercitam evidência
+  forjada/ausente, timeout, fonte indisponível, rede bloqueada, layout
+  instável, duplicidade e duas composições independentes.
+- Gate browser M7 passou 8/8; o gate combinado `@runtime|@readiness|@composition`
+  passou 11/11 com Node `v26.5.0`, Chromium rev `1169` e `network=0`. Também
+  passaram `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`,
+  `go vet ./...`, `node --check assets/runtime/readiness.js`,
+  `go tool muamba verify --strict` e
+  `go tool muamba generate-go --strict --check --dir assets --package assets
+  --output mermaid_gen.go`. A forma literal do plano sem `--package assets`
+  falha porque Muamba não consegue inferir o package a partir do próprio
+  arquivo gerado; o gate executável usa o argumento explícito e não altera
+  bytes gerados.
+- M7 commit `21a2652`, tree
+  `5c73b048ac5cfa902cbd64c18249c60e2acf51f4`, push confirmado em
+  `origin/impl/v0.0.1-core`; worktree limpo após o checkpoint. M7 permanece
+  sujeito à revisão independente, e I1b/T6/sucessores continuam fora deste
+  marco.
