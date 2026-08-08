@@ -33,7 +33,7 @@ describe("contrast lint command", () => {
       source: { bytes: 3, sha256: "abc" },
       media: "print",
       rules: { normalTextMinimumRatio: 4.5, largeTextMinimumRatio: 3, network: "deny" },
-      modes: [{ mode: "light", checked: 2, failures: [] }],
+      modes: [{ mode: "light", checked: 2, failures: [], layout: { checked: 4, failures: [] } }],
       network: { blocked: [] },
       status: "pass",
     };
@@ -45,7 +45,7 @@ describe("contrast lint command", () => {
       "rules.normal 4.5:1",
       "rules.large 3:1",
       "rules.network deny",
-      "light checked=2 failures=0",
+      "light checked=2 failures=0 layout.checked=4 layout.failures=0",
       "network.blocked 0",
       "",
     ].join("\n"));

@@ -11,6 +11,11 @@ visible text against WCAG AA contrast thresholds:
 - zero tolerance for a blocked network dependency. Local `file:` assets next to
   the supplied HTML remain offline and are allowed; remote URLs are blocked.
 
+The same report audits print layout: protected blocks and table cells must stay
+inside document width, table rows retain positive height and stay inside their
+table, hidden or clipped overflow that would discard content is reported, and
+root-level horizontal overflow fails the preflight.
+
 The check uses the exact Node, npm, and Chromium receipt already provisioned by
 the M0 browser harness. It does not use ambient Node, npm, Playwright, or a
 network fallback.
@@ -67,4 +72,5 @@ and are resolved from the supplied HTML path.
 This is a deterministic preflight, not a replacement for semantic tests, PDF
 text extraction, pagination review, or human inspection of diagrams and
 spacing. New readability rules can be added to the versioned
-`margo/contrast-lint/v1` report without changing the source artifact.
+`margo/contrast-lint/v1` report without changing the source artifact. Layout
+findings appear under each mode as `layout.checked` and `layout.failures`.

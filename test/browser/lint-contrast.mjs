@@ -5,6 +5,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { auditTextContrast } from "./harness/contrast.mjs";
+import { auditDocumentLayout } from "./harness/layout.mjs";
 
 const MODES = ["light", "dark"];
 const EXIT_USAGE = 2;
@@ -102,8 +103,9 @@ export function formatText(report) {
     `rules.network ${report.rules.network}`,
   ];
   for (const mode of report.modes) {
-    lines.push(`${mode.mode} checked=${mode.checked} failures=${mode.failures.length}`);
+    lines.push(`${mode.mode} checked=${mode.checked} failures=${mode.failures.length} layout.checked=${mode.layout.checked} layout.failures=${mode.layout.failures.length}`);
     for (const failure of mode.failures) lines.push(`  ${summarizeFailure(failure)}`);
+    for (const failure of mode.layout.failures) lines.push(`  layout ${failure.rule} ${failure.selector} ${failure.detail}`);
   }
   lines.push(`network.blocked ${report.network.blocked.length}`);
   for (const resource of report.network.blocked) {
@@ -161,11 +163,12 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
         root.dataset.colorMode = colorMode;
       }, selectedMode);
       const audit = await auditTextContrast(page);
-      modes.push({ mode: selectedMode, checked: audit.checked, failures: audit.failures });
+      const layout = await auditDocumentLayout(page);
+      modes.push({ mode: selectedMode, checked: audit.checked, failures: audit.failures, layout });
       await page.close();
     }
     const normalizedBlocked = normalizeBlockedResources(blocked);
-    const failures = modes.flatMap((result) => result.failures);
+    const failures = modes.flatMap((result) => [...result.failures, ...result.layout.failures]);
     return {
       schemaVersion: "margo/contrast-lint/v1",
       source: { bytes: bytes.byteLength, sha256: digest(bytes) },

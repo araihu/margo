@@ -2405,3 +2405,28 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   intencional e não rastreado. Nenhuma autoridade I1a/I1b/I3/T6 foi inferida.
   Checkpoint de código: commit `ac68df91171959d70356cab2edde7322e053f351`,
   tree `55b9b4ae4a025cdf045a302d3d16b1ab1008cd71`, branch remoto sincronizado.
+
+### 2026-08-08 — lint determinístico de layout integrado ao preflight
+
+- O preflight checked de contraste agora audita também o layout de impressão:
+  blocos protegidos, células e linhas de tabela precisam permanecer dentro do
+  documento, linhas precisam ter altura positiva, overflow oculto que descarte
+  conteúdo falha, e overflow horizontal da raiz falha. O resultado mantém o
+  schema `margo/contrast-lint/v1` e expõe `layout.checked`/`layout.failures`
+  por modo.
+- O teste negativo `@contrast layout lint rejects clipped protected blocks`
+  prova que um bloco de código com `overflow: clip` é rejeitado. O comando
+  unitário passou `4/4`; o replay checked `@contrast|@pagination` passou
+  `12/12`, com Node `v26.5.0`, npm `11.17.0`, Chromium revision `1169` /
+  versão `136.0.7103.25` e `network=0`.
+- Relatório text atual sobre o HTML dark: SHA-256
+  `a2e2c273be5fa7cd100922771208a404578e5794d67a0d9ff1b14028edfa16bd`,
+  `343378` bytes; light e dark auditaram `505` nós de texto e `29` itens de
+  layout, ambos com zero falhas e zero requests bloqueados. A extração PDF
+  continua encontrando uma vez cada `invalid-data-points`, `invalid-length-unit`
+  e `unrooted-id`.
+- `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` e `go vet ./...`
+  passaram. Os temporários do runner foram movidos de forma recuperável para
+  `/tmp/margo-layout-lint-gates.DgFY2d`; somente `test/browser/.cache/` segue
+  intencional e não rastreado. I1a/I1b/I3/T6 continuam sem autoridade externa;
+  nenhum handoff ou `release/table-handoff.json` foi inventado.
