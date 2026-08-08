@@ -2328,3 +2328,14 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   os modos também passou: 505 nós por modo, zero falhas e zero requests
   bloqueados; relatório preservado em
   `/tmp/margo-contrast-current.XXXXXX.json`.
+
+### 2026-08-08 — replay checked combinado pós-regressão
+
+- O conjunto M0 combinado `@margo-harness|@contrast|@pagination|@shell`
+  passou `18/18` com Node `v26.5.0`, npm `11.17.0`, Chromium revision
+  `1169`/versão `136.0.7103.25` e `network=0`. Isso inclui os contratos de
+  cache, locks, assinatura, DOM/XML/CSS, WCAG AA, tabela Mermaid longa, TOC,
+  margens, superfícies light/dark e stamps.
+- Os artefatos temporários do runner foram movidos de forma recuperável para
+  `/tmp/margo-checked-combined-browser.MA8o4P`; `.cache/` M0 continua sendo o
+  único estado não rastreado intencional.
