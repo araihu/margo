@@ -1656,3 +1656,20 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   tree `827a16f8977801736fd486b11f5b870e71dffbab`. M0 formal, I1a/I1b,
   sucessores H/P/D/O e T6 continuam pendentes por suas dependências/autoridade;
   `release/table-handoff.json` não foi inventado.
+
+### 2026-08-08 — PDF dark regenerado após comentário de margem
+
+- O comentário apontava para uma versão anterior do PDF. Os PDFs foram
+  regenerados a partir dos HTMLs atuais com Chromium pinado
+  `136.0.7103.25`, sem requests bloqueadas, erros de console ou erros de
+  página. O PDF claro atual tem 23 páginas e SHA-256
+  `0bbf4c2fc2735b46411933c46c8feb750bffd88dab2691be0bf37c5f5d4701ec`;
+  o PDF dark atual tem 23 páginas e SHA-256
+  `a7e78d7900e73080e14288877b8ad29a7fb0745eb30a67dc54eaf46fd96066d9`.
+- A medição `pdftotext -bbox` da página 4 dark coloca o primeiro heading em
+  `xMin=62.25pt` e `yMin=71.70pt`, coerente com `@page` de 22mm lateral e
+  24mm superior. Portanto o texto não toca a borda no artefato atual; a
+  captura revisada era de um PDF anterior à correção de margem.
+- O HTML e o PDF permanecem artefatos de trabalho ignorados pelo Git. O
+  checkpoint documental deste registro é separado do checkpoint funcional;
+  nenhuma aceitação formal M0/I1a/I1b ou T6 foi inferida.
