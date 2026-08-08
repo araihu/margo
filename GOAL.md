@@ -124,6 +124,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   contrato de transferência root→C5:
   `/private/tmp/margo-v001-implementation/integration/root-module-transfer.v1.json`.
 
+Os caminhos acima foram rechecados neste checkpoint com `test -e`; todos estão
+presentes no worktree. O `GOAL.md` continua sendo o registro vivo e não substitui
+os planos aceitos, os testes ou os recibos independentes.
+
 ## Progresso
 
 ### 2026-08-06
