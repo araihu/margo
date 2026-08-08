@@ -40,9 +40,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   process-global, configuração congelada por tarefa, `SourceRootID`
   determinístico, normalização/validação antes da inserção, hashes/tamanhos de
   saída, readiness/composição, quebra protegida de blocos e margens de PDF
-  com fundo por modo. O registro anti-compaction mais recente está no commit
-  documental `551a165`; M0-M7 continuam candidatos até revisão independente,
-  enquanto I1b e os sucessores formais seguem pendentes.
+  com fundo por modo. O registro anti-compaction da auditoria visual está no
+  commit documental `551a165`; o ponteiro foi alinhado em `bd710ad`. M0-M7
+  continuam candidatos até revisão independente, enquanto I1b e os sucessores
+  formais seguem pendentes.
 
 ## Ordem de execução vinculante
 
