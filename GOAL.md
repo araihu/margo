@@ -2580,3 +2580,18 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   tree `13f518b45082dec6f8bbe14d9e8c5445568ec291`, branch
   `origin/impl/v0.0.1-core` sincronizada. O único estado não rastreado continua
   sendo `test/browser/.cache/`, cache M0 intencional.
+
+### 2026-08-08 — auditoria do próximo predecessor formal
+
+- O checkpoint atual está sincronizado: HEAD
+  `8a9792e2e83e10667c319a44ec145952777defb5`, tree
+  `c6130ff4655dbfc0282a78e626405084806de1ae`, sem staged/unstaged e com apenas
+  `test/browser/.cache/` não rastreado de forma intencional.
+- A auditoria dos módulos confirmou o limite real para O5: `charts/go.mod`,
+  `pdf/go.mod` e `cmd/margo/go.mod` ainda são esqueletos sem `go.sum`, e não há
+  identidades I3 verificadas para root/charts/pdf/cmd. O root continua com o
+  transfer C0 aceito em `integration/root-module-transfer.v1.json`.
+- Não será criado `replace`, pseudo-versão, `go.sum` inventado ou release
+  receipt para destravar O5. A implementação humana HTML/PDF permanece o
+  próximo trabalho local seguro; O5/I3/I1a/I1b/T6 continuam aguardando a
+  autoridade/proveniência prevista no plano.
