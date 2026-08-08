@@ -49,7 +49,7 @@ PY
 ROOT="$SCRIPT_DIR/.cache/playwright/$RUNNER/$LOCK_REVISION"
 DOWNLOADS="$SCRIPT_DIR/.cache/downloads"
 ARCHIVE="$DOWNLOADS/$LOCK_ARCHIVE"
-mkdir -p "$DOWNLOADS" "$(dirname -- "$RECEIPT")"
+mkdir -p "$DOWNLOADS"
 
 if [ ! -f "$ARCHIVE" ] || [ "$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')" != "$LOCK_SHA256" ]; then
   : > "$ARCHIVE.part"
@@ -74,6 +74,7 @@ test -f "$EXECUTABLE" || { printf '%s\n' "margo.browser_executable_missing:$EXEC
 chmod +x "$EXECUTABLE"
 EXECUTABLE_SHA256=$(shasum -a 256 "$EXECUTABLE" | awk '{print $1}')
 
+mkdir -p "$(dirname -- "$RECEIPT")"
 python3 - "$RECEIPT" "$RUNNER" "$LOCK_REVISION" "$LOCK_VERSION" "$EXECUTABLE" "$EXECUTABLE_SHA256" "$LOCK_URL" "$LOCK_SHA256" <<'PY'
 import json, os, sys
 path, runner, revision, version, executable, executable_sha, archive_url, archive_sha = sys.argv[1:]
