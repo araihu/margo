@@ -15,6 +15,8 @@ permissions:
 
 env:
   GO_VERSION: '1.26.5'
+  GOWORK: 'off'
+  GOFLAGS: '-mod=readonly'
 
 jobs:
   required:
@@ -35,8 +37,6 @@ jobs:
 
       - name: Verify every module independently
         shell: bash
-        env:
-          GOWORK: 'off'
         run: |
           set -euo pipefail
           while IFS= read -r module_file; do
@@ -44,7 +44,13 @@ jobs:
             printf 'Verifying %s\n' "$module_dir"
             (
               cd "$module_dir"
-              go mod tidy
+              before_mod="$(sha256sum go.mod | awk '{print $1}')"
+              before_sum='missing'
+              if [[ -f go.sum ]]; then
+                before_sum="$(sha256sum go.sum | awk '{print $1}')"
+              fi
+
+              go mod verify
               go vet ./...
               go test ./... -count=1
               build_dir="$RUNNER_TEMP/margo-build/${module_dir//\//_}"
@@ -53,7 +59,19 @@ jobs:
               while IFS= read -r package_name; do
                 package_index=$((package_index + 1))
                 go build -o "$build_dir/$package_index" "$package_name"
-              done < <(go list ./...)
+              done < <(go list -f '{{if .GoFiles}}{{.ImportPath}}{{end}}' ./...)
+
+              after_mod="$(sha256sum go.mod | awk '{print $1}')"
+              after_sum='missing'
+              if [[ -f go.sum ]]; then
+                after_sum="$(sha256sum go.sum | awk '{print $1}')"
+              fi
+              if [[ "$before_mod" != "$after_mod" || "$before_sum" != "$after_sum" ]]; then
+                echo "::error::module metadata changed under readonly verification: $module_dir"
+                printf 'go.mod: %s -> %s\n' "$before_mod" "$after_mod"
+                printf 'go.sum: %s -> %s\n' "$before_sum" "$after_sum"
+                exit 1
+              fi
             )
           done < <(find . -name go.mod -not -path '*/vendor/*' -print | sort)
 

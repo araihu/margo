@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "margo/browser-lock/v1",
+  "revision": "1169",
+  "version": "136.0.7103.25",
+  "networkPolicy": "explicit-provision-only",
+  "runners": [
+    {
+      "id": "darwin-arm64",
+      "archive": "chromium-mac-arm64.zip",
+      "urls": [
+        "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1169/chromium-mac-arm64.zip",
+        "https://playwright.download.prss.microsoft.com/dbazure/download/playwright/builds/chromium/1169/chromium-mac-arm64.zip",
+        "https://cdn.playwright.dev/builds/chromium/1169/chromium-mac-arm64.zip"
+      ],
+      "sha256": "6755dab7021ac7aeadceab8f3cd183f05f9c20736c456573b937e5e22212db65",
+      "executablePath": "chrome-mac/Chromium.app/Contents/MacOS/Chromium"
+    },
+    {
+      "id": "darwin-x64",
+      "archive": "chromium-mac.zip",
+      "urls": [
+        "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1169/chromium-mac.zip",
+        "https://playwright.download.prss.microsoft.com/dbazure/download/playwright/builds/chromium/1169/chromium-mac.zip",
+        "https://cdn.playwright.dev/builds/chromium/1169/chromium-mac.zip"
+      ],
+      "sha256": "22c56a4fdc5b9de64a510176bcf8eb930e597c0985964736067ed505cd0109b2",
+      "executablePath": "chrome-mac/Chromium.app/Contents/MacOS/Chromium"
+    },
+    {
+      "id": "linux-x64",
+      "archive": "chromium-linux.zip",
+      "urls": [
+        "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1169/chromium-linux.zip",
+        "https://playwright.download.prss.microsoft.com/dbazure/download/playwright/builds/chromium/1169/chromium-linux.zip",
+        "https://cdn.playwright.dev/builds/chromium/1169/chromium-linux.zip"
+      ],
+      "sha256": "1a2f6e3e519049b51c59b2503ecf808af4ff1fcf13ffa1177dacfda4a02d7a59",
+      "executablePath": "chrome-linux/chrome"
+    },
+    {
+      "id": "windows-x64",
+      "archive": "chromium-win64.zip",
+      "urls": [
+        "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1169/chromium-win64.zip",
+        "https://playwright.download.prss.microsoft.com/dbazure/download/playwright/builds/chromium/1169/chromium-win64.zip",
+        "https://cdn.playwright.dev/builds/chromium/1169/chromium-win64.zip"
+      ],
+      "sha256": "241f8aa5c0fde70fb0cd9fdedfb65ee34e422fef8c30b39bd1158d0e10fcb884",
+      "executablePath": "chrome-win/chrome.exe"
+    }
+  ]
+}

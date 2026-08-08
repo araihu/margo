@@ -1,0 +1,180 @@
+schema: 1
+resources:
+  mermaid:
+    version: "11.16.1"
+    downloads:
+      runtime:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/mermaid.esm.min.mjs
+        path: assets/mermaid/11.16.1/mermaid.esm.min.mjs
+        max_size: 5MiB
+        integrity: sha384-Tr7S0FZnLcUEMQyKW+TSir4rKgjAwRSHZQgB+VKMuMsq1vr2a7sa6dsq7/Aj/UFP
+      chunk-2aehwxpw:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs
+        max_size: 1MiB
+        integrity: sha384-/nYOcHv1Gka+0IixdQE4DNOaYXiIIdGI1CJnrs4IUhoxWiOh5443H4vAD5O9oNra
+      chunk-2srehg4o:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs
+        max_size: 1MiB
+        integrity: sha384-LvhpWdZtOehiuRnYNLT6b7eyKqXX822RFJuY56JmxplBXjwhu3o1tXVuDqn2PkAC
+      chunk-5iminlnl:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs
+        max_size: 1MiB
+        integrity: sha384-NuD0ohsgJw0XELLapD4dJe9jyNA4l34Y3N0PFJsb/Ih2G6zYCtGE0V13qzzz/89C
+      chunk-5vcl7z4a:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs
+        max_size: 1MiB
+        integrity: sha384-VFWgItzPsBC11dPkZEiXz4ITTI88b/0BLWjl1vAfLXIq9zzAQrCUOlGNg7qq4/7t
+      chunk-6belyetk:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-6BELYETK.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6BELYETK.mjs
+        max_size: 1MiB
+        integrity: sha384-czP08POiTde2ZMuJgYiBb9/Y3Pez9PiPvPHQOnUbgOzDHxTf5UOKbMKrSigttn+F
+      chunk-6l755f7b:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-6L755F7B.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6L755F7B.mjs
+        max_size: 1MiB
+        integrity: sha384-zKnoXPyZgxmhjQ1vMew1gzcaYmsW7VY5D6IWIo/9sI2xamHecJnMM3BRkQfdJei4
+      chunk-7cwylc5s:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs
+        max_size: 1MiB
+        integrity: sha384-Ci9uQgU1B73aADfPNloyFmnJA43I9yKb9/+BToAK6gD/I1mpnZHKEPXlUK9pQZNk
+      chunk-7fythrhk:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs
+        max_size: 1MiB
+        integrity: sha384-DMmE62JBY151m/gro3r9l2Dj5Quxai190Q2/E3TYIKhbX7vr0y/m63LR1F+anmAo
+      chunk-a7vwpjgb:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs
+        max_size: 1MiB
+        integrity: sha384-2MolSZaRljL9zEa57eNwUmsZ7uus5w1ytDsYTYmDteGUUcNngKn4rnHPbBghjEpz
+      chunk-aq6eadp3:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs
+        max_size: 1MiB
+        integrity: sha384-mOkCARz/+QUrwMteT5sA1yy4lRxidGFMpZ1uNU4GuEnhNiag1t6WYDaoxgsl0C1p
+      chunk-azzrmdjm:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs
+        max_size: 1MiB
+        integrity: sha384-XIYRsh8Y3J3SL6e5Hqd6AAE907YIvwdvPgJlhr28bdmaOiJKmJ/1k5s0PMVU5RW2
+      chunk-liev3eag:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs
+        max_size: 1MiB
+        integrity: sha384-r9P7qwIVXT/biFGpI/QPbwbQajT9VSmazqUGn0buqPmAMsYFxzzrS5gom8wFF3Rx
+      chunk-krxbno2n:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs
+        max_size: 1MiB
+        integrity: sha384-vDJ6M4l6Ih6wrfywJvl2LCjsHzNzGDKsdpTrqlPAmkQysvddTl3TmmiAh/4uGUYE
+      chunk-lahsg3n2:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs
+        max_size: 1MiB
+        integrity: sha384-s9NH8Tv5sapyFbOgA1Lgw1ZHG/8+Cdyj7q34Fs9Xnu93XkVHIT4yHA3zeYxk95Aw
+      chunk-nlanea3f:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs
+        max_size: 1MiB
+        integrity: sha384-Ij442NlFNaNYG6E8e+ALalYXavrcjHTrsZuN8iSPxRDb1sAPz2VrprjPi2sZBF72
+      chunk-pe7dx7zz:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs
+        max_size: 1MiB
+        integrity: sha384-9GWt73E+ICQeiiBsYd1uVef+UM7ZCqeTMzR20j0Nhntu13rYvRgohyEOGXP8maEl
+      chunk-q67wd55a:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs
+        max_size: 1MiB
+        integrity: sha384-UpIK7DbWPQ3H1plemhSrSyPvK99HcQdMMN+5gDVYmac6ddAidGDfwPCdvwG6cnnA
+      chunk-stov2hob:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs
+        max_size: 1MiB
+        integrity: sha384-F3dcgh3KfjNSDIDunmNg8yUIVkBnTlZbr/cKIJRAEYZunc4mbbnMUBSMBzXYyOpz
+      chunk-szd42yqk:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs
+        max_size: 1MiB
+        integrity: sha384-TUvUwcHmNdQS8G+PMqS07K7XiTzVr7ah6Xp7K67ylkTeJtfLWB4i5KVH1FOmFyz/
+      chunk-t5octhi4:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs
+        max_size: 1MiB
+        integrity: sha384-wTWTxORztMjcI+8DiypmuU0uL/IjEL8owZIukbN/rShjsgeLzs4Ml0tN22JvFsdb
+      chunk-tgvd4f4b:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs
+        max_size: 1MiB
+        integrity: sha384-rhOaZJ/uSWBcJtLzl6dm+WDJ2BwYOzSrc5II0JAR2L2KQefxbbrVF+XXY4Qw3BUT
+      chunk-uat7b5jy:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs
+        max_size: 1MiB
+        integrity: sha384-3DxxpwqTuwziXDAgemVD01hv86w8uq+05uqYWmPC0irfHr+oYmLJsW+lCxpaUtzN
+      chunk-ve5clxgz:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs
+        max_size: 1MiB
+        integrity: sha384-okD1U6MRB7XxyUmDWXFakH+93FQntgmImA5NoqfXutqq5yFQ8qOM9fU3/NyRjqYv
+      chunk-vy5ubi4v:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs
+        max_size: 1MiB
+        integrity: sha384-+LncpC0/x5ilFCFpJEYLW9tCPM7mw/cK62hP+iA3DZT1LsxuGsE46qXB5aFYB26b
+      chunk-w44a43wb:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-W44A43WB.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-W44A43WB.mjs
+        max_size: 1MiB
+        integrity: sha384-yiR7uqIj88knVodS96CDdF+IZWUkMkd3UCAlRTQYDlAhGW6XJ9/h/CrvtbhN+egl
+      chunk-wjbap47w:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs
+        max_size: 1MiB
+        integrity: sha384-TOuwTp5qhprVjNGyGyEbBAVGjXJvvWJHSTtG7J54c+3tz99P59rCF/0QRQ6jQ5J/
+      flow-diagram-bwe6nhoh:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs
+        max_size: 1MiB
+        integrity: sha384-bAOOjA8l6euMnRRnWssssBta6luBSZNY7bA2QemxQ2G1XtKAMTsry/QgcE17f8WL
+      cose-bilkent-rza4xipr:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs
+        max_size: 1MiB
+        integrity: sha384-afESbl5p365luQfEmQUrlIiUfmFNJyDlsLzIEAZXB7VZU0qA3yk+QdtOE4IiUTF/
+      dagre-k64a6z3x:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs
+        max_size: 1MiB
+        integrity: sha384-v3xX9i3rtplvQ+lBkzBQtRHkX3KhZbu3ErjSQvARquEjlz8UUTdyRKB95cR+MehA
+      katex-c5opue3q:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs
+        max_size: 1MiB
+        integrity: sha384-0QCr76Yrxr06TGAmyeULB3+2w18cNWQpDoH2AiavViF1gHEGqjaI54MLcIVD64Mi
+      sequence-diagram-uratnsbd:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs
+        max_size: 1MiB
+        integrity: sha384-DeYxjdQiHVkWI2q2dgDx04KonSYYyiqKCvS5dHI8rAcJBM2QQ+Z9Hgaz1wyEqx1+
+      size-capture-5goragp4:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs
+        max_size: 1MiB
+        integrity: sha384-BUrjPThQK7toc+6yuKH1mRS3xR+jNOJXH/IGaIGlwdXjpdgZUKYEPaNCZR2vmu0j
+      swimlanes-oswoylsk:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs
+        path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs
+        max_size: 1MiB
+        integrity: sha384-/WXV+dUENfzXy4/hWBM7XUsBODhkddGuVA8yt/kjpR5rJCgWWtdEI5TmnTbVHNiY
+      license:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/LICENSE
+        path: assets/mermaid/11.16.1/LICENSE
+        max_size: 64KiB
+        integrity: sha384-FCnkWxNcDqSeMyGV7DzhA4eWHiIbf8mNLMrlPTH+aJ/u2mGjKQSvwo10hu5IH0DC

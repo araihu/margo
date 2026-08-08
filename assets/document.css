@@ -1,0 +1,330 @@
+@layer reset, goshtoso, document, brand, overrides;
+
+@layer reset {
+  .goshtoso-document,
+  .goshtoso-document *,
+  .goshtoso-document *::before,
+  .goshtoso-document *::after {
+    box-sizing: border-box;
+  }
+  .goshtoso-document :where(h1, h2, h3, h4, h5, h6, p, ul, ol, pre, blockquote) {
+    margin-block: 0;
+  }
+}
+
+@layer goshtoso {
+  .goshtoso-document {
+    /* MARGO_THEME_TOKENS */
+    color: var(--color-on-surface);
+    background: var(--document-page-background);
+    font-family: var(--document-font-body);
+    line-height: var(--document-line-height);
+    max-width: var(--document-content-width);
+    margin-inline: auto;
+    padding: clamp(
+      calc(var(--spacing) * 5),
+      4vw,
+      calc(var(--spacing) * 12)
+    );
+  }
+}
+
+@layer document {
+  .goshtoso-document [x-cloak] {
+    display: none !important;
+  }
+  .goshtoso-document :where(h1, h2, h3, h4, h5, h6) {
+    color: var(--color-on-surface-strong);
+    font-family: var(--document-font-heading);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  .goshtoso-document h1 {
+    max-width: 24ch;
+    font-size: var(--text-4xl);
+    line-height: var(--text-4xl--line-height);
+    margin-block-end: calc(var(--spacing) * 6);
+  }
+  .goshtoso-document h2 {
+    max-width: 32ch;
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl--line-height);
+    margin-block-start: calc(var(--spacing) * 10);
+    margin-block-end: calc(var(--spacing) * 4);
+  }
+  .goshtoso-document h3 {
+    max-width: 40ch;
+    font-size: var(--text-xl);
+    line-height: var(--text-xl--line-height);
+    margin-block-start: calc(var(--spacing) * 8);
+    margin-block-end: calc(var(--spacing) * 3);
+  }
+  .goshtoso-document h4 {
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    margin-block-start: calc(var(--spacing) * 6);
+    margin-block-end: calc(var(--spacing) * 2);
+  }
+  .goshtoso-document :where(h5, h6) {
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    margin-block-start: calc(var(--spacing) * 5);
+    margin-block-end: calc(var(--spacing) * 2);
+  }
+  .goshtoso-document :where(p, ul, ol, blockquote) {
+    max-width: 75ch;
+    text-wrap: pretty;
+  }
+  .goshtoso-document :where(p, ul, ol, blockquote, table, pre, hr) + :where(p, ul, ol, blockquote, table, pre, hr) {
+    margin-block-start: calc(var(--spacing) * 4);
+  }
+  .goshtoso-document [data-table-client-sort="true"] {
+    margin-block-end: calc(var(--spacing) * 4);
+  }
+  .goshtoso-document [data-code-block],
+  .goshtoso-document div:has(> .codeblock) {
+    margin-block-start: calc(var(--spacing) * 4);
+    margin-block-end: calc(var(--spacing) * 4);
+    break-inside: avoid;
+  }
+  .goshtoso-document :where(ul, ol) {
+    padding-inline-start: calc(var(--spacing) * 6);
+  }
+  .goshtoso-document ul {
+    list-style-type: disc;
+  }
+  .goshtoso-document ol {
+    list-style-type: decimal;
+  }
+  .goshtoso-document :where(ul, ol) :where(ul, ol) {
+    margin-block-start: calc(var(--spacing) * 2);
+  }
+  .goshtoso-document li + li {
+    margin-block-start: var(--spacing);
+  }
+  .goshtoso-document blockquote {
+    color: var(--color-on-surface);
+    border-inline-start: 1px solid var(--color-outline);
+    padding-inline-start: calc(var(--spacing) * 5);
+  }
+  .goshtoso-document a {
+    color: var(--color-primary);
+    font-weight: var(--font-weight-medium);
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: calc(var(--spacing) / 2);
+  }
+  .goshtoso-document :not(pre) > code {
+    color: var(--color-on-surface-strong);
+    background: color-mix(in oklch, var(--color-surface-alt) 50%, var(--color-outline) 50%);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-radius);
+    padding-inline: var(--spacing);
+    padding-block: calc(var(--spacing) / 2);
+  }
+  .goshtoso-document pre {
+    overflow-x: auto;
+  }
+  .goshtoso-document hr {
+    border: 0;
+    border-block-start: 1px solid var(--color-outline);
+    margin-block: calc(var(--spacing) * 10);
+  }
+  .goshtoso-document img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin-block: calc(var(--spacing) * 6);
+    border-radius: var(--radius-radius);
+  }
+  .goshtoso-document li > input[type="checkbox"] {
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin-inline-end: calc(var(--spacing) * 2);
+    accent-color: var(--color-primary);
+  }
+  .goshtoso-document :where(details, dl, .footnotes, .margo-runtime-task) {
+    max-width: 75ch;
+    margin-block: calc(var(--spacing) * 6);
+  }
+  .goshtoso-document details {
+    padding: calc(var(--spacing) * 4);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-radius);
+    background: var(--color-surface-alt);
+  }
+  .goshtoso-document summary {
+    color: var(--color-on-surface-strong);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+  }
+  .goshtoso-document dt {
+    color: var(--color-on-surface-strong);
+    font-weight: var(--font-weight-semibold);
+  }
+  .goshtoso-document dd {
+    margin-inline-start: calc(var(--spacing) * 5);
+    margin-block-end: calc(var(--spacing) * 3);
+  }
+  .goshtoso-document .footnotes {
+    font-size: var(--text-sm);
+  }
+  .goshtoso-document .margo-mermaid {
+    padding: calc(var(--spacing) * 5);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-radius);
+    background: var(--color-surface-alt);
+    break-inside: avoid;
+  }
+  .goshtoso-document .margo-mermaid__canvas:empty::before {
+    content: "Mermaid runtime pending";
+    display: block;
+    color: var(--color-on-surface);
+    font-size: var(--text-sm);
+  }
+  .goshtoso-document .margo-mermaid__source {
+    margin-block: calc(var(--spacing) * 3) 0;
+  }
+  .goshtoso-document > :first-child {
+    margin-block-start: 0;
+  }
+  .goshtoso-document > :last-child {
+    margin-block-end: 0;
+  }
+  .goshtoso-document:is(.dark *) {
+    color: var(--color-on-surface-dark);
+    background: var(--color-surface-dark);
+  }
+  .goshtoso-document:is(.dark *) :where(h1, h2, h3, h4, h5, h6) {
+    color: var(--color-on-surface-dark-strong);
+  }
+  .goshtoso-document:is(.dark *) blockquote {
+    color: var(--color-on-surface-dark);
+    border-color: var(--color-outline-dark);
+  }
+  .goshtoso-document:is(.dark *) details {
+    border-color: var(--color-outline-dark);
+    background: var(--color-surface-dark-alt);
+  }
+  .goshtoso-document:is(.dark *) :where(summary, dt) {
+    color: var(--color-on-surface-dark-strong);
+  }
+  .goshtoso-document:is(.dark *) a {
+    color: var(--color-primary-dark);
+  }
+  .goshtoso-document:is(.dark *) :not(pre) > code {
+    color: var(--color-on-surface-dark-strong);
+    background: color-mix(in oklch, var(--color-surface-dark-alt) 50%, var(--color-outline-dark) 50%);
+    border-color: var(--color-outline-dark);
+  }
+  .goshtoso-document:is(.dark *) hr {
+    border-color: var(--color-outline-dark);
+  }
+  .goshtoso-document:is(.dark *) .margo-mermaid__source {
+    color: var(--color-on-surface-dark);
+    background: var(--color-surface-dark-alt);
+    border-color: var(--color-outline-dark);
+  }
+  .goshtoso-document:is(.dark *) .margo-mermaid__source summary {
+    color: var(--color-on-surface-dark-strong);
+  }
+}
+
+@media print {
+  .goshtoso-document {
+    max-width: none;
+    padding: 0;
+  }
+  .goshtoso-document > .margo-document :where(h1, h2, h3, h4, h5, h6) {
+    page-break-after: avoid;
+    break-after: avoid-page;
+  }
+  .goshtoso-document > .margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre) {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"],
+  .goshtoso-document > .margo-document [data-code-block],
+  .goshtoso-document > .margo-document div:has(> .codeblock),
+  .goshtoso-document > .margo-document .margo-mermaid {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] {
+    max-inline-size: 100%;
+    overflow: visible;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] > :where(.overflow-y-clip, .margo-table) {
+    /* The table component owns a scroll wrapper for HTML. In print that
+       wrapper must not clip rows when Chromium continues a table on a later
+       page. Width is constrained below; vertical clipping is never useful in
+       a paginated projection. */
+    overflow-y: visible !important;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] thead {
+    display: table-header-group;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] tbody {
+    display: table-row-group;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] > * {
+    overflow: visible !important;
+    max-block-size: none !important;
+  }
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] table,
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] tbody {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] table {
+    inline-size: 100%;
+    max-inline-size: 100%;
+    table-layout: fixed;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] :where(th, td) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .goshtoso-document > .margo-document [data-margo-print-break-before="page"] {
+    page-break-before: always;
+    break-before: page;
+    /* Leave room below an engine-provided running header. */
+    margin-block-start: var(--margo-print-break-start-inset, 4mm);
+  }
+  .goshtoso-document [data-code-block-header],
+  .goshtoso-document [data-code-block] > :first-child,
+  .goshtoso-document div[x-data] > div:first-of-type,
+  .goshtoso-document div[x-data] button,
+  .goshtoso-document [x-show] {
+    display: none !important;
+  }
+  .goshtoso-document .margo-mermaid__source {
+    break-inside: avoid;
+  }
+  .goshtoso-document .margo-mermaid__source pre {
+    font-size: var(--text-sm);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+@layer brand {
+  .goshtoso-document__watermark {
+    opacity: 0.65;
+    font-size: var(--text-xs);
+  }
+}

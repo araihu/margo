@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "margo/runtime-readiness-fixtures/v1",
+  "cases": [
+    { "id": "missing-task-report", "expectedCode": "runtime.report_forged" },
+    { "id": "task-timeout", "expectedCode": "runtime.task_timeout" },
+    { "id": "font-unavailable", "expectedCode": "runtime.font_unavailable" },
+    { "id": "blocked-request", "expectedCode": "runtime.network_blocked" },
+    { "id": "layout-unstable", "expectedCode": "runtime.layout_unstable" }
+  ]
+}

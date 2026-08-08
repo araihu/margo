@@ -1,0 +1,15 @@
+sequenceDiagram
+  autonumber
+  participant Author
+  participant Margo
+  participant Renderer
+  Author->>Margo: Request artifact
+  alt HTML
+    Margo->>Renderer: Render standalone page
+  else PDF
+    Margo->>Renderer: Print ready page
+  end
+  loop Readiness checks
+    Renderer-->>Margo: Stable frame
+  end
+  Note over Margo,Renderer: No external network

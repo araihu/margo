@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "margo/node-toolchain/v1",
+  "nodeVersion": "v26.5.0",
+  "npmVersion": "11.17.0",
+  "manifest": {
+    "url": "https://nodejs.org/dist/v26.5.0/SHASUMS256.txt",
+    "sha256": "c293d34153b5d2357e6c1e521907dbf6bd3833a18565e3eb19839e5589a2bd9d",
+    "signatureURL": "https://nodejs.org/dist/v26.5.0/SHASUMS256.txt.sig",
+    "signatureSHA256": "1e7c8789bbd3e1628f851948db17172faa5f943b990612617b9bd2681494cfc3",
+    "signingKeyFingerprint": "C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C",
+    "signingKeyName": "Richard Lau",
+    "signatureAlgorithm": "RSA/SHA256",
+    "keySourceURL": "https://github.com/nodejs/release-keys/raw/refs/heads/main/gpg/pubring.kbx",
+    "keySourceSHA256": "6030d4e0cd53330acf2ab68acd455b7ca98bb5d5975376f0b7c0892308ba2d57"
+  },
+  "npmSource": {
+    "url": "https://registry.npmjs.org/npm/-/npm-11.17.0.tgz",
+    "integrity": "sha512-PurxiZexEHDTE4SSaLI3ZrnbAGiZfeyUcQcxcP5D+hfytNAze/D1IzDuInTn9XVLIbAQUnQuSPXJx02LHjLvQw=="
+  },
+  "runners": [
+    {
+      "id": "darwin-arm64",
+      "archiveURL": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-darwin-arm64.tar.gz",
+      "archiveSHA256": "ee920559aaa2391569cff4d737e3b83963430e3a14dedd91bfe0ff53171b5af9",
+      "archiveRoot": "node-v26.5.0-darwin-arm64",
+      "nodePath": "bin/node",
+      "npmCLIPath": "lib/node_modules/npm/bin/npm-cli.js",
+      "nodeSHA256": "cbee2298aee5cc476bf8d5441e7348b627254a39d869743a5b04489028c729d4",
+      "npmSHA256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+    },
+    {
+      "id": "darwin-x64",
+      "archiveURL": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-darwin-x64.tar.gz",
+      "archiveSHA256": "98293394c945a24e64e00b4177bf075ec963ea70b34d1d2e24bd4a71716d334f",
+      "archiveRoot": "node-v26.5.0-darwin-x64",
+      "nodePath": "bin/node",
+      "npmCLIPath": "lib/node_modules/npm/bin/npm-cli.js",
+      "nodeSHA256": "272dc3281fd8aec27d7306dac185c34bfea8c02563b73a223716ca11240913a1",
+      "npmSHA256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+    },
+    {
+      "id": "linux-x64",
+      "archiveURL": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-linux-x64.tar.xz",
+      "archiveSHA256": "9f619528f1db5ddc41dccf54211066fb42228d69a156733c69cb9d6cc92e358c",
+      "archiveRoot": "node-v26.5.0-linux-x64",
+      "nodePath": "bin/node",
+      "npmCLIPath": "lib/node_modules/npm/bin/npm-cli.js",
+      "nodeSHA256": "3de740a941a630439b22b79aafb383f4912b76354a2694765e8d59a033746538",
+      "npmSHA256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+    },
+    {
+      "id": "windows-x64",
+      "archiveURL": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-win-x64.zip",
+      "archiveSHA256": "d3b2277dbcccfdf24ef6302928f64f484cff1d77a6d3caa3a28f4d20ce9158f6",
+      "archiveRoot": "node-v26.5.0-win-x64",
+      "nodePath": "node.exe",
+      "npmCLIPath": "node_modules/npm/bin/npm-cli.js",
+      "nodeSHA256": "119d6fa70e6ae1b15b90688ab6bcc8e3a2819acea021af196895cab1843645af",
+      "npmSHA256": "3ce7cba6f5128dd5f54c98b6a5036b0f850496878cc2e21044b675fe3c594e3e"
+    }
+  ]
+}

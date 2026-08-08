@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "margo-mermaid-normalization-vectors/v1",
+  "positive": [
+    {
+      "path": "sequence-ids.svg",
+      "family": "sequence",
+      "sourceRootID": "msrc-sequence",
+      "renderInstanceID": "ri-0000000a",
+      "blockOrdinal": 0,
+      "normalizedRootID": "margo-ri-0000000a-mermaid-00000000",
+      "descendantCount": 10
+    }
+  ],
+  "negative": [
+    {
+      "path": "duplicate-root.svg",
+      "sourceRootID": "msrc-duplicate-root",
+      "errorCode": "svg.normalize.id_duplicate"
+    },
+    {
+      "path": "duplicate-descendant.svg",
+      "sourceRootID": "msrc-duplicate-descendant",
+      "errorCode": "svg.normalize.id_duplicate"
+    },
+    {
+      "path": "unresolved.svg",
+      "sourceRootID": "msrc-unresolved",
+      "errorCode": "svg.normalize.reference_unresolved"
+    },
+    {
+      "path": "external.svg",
+      "sourceRootID": "msrc-external",
+      "errorCode": "svg.normalize.reference_external"
+    },
+    {
+      "path": "unknown-reference-site.svg",
+      "sourceRootID": "msrc-unknown-site",
+      "errorCode": "svg.normalize.reference_site_unknown"
+    },
+    {
+      "path": "unexpected-root.svg",
+      "sourceRootID": "msrc-expected",
+      "errorCode": "svg.normalize.root_id_mismatch"
+    }
+  ]
+}
