@@ -1403,3 +1403,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   completa/WCAG continua ambientalmente pendente por `ENOSPC`.
 - Portanto `GOAL.md` permanece `IN_PROGRESS`; nenhum `update_goal complete` é
   permitido neste estado e nenhum release/tag/push de publicação foi criado.
+- Checkpoint versionado: commit `7e15ac6e13156e7bf1bd77fbcc4694e7bb66f0dc`,
+  tree `d453807864fc78caab2f7c0d48cfd98f21346c29`, enviado para
+  `origin/impl/v0.0.1-core`; worktree limpo.
