@@ -14,7 +14,7 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 
 ## Estado atual
 
-- Status: `IN_PROGRESS`; T6 foi movido para o fim do backlog. Emenda v2 e o
+- Status: `BLOCKED_BY_EXTERNAL_AUTHORITY`; T6 foi movido para o fim do backlog. Emenda v2 e o
   replay M1 -> M4 -> M5 estão verdes. O standalone agora projeta o mesmo
   documento em modo claro ou escuro e os HTML/PDF otimistas dos dois modos
   estão preservados. O M0 local foi reprovisionado com receipt de Chromium,
@@ -2845,3 +2845,17 @@ GREEN.
   `6d14c24b8008c720706d35c7bcfcf3ebcac714534a7a216d44ee33f4d2de5c27`.
 - Isso confirma que o benchmark otimista, CSS Goshtoso embutido, tema modern,
   TOC e projeções light/dark não dependem de estado mutável do renderer.
+
+### 2026-08-08 — auditoria formal de bloqueio do objetivo
+
+- O mesmo bloqueio externo foi rechecado em mais de três checkpoints
+  consecutivos: não existe handoff autorizado T6, proxy/proveniência I1a/I1b,
+  integração I2/I3 ou revisão independente M0 que permita iniciar H/P/D/O5
+  sob o contrato readonly do plano. Os módulos opcionais continuam esqueletos
+  precisamente para não inventar `replace`, pseudo-versão, `go.sum`, release ou
+  `release/table-handoff.json`.
+- A implementação local e os artefatos humanos já têm evidência verificável;
+  não há ação adicional legítima neste checkout que produza as identidades
+  externas ausentes. O objetivo permanece incompleto e fica bloqueado até que
+  uma autoridade externa forneça os recibos previstos, quando poderá ser
+  retomado como nova auditoria.
