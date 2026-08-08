@@ -2510,4 +2510,5 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `break-inside: avoid-page`; o teste checked
   `@pagination preserves every Mermaid rejection row across print continuation`
   permanece autoridade. Este registro corrige o comentário contra o PDF antigo
-  de 23 páginas. HEAD/tree deste registro: será preenchido após o commit.
+  de 23 páginas. Checkpoint documental: HEAD `90b13d502098024dc9c420e728faedbbcd67b370`,
+  tree `1e183837b1a9be8a83eac3e57a82b72c9243c240`, branch remoto sincronizado.
