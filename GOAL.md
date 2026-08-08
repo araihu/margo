@@ -2512,3 +2512,23 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   permanece autoridade. Este registro corrige o comentário contra o PDF antigo
   de 23 páginas. Checkpoint documental: HEAD `90b13d502098024dc9c420e728faedbbcd67b370`,
   tree `1e183837b1a9be8a83eac3e57a82b72c9243c240`, branch remoto sincronizado.
+
+### 2026-08-08 — proteção de início de página para headers de impressão
+
+- A revisão visual mostrou que um heading movido por `break-before: page` podia
+  começar sob o header fornecido pelo engine PDF. O contrato de print agora
+  reserva `--margo-print-break-start-inset: 4mm` em cada alvo de quebra,
+  mantendo a correção existente de continuação da tabela Mermaid.
+- O teste `@pagination reserves a print-header inset for explicit page starts`
+  cobre o token e a margem computada; `GOWORK=off GOFLAGS=-mod=readonly go test
+  ./... -count=1` e `go vet ./...` passaram. O lint checked dark passou com 505
+  nós, 29 itens de layout, zero falhas e zero requests bloqueados.
+- O PDF dark regenerado em `output/pdf/margo-v0.0.1-optimistic-dark.pdf` tem
+  20 páginas A4 e SHA-256
+  `b182b0e6f61403fa36ab3313cd1ea70b7b8a0d19ce2e26386958b5fd7c45d9fd`; a
+  tabela Mermaid mantém `invalid-data-points`, `invalid-length-unit` e
+  `unrooted-id` completos. O PDF light foi regenerado com SHA-256
+  `1ca3471b12f4bef38e350adbe3be6c3bc76f805938a513c8fe5acae23249a76f`.
+- Checkpoint publicado: commit `58a2d9dcd68a5742d3f93a9ba7b621dee850ec84`,
+  tree `568968932b5980d232e9dc9f50ebfd5afd823912`, branch remoto sincronizado.
+  Apenas `test/browser/.cache/` permanece não rastreado de forma intencional.
