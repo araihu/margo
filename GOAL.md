@@ -2339,3 +2339,7 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Os artefatos temporários do runner foram movidos de forma recuperável para
   `/tmp/margo-checked-combined-browser.MA8o4P`; `.cache/` M0 continua sendo o
   único estado não rastreado intencional.
+- Identidade depois do replay: HEAD
+  `eeb0730be8ea2bd2e845a6df54ea8df4b862c390`, tree
+  `044564b86e7543c0174b0d70a9af3f50427b30c0`, branch remoto sincronizado e
+  worktree limpo fora de `test/browser/.cache/`.
