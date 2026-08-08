@@ -35,8 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação: `6ecc566`, tree
-  `aa95a12e06ea711760953f56db2307e760f75ac1`, enviado para
+- Último HEAD da implementação: `58f6149`, tree
+  `dddc0964121b99d2ae446a807e1123f2456e4c2c`, enviado para
   `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
   `157f2d9505e26df91bb46ae13e7de4edac278eef`, corrige a paginação de tabelas
   oversized no PDF e preserva as linhas. Este checkpoint inclui o HTML otimista versionado,
@@ -2107,7 +2107,7 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   dark `32348c27d4d11f13945a0982d35251c935f63f916dd9eae805187f3e12007fa9`,
   PDF light `6b8bd435005bae8ba42bd6d7c9cc0ae0fee9876f7eed9e601003ea09a467b5c3`,
   PDF dark `9813f52ba968b308ce206210f84ddee786c9204038e400da60117c251885b424`.
-- Estado Git: HEAD `6ecc566`, tree `aa95a12e06ea711760953f56db2307e760f75ac1`,
+- Estado Git: HEAD `58f6149`, tree `dddc0964121b99d2ae446a807e1123f2456e4c2c`,
   branch sincronizado com `origin/impl/v0.0.1-core`; somente
   `test/browser/.cache/` permanece não rastreado e intencional. Nenhuma
   aceitação formal Goshtoso/T6/I1a/I1b foi inferida.
