@@ -2403,3 +2403,5 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `node_modules`/`test-results` foram movidos de forma recuperável para
   `/tmp/margo-table-css-gates.B8wgcv`; somente `test/browser/.cache/` continua
   intencional e não rastreado. Nenhuma autoridade I1a/I1b/I3/T6 foi inferida.
+  Checkpoint de código: commit `ac68df91171959d70356cab2edde7322e053f351`,
+  tree `55b9b4ae4a025cdf045a302d3d16b1ab1008cd71`, branch remoto sincronizado.
