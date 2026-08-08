@@ -234,7 +234,20 @@
 
   .goshtoso-document__header,
   .goshtoso-document__footer {
-    display: none;
+    display: flex;
+    color: var(--margo-print-chrome-foreground);
+    background: var(--margo-print-chrome-background);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    break-inside: avoid;
+  }
+
+  .goshtoso-document__header {
+    border-block-end-color: var(--margo-print-chrome-outline);
+  }
+
+  .goshtoso-document__footer {
+    border-block-start-color: var(--margo-print-chrome-outline);
   }
 
   .goshtoso-document__stamps {

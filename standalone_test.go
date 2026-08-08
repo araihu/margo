@@ -92,7 +92,14 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 		"html.dark body",
 		"--margo-page-background: var(--color-surface-dark);",
 		"--margo-print-page-background: var(--margo-page-background);",
+		"--margo-print-chrome-background: var(--margo-print-page-background);",
+		"--margo-print-chrome-foreground: var(--color-on-surface-dark);",
+		"--margo-print-chrome-outline: var(--color-outline-dark);",
 		"background: var(--margo-print-page-background);",
+		"color: var(--margo-print-chrome-foreground);",
+		"border-block-end-color: var(--margo-print-chrome-outline);",
+		"border-block-start-color: var(--margo-print-chrome-outline);",
+		"break-inside: avoid;",
 		"print-color-adjust: exact;",
 	} {
 		if !strings.Contains(string(asset.Content), want) {

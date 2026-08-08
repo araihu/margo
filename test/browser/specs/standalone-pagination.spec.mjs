@@ -183,6 +183,7 @@ test("@pagination keeps print margins, document, and chrome on one surface", asy
         const computed = getComputedStyle(element);
         return {
           background: computed.backgroundColor,
+          display: computed.display,
           pageBackground: computed.getPropertyValue("--margo-print-page-background").trim(),
           chromeBackground: computed.getPropertyValue("--margo-print-chrome-background").trim(),
           chromeOutline: computed.getPropertyValue("--margo-print-chrome-outline").trim(),
@@ -192,6 +193,8 @@ test("@pagination keeps print margins, document, and chrome on one surface", asy
         html: styles("html"),
         body: styles("body"),
         document: styles(".goshtoso-document"),
+        header: styles(".goshtoso-document__header"),
+        footer: styles(".goshtoso-document__footer"),
       };
     });
     expect(result.html.background, mode).toBe(result.body.background);
@@ -199,6 +202,12 @@ test("@pagination keeps print margins, document, and chrome on one surface", asy
     expect(result.document.pageBackground, mode).toBeTruthy();
     expect(result.document.chromeBackground, mode).toBe(result.document.pageBackground);
     expect(result.document.chromeOutline, mode).toBeTruthy();
+    for (const chrome of [result.header, result.footer]) {
+      expect(chrome.display, mode).toBe("flex");
+      expect(chrome.background, mode).toBe(result.document.background);
+      expect(chrome.pageBackground, mode).toBe(result.document.pageBackground);
+      expect(chrome.chromeBackground, mode).toBe(result.document.pageBackground);
+    }
   }
 });
 
@@ -265,7 +274,7 @@ test("@shell uses dark page tokens for frame, chrome, and stamps", async ({ page
     --document-page-background: var(--color-surface);
   }`;
   await page.setContent(`<!doctype html>
-    <html class="dark" data-color-mode="dark">
+      <html class="dark" data-color-mode="dark">
       <head><style>${tokenCSS}</style><style>${documentCSS}</style><style>${standaloneCSS}</style></head>
       <body><div class="goshtoso-document">
         <header class="goshtoso-document__header">Header</header>
@@ -273,13 +282,15 @@ test("@shell uses dark page tokens for frame, chrome, and stamps", async ({ page
         <article class="margo-document"><h1>Surface</h1></article>
         <footer class="goshtoso-document__footer">Footer</footer>
       </div></body>
-    </html>`);
+      </html>`);
+  await page.emulateMedia({ media: "print" });
   const result = await page.evaluate(() => {
     const style = (selector) => {
       const computed = getComputedStyle(document.querySelector(selector));
       return {
         background: computed.backgroundColor,
         color: computed.color,
+        display: computed.display,
         borderBlockStart: computed.borderBlockStartColor,
         borderBlockEnd: computed.borderBlockEndColor,
       };
@@ -297,6 +308,8 @@ test("@shell uses dark page tokens for frame, chrome, and stamps", async ({ page
   expect(result.bodyBackground).toBe(result.documentBackground);
   expect(result.documentBackground).toBe("rgb(23, 23, 23)");
   for (const chrome of [result.header, result.footer]) {
+    expect(chrome.display).toBe("flex");
+    expect(chrome.background).toBe("rgb(23, 23, 23)");
     expect(chrome.color).toBe("rgb(209, 213, 219)");
     expect(chrome.borderBlockStart).toBe("rgb(82, 82, 82)");
     expect(chrome.borderBlockEnd).toBe("rgb(82, 82, 82)");
