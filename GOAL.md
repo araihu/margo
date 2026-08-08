@@ -1786,6 +1786,14 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   pacote estático sem testes. Isso confirma o estado candidato atual, mas não
   substitui o proxy/handoff I1a/I1b nem a revisão independente.
 
+### 2026-08-08 — identidade do checkpoint funcional atual
+
+- O checkpoint de implementação que contém a correção de paginação é o commit
+  `4d1234560d5390b252abdd960546f5268628b73e`, tree
+  `b4829d50301e39e24cac2ce3cfa06ff507cca2c7`, já enviado para
+  `origin/impl/v0.0.1-core`. O próximo commit, se houver, será apenas
+  documental e não deve ser confundido com mudança de runtime.
+
 ### 2026-08-08 — paginação: heading junto da lista protegida
 
 - O comentário visual da página 5 dark foi reproduzido: o heading `Ordered,
