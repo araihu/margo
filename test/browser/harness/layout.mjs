@@ -11,6 +11,7 @@ export async function auditDocumentLayout(page) {
         Number.parseFloat(style.opacity) !== 0 && element.getClientRects().length > 0;
     };
     const tolerance = 2;
+    const pageHeight = Math.max(1, window.innerHeight);
     const failures = [];
     const root = document.querySelector(".goshtoso-document");
     if (!root) {
@@ -20,6 +21,29 @@ export async function auditDocumentLayout(page) {
     const rootRect = root.getBoundingClientRect();
     let checked = 0;
     const fail = (rule, element, detail) => failures.push({ rule, selector: selectorFor(element), detail });
+    const crossesPage = (rect) => {
+      if (rect.height <= tolerance) return false;
+      const top = rect.top + window.scrollY;
+      const bottom = rect.bottom + window.scrollY;
+      const firstPage = Math.floor((top + tolerance) / pageHeight);
+      const lastPage = Math.floor((bottom - tolerance) / pageHeight);
+      return firstPage !== lastPage;
+    };
+    const hasMarkedPredecessor = (element) => {
+      let current = element;
+      while (current && current !== root) {
+        if (current.previousElementSibling?.matches('[data-margo-print-break-before="page"]')) return true;
+        current = current.parentElement;
+      }
+      return false;
+    };
+    const pageSplitAllowed = (element, rect) => {
+      if (rect.height > pageHeight + tolerance) return true;
+      if (element.matches('[data-margo-print-oversized="true"]')) return true;
+      if (element.matches('.goshtoso-document__toc[data-margo-toc-columns="2"]')) return true;
+      if (element.closest('[data-margo-print-break-before="page"]')) return true;
+      return hasMarkedPredecessor(element);
+    };
     const inspect = (element, rule) => {
       if (!visible(element)) return;
       checked += 1;
@@ -36,6 +60,9 @@ export async function auditDocumentLayout(page) {
       const clippedY = ["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + tolerance;
       if (clippedX || clippedY) {
         fail(`${rule}.clipping`, element, `overflow=${style.overflowX}/${style.overflowY} scroll=${element.scrollWidth}x${element.scrollHeight} client=${element.clientWidth}x${element.clientHeight}`);
+      }
+      if (style.breakInside === "avoid-page" && crossesPage(rect) && !pageSplitAllowed(element, rect)) {
+        fail(`${rule}.page_split`, element, `top=${rect.top + window.scrollY} bottom=${rect.bottom + window.scrollY} pageHeight=${pageHeight}`);
       }
     };
 
@@ -62,6 +89,9 @@ export async function auditDocumentLayout(page) {
           fail("table.row_bounds", row, `row=${rowRect.top}..${rowRect.bottom} table=${tableRect.top}..${tableRect.bottom}`);
         }
         if (rowRect.height <= 0) fail("table.row_empty", row, `height=${rowRect.height}`);
+        if (crossesPage(rowRect) && getComputedStyle(row).breakInside !== "avoid-page") {
+          fail("table.row_page_split", row, `top=${rowRect.top + window.scrollY} bottom=${rowRect.bottom + window.scrollY} pageHeight=${pageHeight}`);
+        }
       }
       for (const cell of table.querySelectorAll("th, td")) {
         if (!visible(cell)) continue;

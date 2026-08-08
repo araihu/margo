@@ -11,10 +11,22 @@ visible text against WCAG AA contrast thresholds:
 - zero tolerance for a blocked network dependency. Local `file:` assets next to
   the supplied HTML remain offline and are allowed; remote URLs are blocked.
 
-The same report audits print layout: protected blocks and table cells must stay
-inside document width, table rows retain positive height and stay inside their
-table, hidden or clipped overflow that would discard content is reported, and
-root-level horizontal overflow fails the preflight.
+The same report audits print layout at the A4 viewport used by the standalone
+PDF projection. Protected blocks that cross a page boundary must carry the
+pagination script's explicit page-break marker (or an intentional oversized
+exception), and table rows must retain `break-inside: avoid-page`; this catches
+the class of failure where the final row of a continued table disappears. The
+TOC's two-column fallback and oversized tables are explicit exceptions. Table
+cells must stay inside document width, rows retain positive height and stay
+inside their table, hidden or clipped overflow that would discard content is
+reported, and root-level horizontal overflow fails the preflight.
+
+The lint executes the embedded standalone print-preparation script before
+auditing. This is important because the script is what marks protected blocks,
+selects the TOC fallback, and enables safe table continuation. The audit still
+does not pretend that a screen `getBoundingClientRect()` is a PDF fragment
+oracle: page findings validate the markers and row rules, while PDF text
+extraction and human review remain the final evidence for actual pagination.
 
 The check uses the exact Node, npm, and Chromium receipt already provisioned by
 the M0 browser harness. It does not use ambient Node, npm, Playwright, or a

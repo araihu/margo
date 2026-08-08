@@ -119,9 +119,15 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
     throw new Error("margo.contrast_lint_chromium_absolute_required");
   }
   const bytes = await readFile(html);
+  const paginationScript = bytes.toString("utf8").match(
+    /<script\b[^>]*data-margo-print-pagination[^>]*>([\s\S]*?)<\/script>/i,
+  )?.[1] ?? "";
   const blocked = [];
   const browser = await chromium.launch({ executablePath, headless: true });
   try {
+    // Keep arbitrary document scripts disabled. The only executable behavior
+    // needed for this audit is the trusted standalone pagination contract,
+    // which is injected explicitly below and never gets a network capability.
     const context = await browser.newContext({ javaScriptEnabled: false });
     await context.route("**/*", async (route) => {
       const request = route.request();
@@ -135,8 +141,20 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
     const modes = [];
     for (const selectedMode of selectedModes(mode)) {
       const page = await context.newPage();
+      // Match the A4 CSS page used by standalone PDF generation. The default
+      // Playwright viewport (1280x720) is a browser viewport, not a print page,
+      // and would turn every protected block into a false page-split finding.
+      await page.setViewportSize({ width: 794, height: 1123 });
       await page.emulateMedia({ media: "print" });
       await page.goto(pathToFileURL(html).href, { waitUntil: "load" });
+      await page.evaluate((source) => {
+        if (!source) return;
+        (0, eval)(source);
+        if (typeof window.margoPreparePrintTOC === "function") window.margoPreparePrintTOC();
+      }, paginationScript);
+      // Force one synchronous layout read after preparation; requestAnimationFrame
+      // is unavailable when arbitrary document JavaScript is disabled.
+      await page.evaluate(() => document.documentElement.scrollHeight);
       const declaredResources = await page.evaluate(() => {
         const resources = [];
         for (const element of document.querySelectorAll("img[src],script[src],link[href],iframe[src],video[src],audio[src],source[src],object[data]")) {

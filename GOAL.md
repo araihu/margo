@@ -2470,3 +2470,24 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - O teste Node direto fora do runner não é evidência válida sem o
   `node_modules` checked; não alterou o worktree nem o resultado do gate
   oficial. Nenhuma autoridade T6/I1a/I1b foi inventada.
+
+### 2026-08-08 — lint de fronteira de página para blocos protegidos e linhas
+
+- O lint de contraste/layout agora usa o viewport A4 (`794x1123`) e injeta
+  somente o script embutido `data-margo-print-pagination` do documento; scripts
+  arbitrários continuam desabilitados. Assim a auditoria mede os mesmos
+  marcadores de quebra, fallback de TOC e exceção de tabela oversized usados na
+  impressão, sem abrir uma superfície de rede ou executar JavaScript externo.
+- Um bloco protegido que atravessa uma fronteira precisa ter o marcador de
+  quebra explícito (ou exceção documentada); linhas de tabela que atravessam a
+  fronteira precisam declarar `break-inside: avoid-page`. Foram adicionados
+  testes negativos para bloco sem marcador e linha sem regra, além da
+  documentação em `docs/CONTRAST_LINT.md`.
+- Gates checked: `@contrast` `4/4`, `@contrast|@pagination` `14/14`, lint
+  contrast-only light/dark `PASS` (`505` nós de texto, `29` itens de layout por
+  modo, zero falhas e zero requests bloqueados), teste unitário Node `4/4`,
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` e `go vet ./...`.
+  Node `v26.5.0`, npm `11.17.0`, Chromium revision `1169`/versão
+  `136.0.7103.25`, `network=0`. Temporários do runner foram movidos para
+  `/tmp/margo-gate-replay.wnx41d`; somente `test/browser/.cache/` segue
+  intencional e não rastreado. T6/I1a/I1b/I3 continuam sem handoff externo.
