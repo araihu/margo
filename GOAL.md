@@ -49,8 +49,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   de ficarem transparentes no print. O registro anti-compaction da auditoria visual está no
   commit documental `551a165`; os checkpoints documentais mais recentes são
   `ba8bc33` (margem PDF regenerada) e `c794a0c` (auditoria readonly), tree
-  atual `2ce4f48295ad9a23fa68f84bb9b1a0d1ff2224a4`, enviado para
-  `origin/impl/v0.0.1-core`. M0-M7 continuam candidatos até revisão
+  atual `2eb3f7d8d226a83b921fa5023bbe9190f4820f07`, enviado para
+  `origin/impl/v0.0.1-core` após o registro documental `4debc9b`. M0-M7 continuam candidatos até revisão
   independente; o receipt M0 está presente apenas como artefato efêmero em
   `test/browser/.cache`, e I1b/T6 e os sucessores formais seguem pendentes.
 
