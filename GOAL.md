@@ -2130,3 +2130,21 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Próximo avanço formal depende da handoff I1a/I1b e da identidade I3; até lá,
   a implementação humana HTML/PDF permanece verificável e publicada, enquanto
   este bloqueio fica registrado como evidência, não como aceitação de O5.
+
+### 2026-08-08 — rechecagem do comentário sobre a última linha Mermaid
+
+- O PDF dark atual foi reaberto e rasterizado na continuação da tabela. A
+  primeira continuação termina com `css-custom-property` na página 12 e a
+  segunda termina com `unrooted-id` na página 13; a linha não é perdida nem
+  cortada no limite da página. `pdftotext -layout` também confirma as 21
+  linhas completas (`css-body` até `unrooted-id`).
+- O wrapper Goshtoso que usa `overflow-y-clip` é neutralizado somente para
+  tabelas marcadas como oversized durante impressão; o restante da política
+  continua mantendo cada `tr` inteiro. O caso regressivo permanece coberto
+  por `@pagination lets an oversized table flow while keeping rows together`.
+- Revalidação M0 checked: `./test/browser/run-playwright.sh --check
+  --env-file /private/tmp/margo-v001-implementation/test/browser/.cache/node-env.checked.sh
+  --grep '@pagination'` passou `9/9`, com Node `v26.5.0`, Chromium
+  revision `1169`/versão `136.0.7103.25` e `network=0`. Nenhum novo artefato
+  ou mutação de dependência foi criado; `.cache/` continua intencional e não
+  rastreado.
