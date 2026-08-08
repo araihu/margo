@@ -1775,3 +1775,13 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Evidência continua candidata local, não aceite formal independente M0.
   T6, `release/table-handoff.json`, I1a/I1b e H/P/D/O continuam fora da
   fronteira executável até o handoff/proveniência correspondente.
+
+### 2026-08-08 — readonly Go gates no HEAD atual
+
+- No HEAD `3dcf52f` os gates passaram sem alteração de módulo:
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`, `go vet ./...`,
+  `charts/go test ./... -count=1`, `pdf/go test ./... -count=1` e
+  `cmd/margo/go test ./... -count=1`.
+- Root, `charts`, `pdf` e `cmd/margo` permanecem compiláveis; `deck` continua
+  pacote estático sem testes. Isso confirma o estado candidato atual, mas não
+  substitui o proxy/handoff I1a/I1b nem a revisão independente.
