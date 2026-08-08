@@ -2818,3 +2818,15 @@ GREEN.
   `node_modules` havia sido removido como limpeza intencional do checkpoint
   anterior; isso não substitui o resultado do runner, que reinstala offline e
   fechou verde. O worktree permanece limpo salvo o cache M0 intencional.
+
+### 2026-08-08 — reprodução determinística dos HTMLs otimistas
+
+- `GOWORK=off GOFLAGS=-mod=readonly go run ./tools/optimistic-renderer` foi
+  executado novamente para `light` e `dark` contra
+  `testdata/markdown/margo-full-feature-set.md`. Os bytes reproduzem exatamente
+  os artefatos versionados: light `343588` bytes SHA-256
+  `b830a04167d509368d36762bd9da181ce7213eb623f6f99bb51a2389f4b00a02`; dark
+  `343591` bytes SHA-256
+  `6d14c24b8008c720706d35c7bcfcf3ebcac714534a7a216d44ee33f4d2de5c27`.
+- Isso confirma que o benchmark otimista, CSS Goshtoso embutido, tema modern,
+  TOC e projeções light/dark não dependem de estado mutável do renderer.
