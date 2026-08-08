@@ -50,9 +50,10 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   commit documental `551a165`; os checkpoints documentais mais recentes são
   `ba8bc33` (margem PDF regenerada) e `c794a0c` (auditoria readonly), tree
   funcional anterior `2eb3f7d8d226a83b921fa5023bbe9190f4820f07`, enviado para
-  `origin/impl/v0.0.1-core` após o registro documental `4debc9b`. O HEAD
-  documental atual é `ec486e6`, tree `c63d6e04a49876be162df8202037c2fcb4b5e8c6`,
-  enviado para `origin/impl/v0.0.1-core`; este apontador foi atualizado para
+  `origin/impl/v0.0.1-core` após o registro documental `4debc9b`. O último
+  checkpoint documental antes desta nota é `5975f91`, tree
+  `e7c632389e9da3e5a824c9a49008c49d14b4d233`, enviado para
+  `origin/impl/v0.0.1-core`; este apontador registra o snapshot anterior para
   impedir referência stale após compactação. M0-M7 continuam candidatos até revisão
   independente; o receipt M0 está presente apenas como artefato efêmero em
   `test/browser/.cache`, e I1b/T6 e os sucessores formais seguem pendentes.
