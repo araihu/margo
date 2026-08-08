@@ -35,10 +35,13 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD funcional (sem contar checkpoints documentais): `c2c72590a16599b758dd8288948399b8c9080be8`, enviado
-  para `origin/impl/v0.0.1-core`; os checkpoints documentais posteriores estão
-  registrados no histórico e nas notas abaixo. Esse checkpoint corrige a
-  paginação de tabelas oversized no PDF e preserva as linhas. A implementação
+- Último HEAD funcional (sem contar checkpoints documentais):
+  `01e1d9f00d938a3ee278ef80c93423708ee6e80c`, tree
+  `7b54e6fa74aeb4569985f202a47aa34e00f36294`, enviado para
+  `origin/impl/v0.0.1-core`; os checkpoints documentais posteriores estão
+  registrados no histórico e nas notas abaixo. Esse checkpoint adiciona o
+  lint determinístico de contraste e layout de impressão, além da correção de
+  paginação de tabelas oversized que preserva as linhas. A implementação
   inclui o HTML otimista versionado,
   modo claro/escuro, contraste Mermaid, TOC adaptativa, fila Mermaid
   process-global, configuração congelada por tarefa, `SourceRootID`
@@ -2448,6 +2451,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   existente em `assets/document.css` e o teste checked
   `@pagination preserves every Mermaid rejection row across print continuation`
   continuam sendo a autoridade. O branch permanece em HEAD
-  `76cd975ef55df6779fb917914f4bdcedc00bada6`, tree
-  `a50b699aeeae92322c671b10769c4291337cd704`; só `test/browser/.cache/` está
+  `9d4e31af03de0329d1c1cb2ae053726617ae64a6`, tree
+  `c87bdb960bfb44bdca777312726626368a17af54`; só `test/browser/.cache/` está
   não rastreado de forma intencional.
