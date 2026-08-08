@@ -33,16 +33,16 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional: `21a2652`, tree
-  `5c73b048ac5cfa902cbd64c18249c60e2acf51f4`, enviado para
-  `origin/impl/v0.0.1-core`. Além do modo claro/escuro, contraste Mermaid e
-  TOC adaptativa, este checkpoint executa Mermaid por fila process-global,
-  congela a configuração por tarefa, deriva `SourceRootID` determinístico,
-  normaliza/valida antes da inserção, publica hashes/tamanhos de saída e
-  fecha readiness/composição com DOMContentLoaded, fontes, dependências,
-  rede, estabilidade de layout em até oito frames, IDs duplicados e
-  `ExecutionID` estável. M0-M7 continuam candidatos até revisão independente;
-  I1b e os sucessores formais seguem pendentes.
+- Último checkpoint funcional de implementação: `ac3877c`, tree
+  `305cdde968d0aa65d5d6dc1b1aa8d741b25a3b80`, enviado para
+  `origin/impl/v0.0.1-core`. Este checkpoint inclui o HTML otimista versionado,
+  modo claro/escuro, contraste Mermaid, TOC adaptativa, fila Mermaid
+  process-global, configuração congelada por tarefa, `SourceRootID`
+  determinístico, normalização/validação antes da inserção, hashes/tamanhos de
+  saída, readiness/composição, quebra protegida de blocos e margens de PDF
+  com fundo por modo. O registro anti-compaction mais recente está no commit
+  documental `3e8dfd0`; M0-M7 continuam candidatos até revisão independente,
+  enquanto I1b e os sucessores formais seguem pendentes.
 
 ## Ordem de execução vinculante
 
