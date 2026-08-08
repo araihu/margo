@@ -1359,3 +1359,7 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint versionado: commit `8f386f2de5a7bae92834a0e8487e39ab1749408b`,
   tree `1a1fabc74031b85d2d7853b314acba4a9ffe269e`, enviado para
   `origin/impl/v0.0.1-core`; worktree limpo.
+- Os dois HTMLs `output/html/margo-v0.0.1-optimistic.html` e
+  `output/html/margo-v0.0.1-optimistic-dark.html` agora apontam para esses
+  bytes regenerados (respectivamente `69053e26a670301df2b7cba4ad8b66692e0585f782d5813ea96a339b1391fce4`
+  e `e5f1ea0458b848e8d3e7c87669e41340ce3b345089e1af66edb82ac6e1fd5fa5`).
