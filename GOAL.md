@@ -1279,3 +1279,28 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `origin/impl/v0.0.1-core`; worktree limpo após o checkpoint. M7 permanece
   sujeito à revisão independente, e I1b/T6/sucessores continuam fora deste
   marco.
+- `2026-08-08T04:00:00-03:00`: auditoria executável do checkpoint M7 foi
+  repetida no HEAD de documentação `cd3779c`, tree
+  `91a1ae8bacc6e18d0a558cb2812e74f3db0d5705`, sem alterações de código.
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`, `go vet ./...`,
+  `node --check` dos runtimes Mermaid/readiness, Muamba `verify --strict` e
+  `generate-go --strict --check --package assets` passaram. O browser offline
+  passou 17/17 (`@runtime`, `@readiness`, `@composition`, `@contrast` e
+  `@pagination`) com Node `v26.5.0`, Chromium revision `1169` e
+  `network=0`; os diretórios temporários do harness foram removidos e o
+  worktree permaneceu limpo.
+- Os quatro artefatos otimistas atuais foram re-hashados: HTML light
+  `334553` bytes, SHA-256
+  `f8007a2314a7a0c52c96802569293467bf7af5fb4c6969ba0a762e70a63e8c7f`;
+  HTML dark `334556` bytes, SHA-256
+  `1a02a23a5954e0486786aa90dd3b9272e17e493550bf5eeabed3f6196ef0c6c9`;
+  PDF light A4/PDF 1.4, 17 páginas, `424326` bytes, SHA-256
+  `f24b64a0f9cfc3f15c1d39244105557de2fde44bb825ab926abd32e98fe2ebb6`;
+  PDF dark A4/PDF 1.4, 17 páginas, `436358` bytes, SHA-256
+  `ef69d3e78da15f1af9caaa0aeb910792b759a90a8b7487f2c2a59e5c876e3cf8`.
+  O HTML dark foi aberto no painel Codex em
+  `output/html/margo-v0.0.1-optimistic-dark.html`.
+- A próxima fronteira formal continua sendo I1a/I1b: T6 permanece no fim do
+  backlog por decisão explícita, e H/P/D/O/I2-I4 não podem receber um falso
+  aceite sem o handoff externo e a prova de origem. Nenhum proxy, tag, release,
+  domínio ou pseudo-versão foi inventado durante esta auditoria.
