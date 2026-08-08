@@ -1833,3 +1833,21 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `/tmp/margo-m0-test-artifacts-heading-full-fM2J0K`; apenas
   `test/browser/.cache` permanece como cache M0 não versionado. Nenhuma
   aceitação formal I1a/I1b/T6 foi inferida.
+
+### 2026-08-08 — auditoria da captura de página 7
+
+- A captura anotada como página 7 mostra apenas o watermark, mas não coincide
+  com o artefato atual regenerado após `4d12345`: `pdftotext` da página 7
+  contém `Loose list with paragraphs`, seus itens e o bloco de código. A
+  rasterização atual está em `/tmp/margo-pdf-check-heading-current/page-07.png`.
+- Varredura determinística das 23 páginas dark, removendo somente o footer
+  `OPTIMISTIC BENCHMARK`, encontrou `blank_after_footer_removal=0`; os tamanhos
+  de texto das páginas 6, 7 e 8 são respectivamente 733, 409 e 1011 bytes.
+- O espaço inferior da página 7 é consequência do contrato deliberado de
+  manter a lista com parágrafos e seu código no mesmo bloco. Relaxar
+  `break-inside: avoid-page` para preencher espaço criaria exatamente a
+  fragmentação que a revisão pediu para evitar. Nenhuma mudança de runtime foi
+  necessária nesta captura porque o estado atual já não contém a página vazia.
+- O lint checked de contraste também passou para ambos os modos: `500` nós
+  auditados por modo, `0` falhas, `0` requests bloqueadas, Node `v26.5.0` e
+  Chromium `136.0.7103.25`.
