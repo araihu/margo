@@ -2575,3 +2575,8 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   handoff de release nem autoridade externa. O próximo checkpoint deve
   commitar o runner e esta documentação mantendo apenas o cache M0 intencional
   como não rastreado.
+
+- Checkpoint publicado: commit `75e9410d89b66533898ffdfe51910157bbd7956c`,
+  tree `13f518b45082dec6f8bbe14d9e8c5445568ec291`, branch
+  `origin/impl/v0.0.1-core` sincronizada. O único estado não rastreado continua
+  sendo `test/browser/.cache/`, cache M0 intencional.
