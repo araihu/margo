@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	"github.com/araihu/goshtoso-charts/components/chartcontrol"
 	"github.com/araihu/goshtoso-charts/components/pie"
 	margo "github.com/araihu/margo"
 )
@@ -53,6 +52,10 @@ func validatePieModel(model pieModel) error {
 }
 
 func renderPie(rc margo.RenderContext, model pieModel) (templ.Component, error) {
+	return renderPieWithOptions(rc, model, defaultChartRenderOptions)
+}
+
+func renderPieWithOptions(rc margo.RenderContext, model pieModel, options chartRenderOptions) (templ.Component, error) {
 	if err := validatePieModel(model); err != nil {
 		return nil, err
 	}
@@ -66,30 +69,31 @@ func renderPie(rc margo.RenderContext, model pieModel) (templ.Component, error) 
 		slices[index] = pie.Slice{Name: source.Name, Value: source.Value}
 		rows = append(rows, AccessibleRow{Category: source.Name, Value: strconv.FormatFloat(source.Value, 'f', -1, 64)})
 	}
+	controlOptions, exportOptions := chartControlConfig(options)
 	component := pie.Pie(pie.Config{
 		Label:    model.Title,
 		Slices:   slices,
 		Variant:  variant,
-		Controls: chartcontrol.Options{Mode: chartcontrol.WrapperModeOmitted},
-		Export:   &chartcontrol.ExportOptions{Disabled: true},
+		Controls: controlOptions,
+		Export:   exportOptions,
 	})
 	return WithAccessibleData(component, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 }
 
 func init() {
-	registerFamilyHandler("pie", func(rc margo.RenderContext, raw any) (templ.Component, error) {
+	registerFamilyHandler("pie", func(rc margo.RenderContext, raw any, options chartRenderOptions) (templ.Component, error) {
 		model, ok := raw.(pieModel)
 		if !ok {
 			return nil, chartDiagnostic("chart.model_invalid", "pie handler received the wrong model")
 		}
-		return renderPie(rc, model)
+		return renderPieWithOptions(rc, model, options)
 	})
-	registerFamilyHandler("doughnut", func(rc margo.RenderContext, raw any) (templ.Component, error) {
+	registerFamilyHandler("doughnut", func(rc margo.RenderContext, raw any, options chartRenderOptions) (templ.Component, error) {
 		model, ok := raw.(pieModel)
 		if !ok {
 			return nil, chartDiagnostic("chart.model_invalid", "doughnut handler received the wrong model")
 		}
 		model.Type = "doughnut"
-		return renderPie(rc, model)
+		return renderPieWithOptions(rc, model, options)
 	})
 }

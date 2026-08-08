@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	"github.com/araihu/goshtoso-charts/components/chartcontrol"
 	"github.com/araihu/goshtoso-charts/components/line"
 	margo "github.com/araihu/margo"
 )
@@ -76,6 +75,10 @@ func validateLineCategories(categories []string) error {
 }
 
 func renderLine(rc margo.RenderContext, model lineModel) (templ.Component, error) {
+	return renderLineWithOptions(rc, model, defaultChartRenderOptions)
+}
+
+func renderLineWithOptions(rc margo.RenderContext, model lineModel, options chartRenderOptions) (templ.Component, error) {
 	if err := validateLineModel(model); err != nil {
 		return nil, err
 	}
@@ -87,24 +90,25 @@ func renderLine(rc margo.RenderContext, model lineModel) (templ.Component, error
 			rows = append(rows, AccessibleRow{Series: source.Name, Category: category, Value: formatLineNumber(source.Values[categoryIndex])})
 		}
 	}
+	controlOptions, exportOptions := chartControlConfig(options)
 	component := line.Line(line.Config{
 		Label:    model.Title,
 		Title:    line.Title{Text: model.Title},
 		Labels:   append([]string(nil), model.Categories...),
 		Series:   series,
-		Controls: chartcontrol.Options{Mode: chartcontrol.WrapperModeOmitted},
-		Export:   &chartcontrol.ExportOptions{Disabled: true},
+		Controls: controlOptions,
+		Export:   exportOptions,
 	})
 	return WithAccessibleData(component, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 }
 
 func init() {
-	registerFamilyHandler("line", func(rc margo.RenderContext, raw any) (templ.Component, error) {
+	registerFamilyHandler("line", func(rc margo.RenderContext, raw any, options chartRenderOptions) (templ.Component, error) {
 		model, ok := raw.(lineModel)
 		if !ok {
 			return nil, chartDiagnostic("chart.model_invalid", "line handler received the wrong model")
 		}
-		return renderLine(rc, model)
+		return renderLineWithOptions(rc, model, options)
 	})
 }
 

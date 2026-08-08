@@ -5,13 +5,21 @@ server-side, static Goshtoso Charts SVG. The module is opt-in; the root module
 continues to report `extension.missing_integration` when the registration is
 not supplied.
 
+Version 1 accepts `bar`, `line`, `pie`, `doughnut`, and `scatter` payloads in
+YAML or JSON. Every rendered chart includes a complete adjacent data table.
+The HTML control wrapper, expand action, verified SVG/PNG export actions, and
+their versioned browser runtime are enabled by default:
+
 ```go
 compiler := margo.New(margo.WithExtension(charts.Extension()))
 ```
 
-Version 1 accepts `bar`, `line`, `pie`, `doughnut`, and `scatter` payloads in
-YAML or JSON. Every rendered chart includes a complete adjacent data table;
-controls, export buttons, hydration, and browser runtime are disabled.
+For a static-only HTML or print input, opt out explicitly. This emits the same
+SVG and accessible table without wrapper DOM, export actions, or runtime:
+
+```go
+compiler := margo.New(margo.WithExtension(charts.Extension(charts.WithControlWrapper(false))))
+```
 
 This checkout is a feature branch (`v0.0.1-dev`). Release provenance and
 external publication remain separate integration work.

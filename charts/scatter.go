@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	"github.com/araihu/goshtoso-charts/components/chartcontrol"
 	"github.com/araihu/goshtoso-charts/components/scatter"
 	margo "github.com/araihu/margo"
 )
@@ -140,6 +139,10 @@ func validateScatterModel(model scatterModel) error {
 }
 
 func renderScatter(rc margo.RenderContext, model scatterModel) (templ.Component, error) {
+	return renderScatterWithOptions(rc, model, defaultChartRenderOptions)
+}
+
+func renderScatterWithOptions(rc margo.RenderContext, model scatterModel, options chartRenderOptions) (templ.Component, error) {
 	if err := validateScatterModel(model); err != nil {
 		return nil, err
 	}
@@ -169,25 +172,26 @@ func renderScatter(rc margo.RenderContext, model scatterModel) (templ.Component,
 			}
 		}
 	}
+	controlOptions, exportOptions := chartControlConfig(options)
 	component := scatter.Scatter(scatter.Config{
 		Label:      model.Title,
 		Caption:    Caption(model.Title),
 		Categories: append([]string(nil), model.Categories...),
 		Series:     series,
 		Options:    scatter.Options{TopNLabels: scatter.TopNLabels{Count: 0}},
-		Controls:   chartcontrol.Options{Mode: chartcontrol.WrapperModeOmitted},
-		Export:     &chartcontrol.ExportOptions{Disabled: true},
+		Controls:   controlOptions,
+		Export:     exportOptions,
 	})
 	return WithAccessibleData(component, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 }
 
 func init() {
-	registerFamilyHandler("scatter", func(rc margo.RenderContext, raw any) (templ.Component, error) {
+	registerFamilyHandler("scatter", func(rc margo.RenderContext, raw any, options chartRenderOptions) (templ.Component, error) {
 		model, ok := raw.(scatterModel)
 		if !ok {
 			return nil, chartDiagnostic("chart.model_invalid", "scatter handler received the wrong model")
 		}
-		return renderScatter(rc, model)
+		return renderScatterWithOptions(rc, model, options)
 	})
 }
 

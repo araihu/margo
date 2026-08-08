@@ -89,7 +89,10 @@ func renderChartPayload(t *testing.T, payload string, limit int64) string {
 	if err != nil {
 		t.Fatalf("decode envelope: %v", err)
 	}
-	session, err := extensionFactory(margo.RenderContext{EffectivePolicy: margo.EffectivePolicy{OutputBytes: limit}})
+	session, err := extensionFactoryWithOptions(
+		margo.RenderContext{EffectivePolicy: margo.EffectivePolicy{OutputBytes: limit}},
+		chartRenderOptions{controlWrapper: false},
+	)
 	if err != nil {
 		t.Fatalf("extension factory: %v", err)
 	}
@@ -105,7 +108,10 @@ func renderChartPayloadError(payload string) error {
 }
 
 func renderChartPayloadErrorWithLimit(payload string, limit int64) error {
-	session, err := extensionFactory(margo.RenderContext{EffectivePolicy: margo.EffectivePolicy{OutputBytes: limit}})
+	session, err := extensionFactoryWithOptions(
+		margo.RenderContext{EffectivePolicy: margo.EffectivePolicy{OutputBytes: limit}},
+		chartRenderOptions{controlWrapper: false},
+	)
 	if err != nil {
 		return err
 	}

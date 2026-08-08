@@ -7,7 +7,6 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/araihu/goshtoso-charts/components/bar"
-	"github.com/araihu/goshtoso-charts/components/chartcontrol"
 	margo "github.com/araihu/margo"
 )
 
@@ -79,6 +78,10 @@ func validateBarModel(model barModel) error {
 }
 
 func renderBar(rc margo.RenderContext, model barModel) (templ.Component, error) {
+	return renderBarWithOptions(rc, model, defaultChartRenderOptions)
+}
+
+func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartRenderOptions) (templ.Component, error) {
 	if err := validateBarModel(model); err != nil {
 		return nil, err
 	}
@@ -96,6 +99,7 @@ func renderBar(rc margo.RenderContext, model barModel) (templ.Component, error) 
 			})
 		}
 	}
+	controlOptions, exportOptions := chartControlConfig(options)
 	component := bar.Bar(bar.Config{
 		Label:       model.Title,
 		Caption:     Caption(model.Title),
@@ -103,19 +107,19 @@ func renderBar(rc margo.RenderContext, model barModel) (templ.Component, error) 
 		Labels:      append([]string(nil), model.Categories...),
 		Series:      series,
 		Orientation: orientation,
-		Controls:    chartcontrol.Options{Mode: chartcontrol.WrapperModeOmitted},
-		Export:      &chartcontrol.ExportOptions{Disabled: true},
+		Controls:    controlOptions,
+		Export:      exportOptions,
 	})
 	return WithAccessibleData(component, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 }
 
 func init() {
-	registerFamilyHandler("bar", func(rc margo.RenderContext, raw any) (templ.Component, error) {
+	registerFamilyHandler("bar", func(rc margo.RenderContext, raw any, options chartRenderOptions) (templ.Component, error) {
 		model, ok := raw.(barModel)
 		if !ok {
 			return nil, chartDiagnostic("chart.model_invalid", "bar handler received the wrong model")
 		}
-		return renderBar(rc, model)
+		return renderBarWithOptions(rc, model, options)
 	})
 }
 

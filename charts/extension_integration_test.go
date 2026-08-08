@@ -38,6 +38,61 @@ func TestRootCompileDispatchesEveryV1ChartFamily(t *testing.T) {
 	}
 }
 
+func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
+	body := readChartFixtureForIntegration(t, "testdata/bar/bar-valid.yaml")
+	out, observed, err := renderThroughRoot(t, body, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(out)
+	for _, marker := range []string{
+		`data-goshtoso-chart-wrapper`,
+		`data-goshtoso-chart-wrapper-mode="enabled"`,
+		`data-goshtoso-chart-capability="static-svg"`,
+		`data-goshtoso-chart-export-filename="revenue"`,
+		`assets/js/controls/5/controls.js`,
+	} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("default chart output missing %q", marker)
+		}
+	}
+	if observed != 1<<20 {
+		t.Fatalf("observed policy = %d", observed)
+	}
+}
+
+func TestRootCanDisableChartControlWrapper(t *testing.T) {
+	body := readChartFixtureForIntegration(t, "testdata/bar/bar-valid.yaml")
+	out, observed, err := renderThroughRootWithExtension(t, body, 1<<20, Extension(WithControlWrapper(false)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(out)
+	for _, marker := range []string{
+		`data-goshtoso-chart-wrapper`,
+		`assets/js/controls/5/controls.js`,
+		`data-goshtoso-chart-export-filename`,
+	} {
+		if strings.Contains(markup, marker) {
+			t.Fatalf("disabled chart output contains %q", marker)
+		}
+	}
+	if !strings.Contains(markup, `data-margo-chart-data="v1"`) {
+		t.Fatal("disabled chart output lost accessible data table")
+	}
+	if observed != 1<<20 {
+		t.Fatalf("observed policy = %d", observed)
+	}
+}
+
+func TestChartControlWrapperConfigurationIsIdentityBound(t *testing.T) {
+	enabled := Extension().Identity.ConfigurationHash
+	disabled := Extension(WithControlWrapper(false)).Identity.ConfigurationHash
+	if enabled == "" || disabled == "" || enabled == disabled {
+		t.Fatalf("configuration hashes = enabled %q disabled %q", enabled, disabled)
+	}
+}
+
 func TestRootPolicyOverflowWritesNoCallerBytes(t *testing.T) {
 	body := readChartFixtureForIntegration(t, "testdata/bar/bar-valid.yaml")
 	out, observed, err := renderThroughRoot(t, body, 1)
@@ -94,11 +149,15 @@ func TestChartSessionIsSafeForConcurrentRenders(t *testing.T) {
 }
 
 func renderThroughRoot(t *testing.T, body string, limit int64) ([]byte, int64, error) {
+	return renderThroughRootWithExtension(t, body, limit, Extension())
+}
+
+func renderThroughRootWithExtension(t *testing.T, body string, limit int64, extension margo.ExtensionRegistration) ([]byte, int64, error) {
 	t.Helper()
 	var observed int64
 	restore := setAccessiblePolicyObserverForTest(func(policy AccessibleRenderPolicy) { observed = policy.MaxOutputBytes })
 	defer restore()
-	compiler := margo.New(margo.WithHostPolicy(margo.Policy{OutputBytes: limit}), margo.WithExtension(Extension()))
+	compiler := margo.New(margo.WithHostPolicy(margo.Policy{OutputBytes: limit}), margo.WithExtension(extension))
 	doc, err := compiler.Compile(context.Background(), margo.Source{Name: "chart.md", Content: []byte("```goshtosochart\n" + body + "\n```")})
 	if err != nil {
 		return nil, observed, err

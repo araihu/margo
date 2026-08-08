@@ -3,6 +3,8 @@ package charts
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"sync"
@@ -12,11 +14,38 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type familyHandler func(margo.RenderContext, any) (templ.Component, error)
+type familyHandler func(margo.RenderContext, any, chartRenderOptions) (templ.Component, error)
+
+// chartRenderOptions are frozen when the extension registration is created.
+// Keeping the setting out of RenderContext makes it part of the extension
+// identity rather than a mutable per-render concern.
+type chartRenderOptions struct {
+	controlWrapper bool
+}
+
+var defaultChartRenderOptions = chartRenderOptions{controlWrapper: true}
+
+// Option configures the optional charts extension.
+type Option func(*chartRenderOptions)
+
+// WithControlWrapper controls the server-rendered chart controls wrapper.
+// The wrapper is enabled by default; passing false opts into HTML containing
+// only the static SVG and its accessible data table.
+func WithControlWrapper(enabled bool) Option {
+	return func(options *chartRenderOptions) {
+		options.controlWrapper = enabled
+	}
+}
+
+// WithChartControlWrapper is a descriptive alias for WithControlWrapper.
+func WithChartControlWrapper(enabled bool) Option {
+	return WithControlWrapper(enabled)
+}
 
 type chartSession struct {
 	context  margo.RenderContext
 	handlers map[string]familyHandler
+	options  chartRenderOptions
 }
 
 var familyRegistry = struct {
@@ -25,27 +54,54 @@ var familyRegistry = struct {
 }{items: make(map[string]familyHandler)}
 
 // Extension registers the reserved goshtosochart fence for optional use by a
-// host compiler. Root remains independent until the host opts into this seam.
-func Extension() margo.ExtensionRegistration {
+// host compiler. The chart control wrapper is enabled unless explicitly
+// disabled with WithControlWrapper(false).
+func Extension(options ...Option) margo.ExtensionRegistration {
+	config := defaultChartRenderOptions
+	for _, option := range options {
+		if option != nil {
+			option(&config)
+		}
+	}
 	return margo.ExtensionRegistration{
 		Identity: margo.ExtensionIdentity{
-			Name:         "margo-charts",
-			Version:      "v0.0.1-dev",
-			Capabilities: []string{"static-svg", "accessible-data"},
+			Name:              "margo-charts",
+			Version:           "v0.0.1-dev",
+			ConfigurationHash: config.configurationHash(),
+			Capabilities:      []string{"static-svg", "accessible-data"},
 		},
 		Fences:  []string{"goshtosochart"},
-		Factory: extensionFactory,
+		Factory: extensionFactoryFor(config),
 	}
 }
 
 func extensionFactory(rc margo.RenderContext) (margo.ExtensionSession, error) {
+	return extensionFactoryWithOptions(rc, defaultChartRenderOptions)
+}
+
+func extensionFactoryFor(options chartRenderOptions) margo.ExtensionFactory {
+	return func(rc margo.RenderContext) (margo.ExtensionSession, error) {
+		return extensionFactoryWithOptions(rc, options)
+	}
+}
+
+func extensionFactoryWithOptions(rc margo.RenderContext, options chartRenderOptions) (margo.ExtensionSession, error) {
 	familyRegistry.RLock()
 	handlers := make(map[string]familyHandler, len(familyRegistry.items))
 	for name, handler := range familyRegistry.items {
 		handlers[name] = handler
 	}
 	familyRegistry.RUnlock()
-	return chartSession{context: rc, handlers: handlers}, nil
+	return chartSession{context: rc, handlers: handlers, options: options}, nil
+}
+
+func (options chartRenderOptions) configurationHash() string {
+	value := "control-wrapper=disabled"
+	if options.controlWrapper {
+		value = "control-wrapper=enabled"
+	}
+	hash := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(hash[:])
 }
 
 func registerFamilyHandler(name string, handler familyHandler) {
@@ -63,7 +119,7 @@ func (s chartSession) Render(ctx context.Context, node margo.ExtensionNode, out 
 	if !ok {
 		return chartDiagnostic("chart.type_unsupported", fmt.Sprintf("chart type %q is unsupported", envelope.Type))
 	}
-	component, err := handler(s.context, envelope.Model)
+	component, err := handler(s.context, envelope.Model, s.options)
 	if err != nil {
 		return err
 	}
