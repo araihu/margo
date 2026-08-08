@@ -2549,3 +2549,29 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Nenhuma alteração adicional no renderer necessária para este comentário;
   a correção de continuação e os gates de fronteira de página permanecem
   vigentes. Checkpoint documental segue no HEAD desta branch.
+
+### 2026-08-08 — comando checked de impressão PDF
+
+- A causa das páginas dark subutilizadas era o impressor manual chamar
+  `page.pdf()` sem emular `print` nem executar
+  `window.margoPreparePrintTOC()`. O novo
+  `test/browser/print-pdf.mjs` exige Node/Chromium absolutos do environment
+  checked, bloqueia rede, espera fontes e imagens, valida o modo light/dark,
+  prepara paginação protegida antes do PDF e grava PDF/evidence atomically.
+- Os artefatos canônicos foram regenerados com o mesmo contrato: light tem 20
+  páginas A4, 443181 bytes, SHA-256
+  `22bd64fa1f7de65cb27db8d8fea5bf08dab01cc747c8d92e4697db4fab016b63`;
+  dark tem 20 páginas A4, 455322 bytes, SHA-256
+  `b3f2d46f739394d9bc6eeba912d3ea5f33c0ab4201cc39b1ddce147385e41d25`.
+  A página 12 agora acomoda compiler, bash, JSON e YAML; as linhas Mermaid
+  continuam completas entre as páginas 14 e 15.
+- Evidências `output/evidence/margo-v0.0.1-optimistic-pdf.json` e
+  `output/evidence/margo-v0.0.1-optimistic-dark-pdf.json` registram
+  `preparedPrint=true`, A4, `network.blockedRequests=[]` e
+  `consoleErrors=[]`. O lint light/dark passou com 505 nós de texto e 29
+  itens de layout por modo, sem falhas nem requests bloqueados; `go test`,
+  `go vet` e `node --check test/browser/print-pdf.mjs` também passaram.
+- O uso de T6/I1a/I1b/I3 continua fora deste checkpoint: não foi inventado
+  handoff de release nem autoridade externa. O próximo checkpoint deve
+  commitar o runner e esta documentação mantendo apenas o cache M0 intencional
+  como não rastreado.
