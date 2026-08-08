@@ -2532,3 +2532,20 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint publicado: commit `58a2d9dcd68a5742d3f93a9ba7b621dee850ec84`,
   tree `568968932b5980d232e9dc9f50ebfd5afd823912`, branch remoto sincronizado.
   Apenas `test/browser/.cache/` permanece não rastreado de forma intencional.
+
+### 2026-08-08 — reconciliação do comentário da última linha Mermaid
+
+- O comentário visual referencia um PDF antigo de 23 páginas. O artefato atual
+  `output/pdf/margo-v0.0.1-optimistic-dark.pdf` tem 20 páginas A4, SHA-256
+  `b182b0e6f61403fa36ab3313cd1ea70b7b8a0d19ce2e26386958b5fd7c45d9fd`.
+- `pdftotext -layout` confirma continuação correta: página 14 termina com
+  `css-custom-property`; página 15 repete o cabeçalho e contém `css-at-rule`,
+  `css-unknown-property`, `css-forbidden-function`, `cross-svg-url`,
+  `invalid-opacity`, `invalid-data-points`, `invalid-length-unit` e
+  `unrooted-id`. Nenhuma linha foi perdida ou truncada.
+- PDF light atual permanece em
+  `output/pdf/margo-v0.0.1-optimistic.pdf`, SHA-256
+  `1ca3471b12f4bef38e350adbe3be6c3bc76f805938a513c8fe5acae23249a76f`.
+- Nenhuma alteração adicional no renderer necessária para este comentário;
+  a correção de continuação e os gates de fronteira de página permanecem
+  vigentes. Checkpoint documental segue no HEAD desta branch.
