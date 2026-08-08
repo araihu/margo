@@ -35,8 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação: `58f6149`, tree
-  `dddc0964121b99d2ae446a807e1123f2456e4c2c`, enviado para
+- Último HEAD da implementação: `1362dd0`, tree
+  `9b959c1fcc2686977cee3fc9d39fe4026cf2fafb`, enviado para
   `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
   `157f2d9505e26df91bb46ae13e7de4edac278eef`, corrige a paginação de tabelas
   oversized no PDF e preserva as linhas. Este checkpoint inclui o HTML otimista versionado,
@@ -2111,3 +2111,22 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   branch sincronizado com `origin/impl/v0.0.1-core`; somente
   `test/browser/.cache/` permanece não rastreado e intencional. Nenhuma
   aceitação formal Goshtoso/T6/I1a/I1b foi inferida.
+
+### 2026-08-08 — auditoria de fechamento e RED de O5
+
+- O inventário do roadmap foi comparado ao estado real: C0-C8, T0-T5,
+  M0-M7 e O1-O4 têm fontes/testes locais; T6 continua deliberadamente no fim
+  do backlog. `charts/go.mod`, `pdf/go.mod` e `cmd/margo/go.mod` existem como
+  esqueletos, mas ainda não possuem `go.sum` nem identidades I3 verificadas.
+- O RED literal de O5 foi executado sem modificar o módulo:
+  `cd cmd/margo && GOWORK=off GOFLAGS=-mod=readonly go test ./internal/cli
+  -run 'Test(Render|Validate|Inspect|Diagnostics|Publication)' -count=1`.
+  Resultado: exit `1`, `stat .../cmd/margo/internal/cli: directory not found`.
+  Isso confirma que o dispatcher/CLI ainda não foi implementado.
+- O root continua resolvendo somente a autoridade já aceita
+  `github.com/araihu/goshtoso v0.1.2` com sum
+  `h1:ymdPVQ+dE0NplYsiqMnUFmDtBT5bOMqtArPohmg2H8g=`. Não será criado
+  `replace` local, `go.sum` inventado ou pin de root/charts/pdf/cmd sem I3.
+- Próximo avanço formal depende da handoff I1a/I1b e da identidade I3; até lá,
+  a implementação humana HTML/PDF permanece verificável e publicada, enquanto
+  este bloqueio fica registrado como evidência, não como aceitação de O5.
