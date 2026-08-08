@@ -90,6 +90,72 @@ test("@pagination keeps a short TOC in one column", async ({ page }) => {
   await expect(page.locator(".goshtoso-document__toc ol")).toHaveCSS("column-count", "1");
 });
 
+test("@pagination keeps long table cells inside the printable content width", async ({ page }) => {
+  const [documentCSS, standaloneCSS] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+  ]);
+  const tokenCSS = `:root {
+    --color-surface: #ffffff;
+    --color-surface-alt: #fafafa;
+    --color-on-surface: #4b5563;
+    --color-on-surface-strong: #1f2937;
+    --color-outline: #d1d5db;
+    --color-primary: #1d4ed8;
+    --radius-radius: 0.25rem;
+    --spacing: 0.25rem;
+    --text-sm: 0.875rem;
+    --document-page-background: var(--color-surface);
+  }`;
+  const longValue = "margo-table-cell-overflow-".repeat(12);
+  await page.setViewportSize({ width: 794, height: 1123 });
+  await page.setContent(`<!doctype html>
+    <html><head><style>${tokenCSS}</style><style>${documentCSS}</style><style>${standaloneCSS}</style>
+    <style>
+      .margo-document { max-width: 520px; margin: 0; }
+      .margo-document table { width: 100%; }
+      .whitespace-nowrap { white-space: nowrap; }
+    </style></head>
+    <body><div class="goshtoso-document">
+      <article class="margo-document">
+        <h2>Tables</h2>
+        <div data-table-client-sort="true">
+          <div class="overflow-x-auto overflow-y-clip w-full rounded-radius border border-outline margo-table">
+            <table class="w-full text-left text-sm text-on-surface">
+              <thead><tr><th scope="col">Name</th><th scope="col">Evidence</th></tr></thead>
+              <tbody><tr><td>stable</td><td class="whitespace-nowrap">${longValue}</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+    </div></body></html>`);
+  await page.emulateMedia({ media: "print" });
+
+  const result = await page.locator(".margo-document").evaluate((article) => {
+    const wrapper = article.querySelector("[data-table-client-sort='true'] > div");
+    const table = wrapper.querySelector("table");
+    const articleRect = article.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const tableRect = table.getBoundingClientRect();
+    return {
+      articleLeft: articleRect.left,
+      articleRight: articleRect.right,
+      wrapperLeft: wrapperRect.left,
+      wrapperRight: wrapperRect.right,
+      tableLeft: tableRect.left,
+      tableRight: tableRect.right,
+      scrollWidth: wrapper.scrollWidth,
+      clientWidth: wrapper.clientWidth,
+    };
+  });
+
+  expect(result.wrapperLeft).toBeGreaterThanOrEqual(result.articleLeft - 0.5);
+  expect(result.wrapperRight).toBeLessThanOrEqual(result.articleRight + 0.5);
+  expect(result.tableLeft).toBeGreaterThanOrEqual(result.wrapperLeft - 0.5);
+  expect(result.tableRight).toBeLessThanOrEqual(result.wrapperRight + 0.5);
+  expect(result.scrollWidth).toBeLessThanOrEqual(result.clientWidth + 1);
+});
+
 test("@pagination expands Mermaid source only for print and restores screen state", async ({ page }) => {
   const script = await printPaginationScript();
   await page.setContent(`<!doctype html>

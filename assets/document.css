@@ -251,6 +251,20 @@
     page-break-inside: avoid;
     break-inside: avoid-page;
   }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] {
+    max-inline-size: 100%;
+    overflow: visible;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] table {
+    inline-size: 100%;
+    max-inline-size: 100%;
+    table-layout: fixed;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] :where(th, td) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
   .goshtoso-document > .margo-document [data-margo-print-break-before="page"] {
     page-break-before: always;
     break-before: page;

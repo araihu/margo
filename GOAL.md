@@ -1851,3 +1851,39 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - O lint checked de contraste também passou para ambos os modos: `500` nós
   auditados por modo, `0` falhas, `0` requests bloqueadas, Node `v26.5.0` e
   Chromium `136.0.7103.25`.
+
+### 2026-08-08 — tabelas longas no print e auditoria da página 10
+
+- O comentário visual de página 10 dark foi comparado com uma regeneração
+  atual. A captura anotada era de um estado anterior; o PDF autoritativo atual
+  mostra as duas tabelas completas, com cabeçalhos, linhas e células dentro da
+  área imprimível. A rasterização usada para a conferência está em
+  `/tmp/margo-pdf-check-table-current-4lILxk/page-10.png` e a extração
+  `pdftotext -layout` conserva toda a tabela.
+- Foi adicionado um caso RED/GREEN em
+  `test/browser/specs/standalone-pagination.spec.mjs`: uma célula longa com
+  `.whitespace-nowrap` estourava a tabela para `tableRight=2125.703125`,
+  enquanto a área do artigo terminava em `520.5`. A correção em
+  `assets/document.css` só no contexto de impressão limita wrapper e tabela a
+  `100%`, usa `table-layout: fixed` e permite quebra segura em `th`/`td` com
+  `white-space: normal`, `overflow-wrap: anywhere` e `word-break: break-word`.
+- O teste focado passou e a rodada M0 checked passou `16/16`, incluindo
+  harness, contraste, paginação e shell, com Node `v26.5.0`, npm `11.17.0`,
+  Chromium revision `1169`/versão `136.0.7103.25` e `network=0`. O lint de
+  contraste passou em light e dark com `500` nós por modo e `0` falhas.
+- `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` passou. Os HTMLs
+  foram regenerados: light 340.514 bytes, SHA-256
+  `daddf32bcbcc17580469597a575a4f8c5289276ec69eaffcc259efd9cc6c3d06`; dark
+  340.517 bytes, SHA-256
+  `eab6fec0769969699fc0a0e3e4404941b05457750e9abe4c8780aac55869e0a5`.
+  Os PDFs A4 tagged têm 23 páginas: light SHA-256
+  `bc20989a5dc68fd15d36c389baf9634a8f3c95ef4673e4eafa5575746e234730`; dark
+  SHA-256 `163dde4500f28518270cdff89fa0417a795c6c0865b9c675061d3aa5a8846e53`.
+  As evidências do render não registraram erros de console, erros de página ou
+  requests bloqueadas.
+- Os artefatos temporários `node_modules`/`test-results` do runner foram
+  movidos de forma recuperável para
+  `/tmp/margo-m0-test-artifacts-table-current-a4R2b2`; somente
+  `test/browser/.cache` permanece como cache M0 intencional e não versionado.
+  Este checkpoint continua candidato local: não infere aceitação formal de
+  I1a/I1b/T6 nem altera a posição de `release/table-handoff.json` no backlog.
