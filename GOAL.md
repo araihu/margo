@@ -35,11 +35,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação: `1690170`, tree
-  `db2d36a24f32f113df7de1ced0d67974616a186f`, enviado para
+- Último HEAD da implementação: `7556bd1490ba5684a2d4488c24bdb1551dc420a8`, tree
+  `293adb5e9ad61003b8104e896979b1d0b4677fa6`, enviado para
   `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
-  `157f2d9505e26df91bb46ae13e7de4edac278eef`, corrige a paginação de tabelas
-  oversized no PDF e preserva as linhas. Este checkpoint inclui o HTML otimista versionado,
+  `c63a568`, corrige a paginação de tabelas oversized no PDF e preserva as linhas;
+  `7556bd1` atualiza a identidade documental desse resultado. Este checkpoint inclui o HTML otimista versionado,
   modo claro/escuro, contraste Mermaid, TOC adaptativa, fila Mermaid
   process-global, configuração congelada por tarefa, `SourceRootID`
   determinístico, normalização/validação antes da inserção, hashes/tamanhos de
