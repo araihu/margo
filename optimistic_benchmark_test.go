@@ -262,6 +262,21 @@ func TestOptimisticBenchmarkExercisesFullMarkdownProfile(t *testing.T) {
 	if !bytes.Contains([]byte(markup), []byte(`data-margo-runtime-task="mermaid"`)) {
 		t.Errorf("Mermaid runtime placement missing")
 	}
+	for _, row := range []string{
+		"css-custom-property",
+		"css-at-rule",
+		"css-unknown-property",
+		"css-forbidden-function",
+		"cross-svg-url",
+		"invalid-opacity",
+		"invalid-data-points",
+		"invalid-length-unit",
+		"unrooted-id",
+	} {
+		if !bytes.Contains([]byte(markup), []byte(row)) {
+			t.Errorf("rendered Mermaid rejection table missing row %q", row)
+		}
+	}
 }
 
 func countElements(root *html.Node, tag string) int {
