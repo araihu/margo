@@ -12,12 +12,13 @@ estado operacional curto; o handoff completo está em
 
 - Status: `BLOCKED_BY_EXTERNAL_AUTHORITY`.
 - Branch de implementação: `impl/v0.0.1-core`.
-- HEAD: `b0ad36a7a6c706a419dbd4f9797fd3be3355ecbe`.
-- Tree: `1463298b8ecd9f791b5280dc0723dfcdcaa249d9`.
+- Último checkpoint funcional: `b0ad36a7a6c706a419dbd4f9797fd3be3355ecbe`;
+  tree `1463298b8ecd9f791b5280dc0723dfcdcaa249d9`.
+- Commit de handoff: `7a9eb0dc661ac3c6d7d4ea74a34caa3755a8f12b`;
+  tree `c6466f06a59d9937a6ae2c3c6c10eeb43ce0dffb`.
 - Remoto: `origin/impl/v0.0.1-core` sincronizado.
-- `main` local permanece no bootstrap
-  `608c0f41243b9adc7d8a4a41d2d13bf6d8b363b0` até a integração deste
-  checkpoint.
+- `main` local foi fast-forward para o commit de handoff; `origin/main` ainda
+  está no bootstrap porque a proteção exige Pull Request e `Multi-module CI`.
 - Worktree: `/private/tmp/margo-v001-implementation`.
 - `test/browser/.cache/` é cache M0 intencional e não rastreado; nenhum outro
   arquivo deve ser incluído sem revisão.

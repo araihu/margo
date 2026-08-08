@@ -9,12 +9,14 @@ a release, tag, publication, or deployment record.
 
 - Repository: `https://github.com/araihu/margo`.
 - Source branch: `impl/v0.0.1-core`.
-- Source checkpoint before this handoff commit:
-  `b0ad36a7a6c706a419dbd4f9797fd3be3355ecbe`.
-- Source tree before this handoff commit:
-  `1463298b8ecd9f791b5280dc0723dfcdcaa249d9`.
-- Destination at preparation: `main` on
-  `608c0f41243b9adc7d8a4a41d2d13bf6d8b363b0`.
+- Functional source checkpoint before handoff:
+  `b0ad36a7a6c706a419dbd4f9797fd3be3355ecbe`;
+  tree `1463298b8ecd9f791b5280dc0723dfcdcaa249d9`.
+- Handoff commit: `7a9eb0dc661ac3c6d7d4ea74a34caa3755a8f12b`;
+  tree `c6466f06a59d9937a6ae2c3c6c10eeb43ce0dffb`.
+- `main` local foi fast-forward para o handoff. `origin/main` permanece no
+  bootstrap `608c0f41243b9adc7d8a4a41d2d13bf6d8b363b0`: push direto recusado
+  pela proteção, que exige Pull Request e `Multi-module CI`.
 - Worktree: `/private/tmp/margo-v001-implementation`.
 - Intentional untracked path: `test/browser/.cache/`; do not stage it.
 - Accepted design and plan identities remain unchanged; see `GOAL.md`.
