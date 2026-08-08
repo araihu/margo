@@ -2343,3 +2343,22 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `eeb0730be8ea2bd2e845a6df54ea8df4b862c390`, tree
   `044564b86e7543c0174b0d70a9af3f50427b30c0`, branch remoto sincronizado e
   worktree limpo fora de `test/browser/.cache/`.
+
+### 2026-08-08 — reimpressão final após comentário da última linha
+
+- Os dois PDFs foram reimpressos a partir dos HTMLs atuais com o Chromium
+  pinado `136.0.7103.25`, `printBackground` e `preferCSSPageSize`; não houve
+  requests externos nem erros de console. Ambos têm 20 páginas A4. O PDF
+  claro tem SHA-256 `6eacbab4747c18384499f2396bf598cdf9fe5aa8a4b792afa291c31f16aada97`
+  e o dark `cfa7b82f71a4d6de52bd5f80bf260d07d6a0fb615e7af5aeb34acfc83370b51a`.
+- A tabela Mermaid longa agora é uma continuação controlada: a página 14
+  termina com a linha completa `invalid-data-points`, a página 15 repete o
+  cabeçalho e contém `invalid-length-unit` e `unrooted-id` completos. A
+  extração `pdftotext -layout` confirma as 21 linhas, sem linha ausente ou
+  truncada; a inspeção rasterizada confirmou o mesmo visualmente.
+- O comentário apontava para o PDF antigo de 23 páginas. A correção efetiva
+  permanece em `assets/document.css` (`overflow-y: visible` no wrapper de
+  impressão) e no teste checked
+  `@pagination preserves every Mermaid rejection row across print continuation`.
+  O estado M0 local continua candidato, com `.cache/` intencional e não
+  rastreado; não foi inferida aceitação I1a/I1b/I3/T6.
