@@ -2003,3 +2003,8 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   registro. O4 é candidato local; O5 (CLI/render/publicação) ainda depende da
   revisão dos sinks e das autoridades de runtime. Goshtoso/T6/I1a/I1b seguem
   sem aceitação formal.
+- Identidade publicada do checkpoint O4: commit
+  `8e9fadda5203e13f376ab0dabde280f6314dce2b`, tree
+  `2bc0a9a8d740aeae9ad56b42bb9796debe2cd5b7`, remoto
+  `origin/impl/v0.0.1-core`. O único arquivo não rastreado continua sendo o
+  cache M0 intencional em `test/browser/.cache/`.
