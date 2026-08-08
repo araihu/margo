@@ -1977,3 +1977,8 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   este registro. A pequena transferência serial de `atomic_unix.go` adiciona
   apenas o método replace necessário ao estado compartilhado; nenhuma fonte
   Goshtoso foi alterada e T6/I1a/I1b continuam pendentes.
+- Identidade publicada do checkpoint O3: commit
+  `b1c3281bf6e8181f4e05e62276a26c95ad17ebf1`, tree
+  `15debf6efee03e80e3408f2a489c168458036ab7`, remoto
+  `origin/impl/v0.0.1-core`. O cache M0 `test/browser/.cache/` segue como o
+  único não rastreado intencional.
