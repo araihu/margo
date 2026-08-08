@@ -1521,3 +1521,46 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   tree `24ba7cb06a9e2e754d5d755ecc204bf8114fc30d`, enviado para
   `origin/impl/v0.0.1-core`; o commit documental deste registro será criado
   em seguida.
+
+### 2026-08-08 — PDFs Mermaid regenerados e prova de impressão tagged
+
+- `2026-08-08T05:02:39-03:00`: a prova focada usou o Chromium pinado
+  `136.0.7103.25` em
+  `/private/tmp/margo-m0-generated.adPbmQ/.cache/playwright/darwin-arm64/1169/chrome-mac/Chromium.app/Contents/MacOS/Chromium`, sem rede externa. O runtime Mermaid local carregou os três diagramas do benchmark, com `3/3` sucessos: flowchart SHA-256
+  `6ce2d8cb22b882a18cad0a7b45203ded625f7203da68e2a4a2c5437196b6ffba`,
+  sequence SHA-256
+  `25f6bad267d86185dbb02225376eda02485292e73a324e1f1d2e3fc5e5c5ed21` e
+  readiness-flow SHA-256
+  `0b97e9a13a705e9a013bba40cbd5c1ac62d16ac2b3179714940e1bb84a88c807`.
+- O HTML permanece com as três fontes Mermaid fechadas na tela; durante a
+  preparação de impressão os três disclosures são abertos, os blocos
+  protegidos que cruzam uma fronteira recebem `break-before: page`, e o estado
+  original é restaurado depois. A prova registrou TOC em uma coluna, `3`
+  marcadores de quebra, zero requisições bloqueadas e zero erros de console.
+- As margens de impressão seguem o fundo do modo: claro usa
+  `rgb(255, 255, 255)` para página, margem e chrome; dark usa
+  `oklch(0.145 0 0)` para os três. As evidências JSON são
+  `output/review/margo-optimistic-browser-evidence.json` (SHA-256
+  `217e7280edc45289a3c25f731986178035a70c0037d8c0ad8cc258eca7ae66aa`) e
+  `output/review/margo-optimistic-dark-browser-evidence.json` (SHA-256
+  `98462c22d5a4ca1e9f909020d65d302c06fa578b0e4d6f2fb2cda184965ad50c`).
+- PDFs regenerados com `tagged: true`, outline, A4, sem JavaScript e sem
+  encriptação: `output/pdf/margo-v0.0.1-optimistic.pdf` tem 604.078 bytes,
+  21 páginas, SHA-256
+  `6f25c552fb6492cc9fe61659bb35f150b8e184df72583939d2b4f9c4c75d7810`;
+  `output/pdf/margo-v0.0.1-optimistic-dark.pdf` tem 610.333 bytes, 21 páginas,
+  SHA-256 `79cb9e72d8bd31520fd7db2099ff08303529d21ea9764abafedf8fdbacbcfd49`.
+  `pdftotext` confirmou Contents, edge cases, Mermaid source e Human
+  acceptance record.
+- HTMLs correspondentes permanecem:
+  `output/html/margo-v0.0.1-optimistic.html` (SHA-256
+  `d8301779ab49798399b3438c342116a3f25367e96cda2e9f9cd5ae04c175ac18`) e
+  `output/html/margo-v0.0.1-optimistic-dark.html` (SHA-256
+  `12b8438c4dac8385f80b258a4de362d360d717f1af899f78047a40fcd5174800`). O
+  HTML dark foi aberto no painel local do Codex; a navegação direta `file://`
+  do navegador embutido foi recusada pela política de segurança.
+- Esta é uma evidência focada do contrato de renderização e impressão, não
+  aceite formal M0/I1a/I1b. O runner completo/cache verificável continua
+  indisponível neste checkout; T6 e `release/table-handoff.json` continuam
+  deliberadamente deferred. O PDF é gerado pelo harness de browser/M0, não pelo
+  `tools/optimistic-renderer` isolado.
