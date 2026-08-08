@@ -2362,3 +2362,16 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `@pagination preserves every Mermaid rejection row across print continuation`.
   O estado M0 local continua candidato, com `.cache/` intencional e não
   rastreado; não foi inferida aceitação I1a/I1b/I3/T6.
+
+### 2026-08-08 — gate final da regressão de tabela
+
+- O replay atual executou `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`,
+  `GOWORK=off GOFLAGS=-mod=readonly go vet ./...` e o teste checked específico
+  da tabela Mermaid: `1 passed`, Node `v26.5.0`, Chromium `136.0.7103.25`,
+  `network=0`. `node_modules` e `test-results` foram movidos de forma
+  recuperável para `/tmp/margo-table-final-gates.GeG3UX`.
+- O PDF dark continua com 20 páginas, 455.061 bytes e SHA-256
+  `cfa7b82f71a4d6de52bd5f80bf260d07d6a0fb615e7af5aeb34acfc83370b51a`; o
+  worktree permanece limpo fora de `test/browser/.cache/`, que é o cache M0
+  intencional e não rastreado. HEAD documental atual: `7e927d3`, tree
+  `da2853bedde659551eb2c02698a2d7a634a61f3b`.
