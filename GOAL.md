@@ -1950,3 +1950,30 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `origin/impl/v0.0.1-core`. O único estado não rastreado intencional é
   `test/browser/.cache/`, usado pelo recibo M0; não há arquivos staged ou
   modificados fora desse cache.
+
+### 2026-08-08 — O3: force, Windows e classificação pós-visibilidade
+
+- O RED de O3 adicionou os casos de `Force`, falha de sincronização do pai,
+  erro ambíguo do primitivo e cancelamento depois da publicação. Antes da
+  implementação, a interface não possuía `publishReplace`, produzindo falha
+  de compilação no teste O3.
+- O GREEN transferiu a máquina de estados para o sink compartilhado: o caminho
+  padrão continua no-replace; `Force` usa replace atômico; o resultado de
+  publicação informa se os novos bytes ficaram visíveis; read-back contra o
+  snapshot anterior e o digest esperado evita converter erro ambíguo em
+  `not_committed`. Cancelamento é adiado durante publicação, read-back e sync,
+  retornando o outcome real junto com `context.Canceled`. Unix usa hard-link
+  no-replace e `os.Rename` no replace; Windows usa `MoveFileEx` com
+  `MOVEFILE_WRITE_THROUGH` e `MOVEFILE_REPLACE_EXISTING` para o caminho force.
+- Gates: `GOWORK=off GOFLAGS=-mod=readonly go test . -run
+  'TestAtomic(Force|PostLinearization|Cancellation|Windows)' -count=1`, a
+  matriz O2/O3 focada com `-count=20`, `go test ./... -count=1`, `go vet
+  ./...`, `go test -race ./... -count=1`, e compilação cruzada Windows com
+  `GOOS=windows GOARCH=amd64 go test -c` passaram. O3 é candidato local;
+  aceitação independente do sink e os sucessores O4/O5 ainda não foram
+  inferidos.
+- Arquivos deste checkpoint: `atomic_file_sink.go`, `atomic_unix.go`,
+  `atomic_windows.go`, `atomic_file_sink_test.go`, `atomic_windows_test.go` e
+  este registro. A pequena transferência serial de `atomic_unix.go` adiciona
+  apenas o método replace necessário ao estado compartilhado; nenhuma fonte
+  Goshtoso foi alterada e T6/I1a/I1b continuam pendentes.

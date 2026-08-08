@@ -119,6 +119,128 @@ func TestAtomicNoReplaceFailureCleansPrivateStage(t *testing.T) {
 	}
 }
 
+func TestAtomicForceReplacesExistingDestination(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "artifact.html")
+	if err := os.WriteFile(target, []byte("prior"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	want := []byte("replacement")
+	result, err := (&AtomicFileSink{Target: target, Force: true}).Commit(context.Background(), bytes.NewReader(want), ArtifactDigestOf(want))
+	if err != nil {
+		t.Fatalf("Commit() error = %v", err)
+	}
+	if result.Outcome != CommitCommitted {
+		t.Fatalf("outcome = %q, want %q", result.Outcome, CommitCommitted)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("target bytes = %q, want %q", got, want)
+	}
+}
+
+func TestParentSyncFailureReportsVisibleNewBytes(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "artifact.html")
+	want := []byte("visible")
+	ops := &faultAtomicOps{inner: defaultAtomicOps(), syncErr: errors.New("sync failed")}
+	result, err := (&AtomicFileSink{Target: target, ops: ops}).Commit(context.Background(), bytes.NewReader(want), ArtifactDigestOf(want))
+	if err == nil {
+		t.Fatal("Commit() error = nil")
+	}
+	if result.Outcome != CommitDurabilityUncertain {
+		t.Fatalf("outcome = %q, want %q", result.Outcome, CommitDurabilityUncertain)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("target bytes = %q, want %q", got, want)
+	}
+}
+
+func TestAtomicNoReplaceAmbiguousErrorUsesReadback(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "artifact.html")
+	want := []byte("ambiguous")
+	ops := &faultAtomicOps{inner: defaultAtomicOps(), ambiguous: true}
+	result, err := (&AtomicFileSink{Target: target, ops: ops}).Commit(context.Background(), bytes.NewReader(want), ArtifactDigestOf(want))
+	if err == nil {
+		t.Fatal("Commit() error = nil")
+	}
+	if result.Outcome != CommitUnknown {
+		t.Fatalf("outcome = %q, want %q", result.Outcome, CommitUnknown)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("target bytes = %q, want %q", got, want)
+	}
+}
+
+func TestAtomicForceCancellationAfterVisibilityReportsCommitted(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "artifact.html")
+	want := []byte("cancelled after visibility")
+	ctx, cancel := context.WithCancel(context.Background())
+	ops := &faultAtomicOps{inner: defaultAtomicOps(), afterPublish: cancel}
+	result, err := (&AtomicFileSink{Target: target, Force: true, ops: ops}).Commit(ctx, bytes.NewReader(want), ArtifactDigestOf(want))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Commit() error = %v, want context.Canceled", err)
+	}
+	if result.Outcome != CommitCommitted {
+		t.Fatalf("outcome = %q, want %q", result.Outcome, CommitCommitted)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("target bytes = %q, want %q", got, want)
+	}
+}
+
+type faultAtomicOps struct {
+	inner        atomicOps
+	syncErr      error
+	ambiguous    bool
+	afterPublish func()
+}
+
+func (f *faultAtomicOps) createStage(dir string) (*os.File, error) {
+	return f.inner.createStage(dir)
+}
+
+func (f *faultAtomicOps) publishNoReplace(stage, target string) (bool, error) {
+	visible, err := f.inner.publishNoReplace(stage, target)
+	if f.afterPublish != nil {
+		f.afterPublish()
+	}
+	if f.ambiguous {
+		return false, errors.New("ambiguous no-replace result")
+	}
+	return visible, err
+}
+
+func (f *faultAtomicOps) publishReplace(stage, target string) (bool, error) {
+	visible, err := f.inner.publishReplace(stage, target)
+	if f.afterPublish != nil {
+		f.afterPublish()
+	}
+	return visible, err
+}
+
+func (f *faultAtomicOps) remove(path string) error { return f.inner.remove(path) }
+
+func (f *faultAtomicOps) syncParent(dir string) error {
+	if f.syncErr != nil {
+		return f.syncErr
+	}
+	return f.inner.syncParent(dir)
+}
+
 type errorReader struct{}
 
 func (errorReader) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }

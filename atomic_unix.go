@@ -37,6 +37,13 @@ func (unixAtomicOps) publishNoReplace(stage, target string) (bool, error) {
 	return true, nil
 }
 
+func (unixAtomicOps) publishReplace(stage, target string) (bool, error) {
+	if err := os.Rename(stage, target); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (unixAtomicOps) remove(path string) error { return os.Remove(path) }
 
 func (unixAtomicOps) syncParent(dir string) error {

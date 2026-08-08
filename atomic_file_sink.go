@@ -22,6 +22,7 @@ type AtomicFileSink struct {
 type atomicOps interface {
 	createStage(dir string) (*os.File, error)
 	publishNoReplace(stage, target string) (visible bool, err error)
+	publishReplace(stage, target string) (visible bool, err error)
 	remove(path string) error
 	syncParent(dir string) error
 }
@@ -46,10 +47,6 @@ func (s *AtomicFileSink) Commit(ctx context.Context, r io.Reader, expected Artif
 	if s.Target == "" {
 		return result, errors.New("margo.atomic.target_required")
 	}
-	if s.Force {
-		return result, errors.New("margo.atomic.force_not_ready")
-	}
-
 	target, err := filepath.Abs(s.Target)
 	if err != nil {
 		return result, fmt.Errorf("margo.atomic.target_absolute: %w", err)
@@ -61,7 +58,7 @@ func (s *AtomicFileSink) Commit(ctx context.Context, r io.Reader, expected Artif
 	if err != nil {
 		return result, fmt.Errorf("margo.atomic.prior_snapshot: %w", err)
 	}
-	if prior.exists {
+	if prior.exists && !s.Force {
 		return result, errors.New("margo.atomic.destination_exists")
 	}
 
@@ -103,7 +100,13 @@ func (s *AtomicFileSink) Commit(ctx context.Context, r io.Reader, expected Artif
 
 	// From this call through read-back and parent synchronization, cancellation
 	// is observed only after the actual filesystem outcome is known.
-	visible, publishErr := ops.publishNoReplace(stagePath, target)
+	var visible bool
+	var publishErr error
+	if s.Force {
+		visible, publishErr = ops.publishReplace(stagePath, target)
+	} else {
+		visible, publishErr = ops.publishNoReplace(stagePath, target)
+	}
 	if publishErr != nil || !visible {
 		outcome := classifyPublishFailure(prior, target, expected, visible)
 		result.Outcome = outcome
