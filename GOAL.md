@@ -1356,3 +1356,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   neste checkpoint; os PDFs anteriores permanecem somente como evidência do
   checkpoint anterior. Nenhum cache amplo, worktree ou artefato foi removido
   para mascarar a falta de espaço.
+- Checkpoint versionado: commit `8f386f2de5a7bae92834a0e8487e39ab1749408b`,
+  tree `1a1fabc74031b85d2d7853b314acba4a9ffe269e`, enviado para
+  `origin/impl/v0.0.1-core`; worktree limpo.
