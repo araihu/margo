@@ -1598,3 +1598,38 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   tree `1eadbe3c1911f4e019d0a5b4962863679aa96206`, enviado para
   `origin/impl/v0.0.1-core`. O trabalho segue limpo após o push; a prova é
   focada e não substitui a aceitação formal M0/I1a/I1b.
+
+### 2026-08-08 — margem de página e superfície dark corrigidas
+
+- RED: a margem CSS anterior era `20mm 18mm 22mm`; no PDF dark o texto
+  começava exatamente no início dessa área útil e a área externa da folha não
+  recebia explicitamente o mesmo fundo. O heading parecia tocar a borda e a
+  diferença entre a superfície da página e o chrome do Preview ficava mais
+  evidente no dark.
+- GREEN: `@page` agora usa `margin: 24mm 22mm 26mm` e
+  `background: var(--margo-print-page-background)`. Isso mantém o fundo do
+  modo também na área de margem e cria espaço de leitura real para headings,
+  parágrafos, listas e blocos longos. O teste
+  `TestStandalonePrintPageLeavesReadableBreathingRoom` fixa tamanho A4,
+  margem e background no CSS embutido.
+- A prova focada regenerou os dois PDFs em A4. O claro tem 23 páginas e
+  615.640 bytes, SHA-256
+  `197d6aeda33f8d300abea19fc6ce894fe727a9ff83053e89e22febb89c4b949d`;
+  o dark tem 23 páginas e 620.310 bytes, SHA-256
+  `c33cc54a0c2d774426181ad9de4a7508fb54393b09728f8f78cc08fdda34d987`.
+  Na página 4, o heading passa a iniciar aproximadamente em 22mm da borda
+  lateral e 24mm do topo, sem encostar no limite visual.
+- HTMLs regenerados: claro
+  `output/html/margo-v0.0.1-optimistic.html`, SHA-256
+  `fa6f4ba9cd24840e634385777825df8752f572ec666f13016bc4aa7d7cd6dbb2`;
+  dark `output/html/margo-v0.0.1-optimistic-dark.html`, SHA-256
+  `3c11729637f484f4cb25e421ce18e109726348af26e4ec16cdad7c0bb8ab031c`.
+  Evidências JSON: claro `1494009d19540bf357d7f865dbcb76d1336e9fe4a1b4bbf6f3109c523b181278`;
+  dark `5a43cf5cdf036f66907ee9e98e6affa45b9918461448ec06695f6cc9cd798c09`.
+- Os gates `go test .`, `go test ./...`, `go vet ./...`, `charts/go test
+  ./...`, `pdf/go test ./...` e `git diff --check` passaram com
+  `GOWORK=off GOFLAGS=-mod=readonly`. Checkpoint de código:
+  commit `ac3877c488ef64922ce2665c485d878c554e258c`, tree
+  `305cdde968d0aa65d5d6dc1b1aa8d741b25a3b80`, enviado para
+  `origin/impl/v0.0.1-core`. A evidência continua focada, não é aceite formal
+  M0/I1a/I1b; T6 e `release/table-handoff.json` seguem deferred.
