@@ -54,6 +54,8 @@ func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
 		`data-goshtoso-chart-capability="static-svg"`,
 		`data-goshtoso-chart-export-filename="revenue"`,
 		`assets/js/controls/5/controls.js`,
+		`goshtoso-charts-palette-auto`,
+		`var(--color-chart-series-1)`,
 		`data-margo-chart-print`,
 		`@media print`,
 		`[data-goshtoso-chart-wrapper] [data-goshtoso-chart-actions-fieldset]`,
@@ -64,6 +66,116 @@ func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
 	}
 	if observed != 1<<20 {
 		t.Fatalf("observed policy = %d", observed)
+	}
+}
+
+func TestRootChartSchemaSupportsThemeClassAndHexOverrides(t *testing.T) {
+	barBody := `schemaVersion: 1
+type: bar
+title: Revenue
+style:
+  palette: pastel
+  class: margo-custom-chart
+  colors: ["#112233", "#445566"]
+categories: [Development, Production]
+series:
+  - name: Revenue
+    values: [12, 18]
+  - name: Cost
+    values: [7, 9]`
+	out, _, err := renderThroughRoot(t, barBody, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(out)
+	for _, marker := range []string{
+		`goshtoso-charts-palette-pastel`,
+		`margo-custom-chart`,
+		`fill:#112233`,
+		`fill:#445566`,
+	} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("custom bar output missing %q", marker)
+		}
+	}
+
+	lineBody := `schemaVersion: 1
+type: line
+title: Trend
+style:
+  class: margo-line-chart
+categories: [Q1, Q2]
+series:
+  - name: Revenue
+    color: "#123456"
+    values: [10, 14]
+  - name: Cost
+    class: margo-cost-series
+    values: [7, 9]`
+	out, _, err = renderThroughRoot(t, lineBody, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup = string(out)
+	for _, marker := range []string{`margo-line-chart`, `fill:#123456`, `margo-cost-series`} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("custom line output missing %q", marker)
+		}
+	}
+
+	pieBody := `schemaVersion: 1
+type: pie
+title: Mix
+style:
+  class: margo-pie-chart
+slices:
+  - name: Desktop
+    class: desktop-slice
+    value: 40
+  - name: Mobile
+    color: "#0f766e"
+    value: 60`
+	out, _, err = renderThroughRoot(t, pieBody, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup = string(out)
+	for _, marker := range []string{`margo-pie-chart`, `desktop-slice`, `fill:#0f766e`} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("custom pie output missing %q", marker)
+		}
+	}
+
+	scatterBody := `schemaVersion: 1
+type: scatter
+title: Latency
+style:
+  class: margo-scatter-chart
+categories: [p50, p95]
+series:
+  - name: Latency
+    class: latency-series
+    points:
+      - category: p50
+        value: 12
+      - category: p95
+        value: 18
+  - name: Throughput
+    color: "#7c3aed"
+    points:
+      - category: p50
+        value: 30
+      - category: p95
+        value: 42`
+	out, _, err = renderThroughRoot(t, scatterBody, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup = string(out)
+	for _, marker := range []string{`margo-scatter-chart`, `latency-series`, `fill:#7c3aed`} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("custom scatter output missing %q", marker)
+		}
 	}
 }
 

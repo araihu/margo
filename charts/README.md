@@ -24,5 +24,34 @@ without wrapper DOM, export actions, or runtime:
 compiler := margo.New(margo.WithExtension(charts.Extension(charts.WithControlWrapper(false))))
 ```
 
+Chart appearance follows Goshtoso tokens by default. The optional `style`
+object selects a token palette and/or adds a caller class; `style.colors` sets
+explicit hex colors by series index. A series or pie slice can also provide its
+own `class` or `color`:
+
+```yaml
+schemaVersion: 1
+type: line
+title: Revenue
+style:
+  palette: auto       # auto, araihu, bold, neutral, pastel, status
+  class: finance-chart
+  colors: ["", "#2563eb"]
+categories: [Q1, Q2]
+series:
+  - name: Revenue
+    class: revenue-series
+    values: [12, 18]
+  - name: Cost
+    color: "#dc2626"
+    values: [7, 9]
+```
+
+Resolution precedence, from fallback to strongest override: Goshtoso theme
+tokens, CSS supplied by `style.class` or a series/slice class, then explicit
+hex `color`/`style.colors`. `class` and `color` are mutually exclusive on one
+series or slice. Blank entries in `style.colors` keep the corresponding theme
+token.
+
 This checkout is a feature branch (`v0.0.1-dev`). Release provenance and
 external publication remain separate integration work.

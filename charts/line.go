@@ -1,6 +1,7 @@
 package charts
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -14,16 +15,21 @@ type lineModel struct {
 	SchemaVersion int               `yaml:"schemaVersion"`
 	Type          string            `yaml:"type"`
 	Title         string            `yaml:"title"`
+	Style         chartStyleModel   `yaml:"style"`
 	Categories    []string          `yaml:"categories"`
 	Series        []lineSeriesModel `yaml:"series"`
 }
 
 type lineSeriesModel struct {
-	Name   string    `yaml:"name"`
-	Values []float64 `yaml:"values"`
+	Name            string    `yaml:"name"`
+	Values          []float64 `yaml:"values"`
+	chartPaintModel `yaml:",inline"`
 }
 
 func validateLineModel(model lineModel) error {
+	if err := validateChartStyle(model.Style); err != nil {
+		return err
+	}
 	if model.SchemaVersion != 1 || model.Type != "line" {
 		return chartDiagnostic("chart.schema_invalid", "line model envelope is invalid")
 	}
@@ -38,6 +44,9 @@ func validateLineModel(model lineModel) error {
 	}
 	seen := make(map[string]struct{}, len(model.Series))
 	for _, series := range model.Series {
+		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("line series %q", series.Name)); err != nil {
+			return err
+		}
 		if strings.TrimSpace(series.Name) == "" {
 			return chartDiagnostic("chart.semantic_series_invalid", "line series name is required")
 		}
@@ -83,9 +92,12 @@ func renderLineWithOptions(rc margo.RenderContext, model lineModel, options char
 		return nil, err
 	}
 	series := make([]line.Series, len(model.Series))
+	paints := make([]chartPaintModel, len(model.Series))
 	rows := make([]AccessibleRow, 0, len(model.Series)*len(model.Categories))
 	for seriesIndex, source := range model.Series {
-		series[seriesIndex] = line.Series{Name: source.Name, Values: append([]float64(nil), source.Values...)}
+		paint := source.chartPaintModel.normalized()
+		paints[seriesIndex] = paint
+		series[seriesIndex] = line.Series{Name: source.Name, Values: append([]float64(nil), source.Values...), Color: paint.Color, Class: paint.Class}
 		for categoryIndex, category := range model.Categories {
 			rows = append(rows, AccessibleRow{Series: source.Name, Category: category, Value: formatLineNumber(source.Values[categoryIndex])})
 		}
@@ -98,6 +110,7 @@ func renderLineWithOptions(rc margo.RenderContext, model lineModel, options char
 		Series:   series,
 		Controls: controlOptions,
 		Export:   exportOptions,
+		Style:    chartThemeForSeries(model.Style, paints),
 	})
 	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil

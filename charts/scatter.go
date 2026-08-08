@@ -1,6 +1,7 @@
 package charts
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -20,15 +21,17 @@ type scatterModel struct {
 	SchemaVersion int                  `yaml:"schemaVersion"`
 	Type          string               `yaml:"type"`
 	Title         string               `yaml:"title"`
+	Style         chartStyleModel      `yaml:"style"`
 	Categories    []string             `yaml:"categories"`
 	Series        []scatterSeriesModel `yaml:"series"`
 }
 
 type scatterSeriesModel struct {
-	Name    string              `yaml:"name"`
-	Points  []scatterPointModel `yaml:"points"`
-	Values  [][]float64         `yaml:"values"`
-	Samples [][]string          `yaml:"samples"`
+	Name            string              `yaml:"name"`
+	Points          []scatterPointModel `yaml:"points"`
+	Values          [][]float64         `yaml:"values"`
+	Samples         [][]string          `yaml:"samples"`
+	chartPaintModel `yaml:",inline"`
 }
 
 type scatterPointModel struct {
@@ -37,6 +40,9 @@ type scatterPointModel struct {
 }
 
 func validateScatterModel(model scatterModel) error {
+	if err := validateChartStyle(model.Style); err != nil {
+		return err
+	}
 	if model.SchemaVersion != 1 || model.Type != "scatter" {
 		return chartDiagnostic("chart.schema_invalid", "scatter model envelope is invalid")
 	}
@@ -62,6 +68,9 @@ func validateScatterModel(model scatterModel) error {
 	seenSeries := make(map[string]struct{}, len(model.Series))
 	totalSamples := 0
 	for _, series := range model.Series {
+		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("scatter series %q", series.Name)); err != nil {
+			return err
+		}
 		if strings.TrimSpace(series.Name) == "" {
 			return chartDiagnostic("chart.semantic_series_invalid", "scatter series name is required")
 		}
@@ -147,9 +156,12 @@ func renderScatterWithOptions(rc margo.RenderContext, model scatterModel, option
 		return nil, err
 	}
 	series := make([]scatter.Series, len(model.Series))
+	paints := make([]chartPaintModel, len(model.Series))
 	rows := make([]AccessibleRow, 0)
 	for seriesIndex, source := range model.Series {
-		series[seriesIndex] = scatter.Series{Name: source.Name}
+		paint := source.chartPaintModel.normalized()
+		paints[seriesIndex] = paint
+		series[seriesIndex] = scatter.Series{Name: source.Name, Color: paint.Color, Class: paint.Class}
 		if source.Points != nil {
 			series[seriesIndex].Points = make([]scatter.Point, len(source.Points))
 			for pointIndex, point := range source.Points {
@@ -181,6 +193,7 @@ func renderScatterWithOptions(rc margo.RenderContext, model scatterModel, option
 		Options:    scatter.Options{TopNLabels: scatter.TopNLabels{Count: 0}},
 		Controls:   controlOptions,
 		Export:     exportOptions,
+		Style:      chartThemeForSeries(model.Style, paints),
 	})
 	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil

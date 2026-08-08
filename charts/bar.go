@@ -1,6 +1,7 @@
 package charts
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -14,17 +15,22 @@ type barModel struct {
 	SchemaVersion int              `yaml:"schemaVersion"`
 	Type          string           `yaml:"type"`
 	Title         string           `yaml:"title"`
+	Style         chartStyleModel  `yaml:"style"`
 	Categories    []string         `yaml:"categories"`
 	Orientation   string           `yaml:"orientation"`
 	Series        []barSeriesModel `yaml:"series"`
 }
 
 type barSeriesModel struct {
-	Name   string    `yaml:"name"`
-	Values []float64 `yaml:"values"`
+	Name            string    `yaml:"name"`
+	Values          []float64 `yaml:"values"`
+	chartPaintModel `yaml:",inline"`
 }
 
 func validateBarModel(model barModel) error {
+	if err := validateChartStyle(model.Style); err != nil {
+		return err
+	}
 	if model.SchemaVersion != 1 || model.Type != "bar" {
 		return chartDiagnostic("chart.schema_invalid", "bar model envelope is invalid")
 	}
@@ -58,6 +64,9 @@ func validateBarModel(model barModel) error {
 	}
 	seenSeries := make(map[string]struct{}, len(model.Series))
 	for _, series := range model.Series {
+		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("bar series %q", series.Name)); err != nil {
+			return err
+		}
 		if strings.TrimSpace(series.Name) == "" {
 			return chartDiagnostic("chart.semantic_series_invalid", "bar series name is required")
 		}
@@ -90,8 +99,10 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 		orientation = bar.OrientationHorizontal
 	}
 	series := make([]bar.Series, len(model.Series))
+	paints := make([]chartPaintModel, len(model.Series))
 	rows := make([]AccessibleRow, 0, len(model.Series)*len(model.Categories))
 	for seriesIndex, source := range model.Series {
+		paints[seriesIndex] = source.chartPaintModel.normalized()
 		series[seriesIndex] = bar.Series{Name: source.Name, Values: append([]float64(nil), source.Values...)}
 		for categoryIndex, category := range model.Categories {
 			rows = append(rows, AccessibleRow{
@@ -109,8 +120,10 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 		Orientation: orientation,
 		Controls:    controlOptions,
 		Export:      exportOptions,
+		Style:       chartThemeForSeries(model.Style, paints),
 	})
-	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+	chartComponent := decorateBarSeriesClasses(templ.Component(component), chartThemeForSeries(model.Style, paints), paints)
+	chartComponent = applyChartPrintPolicy(chartComponent, options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 }
 

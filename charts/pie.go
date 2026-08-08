@@ -1,6 +1,7 @@
 package charts
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -14,15 +15,20 @@ type pieModel struct {
 	SchemaVersion int             `yaml:"schemaVersion"`
 	Type          string          `yaml:"type"`
 	Title         string          `yaml:"title"`
+	Style         chartStyleModel `yaml:"style"`
 	Slices        []pieSliceModel `yaml:"slices"`
 }
 
 type pieSliceModel struct {
-	Name  string  `yaml:"name"`
-	Value float64 `yaml:"value"`
+	Name            string  `yaml:"name"`
+	Value           float64 `yaml:"value"`
+	chartPaintModel `yaml:",inline"`
 }
 
 func validatePieModel(model pieModel) error {
+	if err := validateChartStyle(model.Style); err != nil {
+		return err
+	}
 	if model.SchemaVersion != 1 || (model.Type != "pie" && model.Type != "doughnut") {
 		return chartDiagnostic("chart.schema_invalid", "pie model envelope is invalid")
 	}
@@ -34,6 +40,9 @@ func validatePieModel(model pieModel) error {
 	}
 	seen := make(map[string]struct{}, len(model.Slices))
 	for _, slice := range model.Slices {
+		if err := validateChartPaint(slice.chartPaintModel, fmt.Sprintf("pie slice %q", slice.Name)); err != nil {
+			return err
+		}
 		if strings.TrimSpace(slice.Name) == "" {
 			return chartDiagnostic("chart.semantic_slice_invalid", "pie slice name is required")
 		}
@@ -64,9 +73,12 @@ func renderPieWithOptions(rc margo.RenderContext, model pieModel, options chartR
 		variant = pie.VariantDoughnut
 	}
 	slices := make([]pie.Slice, len(model.Slices))
+	paints := make([]chartPaintModel, len(model.Slices))
 	rows := make([]AccessibleRow, 0, len(model.Slices))
 	for index, source := range model.Slices {
-		slices[index] = pie.Slice{Name: source.Name, Value: source.Value}
+		paint := source.chartPaintModel.normalized()
+		paints[index] = paint
+		slices[index] = pie.Slice{Name: source.Name, Value: source.Value, Color: paint.Color, Class: paint.Class}
 		rows = append(rows, AccessibleRow{Category: source.Name, Value: strconv.FormatFloat(source.Value, 'f', -1, 64)})
 	}
 	controlOptions, exportOptions := chartControlConfig(options)
@@ -76,6 +88,7 @@ func renderPieWithOptions(rc margo.RenderContext, model pieModel, options chartR
 		Variant:  variant,
 		Controls: controlOptions,
 		Export:   exportOptions,
+		Style:    chartThemeForSeries(model.Style, paints),
 	})
 	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
