@@ -59,6 +59,10 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 PLAYWRIGHT_BROWSERS_PATH=0 \
 
 The command blocks non-local requests, waits for fonts and images, emulates
 print, calls `window.margoPreparePrintTOC()` before `page.pdf()`, and fails on
-network or console errors. This explicit preparation is required for protected
+network or console errors. It also validates the print DOM contract before
+writing bytes: all sortable tables retain their row counts, table groups keep
+print repetition semantics, row breaks remain protected, and the Mermaid
+rejection table contains its final `invalid-data-points`, `invalid-length-unit`,
+and `unrooted-id` rows. This explicit preparation is required for protected
 lists, tables, Mermaid blocks, TOC fallback columns, and controlled page
 continuation to use the same layout contract as the browser tests.

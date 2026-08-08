@@ -70,6 +70,45 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+async function collectPrintContract(page) {
+  return page.evaluate(() => {
+    const tables = [...document.querySelectorAll('.margo-document [data-table-client-sort="true"] table')].map((table, index) => {
+      const body = table.tBodies[0];
+      const rows = body ? [...body.rows].map((row) => [...row.cells].map((cell) => cell.textContent.trim()).join(" | ")) : [];
+      return {
+        index,
+        rowCount: rows.length,
+        rows,
+        headerDisplay: table.tHead ? getComputedStyle(table.tHead).display : "missing",
+        bodyDisplay: body ? getComputedStyle(body).display : "missing",
+        rowBreakInside: body?.rows[0] ? getComputedStyle(body.rows[0]).breakInside : "missing",
+      };
+    });
+    const rejectionRows = [
+      "invalid-data-points | mermaid.svg_attribute_forbidden",
+      "invalid-length-unit | mermaid.svg_css_value_forbidden",
+      "unrooted-id | mermaid.svg_id_forbidden",
+    ];
+    const rejectionTable = tables.find((table) => rejectionRows.every((expected) => table.rows.includes(expected)));
+    if (!rejectionTable) throw new Error("margo.pdf_print_table_sentinel_missing");
+    if (rejectionTable.headerDisplay !== "table-header-group" || rejectionTable.bodyDisplay !== "table-row-group") {
+      throw new Error("margo.pdf_print_table_group_display_invalid");
+    }
+    if (!rejectionTable.rowBreakInside.toLowerCase().includes("avoid")) {
+      throw new Error("margo.pdf_print_table_row_break_invalid");
+    }
+    return {
+      tableCount: tables.length,
+      tableRowCounts: tables.map(({ rowCount }) => rowCount),
+      rejectionTableIndex: rejectionTable.index,
+      rejectionTableRowCount: rejectionTable.rowCount,
+      rejectionRows,
+      tocColumns: document.querySelector(".goshtoso-document__toc")?.dataset.margoTocColumns ?? null,
+      breakMarkers: document.querySelectorAll('[data-margo-print-break-before="page"]').length,
+    };
+  });
+}
+
 function headerTemplate({ logo, foreground }) {
   return `<div style="box-sizing:border-box;width:100%;margin:0 18mm;padding:0 0 2mm;border-bottom:1px solid ${foreground};display:flex;align-items:center;justify-content:space-between;font:8px Arial,sans-serif;color:${foreground}"><span style="display:flex;align-items:center;gap:5px"><img src="${logo}" style="width:9px;height:9px"><strong>Margo</strong><span>· full feature benchmark</span></span><span>Markdown for Goshtoso</span></div>`;
 }
@@ -122,6 +161,7 @@ async function main() {
       if (typeof window.margoPreparePrintTOC !== "function") throw new Error("margo.print_pagination_missing");
       window.margoPreparePrintTOC();
     }, options.mode);
+    const printContract = await collectPrintContract(page);
     const pdfBytes = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -134,7 +174,7 @@ async function main() {
     if (consoleErrors.length > 0) throw new Error(`margo.pdf_print_console_error:${consoleErrors.join(" | ")}`);
     await writeAtomic(outputPath, pdfBytes);
     const evidence = {
-      schemaVersion: "margo/pdf-print/v1",
+      schemaVersion: "margo/pdf-print/v2",
       htmlPath,
       pdfPath: outputPath,
       mode: options.mode,
@@ -143,6 +183,7 @@ async function main() {
       preparedPrint: true,
       network: { blockedRequests },
       consoleErrors,
+      printContract,
       bytes: pdfBytes.byteLength,
       sha256: sha256(pdfBytes),
     };

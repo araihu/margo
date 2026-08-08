@@ -2727,3 +2727,22 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - A suíte comprova o candidato local M0, não substitui aceitação independente
   nem cria autoridade para I1a/I1b/I3/O5/T6. Nenhuma publicação, release ou
   handoff externo foi executado.
+
+### 2026-08-08 — contrato de continuidade do PDF
+
+- `test/browser/print-pdf.mjs` agora valida o DOM de print antes de chamar
+  `page.pdf()`: três tabelas, contagens `[5,5,21]`, `thead`/`tbody` como grupos
+  repetíveis, linhas com `break-inside: avoid` e os sentinelas finais
+  `invalid-data-points`, `invalid-length-unit` e `unrooted-id`.
+- PDF light/dark regenerados sob Chromium checked, A4, 20 páginas, rede zero,
+  console zero. Hashes atuais: light
+  `67bcf07184315e62e629f9aac7c3d830dfa2297f8bfb30b8568f4457a82f179a`;
+  dark `01cfa9839ad62ff793560e8dc35207de31ccd9c9c4a0ca9b9aeae3a5ff3e4e35`.
+  `pdftotext -layout` e rasterização confirmam `invalid-data-points` completo
+  na página 14 e `invalid-length-unit`/`unrooted-id` na página 15.
+- Gates: `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`, `go vet`,
+  `node --check`, testes do gerador e suíte browser checked `49 passed`,
+  `network=0`. Dependências temporárias foram movidas de forma reversível;
+  somente `test/browser/.cache/` permanece intencionalmente não rastreado.
+- Esta correção protege contra regressão do comentário visual antigo; não cria
+  aceitação independente M0 nem resolve I1a/I1b/I3/O5/T6.
