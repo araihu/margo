@@ -1335,3 +1335,24 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint versionado: commit `68e972df8915298aab0a2c7f3397e028becb7eb7`,
   tree `2f19fdd23515e1d15c64a09fdd8358b8b206ed57`, enviado com sucesso para
   `origin/impl/v0.0.1-core`. A árvore ficou limpa após o push.
+
+### 2026-08-08 — HTML dark regenerado
+
+- `2026-08-08T03:30:32-03:00`: o helper local
+  `/private/tmp/margo-optimistic-generator` foi executado contra este
+  worktree com `GOWORK=off GOFLAGS=-mod=mod`; o HTML standalone foi regenerado
+  em light e dark, e os três SVGs Mermaid existentes foram reanexados ao novo
+  shell. Os arquivos de revisão são
+  `output/html/margo-v0.0.1-optimistic-current.html` (402.663 bytes,
+  SHA-256 `69053e26a670301df2b7cba4ad8b66692e0585f782d5813ea96a339b1391fce4`)
+  e `output/html/margo-v0.0.1-optimistic-dark-current.html` (402.666 bytes,
+  SHA-256 `e5f1ea0458b848e8d3e7c87669e41340ce3b345089e1af66edb82ac6e1fd5fa5`).
+  A inspeção estática confirma três figuras Mermaid, 21 elementos SVG (inclui
+  ícones), tokens de página dark e o fundo compartilhado do frame.
+- O HTML dark regenerado foi aberto no painel Codex. A tentativa de gerar os
+  PDFs e executar a validação Chromium falhou antes do browser iniciar:
+  `ENOSPC: no space left on device` ao criar o diretório temporário do
+  Playwright. Portanto não há novo hash PDF nem nova evidência de impressão
+  neste checkpoint; os PDFs anteriores permanecem somente como evidência do
+  checkpoint anterior. Nenhum cache amplo, worktree ou artefato foi removido
+  para mascarar a falta de espaço.
