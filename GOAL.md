@@ -2430,3 +2430,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `/tmp/margo-layout-lint-gates.DgFY2d`; somente `test/browser/.cache/` segue
   intencional e não rastreado. I1a/I1b/I3/T6 continuam sem autoridade externa;
   nenhum handoff ou `release/table-handoff.json` foi inventado.
+- Checkpoint publicado: HEAD `01e1d9f00d938a3ee278ef80c93423708ee6e80c`, tree
+  `7b54e6fa74aeb4569985f202a47aa34e00f36294`; branch remoto sincronizado. O
+  único estado não rastreado continua sendo `test/browser/.cache/`.
