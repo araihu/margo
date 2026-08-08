@@ -1673,3 +1673,23 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - O HTML e o PDF permanecem artefatos de trabalho ignorados pelo Git. O
   checkpoint documental deste registro é separado do checkpoint funcional;
   nenhuma aceitação formal M0/I1a/I1b ou T6 foi inferida.
+
+### 2026-08-08 — auditoria readonly de fechamento
+
+- Os gates locais passaram com `GOWORK=off GOFLAGS=-mod=readonly`: `go test
+  ./... -count=1`, `go vet ./...`, `charts/go test ./...`, `pdf/go test
+  ./...`, `cmd/margo/go test ./...` e a suíte focada de standalone/paginação.
+- O CLI `tools/optimistic-renderer` regenerou os dois HTMLs em diretório
+  temporário com os mesmos bytes dos artefatos versionados: light 337.830
+  bytes (`fa6f4ba9cd24840e634385777825df8752f572ec666f13016bc4aa7d7cd6dbb2`)
+  e dark 337.833 bytes
+  (`3c11729637f484f4cb25e421ce18e109726348af26e4ec16cdad7c0bb8ab031c`).
+- A tentativa de repetir `node --test test/browser/lint-contrast.test.mjs`
+  diretamente falhou antes dos testes porque este checkout não contém o
+  `node_modules` do M0; isso confirma que o comando bare Node não é evidência
+  formal. A prova anterior via Playwright absoluto permanece candidata, e o
+  runner M0/receipt deve ser restaurado pelo predecessor formal antes de uma
+  aceitação independente.
+- Nenhum arquivo de módulo foi alterado nesta auditoria. T6 continua no fim
+  do backlog por decisão explícita; I1a/I1b e os sucessores formais seguem
+  pendentes.
