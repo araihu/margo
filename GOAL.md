@@ -2787,3 +2787,19 @@ GREEN.
   `pdf/go.mod`, `cmd/margo/go.mod` e `cmd/margo/main.go` ainda são esqueletos;
   não há `go.sum`/I3 nem dispatcher O5. Não foi criado pin, `replace` ou
   artefato de release para mascarar essa fronteira.
+
+### 2026-08-08 — checkpoint final desta continuidade
+
+- Rechecagem Git atual: HEAD `2d985d9829a508ff39e624f21bd14938bab0e076`,
+  tree `05b944ed37217917589fafa068589085557d1da5`, branch
+  `impl/v0.0.1-core` igual a `origin/impl/v0.0.1-core`, sem staged ou
+  unstaged changes; apenas `test/browser/.cache/` permanece não rastreado e
+  intencional para o recibo local M0.
+- `git diff --check` passa. Os checkpoints locais recentes cobrem a matriz de
+  fechamento, o teste de continuidade de tabelas antes do print e a auditoria
+  independente dos invariantes R17. O PDF light/dark atual segue com 20 páginas
+  A4 e a tabela de rejeições continua completa nas páginas 14/15.
+- Estado honesto permanece: implementação root e evidências humanas HTML/PDF
+  avançadas; M0 é candidato local; H/P/D/O5, T6 e I1a/I1b/I2-I4 continuam
+  bloqueados por handoffs, proveniência ou autoridade externa ausentes. Não
+  inventar `release/table-handoff.json`, pin, `replace`, proxy, tag ou release.
