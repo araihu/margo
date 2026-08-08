@@ -33,11 +33,18 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Worktree de implementação desta sessão:
   `/private/tmp/margo-v001-implementation`, branch `impl/v0.0.1-core`.
 - Checkpoint atual desta continuação: HEAD
-  `c15c0438159edf0c5db1584a7a6cf4f87887ed98`, tree
-  `d7c18609a155c4ffdf325917f453fd132218fcbd`; remoto sincronizado. O PDF
+  `72c50ec4b5c2d66b0f600789d58a3545c77032bf`, tree
+  `b67380c83ea9acea7093980e9709650cb1d57065`; remoto sincronizado. O PDF
   dark checked atual tem 20 páginas A4 e a tabela Mermaid preserva a última
   linha em continuação protegida. O gerador agora grava evidência
   `margo/pdf-print/v2` com contrato explícito de continuidade de tabelas.
+- O workflow `.github/workflows/ci.yml` agora aplica o gate readonly a todos os
+  módulos (`GOWORK=off`, `GOFLAGS=-mod=readonly`), substitui `go mod tidy` por
+  `go mod verify`, preserva hashes de `go.mod`/`go.sum` antes/depois de cada
+  módulo e não tenta construir pacotes que só possuem arquivos de teste. A
+  reprodução local do workflow passou para root, charts, pdf e cmd/margo sem
+  mutação de metadados. Esse avanço fecha o bloqueio local do CI; não substitui
+  os receipts externos I1a/I1b/I2/I3 nem autoriza T6.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
