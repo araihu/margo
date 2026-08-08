@@ -32,6 +32,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   `1a1509f4f27b384616e005b704dcac9808961292`.
 - Worktree de implementação desta sessão:
   `/private/tmp/margo-v001-implementation`, branch `impl/v0.0.1-core`.
+- Checkpoint atual desta continuação: HEAD
+  `e29a62b47bdb8a189a2a66e15be841f80702f5bc`, tree
+  `8591e55137baa329dfbc1c89c7c5245db0dfef62`; remoto sincronizado. O PDF
+  dark checked atual tem 20 páginas A4 e a tabela Mermaid preserva a última
+  linha em continuação protegida.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
@@ -2624,3 +2629,23 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   extração confirma `invalid-length-unit` e `unrooted-id` na página 15.
 - `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`, `go vet ./...`,
   `node --check test/browser/print-pdf.mjs` e `git diff --check` passaram.
+
+### 2026-08-08 — reconciliação da evidência browser com HTML atual
+
+- A auditoria encontrou `output/evidence/margo-v0.0.1-optimistic.json` e
+  `margo-v0.0.1-optimistic-dark.json` apontando para HTML anterior: bytes
+  `340514`/`340517` e hashes `daddf32...`/`eab6fec...`, enquanto os HTML
+  checked atuais têm bytes `343588`/`343591` e hashes
+  `b830a04167d509368d36762bd9da181ce7213eb623f6f99bb51a2389f4b00a02`/
+  `6d14c24b8008c720706d35c7bcfcf3ebcac714534a7a216d44ee33f4d2de5c27`.
+- O runner local foi reproduzido com Node `v26.5.0`, Chromium revision `1169`,
+  rede bloqueada e assets Mermaid locais. As duas evidências v4 foram
+  regeneradas com paths absolutos; ambas registram `blockedRequests=[]`,
+  `consoleErrors=[]`, `openSources=3` e TOC de uma coluna.
+- O PDF canônico não foi substituído neste marco. A inspeção rasterizada do
+  PDF dark vigente continua mostrando `invalid-data-points` completo na página
+  14 e `invalid-length-unit`/`unrooted-id` completos na página 15. Comentário
+  da captura antiga de 23 páginas não reproduz defeito no artefato atual.
+- Evidência JSON é output ignorado pelo repositório; o registro rastreável
+  deste marco é este `GOAL.md`. T6, I1a/I1b/I3 e O5 continuam bloqueados por
+  autoridade/proveniência, sem pin ou handoff inventado.
