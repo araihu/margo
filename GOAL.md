@@ -2235,3 +2235,23 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   recuperável para `/tmp/margo-table-clip-browser.87azgm`; o cache M0 em
   `test/browser/.cache/` continua intencional e não rastreado. Nenhuma
   aceitação formal I1a/I1b/I3/T6 foi inferida.
+
+### 2026-08-08 — auditoria da fronteira H/P/D/O5
+
+- A matriz do plano foi rechecada contra os arquivos e dependências presentes
+  neste worktree. `H1` não pode começar legitimamente antes de I1b aceitar o
+  recibo `integration/root-module-provenance/v0.0.1.json` e o handoff I1a;
+  `P1` e `D1` aguardam o handoff consumido por I2; `O5` aguarda I3 e a
+  identidade do módulo CLI. Essas tarefas não podem ser antecipadas sem
+  violar ownership, `GOWORK=off`, `GOFLAGS=-mod=readonly` e o no-replace.
+- O RED local de O5 foi reproduzido sem alterar arquivos:
+  `GOWORK=off GOFLAGS=-mod=readonly go test ./internal/cli
+  -run 'Test(Render|Validate|Inspect|Diagnostics|Publication)' -count=1`
+  retorna `stat .../cmd/margo/internal/cli: directory not found`. Hoje
+  `charts/` e `pdf/` têm apenas `doc.go`/`go.mod`; `cmd/margo` tem apenas
+  `main.go` vazio/`go.mod`, e os `go.sum`/identidades I3 ainda não existem.
+- Resultado: nenhum H/P/D/O5 adicional é uma implementação válida nesta
+  fronteira. O avanço concreto continua sendo HTML/PDF humano e seus testes
+  locais; a próxima implementação formal depende de I1a/I1b/I2/I3 ou de uma
+  nova autoridade explícita. Não foi criado `replace`, pin inventado,
+  `release/table-handoff.json`, proxy local, nem aceitação por inferência.
