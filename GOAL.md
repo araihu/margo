@@ -2294,3 +2294,17 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   permanece o único estado não rastreado intencional. `node_modules` e
   `test-results` foram movidos de forma recuperável para
   `/tmp/margo-pagination-browser.OxIgmf`.
+
+### 2026-08-08 — auditoria estrutural do plano e confirmação da tabela dark
+
+- A auditoria por arquivo, resetando o escopo no início de cada plano, confirma
+  `49` tarefas, `294` blocos Step (6 por tarefa) e `49` checkpoints de commit.
+  A primeira contagem global que divergiu foi descartada porque carregava o
+  último task de um arquivo para o próximo; não há lacuna em C7/C8.
+- A revisão de traceabilidade continua `S01-S34` (34), `AC01-AC22` (22) e
+  `SG01/AUTH01/HEAD01`; o inventário segue alinhado ao snapshot R17 aceito.
+- A página 14 do PDF dark atual termina em `invalid-data-points` e a página
+  15 continua com `invalid-length-unit` e `unrooted-id`; as 21 linhas da
+  tabela de rejeições aparecem completas no `pdftotext -layout` e na inspeção
+  rasterizada. O caso de tabela oversized continua protegido por
+  `overflow-y: visible` durante impressão e pelo gate `@pagination`.
