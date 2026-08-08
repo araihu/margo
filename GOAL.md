@@ -112,6 +112,17 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Goshtoso predecessor repository/worktrees: `/Users/guilhermecastro/repos/araihu/goshtoso` and `/private/tmp/gs-*`.
 - Accepted/rejected review snapshots: `/private/tmp/margo-v001-plan-integration-r17` and the preserved `r4`-`r16` worktrees/refs in the Margo repository.
 - Control-plane ledgers: `/Users/guilhermecastro/.codex/state/orchestrating-control-planes/019fd537-7d93-7982-bbb4-467aa50e3a9b.yaml`, its `.branches.yaml`, `.worktrees.yaml`, and `registry.lock`.
+- Implementação root: `/private/tmp/margo-v001-implementation/*.go`,
+  `internal/`, `profiles/`, `deck/` e `integration/`.
+- CSS, marca e shell: `/private/tmp/margo-v001-implementation/assets/`.
+- Benchmark e fixtures: `/private/tmp/margo-v001-implementation/testdata/`.
+- Harness M0 e evidência: `/private/tmp/margo-v001-implementation/test/browser/`.
+- Gerador otimista: `/private/tmp/margo-v001-implementation/tools/optimistic-renderer/`.
+- Artefatos humanos atuais: `/private/tmp/margo-v001-implementation/output/html/`,
+  `output/pdf/` e `output/evidence/`.
+- Contrato de lint: `/private/tmp/margo-v001-implementation/docs/CONTRAST_LINT.md`;
+  contrato de transferência root→C5:
+  `/private/tmp/margo-v001-implementation/integration/root-module-transfer.v1.json`.
 
 ## Progresso
 
