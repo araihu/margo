@@ -53,5 +53,21 @@ hex `color`/`style.colors`. `class` and `color` are mutually exclusive on one
 series or slice. Blank entries in `style.colors` keep the corresponding theme
 token.
 
+For a human benchmark that combines the root corpus with the chart appendix,
+use the module-local renderer:
+
+```sh
+go run ./charts/tools/optimistic-renderer \
+  --source testdata/markdown/margo-full-feature-set.md \
+  --charts-source charts/testdata/markdown/optimistic-charts.md \
+  --output /tmp/margo-v0.0.1-optimistic-charts.html
+```
+Run this integration command from the repository root with the checkout's
+`go.work` active so the renderer uses the local root module. Keep the
+`GOWORK=off GOFLAGS=-mod=readonly` prefix for the independent module gates.
+The benchmark command selects static-only chart rendering, avoiding external
+control-runtime requests in the standalone artifact; normal extension users
+keep the screen controls and print CSS behavior shown above.
+
 This checkout is a feature branch (`v0.0.1-dev`). Release provenance and
 external publication remain separate integration work.

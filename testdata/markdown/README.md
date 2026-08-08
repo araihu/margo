@@ -26,3 +26,9 @@ slice Markdown -> Margo standalone HTML -> human review -> PDF preview
                                       -> focused test and golden update
 full feature set Markdown -> integration HTML/PDF review
 ```
+
+The optional chart projection is kept in the Charts module so the root module
+can continue to pass its independent `GOWORK=off` gate. Combine the root corpus
+with `charts/testdata/markdown/optimistic-charts.md` through
+`charts/tools/optimistic-renderer` when the human artifact must include bar,
+line, doughnut, and scatter output.
