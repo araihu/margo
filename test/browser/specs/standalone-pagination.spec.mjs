@@ -207,3 +207,64 @@ test("@shell keeps the TOC visually inside the page surface", async ({ page }) =
     expect(result.borderRadii, mode).toEqual(["0px", "0px", "0px", "0px"]);
   }
 });
+
+test("@shell uses dark page tokens for frame, chrome, and stamps", async ({ page }) => {
+  const [documentCSS, standaloneCSS] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+  ]);
+  const tokenCSS = `:root {
+    --color-surface: #ffffff;
+    --color-surface-alt: #fafafa;
+    --color-on-surface: #4b5563;
+    --color-on-surface-strong: #1f2937;
+    --color-outline: #d1d5db;
+    --color-surface-dark: #171717;
+    --color-surface-dark-alt: #262626;
+    --color-on-surface-dark: #d1d5db;
+    --color-on-surface-dark-strong: #f5f5f5;
+    --color-outline-dark: #525252;
+    --document-page-background: var(--color-surface);
+  }`;
+  await page.setContent(`<!doctype html>
+    <html class="dark" data-color-mode="dark">
+      <head><style>${tokenCSS}</style><style>${documentCSS}</style><style>${standaloneCSS}</style></head>
+      <body><div class="goshtoso-document">
+        <header class="goshtoso-document__header">Header</header>
+        <aside class="goshtoso-document__stamps"><span class="goshtoso-document__stamp">Dark</span></aside>
+        <article class="margo-document"><h1>Surface</h1></article>
+        <footer class="goshtoso-document__footer">Footer</footer>
+      </div></body>
+    </html>`);
+  const result = await page.evaluate(() => {
+    const style = (selector) => {
+      const computed = getComputedStyle(document.querySelector(selector));
+      return {
+        background: computed.backgroundColor,
+        color: computed.color,
+        borderBlockStart: computed.borderBlockStartColor,
+        borderBlockEnd: computed.borderBlockEndColor,
+      };
+    };
+    return {
+      htmlBackground: getComputedStyle(document.documentElement).backgroundColor,
+      bodyBackground: getComputedStyle(document.body).backgroundColor,
+      documentBackground: getComputedStyle(document.querySelector(".goshtoso-document")).backgroundColor,
+      header: style(".goshtoso-document__header"),
+      footer: style(".goshtoso-document__footer"),
+      stamp: style(".goshtoso-document__stamp"),
+    };
+  });
+  expect(result.htmlBackground).toBe("rgb(23, 23, 23)");
+  expect(result.bodyBackground).toBe(result.documentBackground);
+  expect(result.documentBackground).toBe("rgb(23, 23, 23)");
+  for (const chrome of [result.header, result.footer]) {
+    expect(chrome.color).toBe("rgb(209, 213, 219)");
+    expect(chrome.borderBlockStart).toBe("rgb(82, 82, 82)");
+    expect(chrome.borderBlockEnd).toBe("rgb(82, 82, 82)");
+  }
+  expect(result.stamp.color).toBe("rgb(209, 213, 219)");
+  expect(result.stamp.background).toBe("rgb(38, 38, 38)");
+  expect(result.stamp.borderBlockStart).toBe("rgb(82, 82, 82)");
+  expect(result.stamp.borderBlockEnd).toBe("rgb(82, 82, 82)");
+});

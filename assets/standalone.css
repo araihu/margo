@@ -22,6 +22,10 @@
     min-height: 100%;
   }
 
+  html {
+    background: var(--margo-page-background);
+  }
+
   body {
     margin: 0;
     padding: clamp(1rem, 3vw, 3rem);
@@ -29,7 +33,7 @@
   }
 
   html.dark body {
-    background: var(--color-surface-dark-alt);
+    background: var(--margo-page-background);
   }
 
   .goshtoso-document {
@@ -38,6 +42,7 @@
     overflow: hidden;
     border: 1px solid var(--color-outline);
     border-radius: var(--radius-radius);
+    background: var(--margo-page-background);
   }
 
   html.dark .goshtoso-document {

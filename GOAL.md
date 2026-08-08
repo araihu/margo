@@ -1304,3 +1304,31 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   backlog por decisão explícita, e H/P/D/O/I2-I4 não podem receber um falso
   aceite sem o handoff externo e a prova de origem. Nenhum proxy, tag, release,
   domínio ou pseudo-versão foi inventado durante esta auditoria.
+
+### 2026-08-08 — dark standalone frame checkpoint
+
+- `2026-08-08T03:24:22-03:00`: o feedback visual do dark mode foi convertido
+  em contrato de fonte: `html`, `body` e `.goshtoso-document` usam o mesmo
+  `--margo-page-background`; header/footer preservam os tokens dark de texto e
+  borda; stamps preservam superfície, texto e borda dark. Isso remove a faixa
+  clara entre a página e o chrome no HTML/PDF derivados, sem mexer nos tokens
+  de Goshtoso.
+- TDD RED foi reproduzido no teste focado `@shell uses dark page tokens for
+  frame, chrome, and stamps`: antes da alteração, `html` computava `transparent`
+  em vez do fundo dark. GREEN passou 1/1 após a alteração. O gate browser
+  combinado `@shell|@pagination|@contrast` passou 7/7 com Node `v26.5.0`, npm
+  `11.17.0`, Chromium revision `1169`, versão `136.0.7103.25` e
+  `network=0`.
+- O teste raiz `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1` e
+  `go vet ./...` foram tentados neste checkpoint, mas o ambiente retornou
+  `no space left on device` durante a escrita do build. Isso é bloqueio
+  ambiental, não aceite do produto; nenhum cache, worktree ou artefato amplo
+  foi removido para mascará-lo. Os artefatos HTML/PDF ignorados não foram
+  regenerados após esta mudança porque o renderer de benchmark não está
+  versionado como comando reprodutível neste worktree; os hashes anteriores
+  permanecem apenas como evidência do checkpoint anterior.
+- Arquivos deste checkpoint: `assets/standalone.css` e
+  `test/browser/specs/standalone-pagination.spec.mjs`; `GOAL.md` registra o
+  estado. Próximo passo seguro: `git diff --check`, commit/push do ajuste e
+  reauditoria das fronteiras formais. T6, I1b e os sucessores continuam
+  deliberadamente fora deste checkpoint.
