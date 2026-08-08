@@ -35,9 +35,11 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último checkpoint funcional de implementação: `d9d2ede`, tree
-  `2ce4f48295ad9a23fa68f84bb9b1a0d1ff2224a4`, enviado para
-  `origin/impl/v0.0.1-core`. Este checkpoint inclui o HTML otimista versionado,
+- Último HEAD da implementação: `3192f328a460d2aa0fea4407f6d69c565d42b0c8`, tree
+  `fe1f06c0036acb3703968a4a5fa58c5497c9ea21`, enviado para
+  `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
+  `157f2d9505e26df91bb46ae13e7de4edac278eef`, corrige a paginação de tabelas
+  oversized no PDF e preserva as linhas. Este checkpoint inclui o HTML otimista versionado,
   modo claro/escuro, contraste Mermaid, TOC adaptativa, fila Mermaid
   process-global, configuração congelada por tarefa, `SourceRootID`
   determinístico, normalização/validação antes da inserção, hashes/tamanhos de
@@ -45,8 +47,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   com fundo por modo. Também corrige o instalador M0 para extrair o Chromium
   antes de criar um receipt aninhado na raiz de extração, adiciona o contrato
   local sem rede desse caso e aplica `break-before: page` inline com restauração
-  do estilo original. Stamps dark preservam `--color-surface-dark-alt` em vez
-  de ficarem transparentes no print. O registro anti-compaction da auditoria visual está no
+  do estilo original. Stamps dark preservam `--color-surface-dark-alt` em vez de
+  ficarem transparentes no print. O registro anti-compaction da auditoria visual está no
   commit documental `551a165`; os checkpoints documentais mais recentes são
   `ba8bc33` (margem PDF regenerada) e `c794a0c` (auditoria readonly), tree
   funcional anterior `2eb3f7d8d226a83b921fa5023bbe9190f4820f07`, enviado para
@@ -54,9 +56,15 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
   checkpoint documental antes desta nota é `5975f91`, tree
   `e7c632389e9da3e5a824c9a49008c49d14b4d233`, enviado para
   `origin/impl/v0.0.1-core`; este apontador registra o snapshot anterior para
-  impedir referência stale após compactação. M0-M7 continuam candidatos até revisão
-  independente; o receipt M0 está presente apenas como artefato efêmero em
-  `test/browser/.cache`, e I1b/T6 e os sucessores formais seguem pendentes.
+  impedir referência stale após compactação. M0-M7 continuam candidatos até
+  revisão independente; o receipt M0 está presente apenas como artefato efêmero
+  em `test/browser/.cache`, e I1b/T6 e os sucessores formais seguem pendentes.
+- O5 ainda não pode entrar em GREEN: `cmd/margo/go.mod` é um módulo vazio e os
+  módulos aceitos de root/charts/pdf exigidos pelo plano I3 ainda não têm
+  identidades de proxy/release verificadas. Não será criado `replace` local nem
+  pin inventado. Próximo passo válido: registrar RED de O5 e aguardar/provisionar
+  as identidades I3 sob o contrato readonly, ou continuar correções de saída
+  HTML/PDF já provisionadas.
 
 ## Ordem de execução vinculante
 
