@@ -1388,3 +1388,18 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint versionado: commit `66c22c5395c9256bbc268220b4f3935cc7013f5d`,
   tree `8ce170d61e3bf542961b0450fa0bc3b298a44888`, enviado para
   `origin/impl/v0.0.1-core`; worktree limpo.
+
+### 2026-08-08 — auditoria de fechamento parcial
+
+- `2026-08-08T03:38:18-03:00`: o branch está limpo e sincronizado em
+  `8a58d57f970ae214047ef8364a1abc1c1f732107`, tree
+  `fa91863d9f407e822b58e26e7ca8b6f1537c5fea`; `git diff --check`,
+  `git show --check` e `git ls-remote origin/impl/v0.0.1-core` passaram.
+  Os quatro artefatos canônicos têm os hashes registrados acima.
+- O objetivo ainda não está concluído: C0-C8, T0-T5 e M0-M7 possuem
+  implementação/evidência local; T6 continua deliberadamente deferred sem
+  `release/table-handoff.json`; I1a/I1b, H/P/D/O e I2-I4 não podem ser
+  promovidos sem o handoff externo e os gates independentes. A validação PDF
+  completa/WCAG continua ambientalmente pendente por `ENOSPC`.
+- Portanto `GOAL.md` permanece `IN_PROGRESS`; nenhum `update_goal complete` é
+  permitido neste estado e nenhum release/tag/push de publicação foi criado.
