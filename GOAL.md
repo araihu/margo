@@ -1385,3 +1385,6 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   harness M0 (que segue impedido por espaço em disco). A validação visual
   rasterizada e a comparação WCAG dos PDFs ficam pendentes até o ambiente
   liberar espaço; não há aceite formal novo de P1-P7.
+- Checkpoint versionado: commit `66c22c5395c9256bbc268220b4f3935cc7013f5d`,
+  tree `8ce170d61e3bf542961b0450fa0bc3b298a44888`, enviado para
+  `origin/impl/v0.0.1-core`; worktree limpo.
