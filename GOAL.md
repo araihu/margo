@@ -1916,3 +1916,31 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   local; O2/O3/O4, I3 e a aceitação independente ainda não foram inferidos.
   O handoff T6/I1a/I1b continua inalterado e Goshtoso não foi editado nem
   integrado por este checkpoint.
+
+### 2026-08-08 — O2: publicação atômica no-replace
+
+- O RED de O2 foi reproduzido com os quatro testes de no-replace e o teste de
+  operações Unix: antes da implementação, `AtomicFileSink` e
+  `defaultAtomicOps` falharam na compilação (`undefined`). O teste foi mantido
+  como contrato de pre-publicação, digest e preservação do destino existente.
+- O GREEN adicionou `atomic_file_sink.go` e `atomic_unix.go`. O sink calcula o
+  digest enquanto escreve um arquivo temporário no mesmo diretório, força
+  modo `0600`, faz `Sync`/`Close`, recusa `Force` neste predecessor, verifica o
+  digest esperado e só então usa um hard link Unix atômico no-replace como
+  ponto de visibilidade. O estágio é removido após a publicação ou em toda
+  falha pré-linearização; leitura posterior e sincronização do diretório
+  classificam `not_committed`, `committed`, `durability_uncertain` ou
+  `unknown` sem prometer rollback.
+- A cobertura inclui erro de leitura, cancelamento antes da publicação,
+  mismatch de digest, destino preexistente sem sobrescrita, limpeza do estágio
+  privado, modo `0600`, bytes/digest publicados e repetição com race detector.
+  Gates passaram: `GOWORK=off GOFLAGS=-mod=readonly go test . -run
+  'TestAtomic(NoReplace|Unix)' -count=1`,
+  `GOWORK=off GOFLAGS=-mod=readonly go test -race . -run 'TestAtomic'
+  -count=20`, `go test ./... -count=1`, `go vet ./...` e
+  `go test -race ./... -count=1`.
+- Arquivos deste checkpoint: `atomic_file_sink.go`, `atomic_unix.go`,
+  `atomic_file_sink_test.go`, `atomic_unix_test.go` e este registro. O2 é
+  candidato local publicado no branch de implementação; O3 ainda é o dono
+  serial da extensão `--force`, Windows e da classificação pós-linearização.
+  Nenhuma aceitação formal Goshtoso/T6/I1a/I1b foi inferida.
