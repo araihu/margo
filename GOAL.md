@@ -2283,3 +2283,12 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   focado, `go test ./... -count=1` e `go vet ./...` passaram.
 - Checkpoint funcional publicado: `2b32d8d6bc6218f733ef09ec1fb2a73a1c1b93c7`;
   o contrato de I1b/I2/I3/T6 não foi alterado.
+
+### 2026-08-08 — reexecução do contrato de paginação checked
+
+- O runner M0 checked consumiu `test/browser/.cache/node-env.checked.sh`,
+  reinstalou Playwright somente com `--offline` e executou a suíte
+  `@pagination` em um worker. Resultado: `9 passed`, Node `v26.5.0`, npm
+  `11.17.0`, Chromium revision `1169`, versão `136.0.7103.25`, `network=0`.
+- Nenhum arquivo de implementação ou módulo mudou nesta reexecução; o cache
+  permanece o único estado não rastreado intencional.
