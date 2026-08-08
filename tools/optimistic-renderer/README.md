@@ -22,6 +22,27 @@ the generated absolute HTML path to `test/browser/run-playwright.sh` with its
 checked environment file; do not use ambient npm, browser downloads, or a
 fallback executable.
 
+Regenerate reproducible browser evidence with the tracked runner. It resolves
+Playwright and css-tree only from the checked local installation, routes the
+Mermaid module to the pinned local asset set, denies every other network
+request, and binds evidence to the current HTML bytes and SHA-256:
+
+```sh
+. test/browser/.cache/node-env.checked.sh
+cd test/browser
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 PLAYWRIGHT_BROWSERS_PATH=0 \
+  "$MARGO_NODE_BIN" generate-evidence.mjs \
+  --root /absolute/path/to/repository \
+  --html /absolute/path/to/output/html/margo-v0.0.1-optimistic.html \
+  --mode light \
+  --evidence /absolute/path/to/output/evidence/margo-v0.0.1-optimistic.json
+```
+
+Run again with `--mode dark` and the dark HTML for dark evidence. The runner
+verifies Mermaid screen rendering, print TOC preparation, source disclosure
+state, shared document/header/footer surfaces, and zero blocked requests or
+console/page errors before writing evidence atomically.
+
 For a human PDF artifact, use the checked Chromium executable and the local
 Playwright installation after the M0 environment has been verified:
 
