@@ -322,12 +322,17 @@ test("@pagination preserves every Mermaid rejection row across print continuatio
   const result = await page.locator("#mermaid-rejection-table").evaluate((block) => {
     const wrapper = block.querySelector(":scope > div");
     const table = wrapper.querySelector("table");
+    const header = table.querySelector("thead");
+    const body = table.querySelector("tbody");
     const rows = [...table.querySelectorAll("tbody tr")];
     const tableRect = table.getBoundingClientRect();
     return {
       overflowY: getComputedStyle(wrapper).overflowY,
+      headerDisplay: getComputedStyle(header).display,
+      bodyDisplay: getComputedStyle(body).display,
       rowCount: rows.length,
       rowHeights: rows.map((row) => row.getBoundingClientRect().height),
+      rowBreakInside: rows.map((row) => getComputedStyle(row).breakInside),
       rowTexts: rows.map((row) => row.textContent.trim()),
       rowsInsideTable: rows.every((row) => {
         const rect = row.getBoundingClientRect();
@@ -337,8 +342,11 @@ test("@pagination preserves every Mermaid rejection row across print continuatio
   });
 
   expect(result.overflowY).toBe("visible");
+  expect(result.headerDisplay).toBe("table-header-group");
+  expect(result.bodyDisplay).toBe("table-row-group");
   expect(result.rowCount).toBe(rows.length);
   expect(result.rowHeights.every((height) => height > 0)).toBe(true);
+  expect(result.rowBreakInside.every((value) => value === "avoid-page")).toBe(true);
   expect(result.rowsInsideTable).toBe(true);
   expect(result.rowTexts).toEqual(rows.map(([vector, diagnostic]) => `${vector}${diagnostic}`));
 

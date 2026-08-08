@@ -2375,3 +2375,31 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   worktree permanece limpo fora de `test/browser/.cache/`, que é o cache M0
   intencional e não rastreado. HEAD documental atual: `7e927d3`, tree
   `da2853bedde659551eb2c02698a2d7a634a61f3b`.
+
+### 2026-08-08 — contrato explícito de linhas e cabeçalho em tabela impressa
+
+- A continuação de tabela já removia o clipping vertical, mas ainda dependia
+  dos defaults de layout de tabela do Chromium para repetir cabeçalho e manter
+  cada linha intacta. O CSS de impressão agora fixa `thead` como
+  `table-header-group`, `tbody` como `table-row-group` e cada `tr` como
+  `break-inside: avoid-page` para tabelas client-sort; a exceção oversized
+  continua permitindo fluxo entre páginas sem dividir linhas.
+- O teste checked `@pagination preserves every Mermaid rejection row across
+  print continuation` agora verifica também `overflow-y: visible`, os dois
+  grupos de tabela e `breakInside` de todas as linhas. A suíte combinada
+  `@contrast|@pagination` passou `11/11`, usando Node `v26.5.0`, Chromium
+  revision `1169`/versão `136.0.7103.25` e `network=0`.
+- HTMLs foram regenerados: light `343375` bytes, SHA-256
+  `2560aa47df0b935afece035f464b2202fb6fcb3a0203144a127e9082bc167e82`;
+  dark `343378` bytes, SHA-256
+  `a2e2c273be5fa7cd100922771208a404578e5794d67a0d9ff1b14028edfa16bd`.
+  PDFs A4 foram reimpressos com o Chromium checked: light 20 páginas,
+  `443312` bytes, SHA-256
+  `94435e2f6667d36c6e581da024c806178b51eaf323ef2475aed42efca332e448`;
+  dark 20 páginas, `455061` bytes, SHA-256
+  `6ff5007fbba99981cfac3fa6afeab253fdc70536606cb85f15536b912e013000`.
+  `pdftotext -layout` confirma as linhas `invalid-data-points`,
+  `invalid-length-unit` e `unrooted-id`, sem perda de linha. Os temporários
+  `node_modules`/`test-results` foram movidos de forma recuperável para
+  `/tmp/margo-table-css-gates.B8wgcv`; somente `test/browser/.cache/` continua
+  intencional e não rastreado. Nenhuma autoridade I1a/I1b/I3/T6 foi inferida.

@@ -262,6 +262,16 @@
        a paginated projection. */
     overflow-y: visible !important;
   }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] thead {
+    display: table-header-group;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] tbody {
+    display: table-row-group;
+  }
+  .goshtoso-document > .margo-document [data-table-client-sort="true"] tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
   .goshtoso-document > .margo-document [data-margo-print-oversized="true"] {
     page-break-inside: auto;
     break-inside: auto;
