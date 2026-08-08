@@ -2747,3 +2747,26 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   somente `test/browser/.cache/` permanece intencionalmente não rastreado.
 - Esta correção protege contra regressão do comentário visual antigo; não cria
   aceitação independente M0 nem resolve I1a/I1b/I3/O5/T6.
+
+### 2026-08-08 — matriz de fechamento da implementação
+
+Auditoria contra o inventário R17 e a árvore atual:
+
+| Família | Estado verificável | Fronteira restante |
+| --- | --- | --- |
+| C0-C8 | implementada no root, com testes readonly e checkpoints publicados | revisão independente do consumidor |
+| T0-T5 | aceitos no predecessor Goshtoso, com worktrees/identidades registradas | T6 e recibo externo do Table |
+| T6 | RED e verificador local preservados fora deste branch | release/tag/receipt autorizado; usuário pediu backlog final |
+| M0-M7 | runner checked local, 49 testes browser, HTML light/dark e lint | aceitação independente M0 e prova externa de predecessor |
+| H1-H6 | não iniciados legitimamente | I1b: proxy, fonte/ZIP e receipt root |
+| P1-P7 | módulos `pdf/` ainda esqueletos | I2/I3 e pins de plataforma verificados |
+| D1-D5 | não iniciados legitimamente | I2/I1b e contrato de engine/deck |
+| O1-O4 | implementados no root, com spool/sinks e gates race/Windows | I3 e revisão independente |
+| O5-O7 | RED de O5 preservado; `cmd/margo` ainda esqueleto | I3, módulo CLI e predecessor O5 |
+| I1a/I1b/I2-I4 | autoridade de integração não presente neste checkout | handoffs/receipts externos, sem inferência local |
+
+Conclusão operacional: HTML/PDF humano, contraste, paginação e browser local
+estão avançados e verificáveis; não há ação legítima restante neste checkout
+que feche H/P/D/O5 ou T6 sem novas identidades externas. Não criar
+`replace`, pin, proxy, `release/table-handoff.json`, tag ou release para forçar
+GREEN.
