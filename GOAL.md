@@ -1564,3 +1564,37 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   indisponível neste checkout; T6 e `release/table-handoff.json` continuam
   deliberadamente deferred. O PDF é gerado pelo harness de browser/M0, não pelo
   `tools/optimistic-renderer` isolado.
+
+### 2026-08-08 — chrome de impressão alinhado ao fundo do modo
+
+- RED: o CSS standalone escondia `goshtoso-document__header` e
+  `goshtoso-document__footer` em `@media print`, embora o contrato exigisse
+  logo, cabeçalho, rodapé e watermark também no PDF. Isso fazia o PDF parecer
+  ter uma margem/cromado de outra superfície, especialmente no dark.
+- GREEN: o print CSS agora mantém header/footer visíveis, aplica os tokens
+  `--margo-print-chrome-background`, `--margo-print-chrome-foreground` e
+  `--margo-print-chrome-outline`, usa `print-color-adjust: exact` e impede
+  fragmentação interna. Os testes Go e o spec browser verificam display,
+  fundo, cor e bordas nos modos claro/escuro.
+- Prova focada no Chromium pinado `136.0.7103.25` confirmou em ambos os modos:
+  página, body, documento, TOC, header e footer compartilham a mesma
+  superfície; `3/3` diagramas Mermaid renderizam; TOC permanece em uma coluna;
+  há `5` marcadores de quebra protegida; zero requests bloqueadas e zero erros
+  de console. O claro usa `rgb(255, 255, 255)` na superfície; o dark usa
+  `oklch(0.145 0 0)`. A área cinza/preta fora da folha que aparece no Preview
+  é chrome do visualizador, não margem desenhada no PDF.
+- Artefatos atuais: HTML claro
+  `output/html/margo-v0.0.1-optimistic.html` (337.780 bytes,
+  SHA-256 `532306807949e077baed9adc4b04df41690719e19aa7a3886ca62cc605955034`);
+  HTML dark `output/html/margo-v0.0.1-optimistic-dark.html` (337.783 bytes,
+  SHA-256 `8580e43c3f35a7d33727f837e70a4b68912bf0a5cfabf9b5838b5493bef262e7`);
+  PDF claro A4 tagged com 22 páginas e 611.191 bytes, SHA-256
+  `c42f5605d1e8ff4ac139a5ab43e888e07ef2ca1fe7791d385688bf5f01b4150f`;
+  PDF dark A4 tagged com 22 páginas e 617.551 bytes, SHA-256
+  `972f2f670e151118d41a42d16d985e10f15fa9197a3bc0a762c43e461ae53377`.
+  Evidências JSON: claro `08ae561bfd02f512e0037a54a05278d94e13ad20a01582a47fa705d0a8f27e28`;
+  dark `a014579be31677e99b0215becca14a61e10da55dce8f63f10dd18550e3fd2989`.
+- Checkpoint de código: commit `6a585c00daa7a4cbbd13f780df3567fde1f78f04`,
+  tree `1eadbe3c1911f4e019d0a5b4962863679aa96206`, enviado para
+  `origin/impl/v0.0.1-core`. O trabalho segue limpo após o push; a prova é
+  focada e não substitui a aceitação formal M0/I1a/I1b.
