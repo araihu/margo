@@ -2495,3 +2495,19 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   tree `a17147cc71693ee40b067512ecb8f605ca5782be`, branch remoto
   `origin/impl/v0.0.1-core` sincronizado. O único estado não rastreado continua
   sendo o cache M0 intencional.
+
+### 2026-08-08 — verificação do comentário de linha final da tabela dark
+
+- Reinspeção do PDF atual `output/pdf/margo-v0.0.1-optimistic-dark.pdf` confirmou
+  20 páginas A4, 455.061 bytes e SHA-256
+  `6ff5007fbba99981cfac3fa6afeab253fdc70536606cb85f15536b912e013000`.
+- A página 14 termina com a linha completa `invalid-data-points`; a página 15
+  repete `Vector / Required diagnostic` e contém `invalid-length-unit` e
+  `unrooted-id`. A extração `pdftotext -layout` encontrou as 21 linhas da
+  tabela, sem perda ou truncamento.
+- Nenhuma alteração no renderer foi necessária: `assets/document.css` mantém
+  o wrapper sem clipping vertical, grupos `thead`/`tbody` adequados e linhas
+  `break-inside: avoid-page`; o teste checked
+  `@pagination preserves every Mermaid rejection row across print continuation`
+  permanece autoridade. Este registro corrige o comentário contra o PDF antigo
+  de 23 páginas. HEAD/tree deste registro: será preenchido após o commit.
