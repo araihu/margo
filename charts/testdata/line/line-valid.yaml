@@ -1,0 +1,9 @@
+schemaVersion: 1
+type: line
+title: Revenue
+categories: [Development, Production]
+series:
+  - name: Revenue
+    values: [12, 18]
+  - name: Cost
+    values: [7, 9]

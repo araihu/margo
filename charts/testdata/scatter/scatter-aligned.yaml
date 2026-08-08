@@ -1,0 +1,11 @@
+schemaVersion: 1
+type: scatter
+title: Latency
+categories: [Development, Production]
+series:
+  - name: Latency
+    values: [[12], [18]]
+    samples: [[p50], [p95]]
+  - name: Throughput
+    values: [[30], [42]]
+    samples: [[p50], [p95]]

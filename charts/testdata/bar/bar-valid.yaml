@@ -1,0 +1,12 @@
+schemaVersion: 1
+type: bar
+title: Revenue
+categories:
+  - Development
+  - Production
+orientation: vertical
+series:
+  - name: Revenue
+    values: [12, 18]
+  - name: Cost
+    values: [7, 9]
