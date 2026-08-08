@@ -1633,3 +1633,25 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `305cdde968d0aa65d5d6dc1b1aa8d741b25a3b80`, enviado para
   `origin/impl/v0.0.1-core`. A evidência continua focada, não é aceite formal
   M0/I1a/I1b; T6 e `release/table-handoff.json` seguem deferred.
+
+### 2026-08-08 — auditoria visual pós-margem
+
+- `2026-08-08T05:28:40-03:00`: os artefatos atuais foram re-hashados no
+  worktree limpo. O HTML claro tem 337.830 bytes e SHA-256
+  `fa6f4ba9cd24840e634385777825df8752f572ec666f13016bc4aa7d7cd6dbb2`; o
+  HTML dark tem 337.833 bytes e SHA-256
+  `3c11729637f484f4cb25e421ce18e109726348af26e4ec16cdad7c0bb8ab031c`.
+  Os PDFs A4 correspondentes têm 23 páginas: claro 615.640 bytes,
+  `197d6aeda33f8d300abea19fc6ce894fe727a9ff83053e89e22febb89c4b949d`, e
+  dark 620.310 bytes,
+  `c33cc54a0c2d774426181ad9de4a7508fb54393b09728f8f78cc08fdda34d987`.
+- A rasterização independente da página 4 dark confirmou que headings e prosa
+  começam dentro da margem respirável, sem tocar as bordas. A página 1 mantém
+  TOC em uma coluna porque ela cabe no espaço vertical; a coluna dupla continua
+  apenas como fallback responsivo de impressão. `pdfinfo` confirmou A4,
+  tagged, sem JavaScript e sem criptografia.
+- Nenhum novo defeito de renderização foi aberto nesta auditoria. O branch
+  permanece limpo e alinhado ao remoto em `145416fc82c8f0a0ca390ab8415f5af880f4a335`,
+  tree `827a16f8977801736fd486b11f5b870e71dffbab`. M0 formal, I1a/I1b,
+  sucessores H/P/D/O e T6 continuam pendentes por suas dependências/autoridade;
+  `release/table-handoff.json` não foi inventado.
