@@ -1944,3 +1944,9 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   candidato local publicado no branch de implementação; O3 ainda é o dono
   serial da extensão `--force`, Windows e da classificação pós-linearização.
   Nenhuma aceitação formal Goshtoso/T6/I1a/I1b foi inferida.
+- Identidade publicada do checkpoint O2: commit
+  `b0131be2c748f8e4d2441a60d7dc32abd95151e8`, tree
+  `4c1535036c83561d7c98a4da3dde383d7a4a9314`, remoto
+  `origin/impl/v0.0.1-core`. O único estado não rastreado intencional é
+  `test/browser/.cache/`, usado pelo recibo M0; não há arquivos staged ou
+  modificados fora desse cache.
