@@ -54,7 +54,9 @@ series or slice. Blank entries in `style.colors` keep the corresponding theme
 token.
 
 For a human benchmark that combines the root corpus with the chart appendix,
-use the module-local renderer:
+use the module-local renderer. It enables the HTML chart controls and embeds
+the pinned controls runtime in the output, so the file works without a server
+or external requests:
 
 ```sh
 go run ./charts/tools/optimistic-renderer \
@@ -65,9 +67,9 @@ go run ./charts/tools/optimistic-renderer \
 Run this integration command from the repository root with the checkout's
 `go.work` active so the renderer uses the local root module. Keep the
 `GOWORK=off GOFLAGS=-mod=readonly` prefix for the independent module gates.
-The benchmark command selects static-only chart rendering, avoiding external
-control-runtime requests in the standalone artifact; normal extension users
-keep the screen controls and print CSS behavior shown above.
+The generated HTML keeps the screen controls and print CSS behavior shown
+above. The PDF path hides the controls while retaining the chart and its
+accessible data table.
 
 This checkout is a feature branch (`v0.0.1-dev`). Release provenance and
 external publication remain separate integration work.

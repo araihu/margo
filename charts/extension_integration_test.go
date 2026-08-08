@@ -50,6 +50,7 @@ func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
 	markup := string(out)
 	for _, marker := range []string{
 		`data-goshtoso-chart-wrapper`,
+		`<div x-data class="goshtoso-charts-control-wrapper"`,
 		`data-goshtoso-chart-wrapper-mode="enabled"`,
 		`data-goshtoso-chart-capability="static-svg"`,
 		`data-goshtoso-chart-export-filename="revenue"`,

@@ -1,7 +1,7 @@
 # Chart-aware optimistic renderer
 
 This module-local developer command renders the Margo optimistic benchmark with
-the static `goshtosochart` extension enabled. The root renderer stays
+the interactive `goshtosochart` extension enabled. The root renderer stays
 extension-neutral because `github.com/araihu/margo/charts` is an optional Go
 module.
 
@@ -21,7 +21,7 @@ renderer uses the local root module. The independent module gates still use
 
 Use `--color-mode dark` for the dark projection. The chart appendix covers bar,
 line, doughnut, and scatter, including theme tokens, caller classes, and
-explicit hexadecimal colors. Chart controls remain screen-only; print CSS
-hides them from PDF output in the interactive extension, while this offline
-benchmark command uses the static-only mode so its standalone HTML has no
-missing runtime asset requests.
+explicit hexadecimal colors. The command embeds the pinned chart-controls
+runtime in the HTML, so expand/fullscreen/export actions work offline. Print
+CSS hides those controls from PDF output while retaining the SVG and accessible
+data table.

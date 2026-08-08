@@ -9,17 +9,22 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/a-h/templ"
+	"github.com/araihu/goshtoso-charts/assets"
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/charts"
 )
 
 const (
 	defaultTitle       = "Margo v0.0.1 optimistic benchmark with charts"
-	defaultDescription = "Offline Margo Markdown benchmark with static Goshtoso Charts projections."
+	defaultDescription = "Offline Margo Markdown benchmark with interactive Goshtoso Charts projections."
 )
 
 type generatorConfig struct {
@@ -108,7 +113,7 @@ func generateHTML(ctx context.Context, config generatorConfig) error {
 			RawHTML:     margo.RawHTMLSanitized,
 			OutputBytes: margo.MaxOutputBytes,
 		}),
-		margo.WithExtension(charts.Extension(charts.WithControlWrapper(false))),
+		margo.WithExtension(charts.Extension()),
 	)
 	document, err := compiler.Compile(ctx, margo.Source{
 		Name:    filepath.Base(sourcePath),
@@ -147,11 +152,85 @@ func generateHTML(ctx context.Context, config generatorConfig) error {
 	if err := component.Render(ctx, &output); err != nil {
 		return fmt.Errorf("optimistic-renderer: serialize standalone: %w", err)
 	}
-	if err := writeAtomic(outputPath, output.Bytes()); err != nil {
+	interactive, err := inlineChartControlRuntime(output.Bytes())
+	if err != nil {
+		return fmt.Errorf("optimistic-renderer: inline chart controls: %w", err)
+	}
+	if err := writeAtomic(outputPath, interactive); err != nil {
 		return fmt.Errorf("optimistic-renderer: write output: %w", err)
 	}
-	fmt.Printf("wrote %d bytes to %s\n", output.Len(), outputPath)
+	fmt.Printf("wrote %d bytes to %s\n", len(interactive), outputPath)
 	return nil
+}
+
+func inlineChartControlRuntime(markup []byte) ([]byte, error) {
+	marker := `<script src="` + assets.ControlRuntimeURL + `" defer></script>`
+	if !strings.Contains(string(markup), marker) {
+		return append([]byte(nil), markup...), nil
+	}
+	chartRuntime, err := chartControlRuntime()
+	if err != nil {
+		return nil, err
+	}
+	withoutExternal := strings.ReplaceAll(string(markup), marker, "")
+	goshtosoRuntime, err := inlineGoshtosoRuntime()
+	if err != nil {
+		return nil, err
+	}
+	injection := goshtosoRuntime + `<script data-margo-chart-controls-inline="v5">` + safeScriptText(chartRuntime) + `</script>`
+	if index := strings.Index(withoutExternal, "</body>"); index >= 0 {
+		withoutExternal = withoutExternal[:index] + injection + withoutExternal[index:]
+	} else {
+		withoutExternal += injection
+	}
+	return []byte(withoutExternal), nil
+}
+
+func inlineGoshtosoRuntime() (string, error) {
+	manifest := goshtosoassets.DefaultRuntimeManifest()
+	wanted := map[goshtosoassets.RuntimeAssetRole]bool{
+		goshtosoassets.RuntimeRoleAlpineFocus: true,
+		goshtosoassets.RuntimeRoleFirstParty:  true,
+		goshtosoassets.RuntimeRoleAlpineJS:    true,
+	}
+	var output strings.Builder
+	for _, dependency := range manifest.Dependencies {
+		if !wanted[dependency.Role] {
+			continue
+		}
+		runtime, err := goshtosoRuntimeAsset(dependency.LocalURL)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(&output, `<script data-margo-goshtoso-runtime=%q>`, string(dependency.Role))
+		output.WriteString(safeScriptText(runtime))
+		output.WriteString(`</script>`)
+	}
+	return output.String(), nil
+}
+
+func goshtosoRuntimeAsset(path string) ([]byte, error) {
+	request := httptest.NewRequest(http.MethodGet, path, nil)
+	recorder := httptest.NewRecorder()
+	goshtosoassets.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		return nil, fmt.Errorf("Goshtoso asset handler returned HTTP %d for %s", recorder.Code, path)
+	}
+	return append([]byte(nil), recorder.Body.Bytes()...), nil
+}
+
+func safeScriptText(data []byte) string {
+	return strings.ReplaceAll(string(data), "</script", "<\\/script")
+}
+
+func chartControlRuntime() ([]byte, error) {
+	request := httptest.NewRequest(http.MethodGet, assets.ControlRuntimeURL, nil)
+	recorder := httptest.NewRecorder()
+	assets.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		return nil, fmt.Errorf("asset handler returned HTTP %d for %s", recorder.Code, assets.ControlRuntimeURL)
+	}
+	return append([]byte(nil), recorder.Body.Bytes()...), nil
 }
 
 func writeAtomic(path string, data []byte) error {

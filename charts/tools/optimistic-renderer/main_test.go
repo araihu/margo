@@ -48,10 +48,39 @@ func TestGenerateHTMLAppendsAndRendersChartsAtomically(t *testing.T) {
 		`goshtoso-charts-bar`,
 		`fill:#123456`,
 		`data-margo-chart-data="v1"`,
+		`data-goshtoso-chart-wrapper-mode="enabled"`,
+		`data-margo-goshtoso-runtime="first-party"`,
+		`data-margo-goshtoso-runtime="alpine-focus"`,
+		`data-margo-goshtoso-runtime="alpine"`,
+		`data-margo-chart-controls-inline="v5"`,
 	} {
 		if !strings.Contains(string(data), required) {
 			t.Errorf("generated HTML missing %q", required)
 		}
+	}
+	markup := string(data)
+	if strings.Contains(markup, `/charts/assets/js/controls/5/controls.js`) {
+		t.Fatal("generated HTML retains an external chart-control runtime")
+	}
+	for _, external := range []string{
+		`/assets/js/runtime/alpinejs/3.14.9/alpine.min.js`,
+		`/assets/js/runtime/alpinejs-focus/3.14.9/alpine-focus.min.js`,
+		`/assets/js/goshtoso.min.js`,
+	} {
+		if strings.Contains(markup, external) {
+			t.Fatalf("generated HTML retains external Goshtoso runtime %q", external)
+		}
+	}
+	for _, role := range []string{"first-party", "alpine-focus", "alpine"} {
+		if strings.Count(markup, `data-margo-goshtoso-runtime="`+role+`"`) != 1 {
+			t.Fatalf("inline Goshtoso runtime %q count = %d, want 1", role, strings.Count(markup, `data-margo-goshtoso-runtime="`+role+`"`))
+		}
+	}
+	if strings.Count(markup, `data-margo-chart-controls-inline="v5"`) != 1 {
+		t.Fatalf("inline chart-control runtime count = %d, want 1", strings.Count(markup, `data-margo-chart-controls-inline="v5"`))
+	}
+	if strings.Index(markup, `data-margo-chart-controls-inline="v5"`) > strings.Index(markup, `</body>`) {
+		t.Fatal("inline chart-control runtime was emitted after </body>")
 	}
 	entries, err := os.ReadDir(filepath.Dir(outputPath))
 	if err != nil {
