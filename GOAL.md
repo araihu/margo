@@ -2609,3 +2609,18 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   continuável, `tr { break-inside: avoid-page }`, overflow vertical visível)
   e pelo lint de layout que verifica limites de cada linha. Nenhuma alteração
   adicional no renderer é justificada por este comentário antigo.
+
+### 2026-08-08 — checkpoint checked final da tabela dark
+
+- O cache M0 foi reconstituído com `run-playwright.sh --check` e `npm ci
+  --offline`; o lint `margo/contrast-lint/v1` passou no HTML dark com 505 nós,
+  29 itens de layout, zero falhas e zero requests bloqueados.
+- O runner checked regenerou light/dark com `preparedPrint=true`, A4, 20
+  páginas, `network.blockedRequests=[]` e `consoleErrors=[]`. Hashes atuais:
+  light `cdff370fc21de554d4245ca6a8ddefcba5911c33327c5f810410290eadad6b1f`;
+  dark `c634200293495c9f8ed43e72fe9b774dcca2758ff494c5b515821130ee159f2c`.
+- A inspeção rasterizada da página 14 confirma visualmente a linha
+  `invalid-data-points` completa, sem clipping ou sobreposição do footer; a
+  extração confirma `invalid-length-unit` e `unrooted-id` na página 15.
+- `GOWORK=off GOFLAGS=-mod=readonly go test ./... -count=1`, `go vet ./...`,
+  `node --check test/browser/print-pdf.mjs` e `git diff --check` passaram.
