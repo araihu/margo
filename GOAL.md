@@ -35,8 +35,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD da implementação: `3fa4596a3436a421d7a1d13c8a3ca46facb90a02`, tree
-  `aa77b84e531404f6d9a5683dbf0b9390514a92e3`, enviado para
+- Último HEAD da implementação: `934f5781a8a06c3252e8d1a5df86aa1086b04ece`, tree
+  `207a4edaf31e27d23669a40605108256f97d76f8`, enviado para
   `origin/impl/v0.0.1-core`. O checkpoint funcional imediatamente anterior,
   `c63a568`, corrige a paginação de tabelas oversized no PDF e preserva as linhas;
   `7556bd1` atualiza a identidade documental desse resultado. Este checkpoint inclui o HTML otimista versionado,
