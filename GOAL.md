@@ -1446,3 +1446,32 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   direta no worktree foi recusada apenas porque ele não contém `node_modules`.
   Os gates completos PDF/WCAG e a aceitação formal de I1a/I1b continuam
   pendentes; T6 segue deferred por decisão explícita do usuário.
+
+### 2026-08-08 — renderer HTML otimista versionado
+
+- `2026-08-08T04:38:18-03:00`: os gates readonly do novo pacote
+  `tools/optimistic-renderer` passaram: teste focado, `go test ./...`,
+  `go vet ./...`, `charts/go test ./...` e `pdf/go test ./...`, todos com
+  `GOWORK=off GOFLAGS=-mod=readonly`. O comando não inicia browser, não baixa
+  dependências e consome o stylesheet Goshtoso embutido, tema `modern`,
+  `Brand`, TOC, logo, watermark, stamps e modos claro/escuro.
+- A implementação é coberta por RED/GREEN: o teste falhava antes da função
+  `generateHTML` existir e passou depois da implementação. Os testes verificam
+  modo dark, tema, classe dark, título, heading, stylesheet Goshtoso, rejeição
+  de modo inválido e ausência de arquivo temporário após a escrita atômica.
+- O smoke real gerou, a partir de
+  `testdata/markdown/margo-full-feature-set.md`,
+  `output/html/margo-v0.0.1-optimistic.html` (334.695 bytes,
+  SHA-256 `8594055e5f854ab8b3a9307b7cbccf1174da839ff718d5dcd594983b44939057`)
+  e `output/html/margo-v0.0.1-optimistic-dark.html` (334.698 bytes,
+  SHA-256 `e66bb703b7c11583b0d36daf07503d38428480941cda766158d850f9733d66ac`).
+  Ambos não deixaram `.margo-render-*` temporário; o HTML dark foi aberto no
+  painel Codex para inspeção humana.
+- O renderer agora é fonte versionada para HTML, mas a impressão PDF e a
+  validação visual/browser continuam pertencendo ao harness M0 e devem consumir
+  o ambiente verificado. O helper externo
+  `/private/tmp/margo-optimistic-generator/render-artifacts.mjs` permanece
+  somente uma fonte histórica não versionada para o pipeline PDF/browser.
+- T6 continua deliberadamente deferred por decisão explícita do usuário;
+  `release/table-handoff.json`, I1a/I1b e os sucessores formais não foram
+  inventados nem promovidos neste checkpoint.
