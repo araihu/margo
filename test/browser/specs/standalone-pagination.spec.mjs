@@ -267,6 +267,84 @@ test("@pagination lets an oversized table flow while keeping rows together", asy
   await expect(page.locator("#oversized")).not.toHaveAttribute("data-margo-print-oversized", "true");
 });
 
+test("@pagination preserves every Mermaid rejection row across print continuation", async ({ page }) => {
+  const [documentCSS, standaloneCSS, script] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+    printPaginationScript(),
+  ]);
+  const rows = [
+    ["script", "mermaid.svg_element_forbidden"],
+    ["foreign-object", "mermaid.svg_element_forbidden"],
+    ["event-handler", "mermaid.svg_attribute_forbidden"],
+    ["external-link", "mermaid.svg_reference_forbidden"],
+    ["unknown-namespace", "mermaid.svg_namespace_forbidden"],
+    ["unknown-element", "mermaid.svg_element_forbidden"],
+    ["unknown-attribute", "mermaid.svg_attribute_forbidden"],
+    ["css-body", "mermaid.svg_css_forbidden"],
+    ["css-attribute-selector", "mermaid.svg_css_forbidden"],
+    ["css-universal-selector", "mermaid.svg_css_forbidden"],
+    ["css-sibling-selector", "mermaid.svg_css_forbidden"],
+    ["css-pseudo", "mermaid.svg_css_forbidden"],
+    ["css-custom-property", "mermaid.svg_css_forbidden"],
+    ["css-at-rule", "mermaid.svg_css_forbidden"],
+    ["css-unknown-property", "mermaid.svg_css_forbidden"],
+    ["css-forbidden-function", "mermaid.svg_css_value_forbidden"],
+    ["cross-svg-url", "mermaid.svg_reference_forbidden"],
+    ["invalid-opacity", "mermaid.svg_css_value_forbidden"],
+    ["invalid-data-points", "mermaid.svg_attribute_forbidden"],
+    ["invalid-length-unit", "mermaid.svg_css_value_forbidden"],
+    ["unrooted-id", "mermaid.svg_id_forbidden"],
+  ];
+  const tableRows = rows.map(([vector, diagnostic]) => `<tr><td>${vector}</td><td>${diagnostic}</td></tr>`).join("");
+  await page.setViewportSize({ width: 794, height: 1123 });
+  await page.setContent(`<!doctype html>
+    <html><head><style>${documentCSS}</style><style>${standaloneCSS}</style><style>
+      .margo-document { margin: 0; }
+      #mermaid-rejection-table > div { max-width: 520px; }
+      #mermaid-rejection-table table { width: 100%; }
+      #mermaid-rejection-table tr { block-size: 62px; }
+    </style></head><body><div class="goshtoso-document">
+      <article class="margo-document">
+        <h2>Mermaid rejection vectors</h2>
+        <div id="mermaid-rejection-table" data-table-client-sort="true">
+          <div class="overflow-x-auto overflow-y-clip w-full rounded-radius border border-outline margo-table">
+            <table><thead><tr><th scope="col">Vector</th><th scope="col">Required diagnostic</th></tr></thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+    </div>${script}</body></html>`);
+  await page.emulateMedia({ media: "print" });
+  await page.evaluate(() => window.margoPreparePrintTOC());
+
+  const result = await page.locator("#mermaid-rejection-table").evaluate((block) => {
+    const wrapper = block.querySelector(":scope > div");
+    const table = wrapper.querySelector("table");
+    const rows = [...table.querySelectorAll("tbody tr")];
+    const tableRect = table.getBoundingClientRect();
+    return {
+      overflowY: getComputedStyle(wrapper).overflowY,
+      rowCount: rows.length,
+      rowHeights: rows.map((row) => row.getBoundingClientRect().height),
+      rowTexts: rows.map((row) => row.textContent.trim()),
+      rowsInsideTable: rows.every((row) => {
+        const rect = row.getBoundingClientRect();
+        return rect.top >= tableRect.top - 1 && rect.bottom <= tableRect.bottom + 1;
+      }),
+    };
+  });
+
+  expect(result.overflowY).toBe("visible");
+  expect(result.rowCount).toBe(rows.length);
+  expect(result.rowHeights.every((height) => height > 0)).toBe(true);
+  expect(result.rowsInsideTable).toBe(true);
+  expect(result.rowTexts).toEqual(rows.map(([vector, diagnostic]) => `${vector}${diagnostic}`));
+
+  await page.evaluate(() => window.margoRestorePrintState());
+});
+
 test("@pagination falls back to two columns only when a TOC is too tall", async ({ page }) => {
   const [documentCSS, standaloneCSS, script] = await Promise.all([
     stylesheet("document.css"),
