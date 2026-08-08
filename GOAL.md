@@ -2595,3 +2595,17 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   receipt para destravar O5. A implementação humana HTML/PDF permanece o
   próximo trabalho local seguro; O5/I3/I1a/I1b/T6 continuam aguardando a
   autoridade/proveniência prevista no plano.
+
+### 2026-08-08 — verificação do comentário da última linha da tabela dark
+
+- A captura comentada mostra um PDF predecessor de 23 páginas. O artefato
+  checked vigente `output/pdf/margo-v0.0.1-optimistic-dark.pdf` tem 20 páginas
+  A4 e SHA-256 `b3f2d46f739394d9bc6eeba912d3ea5f33c0ab4201cc39b1ddce147385e41d25`.
+- A inspeção visual da página 14 mostra a última linha `invalid-data-points`
+  completa, acima do footer. `pdftotext -layout` confirma também
+  `invalid-length-unit` e `unrooted-id` completos na página 15; não há linha
+  perdida no artefato atual.
+- A continuação é protegida pelo CSS de print (`thead` repetível, `tbody`
+  continuável, `tr { break-inside: avoid-page }`, overflow vertical visível)
+  e pelo lint de layout que verifica limites de cada linha. Nenhuma alteração
+  adicional no renderer é justificada por este comentário antigo.
