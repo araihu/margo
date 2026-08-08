@@ -1366,3 +1366,22 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint versionado: commit `1c0f889a63a353043e9523ebc6a813939ac56f03`,
   tree `a85f46225278d8f7d9dfe35d2a9a10e0315a5263`, enviado para
   `origin/impl/v0.0.1-core`; worktree limpo.
+
+### 2026-08-08 — PDF dark/light atualizado
+
+- `2026-08-08T03:35:53-03:00`: como o Playwright não conseguia criar seu
+  diretório temporário por `ENOSPC`, a impressão foi executada diretamente com
+  o Chromium pinado local (`136.0.7103.25`) e os HTMLs inline/offline. Os PDFs
+  A4/PDF 1.4 canônicos agora são `output/pdf/margo-v0.0.1-optimistic.pdf`
+  (19 páginas, 549.140 bytes, SHA-256
+  `bb5c58a16d10e8eb095a1937c5b7cc055cfa34ee8d3156e89a1fd0fc2134fd1e`) e
+  `output/pdf/margo-v0.0.1-optimistic-dark.pdf` (19 páginas, 555.125 bytes,
+  SHA-256 `e90af9b7991ec4745fb8ce1c1350f1b0fa89d5eb840b213d30080235382ddae9`).
+  `pdfinfo` confirma A4, tagged, sem JavaScript e sem criptografia; `pdftotext`
+  recupera Contents, Mermaid source, edge cases e furniture nos dois modos.
+  Os bytes anteriores foram apenas renomeados para os backups ignorados
+  `*.previous.pdf`, sem destruição.
+- Esta é evidência de impressão direta, não substitui o gate completo do
+  harness M0 (que segue impedido por espaço em disco). A validação visual
+  rasterizada e a comparação WCAG dos PDFs ficam pendentes até o ambiente
+  liberar espaço; não há aceite formal novo de P1-P7.
