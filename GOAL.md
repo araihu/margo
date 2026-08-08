@@ -1982,3 +1982,24 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `15debf6efee03e80e3408f2a489c168458036ab7`, remoto
   `origin/impl/v0.0.1-core`. O cache M0 `test/browser/.cache/` segue como o
   único não rastreado intencional.
+
+### 2026-08-08 — O4: stdout somente depois do spool validado
+
+- O RED de O4 confirmou que `StdoutSink` ainda não existia. O contrato cobre
+  zero bytes em falha de leitura, digest divergente e cancelamento antes da
+  publicação; a saída só é tocada depois que o leitor inteiro foi consumido
+  para um `Spool` privado e o digest esperado foi verificado.
+- O GREEN adicionou `stdout_sink.go`: a fase de validação usa o mesmo limite de
+  documento e limpeza privada do O1; a fase de cópia para o writer é separada
+  e nunca promete atomicidade. Short write ou erro depois de um prefixo visível
+  retorna `CommitUnknown`, bytes observados e diagnóstico
+  `margo.stdout.partial_write`; sucesso completo retorna `CommitCommitted`.
+- Testes cobrem erro antes do primeiro byte, publicação exata, mismatch sem
+  saída, short write com prefixo observado e cancelamento pré-commit. Gates
+  passaram: `GOWORK=off GOFLAGS=-mod=readonly go test . -run 'TestStdout'
+  -count=20`, race focado `TestStdout -count=20`, `go test ./... -count=1`,
+  `go vet ./...` e `go test -race ./... -count=1`.
+- Arquivos deste checkpoint: `stdout_sink.go`, `stdout_sink_test.go` e este
+  registro. O4 é candidato local; O5 (CLI/render/publicação) ainda depende da
+  revisão dos sinks e das autoridades de runtime. Goshtoso/T6/I1a/I1b seguem
+  sem aceitação formal.
