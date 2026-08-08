@@ -17,6 +17,12 @@ The output is written through a same-directory temporary file, synced, and
 renamed only after the component rendered successfully. A failed render leaves
 no partial destination and no `.margo-render-*` temporary file.
 
+The root command deliberately stays extension-neutral. To include the optional
+bar, line, doughnut, and scatter projections in the same optimistic artifact,
+run the module-local [chart-aware renderer](../../charts/tools/optimistic-renderer/README.md)
+from the repository root with its `go.work` active, using the root corpus and
+chart appendix.
+
 PDF printing and contrast/browser evidence remain M0-owned operations. Feed
 the generated absolute HTML path to `test/browser/run-playwright.sh` with its
 checked environment file; do not use ambient npm, browser downloads, or a
