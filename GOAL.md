@@ -1478,3 +1478,46 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
 - Checkpoint versionado: commit `914be1508c3f9bfc191241b430ad8da40f91f7cd`,
   tree `ed826990bd44fa881024529745f6f3709641c5f9`, enviado para
   `origin/impl/v0.0.1-core`; a árvore ficou limpa após o push.
+
+### 2026-08-08 — disclosure Mermaid e quebra de página de blocos protegidos
+
+- `2026-08-08T04:53:34-03:00`: o caso RED foi registrado em
+  `render_test.go`: a fonte Mermaid não deveria começar aberta no HTML. O
+  GREEN removeu `open` de `renderRuntimeFence`, preservando a fonte como um
+  disclosure acessível (`details/summary`) que o leitor pode abrir sob
+  demanda.
+- A preparação de impressão em `standalone.go` agora abre os disclosures
+  Mermaid apenas durante `beforeprint`/`margoPreparePrintTOC`, marca blocos
+  protegidos que atravessam uma fronteira de página com
+  `data-margo-print-break-before="page"`, e restaura estado e marcadores em
+  `afterprint`/`margoRestorePrintState`. `assets/document.css` traduz o
+  marcador para `break-before: page` e `page-break-before: always`, mantendo
+  listas, tabelas, figuras, código, disclosures e Mermaid legíveis como
+  unidades de impressão.
+- Os testes estáticos e unitários passaram com
+  `GOWORK=off GOFLAGS=-mod=readonly`; `go test ./...`, `go vet ./...`,
+  `charts/go test ./...`, `pdf/go test ./...` e `git diff --check` também
+  passaram. O spec Playwright acrescenta os casos de disclosure
+  print-only/restore e bloco que cruza a página.
+- Prova focada no Chromium pinado M0 (sem rede/download e sem mutar fonte),
+  com `assets/document.css` e `assets/standalone.css` reais embutidos:
+  `before={open:false,marker:null}`, `prepared={open:true,marker:page,
+  breakBefore:page}`, `restored={open:false,marker:null}`. Isso é evidência
+  focada do contrato, não aceite formal M0; o runner completo permanece
+  indisponível neste checkout porque o cache/receipt verificado anterior
+  aponta para um harness temporário já removido.
+- O smoke do renderer versionado foi regenerado após a mudança:
+  `output/html/margo-v0.0.1-optimistic.html` (337.382 bytes,
+  SHA-256 `d8301779ab49798399b3438c342116a3f25367e96cda2e9f9cd5ae04c175ac18`)
+  e `output/html/margo-v0.0.1-optimistic-dark.html` (337.385 bytes,
+  SHA-256 `12b8438c4dac8385f80b258a4de362d360d717f1af899f78047a40fcd5174800`).
+  Ambos mantêm a fonte Mermaid fechada no HTML; a alteração ainda não foi
+  promovida como nova evidência PDF formal.
+- Arquivos alterados neste checkpoint: `render.go`, `render_test.go`,
+  `standalone.go`, `standalone_test.go`, `assets/document.css` e
+  `test/browser/specs/standalone-pagination.spec.mjs`. T6, `release/table-handoff.json`,
+  I1a/I1b e os sucessores formais continuam deliberadamente pendentes.
+- Checkpoint de código: commit `20de90cccff2fb16408d1df3ef556ee679c8b3f1`,
+  tree `24ba7cb06a9e2e754d5d755ecc204bf8114fc30d`, enviado para
+  `origin/impl/v0.0.1-core`; o commit documental deste registro será criado
+  em seguida.
