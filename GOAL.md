@@ -33,8 +33,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Worktree de implementação desta sessão:
   `/private/tmp/margo-v001-implementation`, branch `impl/v0.0.1-core`.
 - Checkpoint atual desta continuação: HEAD
-  `5f7d6d5d2a1552e39d1af6a4656d51a54c96dd93`, tree
-  `e9b8d81c240ab2a913bac3b1f8836dc6dc797357`; remoto sincronizado. O PDF
+  `1c97458458dcf4b47e57858db89b2be47ef0e12b`, tree
+  `7b84817f21b3a840a347336f91a1d5f7f79bca30`; remoto sincronizado. O PDF
   dark checked atual tem 20 páginas A4 e a tabela Mermaid preserva a última
   linha em continuação protegida.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
@@ -2660,3 +2660,15 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   Nenhum caso mostrou clipping, título órfão ou quebra ilegível.
 - Não alterar algoritmo para ganhar densidade sem novo caso RED: preservação de
   blocos legíveis é contrato superior ao preenchimento visual da página.
+
+### 2026-08-08 — passada visual completa e lint dark final
+
+- Contact sheet das 20 páginas dark revisado. Header/footer, TOC, imagens,
+  listas, tabelas, código, Mermaid e páginas de continuação permanecem legíveis;
+  páginas com espaço livre correspondem a blocos protegidos, não a conteúdo
+  perdido.
+- Runner M0 checked executado novamente contra o HTML dark atual: Node
+  `v26.5.0`, Chromium revision `1169`, `margo/contrast-lint/v1`, 505 nós de
+  texto, 29 itens de layout, zero falhas e zero requests bloqueados.
+- Nenhuma nova correção de renderer justificada. Pendências reais continuam
+  externas: I1a/I1b/I3/O5/T6 e aceitação independente M0.
