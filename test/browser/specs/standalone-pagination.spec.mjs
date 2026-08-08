@@ -224,6 +224,43 @@ test("@pagination keeps a heading with a protected block that moves pages", asyn
   await expect(page.locator("#ordered")).not.toHaveAttribute("data-margo-print-break-before", "page");
 });
 
+test("@pagination lets an oversized table flow while keeping rows together", async ({ page }) => {
+  const [documentCSS, standaloneCSS, script] = await Promise.all([
+    stylesheet("document.css"),
+    stylesheet("standalone.css"),
+    printPaginationScript(),
+  ]);
+  await page.setViewportSize({ width: 794, height: 1123 });
+  await page.setContent(`<!doctype html>
+    <html><head><style>${documentCSS}</style><style>${standaloneCSS}</style><style>
+      .margo-document { margin: 0; }
+      #oversized { block-size: 1200px; }
+      #oversized table { block-size: 1200px; }
+      #oversized tr { block-size: 600px; }
+    </style></head><body><div class="goshtoso-document">
+      <article class="margo-document">
+        <h3>Edge cases first</h3>
+        <p>Lead context must not strand an almost empty page before a large table.</p>
+        <div id="oversized" data-table-client-sort="true">
+          <table><tbody><tr><td>first row</td></tr><tr><td>second row</td></tr></tbody></table>
+        </div>
+      </article>
+    </div>${script}</body></html>`);
+  await page.emulateMedia({ media: "print" });
+  await page.evaluate(() => window.margoPreparePrintTOC());
+
+  await expect(page.locator("#oversized")).toHaveAttribute("data-margo-print-oversized", "true");
+  await expect(page.locator("#oversized")).toHaveCSS("break-inside", "auto");
+  await expect(page.locator("#oversized tr")).toHaveCount(2);
+  const rowBreaks = await page.locator("#oversized tr").evaluateAll((rows) =>
+    rows.map((row) => getComputedStyle(row).breakInside),
+  );
+  expect(rowBreaks).toEqual(["avoid-page", "avoid-page"]);
+
+  await page.evaluate(() => window.margoRestorePrintState());
+  await expect(page.locator("#oversized")).not.toHaveAttribute("data-margo-print-oversized", "true");
+});
+
 test("@pagination falls back to two columns only when a TOC is too tall", async ({ page }) => {
   const [documentCSS, standaloneCSS, script] = await Promise.all([
     stylesheet("document.css"),

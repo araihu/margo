@@ -255,6 +255,19 @@
     max-inline-size: 100%;
     overflow: visible;
   }
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] table,
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] tbody {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .goshtoso-document > .margo-document [data-margo-print-oversized="true"] tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
   .goshtoso-document > .margo-document [data-table-client-sort="true"] table {
     inline-size: 100%;
     max-inline-size: 100%;

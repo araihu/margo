@@ -75,6 +75,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   const originalDetailsState = new WeakMap();
   const originalBreakMarkers = new WeakMap();
   const originalBreakBeforeStyles = new WeakMap();
+  const originalOversizedMarkers = new WeakMap();
   const millimetersToPixels = () => {
     const probe = document.createElement("div");
     probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
@@ -101,6 +102,13 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       else if (originalStyle) block.style.setProperty("break-before", originalStyle.value, originalStyle.priority);
       originalBreakBeforeStyles.delete(block);
     }
+    for (const block of protectedBlocks()) {
+      if (!originalOversizedMarkers.has(block)) continue;
+      const original = originalOversizedMarkers.get(block);
+      if (original === null) block.removeAttribute("data-margo-print-oversized");
+      else block.setAttribute("data-margo-print-oversized", original);
+      originalOversizedMarkers.delete(block);
+    }
     if (toc) delete toc.dataset.margoTocColumns;
   };
 
@@ -119,8 +127,20 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     return changed;
   };
 
+  const markOversizedTables = (pageHeight) => {
+    for (const block of protectedBlocks()) {
+      if (!block.matches('[data-table-client-sort="true"]')) continue;
+      if (block.getBoundingClientRect().height <= pageHeight + 0.5) continue;
+      if (!originalOversizedMarkers.has(block)) {
+        originalOversizedMarkers.set(block, block.getAttribute("data-margo-print-oversized"));
+      }
+      block.setAttribute("data-margo-print-oversized", "true");
+    }
+  };
+
   const markCrossPageBlocks = () => {
     const pageHeight = Math.max(1, window.innerHeight);
+    markOversizedTables(pageHeight);
     for (let pass = 0; pass < protectedBlocks().length; pass += 1) {
       let changed = false;
       const pairs = headingBlockPairs();
