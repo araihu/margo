@@ -33,8 +33,8 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Worktree de implementação desta sessão:
   `/private/tmp/margo-v001-implementation`, branch `impl/v0.0.1-core`.
 - Checkpoint atual desta continuação: HEAD
-  `30f5f9b5e2c56a18b7e3a917c62f6996f2965ccb`, tree
-  `d264412cb58904c2cf88cc61abfd8456f444a791`; remoto sincronizado. O PDF
+  `36513d410eb480bef626cd81d2db3ce0ef2e06c7`, tree
+  `3050d0caa2731761c6b3f45b5e29924f310b2f12`; remoto sincronizado. O PDF
   dark checked atual tem 20 páginas A4 e a tabela Mermaid preserva a última
   linha em continuação protegida. O gerador agora grava evidência
   `margo/pdf-print/v2` com contrato explícito de continuidade de tabelas.
