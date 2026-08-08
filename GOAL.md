@@ -2706,3 +2706,24 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   `origin/impl/v0.0.1-core` sincronizada. T6, I1a/I1b/I3, O5 e aceitação
   independente formal de M0 continuam pendentes por autoridade/proveniência;
   nenhum handoff ou release foi inventado.
+
+### 2026-08-08 — suíte browser completa M0 candidate
+
+- `test/browser/run-playwright.sh --check --env-file
+  test/browser/.cache/node-env.checked.sh` executou a suíte inteira sob Node
+  `v26.5.0`, npm `11.17.0`, Chromium revision `1169` / `136.0.7103.25`:
+  `49 passed (10.3s)`, `network=0`.
+- Cobertura executada incluiu contratos de cache/lock/signature, XML/CSS,
+  composition, fila Mermaid real, readiness, runtime schema, contraste light e
+  dark, layout/paginação/TOC/margens/shell, normalização e validação SVG, além
+  da continuação integral da tabela de rejeições Mermaid.
+- Após execução, `test/browser/node_modules/` foi movido para
+  `/tmp/margo-node-modules-cleanup.full-suite.83lxTb/node_modules` e
+  `test/browser/test-results/` para
+  `/tmp/margo-browser-test-results-cleanup.bBoxrR/test-results`; somente
+  `test/browser/.cache/` M0 permanece não rastreado. Worktree segue sem
+  staged/unstaged changes e branch remoto estava sincronizada antes deste
+  registro.
+- A suíte comprova o candidato local M0, não substitui aceitação independente
+  nem cria autoridade para I1a/I1b/I3/O5/T6. Nenhuma publicação, release ou
+  handoff externo foi executado.
