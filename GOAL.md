@@ -35,7 +35,7 @@ identidades e estado limpo. Até lá, este arquivo permanece `IN_PROGRESS`.
 - Base desta implementação: o HEAD R17 aceito acima; o snapshot aceito não é
   editado.
 - Repositório: `https://github.com/araihu/margo`.
-- Último HEAD funcional (sem contar checkpoints documentais): `c63a568`, enviado
+- Último HEAD funcional (sem contar checkpoints documentais): `2b32d8d6bc6218f733ef09ec1fb2a73a1c1b93c7`, enviado
   para `origin/impl/v0.0.1-core`; os checkpoints documentais posteriores estão
   registrados no histórico e nas notas abaixo. Esse checkpoint corrige a
   paginação de tabelas oversized no PDF e preserva as linhas. A implementação
@@ -2270,3 +2270,16 @@ contexto, consultar primeiro este arquivo e depois os planos referenciados.
   dark `b3b3278d9715c138bbfc8891d3a0fd7c8a42a9edc7fe4546912241431e021212`;
   HTML light `af87c7e950c08e616a56149bc6e3c25f3878894b7516576a5e742d8b54684a40`,
   HTML dark `7d36d73ddbc4fb92653e0f7e9888565b7a4ce7bf7612955c28b5c676eb8e2246`.
+
+### 2026-08-08 — benchmark HTML: sentinelas da tabela Mermaid
+
+- O teste de benchmark já verificava a presença de `<table>`, mas não exigia
+  que os vetores de rejeição chegassem ao markup. O RED conceitual foi fechado
+  com uma asserção explícita para nove linhas sentinela: CSS customizado,
+  at-rule, propriedade desconhecida, função proibida, referência SVG externa,
+  opacidade inválida, `data-points` inválido, unidade inválida e `unrooted-id`.
+- GREEN: `TestOptimisticBenchmarkExercisesFullMarkdownProfile` agora rejeita
+  qualquer HTML otimista que perca uma dessas linhas antes do PDF. O teste
+  focado, `go test ./... -count=1` e `go vet ./...` passaram.
+- Checkpoint funcional publicado: `2b32d8d6bc6218f733ef09ec1fb2a73a1c1b93c7`;
+  o contrato de I1b/I2/I3/T6 não foi alterado.
