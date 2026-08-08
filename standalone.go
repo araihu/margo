@@ -48,9 +48,20 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
 (() => {
   "use strict";
   const toc = document.querySelector(".goshtoso-document__toc");
-  if (!toc || !toc.querySelector(":scope > ol")) return;
+  const mermaidSources = () => [...document.querySelectorAll(".margo-mermaid__source")];
+  const article = document.querySelector(".goshtoso-document > .margo-document");
+  const protectedBlocks = () => article ? [...article.querySelectorAll(
+    ":scope > :is(ul, ol, blockquote, dl, details, figure, table, img, pre), " +
+    ':scope > [data-table-client-sort="true"], ' +
+    ":scope > [data-code-block], " +
+    ":scope > div:has(> .codeblock), " +
+    ":scope > .margo-mermaid",
+  )] : [];
+  if ((!toc || !toc.querySelector(":scope > ol")) && mermaidSources().length === 0 && protectedBlocks().length === 0) return;
 
   const pageMarginBottomMillimeters = 22;
+  const originalDetailsState = new WeakMap();
+  const originalBreakMarkers = new WeakMap();
   const millimetersToPixels = () => {
     const probe = document.createElement("div");
     probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
@@ -60,23 +71,66 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     return pixels;
   };
 
-  const prepare = () => {
-    toc.dataset.margoTocColumns = "1";
-    const pageBottom = window.innerHeight - pageMarginBottomMillimeters * millimetersToPixels();
-    if (toc.getBoundingClientRect().bottom > pageBottom + 0.5) {
-      toc.dataset.margoTocColumns = "2";
+  const restorePrintState = () => {
+    for (const details of mermaidSources()) {
+      if (!originalDetailsState.has(details)) continue;
+      details.open = originalDetailsState.get(details);
+      originalDetailsState.delete(details);
+    }
+    for (const block of protectedBlocks()) {
+      if (!originalBreakMarkers.has(block)) continue;
+      const original = originalBreakMarkers.get(block);
+      if (original === null) block.removeAttribute("data-margo-print-break-before");
+      else block.setAttribute("data-margo-print-break-before", original);
+      originalBreakMarkers.delete(block);
+    }
+    if (toc) delete toc.dataset.margoTocColumns;
+  };
+
+  const markCrossPageBlocks = () => {
+    const pageHeight = Math.max(1, window.innerHeight);
+    for (let pass = 0; pass < protectedBlocks().length; pass += 1) {
+      let changed = false;
+      for (const block of protectedBlocks()) {
+        const rect = block.getBoundingClientRect();
+        if (rect.height > pageHeight + 0.5) continue;
+        const top = rect.top + window.scrollY;
+        const bottom = rect.bottom + window.scrollY - 0.5;
+        const startsOn = Math.floor(top / pageHeight);
+        const endsOn = Math.floor(bottom / pageHeight);
+        if (endsOn <= startsOn || top % pageHeight <= 1) continue;
+        if (!originalBreakMarkers.has(block)) originalBreakMarkers.set(block, block.getAttribute("data-margo-print-break-before"));
+        if (block.getAttribute("data-margo-print-break-before") !== "page") {
+          block.setAttribute("data-margo-print-break-before", "page");
+          changed = true;
+        }
+      }
+      if (!changed) break;
     }
   };
 
+  const prepare = () => {
+    for (const details of mermaidSources()) {
+      if (!originalDetailsState.has(details)) originalDetailsState.set(details, details.open);
+      details.open = true;
+    }
+    if (toc && toc.querySelector(":scope > ol")) {
+      toc.dataset.margoTocColumns = "1";
+      const pageBottom = window.innerHeight - pageMarginBottomMillimeters * millimetersToPixels();
+      if (toc.getBoundingClientRect().bottom > pageBottom + 0.5) {
+        toc.dataset.margoTocColumns = "2";
+      }
+    }
+    markCrossPageBlocks();
+  };
+
   window.margoPreparePrintTOC = prepare;
+  window.margoRestorePrintState = restorePrintState;
   window.addEventListener("beforeprint", prepare);
-  window.addEventListener("afterprint", () => delete toc.dataset.margoTocColumns);
+  window.addEventListener("afterprint", restorePrintState);
   const printMedia = window.matchMedia("print");
   if (typeof printMedia.addEventListener === "function") {
-    printMedia.addEventListener("change", (event) => {
-      if (event.matches) prepare();
-      else delete toc.dataset.margoTocColumns;
-    });
+    printMedia.addEventListener("change", (event) => event.matches ? prepare() : restorePrintState());
   }
   if (printMedia.matches) prepare();
 })();

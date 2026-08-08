@@ -251,6 +251,10 @@
     page-break-inside: avoid;
     break-inside: avoid-page;
   }
+  .goshtoso-document > .margo-document [data-margo-print-break-before="page"] {
+    page-break-before: always;
+    break-before: page;
+  }
   .goshtoso-document [data-code-block-header],
   .goshtoso-document [data-code-block] > :first-child,
   .goshtoso-document div[x-data] > div:first-of-type,

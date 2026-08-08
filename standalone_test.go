@@ -175,6 +175,16 @@ func TestStandalonePrintBackdropUsesPageCenter(t *testing.T) {
 			t.Errorf("print backdrop centering missing %q", want)
 		}
 	}
+	for _, want := range []string{
+		".margo-mermaid__source",
+		"details.open = true",
+		"window.margoRestorePrintState",
+		"details.open = originalDetailsState.get(details)",
+	} {
+		if !strings.Contains(standalonePrintPaginationScript, want) {
+			t.Errorf("print disclosure state contract missing %q", want)
+		}
+	}
 }
 
 func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
@@ -267,6 +277,8 @@ func TestStandalonePrintBlocksAvoidInternalFragmentation(t *testing.T) {
 		".goshtoso-document > .margo-document [data-code-block]",
 		".goshtoso-document > .margo-document div:has(> .codeblock)",
 		".goshtoso-document > .margo-document .margo-mermaid",
+		`[data-margo-print-break-before="page"]`,
+		"break-before: page;",
 		"break-inside: avoid-page;",
 	} {
 		if !strings.Contains(printCSS, want) {

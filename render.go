@@ -352,7 +352,7 @@ func (r markdownRenderer) renderImage(image *goldast.Image) error {
 func (r markdownRenderer) renderRuntimeFence(kind string, source []byte) error {
 	ordinal := r.runtimeTaskOrdinals[kind]
 	r.runtimeTaskOrdinals[kind] = ordinal + 1
-	if _, err := fmt.Fprintf(r.out, `<figure class="margo-runtime-task margo-mermaid" data-margo-runtime-task="%s" data-margo-runtime-task-ordinal="%d"><div class="margo-mermaid__canvas" role="img" aria-label="Mermaid diagram"></div><details open class="margo-mermaid__source"><summary>Mermaid source</summary><pre><code>`, html.EscapeString(kind), ordinal); err != nil {
+	if _, err := fmt.Fprintf(r.out, `<figure class="margo-runtime-task margo-mermaid" data-margo-runtime-task="%s" data-margo-runtime-task-ordinal="%d"><div class="margo-mermaid__canvas" role="img" aria-label="Mermaid diagram"></div><details class="margo-mermaid__source"><summary>Mermaid source</summary><pre><code>`, html.EscapeString(kind), ordinal); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(r.out, html.EscapeString(string(source))); err != nil {

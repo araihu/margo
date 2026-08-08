@@ -73,12 +73,15 @@ func TestSemanticRenderUsesFrontmatterBodyForFenceLanguage(t *testing.T) {
 	}
 }
 
-func TestMermaidSourceStartsExpandedButRemainsDisclosure(t *testing.T) {
+func TestMermaidSourceStartsCollapsedButRemainsDisclosure(t *testing.T) {
 	result := mustRenderSource(t, "```mermaid\nflowchart TD\n  A --> B\n```\n")
 	markup := renderComponent(t, result.Content())
-	want := `<details open class="margo-mermaid__source"><summary>Mermaid source</summary>`
+	want := `<details class="margo-mermaid__source"><summary>Mermaid source</summary>`
 	if !bytes.Contains([]byte(markup), []byte(want)) {
-		t.Fatalf("Mermaid source disclosure is not expanded by default:\n%s", markup)
+		t.Fatalf("Mermaid source disclosure is not collapsed by default:\n%s", markup)
+	}
+	if bytes.Contains([]byte(markup), []byte(`<details open class="margo-mermaid__source">`)) {
+		t.Fatalf("Mermaid source disclosure is expanded by default:\n%s", markup)
 	}
 }
 

@@ -90,6 +90,44 @@ test("@pagination keeps a short TOC in one column", async ({ page }) => {
   await expect(page.locator(".goshtoso-document__toc ol")).toHaveCSS("column-count", "1");
 });
 
+test("@pagination expands Mermaid source only for print and restores screen state", async ({ page }) => {
+  const script = await printPaginationScript();
+  await page.setContent(`<!doctype html>
+    <html><head></head><body><div class="goshtoso-document">
+      <nav class="goshtoso-document__toc"><ol><li>One</li></ol></nav>
+      <article class="margo-document"><figure class="margo-mermaid">
+        <details class="margo-mermaid__source"><summary>Mermaid source</summary><pre><code>flowchart LR
+source --> target</code></pre></details>
+      </figure></article>
+    </div>${script}</body></html>`);
+
+  await expect(page.locator(".margo-mermaid__source")).not.toHaveAttribute("open", "");
+  await page.evaluate(() => window.margoPreparePrintTOC());
+  await expect(page.locator(".margo-mermaid__source")).toHaveJSProperty("open", true);
+  await page.evaluate(() => window.margoRestorePrintState());
+  await expect(page.locator(".margo-mermaid__source")).toHaveJSProperty("open", false);
+});
+
+test("@pagination moves a protected block that crosses a print page boundary", async ({ page }) => {
+  const script = await printPaginationScript();
+  await page.setViewportSize({ width: 794, height: 1123 });
+  await page.setContent(`<!doctype html>
+    <html><head><style>
+      .margo-document { margin: 0; }
+      .spacer { block-size: 900px; }
+      .margo-document ul { block-size: 300px; margin: 0; padding: 0; }
+    </style></head><body><div class="goshtoso-document">
+      <nav class="goshtoso-document__toc"><ol><li>One</li></ol></nav>
+      <article class="margo-document"><div class="spacer"></div><ul id="crossing"><li>protected list</li></ul></article>
+    </div>${script}</body></html>`);
+  await page.emulateMedia({ media: "print" });
+  await page.evaluate(() => window.margoPreparePrintTOC());
+  await expect(page.locator("#crossing")).toHaveAttribute("data-margo-print-break-before", "page");
+  await expect(page.locator("#crossing")).toHaveCSS("break-before", "page");
+  await page.evaluate(() => window.margoRestorePrintState());
+  await expect(page.locator("#crossing")).not.toHaveAttribute("data-margo-print-break-before", "page");
+});
+
 test("@pagination falls back to two columns only when a TOC is too tall", async ({ page }) => {
   const [documentCSS, standaloneCSS, script] = await Promise.all([
     stylesheet("document.css"),
