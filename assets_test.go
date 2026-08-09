@@ -2,8 +2,11 @@ package margo
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -18,8 +21,40 @@ func TestLibraryCSSNeverTargetsHostRoot(t *testing.T) {
 	if regexp.MustCompile(`(^|[,{])\s*(html|body|:root)\b`).Match(css) {
 		t.Fatalf("document stylesheet targets a host root")
 	}
-	if !bytes.Contains(css, []byte(".goshtoso-document")) {
-		t.Fatalf("document stylesheet is not scoped to .goshtoso-document")
+	if !bytes.Contains(css, []byte(".margo-document")) {
+		t.Fatalf("document stylesheet is not scoped to .margo-document")
+	}
+	withoutStandaloneFurniture := bytes.ReplaceAll(css, []byte(".goshtoso-document__"), []byte(".standalone-furniture__"))
+	if bytes.Contains(withoutStandaloneFurniture, []byte(".goshtoso-document")) {
+		t.Fatal("editorial rules still depend on the standalone goshtoso-document wrapper")
+	}
+}
+
+func TestHTMLAssetHandlerOwnsOnlyMargoMount(t *testing.T) {
+	handler := HTMLAssetHandler()
+	for _, test := range []struct {
+		path        string
+		contentType string
+	}{
+		{path: "/margo-assets/document.css", contentType: "text/css"},
+		{path: "/margo-assets/table-sort.js", contentType: "application/javascript"},
+	} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if recorder.Code != http.StatusOK || !strings.HasPrefix(recorder.Header().Get("Content-Type"), test.contentType) || recorder.Body.Len() == 0 {
+			t.Fatalf("GET %s = status %d, type %q, bytes %d", test.path, recorder.Code, recorder.Header().Get("Content-Type"), recorder.Body.Len())
+		}
+	}
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/assets/document.css", nil))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("editorial handler accepted Goshtoso mount: %d", recorder.Code)
+	}
+
+	legacyRecorder := httptest.NewRecorder()
+	AssetHandler().ServeHTTP(legacyRecorder, httptest.NewRequest(http.MethodGet, "/assets/table-sort.js", nil))
+	if legacyRecorder.Code != http.StatusNotFound {
+		t.Fatalf("legacy handler exposed editorial runtime: %d", legacyRecorder.Code)
 	}
 }
 
@@ -34,8 +69,8 @@ func TestDocumentCSSRestoresSemanticMarkdownRhythmAfterGoshtosoPreflight(t *test
 		[]byte("list-style-type: disc"),
 		[]byte("color: var(--color-primary)"),
 		[]byte("border-inline-start: 1px solid var(--color-outline)"),
-		[]byte(".goshtoso-document [x-cloak]"),
-		[]byte(".goshtoso-document:is(.dark *)"),
+		[]byte(".margo-document [x-cloak]"),
+		[]byte(".margo-document:is(.dark *)"),
 	} {
 		if !bytes.Contains(css, want) {
 			t.Fatalf("document stylesheet missing semantic rhythm rule %q", want)
@@ -48,7 +83,7 @@ func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rule := regexp.MustCompile(`(?s)\.goshtoso-document \[data-code-block\],\s*\.goshtoso-document div:has\(> \.codeblock\) \{([^}]*)\}`).FindSubmatch(css)
+	rule := regexp.MustCompile(`(?s)\.margo-document \[data-code-block\],\s*\.margo-document div:has\(> \.codeblock\) \{([^}]*)\}`).FindSubmatch(css)
 	if len(rule) != 2 {
 		t.Fatal("document stylesheet is missing the scoped Goshtoso code-block rhythm rule")
 	}
@@ -68,7 +103,7 @@ func TestDocumentCSSSpacesGoshtosoTableFromFollowingProse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rule := regexp.MustCompile(`(?s)\.goshtoso-document \[data-table-client-sort="true"\] \{([^}]*)\}`).FindSubmatch(css)
+	rule := regexp.MustCompile(`(?s)\.margo-document \[data-table-client-sort="true"\] \{([^}]*)\}`).FindSubmatch(css)
 	if len(rule) != 2 {
 		t.Fatal("document stylesheet is missing the scoped Goshtoso table rhythm rule")
 	}
@@ -82,7 +117,7 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rule := regexp.MustCompile(`(?s)\.goshtoso-document :not\(pre\) > code \{([^}]*)\}`).FindSubmatch(css)
+	rule := regexp.MustCompile(`(?s)\.margo-document :not\(pre\) > code \{([^}]*)\}`).FindSubmatch(css)
 	if len(rule) != 2 {
 		t.Fatal("document stylesheet is missing the scoped inline-code rule")
 	}
@@ -96,7 +131,7 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 			t.Fatalf("document stylesheet missing inline-code contrast rule %q", want)
 		}
 	}
-	if !bytes.Contains(css, []byte(".goshtoso-document:is(.dark *) :not(pre) > code {")) ||
+	if !bytes.Contains(css, []byte(".margo-document:is(.dark *) :not(pre) > code {")) ||
 		!bytes.Contains(css, []byte("background: color-mix(in oklch, var(--color-surface-dark-alt) 50%, var(--color-outline-dark) 50%)")) ||
 		!bytes.Contains(css, []byte("border-color: var(--color-outline-dark)")) {
 		t.Fatal("document stylesheet is missing the dark inline-code boundary token")
@@ -109,8 +144,8 @@ func TestDocumentCSSKeepsExpandedMermaidSourceReadableWhenPrinted(t *testing.T) 
 		t.Fatal(err)
 	}
 	for _, want := range [][]byte{
-		[]byte(".goshtoso-document .margo-mermaid__source {\n    break-inside: avoid;"),
-		[]byte(".goshtoso-document .margo-mermaid__source pre"),
+		[]byte(".margo-document .margo-mermaid__source {\n    break-inside: avoid;"),
+		[]byte(".margo-document .margo-mermaid__source pre"),
 		[]byte("font-size: var(--text-sm)"),
 		[]byte("white-space: pre-wrap"),
 		[]byte("overflow-wrap: anywhere"),

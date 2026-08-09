@@ -1,0 +1,39 @@
+package margo
+
+templ htmlPageDocument(metadata HTMLMetadata, input HTMLPageInput, dependencies []htmlDependency, fingerprint string, fragment templ.Component) {
+	<!doctype html>
+	<html lang={ htmlPageLanguage(metadata) } class={ templ.KV("dark", input.ColorMode == ColorModeDark) } data-theme={ string(input.Theme) } data-color-mode={ string(input.ColorMode) }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ metadata.Title }</title>
+			if metadata.Description != "" {
+				<meta name="description" content={ metadata.Description }/>
+			}
+			if input.Head != nil {
+				@input.Head
+			}
+			for _, dependency := range dependencies {
+				@htmlDependencyComponent(dependency)
+			}
+		</head>
+		<body>
+			if input.Header != nil {
+				<header class="margo-page-header">@input.Header</header>
+			}
+			if input.body != nil {
+				@input.body
+			} else {
+				<main data-margo-html-fingerprint={ fingerprint }>
+					if input.BeforeContent != nil {
+						@input.BeforeContent
+					}
+					@fragment
+				</main>
+			}
+			if input.Footer != nil {
+				<footer class="margo-page-footer">@input.Footer</footer>
+			}
+		</body>
+	</html>
+}

@@ -9,6 +9,7 @@ import (
 
 	margo "github.com/araihu/margo"
 	socialcheck "github.com/araihu/margo/internal/socialcheck"
+	"github.com/araihu/margo/webpublication"
 )
 
 func TestPreviewAsset(t *testing.T) {
@@ -27,13 +28,13 @@ func TestProductionPageFixture(t *testing.T) {
 	}
 }
 
-func loadAuthorityFixtureForTest(t *testing.T) margo.AuthorityRecord {
+func loadAuthorityFixtureForTest(t *testing.T) webpublication.AuthorityRecord {
 	t.Helper()
 	data, err := os.ReadFile("../../testdata/authority/record.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := margo.VerifyAuthorityRecord(data)
+	record, err := webpublication.VerifyAuthorityRecord(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,19 +55,26 @@ func mustRenderSource(t *testing.T, source string) *margo.RenderResult {
 	return result
 }
 
-func homeSocialMetadata(origin margo.CanonicalOrigin) margo.SocialMetadata {
+func homeSocialMetadata(origin webpublication.CanonicalOrigin) webpublication.SocialMetadata {
 	base := strings.TrimRight(string(origin), "/")
-	return margo.SocialMetadata{
+	return webpublication.SocialMetadata{
 		Title: "Margo: Markdown for Goshtoso", Description: "Compile one Markdown document into Goshtoso-styled HTML, PDF, and static slide decks with deterministic, offline assets.", CanonicalURL: base + "/", SiteName: "Margo", Locale: "en_US",
-		Image: margo.SocialImage{URL: base + "/assets/social/margo-v0.0.1.png", MIMEType: "image/png", Width: 1280, Height: 640, Alt: "Margo name and Markdown document motif on a Goshtoso-themed background."},
+		Image: webpublication.SocialImage{URL: base + "/assets/social/margo-v0.0.1.png", MIMEType: "image/png", Width: 1280, Height: 640, Alt: "Margo name and Markdown document motif on a Goshtoso-themed background."},
 	}
 }
 
 func TestPublicStandaloneSocialMetadata(t *testing.T) {
 	authority := loadAuthorityFixtureForTest(t)
-	result := mustRenderSource(t, "# Home\n\nWelcome")
-	input := margo.SocialRenderInput{Mode: margo.PublicationPublic, Authority: authority, RoutePath: authority.Routes.Homepage, Metadata: homeSocialMetadata(authority.CanonicalOrigin), HeadOwner: margo.FrozenHeadOwnerSelection()}
-	component, err := margo.RenderSocialStandalone(result, input)
+	result, err := margo.RenderHTML(mustRenderSource(t, "---\ntitle: 'Margo: Markdown for Goshtoso'\ndescription: Compile one Markdown document into Goshtoso-styled HTML, PDF, and static slide decks with deterministic, offline assets.\n---\n\n# Home\n\nWelcome"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata := homeSocialMetadata(authority.CanonicalOrigin)
+	component, err := webpublication.Render(result, webpublication.Input{
+		Kind: webpublication.KindDocument, Authority: authority, RoutePath: authority.Routes.Homepage,
+		SiteName: metadata.SiteName, Locale: metadata.Locale, Image: metadata.Image,
+		Page: margo.HTMLPageInput{Theme: margo.ThemeModern, ColorMode: margo.ColorModeLight, DependencyMode: margo.HTMLDependenciesInline},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +82,7 @@ func TestPublicStandaloneSocialMetadata(t *testing.T) {
 	if err := component.Render(context.Background(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if err := socialcheck.RequireOneCompleteSet(got.String(), input.Metadata.CanonicalURL); err != nil {
+	if err := socialcheck.RequireOneCompleteSet(got.String(), metadata.CanonicalURL); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"og:url", "og:image", "twitter:card", "Margo: Markdown for Goshtoso"} {
@@ -84,8 +92,12 @@ func TestPublicStandaloneSocialMetadata(t *testing.T) {
 	}
 }
 
-func TestPrivateStandaloneOmitsSocialURLs(t *testing.T) {
-	component, err := margo.RenderSocialStandalone(mustRenderSource(t, "# Private"), margo.SocialRenderInput{Mode: margo.PublicationPrivate, HeadOwner: margo.FrozenHeadOwnerSelection()})
+func TestGenericHTMLPageOmitsSocialURLs(t *testing.T) {
+	result, err := margo.RenderHTML(mustRenderSource(t, "# Private"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	component, err := margo.RenderHTMLPage(result, margo.HTMLPageInput{Theme: margo.ThemeModern, ColorMode: margo.ColorModeLight, DependencyMode: margo.HTMLDependenciesInline})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,12 +116,12 @@ func TestSocialMetadataValidation(t *testing.T) {
 	authority := loadAuthorityFixtureForTest(t)
 	metadata := homeSocialMetadata(authority.CanonicalOrigin)
 	metadata.CanonicalURL = "https://outside.invalid/"
-	if err := metadata.Validate(margo.PublicationPublic, authority, authority.Routes.Homepage); err == nil {
+	if err := metadata.Validate(authority, authority.Routes.Homepage); err == nil {
 		t.Fatal("out-of-origin canonical URL unexpectedly accepted")
 	}
 	metadata = homeSocialMetadata(authority.CanonicalOrigin)
 	metadata.Image.Width = 1
-	if err := metadata.Validate(margo.PublicationPublic, authority, authority.Routes.Homepage); err == nil {
+	if err := metadata.Validate(authority, authority.Routes.Homepage); err == nil {
 		t.Fatal("invalid preview dimensions unexpectedly accepted")
 	}
 }

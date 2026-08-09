@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// ThemeName is the closed set of themes available to the standalone shell.
+// ThemeName identifies a built-in or host-provided theme.
 type ThemeName string
 
 const (
@@ -44,6 +44,18 @@ const (
 )
 
 var tokenValuePattern = regexp.MustCompile(`^[A-Za-z0-9 ._#(),%+\-/'":]+$`)
+var themeNamePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
+
+func validateThemeName(theme ThemeName) error {
+	if !themeNamePattern.MatchString(string(theme)) {
+		return htmlError("html.theme_invalid", fmt.Sprintf("invalid theme name %q", theme))
+	}
+	return nil
+}
+
+func isBuiltInTheme(theme ThemeName) bool {
+	return theme == ThemeModern || theme == ThemeGoshtoso || theme == ThemeMinimal
+}
 
 var supportedDocumentTokens = map[DocumentToken]struct{}{
 	TokenFontBody: {}, TokenFontHeading: {}, TokenContentWidth: {},

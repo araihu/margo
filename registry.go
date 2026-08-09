@@ -44,6 +44,9 @@ func WithExtension(registration ExtensionRegistration) Option {
 		if registration.Identity.Name == "" || registration.Identity.Version == "" {
 			return fmt.Errorf("registry.identity_invalid: name and version are required")
 		}
+		if _, err := extensionRegistrationHTMLRequirements(registration); err != nil {
+			return err
+		}
 		for _, existing := range registry.registrations {
 			if existing.Identity.Name == registration.Identity.Name {
 				return fmt.Errorf("registry.duplicate_name: %s", registration.Identity.Name)
@@ -73,6 +76,29 @@ func WithExtension(registration ExtensionRegistration) Option {
 		config.values["extensionIdentities"] = extensionIdentityPreimage(registry)
 		return nil
 	}
+}
+
+func extensionRegistrationHTMLRequirements(registration ExtensionRegistration) ([]HTMLRequirement, error) {
+	requirements := make([]HTMLRequirement, 0, len(registration.Identity.Capabilities))
+	byID := make(map[string]HTMLRequirement)
+	for _, capability := range registration.Identity.Capabilities {
+		requirement, recognized, err := decodeHTMLRequirementCapability(capability)
+		if err != nil {
+			return nil, err
+		}
+		if !recognized {
+			continue
+		}
+		if existing, found := byID[requirement.ID]; found {
+			if !equalHTMLRequirement(existing, requirement) {
+				return nil, htmlRequirementError("html.requirement_conflict", fmt.Sprintf("extension %q declares conflicting requirement %q", registration.Identity.Name, requirement.ID))
+			}
+			continue
+		}
+		byID[requirement.ID] = requirement
+		requirements = append(requirements, requirement)
+	}
+	return cloneHTMLRequirements(requirements), nil
 }
 
 // WithTheme is the small root theme option consumed by the C4 binding tests;

@@ -4,10 +4,11 @@ import "github.com/a-h/templ"
 
 // RenderResult is an immutable render projection safe for concurrent access.
 type RenderResult struct {
-	content     templ.Component
-	metadata    Metadata
-	assets      AssetSet
-	diagnostics []Diagnostic
+	content          templ.Component
+	metadata         Metadata
+	assets           AssetSet
+	diagnostics      []Diagnostic
+	htmlRequirements HTMLRequirements
 }
 
 // Content returns the immutable templ component.
@@ -40,4 +41,11 @@ func (r *RenderResult) Diagnostics() []Diagnostic {
 		return nil
 	}
 	return cloneDiagnostics(r.diagnostics)
+}
+
+func (r *RenderResult) projectedHTMLRequirements() HTMLRequirements {
+	if r == nil {
+		return HTMLRequirements{}
+	}
+	return HTMLRequirements{requirements: r.htmlRequirements.List()}
 }

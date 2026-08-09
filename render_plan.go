@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/yuin/goldmark/ast"
+	tableast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -14,7 +15,27 @@ type renderPlan struct {
 	documentFingerprint DocumentFingerprint
 	effectivePolicy     EffectivePolicy
 	registrations       []ExtensionRegistration
-	nodes               []ExtensionNode
+	nodes               []plannedExtensionNode
+	htmlRequirements    HTMLRequirements
+}
+
+const extensionSlotAttribute = "margo-extension-slot"
+
+type plannedExtensionNode struct {
+	ExtensionNode
+	registrationIndex int
+	slot              uint32
+}
+
+func (n plannedExtensionNode) clone() plannedExtensionNode {
+	n.ExtensionNode = n.ExtensionNode.clone()
+	return n
+}
+
+func extensionSlot(node *ast.FencedCodeBlock) (uint32, bool) {
+	value, ok := node.AttributeString(extensionSlotAttribute)
+	slot, valid := value.(uint32)
+	return slot, ok && valid
 }
 
 func (p renderPlan) clone() renderPlan {
@@ -24,10 +45,11 @@ func (p renderPlan) clone() renderPlan {
 	for i, registration := range registrations {
 		p.registrations[i] = cloneRegistration(registration)
 	}
-	p.nodes = make([]ExtensionNode, len(nodes))
+	p.nodes = make([]plannedExtensionNode, len(nodes))
 	for i, node := range nodes {
 		p.nodes[i] = node.clone()
 	}
+	p.htmlRequirements = HTMLRequirements{requirements: p.htmlRequirements.List()}
 	return p
 }
 
@@ -46,10 +68,23 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			}
 		}
 		extensionOrdinals := make(map[int]uint32)
+		usedRegistrations := make(map[int]struct{})
+		requirementCandidates, err := coreHTMLRequirements(false)
+		if err != nil {
+			return renderPlan{}, err
+		}
+		hasTable := false
 		compileContext := extensionCompileContext{normalized: normalized}
 		var missing *Diagnostic
 		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-			if !entering || node.Kind() != ast.KindFencedCodeBlock {
+			if !entering {
+				return ast.WalkContinue, nil
+			}
+			if _, table := node.(*tableast.Table); table {
+				hasTable = true
+				return ast.WalkContinue, nil
+			}
+			if node.Kind() != ast.KindFencedCodeBlock {
 				return ast.WalkContinue, nil
 			}
 			fenced := node.(*ast.FencedCodeBlock)
@@ -74,6 +109,14 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				Source:  SourcePosition{Source: source.Name, Line: lineAtOffset(source.Content, parsed.frontmatter.bodyOffset+segmentAtStart(segment)), Column: 1},
 			}
 			registration := plan.registrations[registrationIndex]
+			if _, used := usedRegistrations[registrationIndex]; !used {
+				requirements, err := extensionRegistrationHTMLRequirements(registration)
+				if err != nil {
+					return ast.WalkStop, err
+				}
+				requirementCandidates = append(requirementCandidates, requirements...)
+				usedRegistrations[registrationIndex] = struct{}{}
+			}
 			if registration.compile != nil {
 				ordinal := extensionOrdinals[registrationIndex]
 				compiled, err := registration.compile(compileContext, extensionNode.clone(), ordinal)
@@ -83,7 +126,13 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				extensionNode = compiled
 				extensionOrdinals[registrationIndex] = ordinal + 1
 			}
-			plan.nodes = append(plan.nodes, extensionNode)
+			slot := uint32(len(plan.nodes))
+			fenced.SetAttributeString(extensionSlotAttribute, slot)
+			plan.nodes = append(plan.nodes, plannedExtensionNode{
+				ExtensionNode:     extensionNode,
+				registrationIndex: registrationIndex,
+				slot:              slot,
+			})
 			return ast.WalkContinue, nil
 		})
 		if walkErr != nil {
@@ -92,6 +141,18 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		if missing != nil {
 			return renderPlan{}, &DiagnosticError{Diagnostics: []Diagnostic{*missing}}
 		}
+		if hasTable {
+			coreWithTable, err := coreHTMLRequirements(true)
+			if err != nil {
+				return renderPlan{}, err
+			}
+			requirementCandidates = append(requirementCandidates, coreWithTable[len(coreWithTable)-1])
+		}
+		requirements, err := mergeHTMLRequirements(requirementCandidates)
+		if err != nil {
+			return renderPlan{}, err
+		}
+		plan.htmlRequirements = requirements
 	}
 	return plan, nil
 }
@@ -106,10 +167,10 @@ func segmentAtStart(segments *text.Segments) int {
 // executeRenderPlan creates all sessions only after the binding check and
 // spools extension bytes privately so a failed session cannot partially write
 // a caller's component.
-func executeRenderPlan(ctx context.Context, plan renderPlan) ([]byte, error) {
-	var buffer bytes.Buffer
+func executeRenderPlanSlots(ctx context.Context, plan renderPlan) ([][]byte, error) {
+	slots := make([][]byte, len(plan.nodes))
 	renderContext := RenderContext{EffectivePolicy: plan.effectivePolicy}
-	for _, registration := range plan.registrations {
+	for registrationIndex, registration := range plan.registrations {
 		if err := contextError(ctx); err != nil {
 			return nil, err
 		}
@@ -120,13 +181,32 @@ func executeRenderPlan(ctx context.Context, plan renderPlan) ([]byte, error) {
 		if session == nil {
 			return nil, fmt.Errorf("extension.session_invalid: %s returned nil", registration.Identity.Name)
 		}
-		for _, node := range plan.nodes {
-			if !ownsFence(registration, node.Fence) {
+		for _, planned := range plan.nodes {
+			if planned.registrationIndex != registrationIndex {
 				continue
 			}
-			if err := session.Render(ctx, node.clone(), &buffer); err != nil {
+			if int(planned.slot) >= len(slots) {
+				return nil, fmt.Errorf("extension.slot_invalid: %d", planned.slot)
+			}
+			var buffer bytes.Buffer
+			if err := session.Render(ctx, planned.ExtensionNode.clone(), &buffer); err != nil {
 				return nil, err
 			}
+			slots[planned.slot] = append([]byte(nil), buffer.Bytes()...)
+		}
+	}
+	return slots, nil
+}
+
+func executeRenderPlan(ctx context.Context, plan renderPlan) ([]byte, error) {
+	slots, err := executeRenderPlanSlots(ctx, plan)
+	if err != nil {
+		return nil, err
+	}
+	var buffer bytes.Buffer
+	for _, slot := range slots {
+		if _, err := buffer.Write(slot); err != nil {
+			return nil, err
 		}
 	}
 	return buffer.Bytes(), nil
@@ -139,15 +219,6 @@ func callExtensionFactory(factory ExtensionFactory, context RenderContext) (sess
 		}
 	}()
 	return factory(context)
-}
-
-func ownsFence(registration ExtensionRegistration, fence string) bool {
-	for _, owned := range registration.Fences {
-		if owned == fence {
-			return true
-		}
-	}
-	return false
 }
 
 func lineAtOffset(source []byte, offset int) int {

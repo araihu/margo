@@ -3,6 +3,7 @@ package margo
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +19,30 @@ func TestMarkdownTableUsesClientOnlyGoshtosoTable(t *testing.T) {
 	if bytes.Contains([]byte(markup), []byte(`hx-get`)) {
 		t.Fatalf("table unexpectedly enabled server interaction:\n%s", markup)
 	}
+}
+
+func TestMarkdownTableDeclaresProgressiveSort(t *testing.T) {
+	result := mustRenderSource(t, "| Name | Count |\n|---|---:|\n| Item 10 | 10 |\n| Item 2 | 2 |\n")
+	editorial, err := RenderHTML(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, editorial.Fragment())
+	if !strings.Contains(markup, `data-margo-table-sort="natural"`) {
+		t.Fatalf("missing sort marker: %s", markup)
+	}
+	if strings.Contains(markup, `<button`) {
+		t.Fatalf("server emitted JS-only table control: %s", markup)
+	}
+	requireRequirementIDs(t, editorial.Requirements(), "goshtoso.styles", "margo.document.styles", "margo.table-sort")
+}
+
+func TestEditorialWithoutTableDeclaresOnlyStyles(t *testing.T) {
+	editorial, err := RenderHTML(mustRenderSource(t, "Body\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireRequirementIDs(t, editorial.Requirements(), "goshtoso.styles", "margo.document.styles")
 }
 
 func TestMarkdownTableRejectsServerSortMode(t *testing.T) {

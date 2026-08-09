@@ -4,12 +4,19 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 
 	"github.com/a-h/templ"
+	chartassets "github.com/araihu/goshtoso-charts/assets"
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 	margo "github.com/araihu/margo"
 	"gopkg.in/yaml.v3"
 )
@@ -20,7 +27,8 @@ type familyHandler func(margo.RenderContext, any, chartRenderOptions) (templ.Com
 // Keeping the setting out of RenderContext makes it part of the extension
 // identity rather than a mutable per-render concern.
 type chartRenderOptions struct {
-	controlWrapper bool
+	controlWrapper             bool
+	externalizedControlRuntime bool
 }
 
 var defaultChartRenderOptions = chartRenderOptions{controlWrapper: true}
@@ -40,6 +48,15 @@ func WithControlWrapper(enabled bool) Option {
 // WithChartControlWrapper is a descriptive alias for WithControlWrapper.
 func WithChartControlWrapper(enabled bool) Option {
 	return WithControlWrapper(enabled)
+}
+
+// WithExternalizedControlRuntime declares chart control dependencies through
+// the extension capability envelope and suppresses the exact upstream loader.
+// The default remains false for consumers pinned to an older Margo root.
+func WithExternalizedControlRuntime(enabled bool) Option {
+	return func(options *chartRenderOptions) {
+		options.externalizedControlRuntime = enabled
+	}
 }
 
 type chartSession struct {
@@ -63,15 +80,30 @@ func Extension(options ...Option) margo.ExtensionRegistration {
 			option(&config)
 		}
 	}
+	capabilities := []string{"static-svg", "accessible-data"}
+	var capabilityErr error
+	if config.controlWrapper && config.externalizedControlRuntime {
+		var runtimeCapabilities []string
+		runtimeCapabilities, capabilityErr = chartControlRequirementCapabilities()
+		if capabilityErr == nil {
+			capabilities = append(capabilities, runtimeCapabilities...)
+		}
+	}
+	factory := extensionFactoryFor(config)
+	if capabilityErr != nil {
+		factory = func(margo.RenderContext) (margo.ExtensionSession, error) {
+			return nil, fmt.Errorf("chart.runtime_materialization_failed: %w", capabilityErr)
+		}
+	}
 	return margo.ExtensionRegistration{
 		Identity: margo.ExtensionIdentity{
 			Name:              "margo-charts",
 			Version:           "v0.0.1-dev",
 			ConfigurationHash: config.configurationHash(),
-			Capabilities:      []string{"static-svg", "accessible-data"},
+			Capabilities:      capabilities,
 		},
 		Fences:  []string{"goshtosochart"},
-		Factory: extensionFactoryFor(config),
+		Factory: factory,
 	}
 }
 
@@ -96,12 +128,103 @@ func extensionFactoryWithOptions(rc margo.RenderContext, options chartRenderOpti
 }
 
 func (options chartRenderOptions) configurationHash() string {
-	value := "control-wrapper=disabled"
-	if options.controlWrapper {
-		value = "control-wrapper=enabled"
-	}
+	value := fmt.Sprintf("control-wrapper=%t\nexternalized-control-runtime=%t", options.controlWrapper, options.externalizedControlRuntime)
 	hash := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(hash[:])
+}
+
+type encodedRequirementCapability struct {
+	ID        string                            `json:"id"`
+	Kind      string                            `json:"kind"`
+	LocalURL  string                            `json:"localURL"`
+	Integrity string                            `json:"integrity,omitempty"`
+	LoadAfter []string                          `json:"loadAfter,omitempty"`
+	Inline    encodedRequirementCapabilityAsset `json:"inline"`
+}
+
+type encodedRequirementCapabilityAsset struct {
+	Path      string `json:"path"`
+	MediaType string `json:"mediaType"`
+	SHA256    string `json:"sha256"`
+	Content   []byte `json:"content"`
+}
+
+type controlRuntimeAsset struct {
+	id        string
+	localURL  string
+	integrity string
+	loadAfter []string
+	handler   http.Handler
+	prefix    string
+}
+
+func chartControlRequirementCapabilities() ([]string, error) {
+	manifest := goshtosoassets.DefaultRuntimeManifest()
+	focus, found := runtimeAssetByRole(manifest, goshtosoassets.RuntimeRoleAlpineFocus)
+	if !found {
+		return nil, fmt.Errorf("Goshtoso runtime role %q is unavailable", goshtosoassets.RuntimeRoleAlpineFocus)
+	}
+	firstParty, found := runtimeAssetByRole(manifest, goshtosoassets.RuntimeRoleFirstParty)
+	if !found {
+		return nil, fmt.Errorf("Goshtoso runtime role %q is unavailable", goshtosoassets.RuntimeRoleFirstParty)
+	}
+	alpine, found := runtimeAssetByRole(manifest, goshtosoassets.RuntimeRoleAlpineJS)
+	if !found {
+		return nil, fmt.Errorf("Goshtoso runtime role %q is unavailable", goshtosoassets.RuntimeRoleAlpineJS)
+	}
+	assets := []controlRuntimeAsset{
+		{id: "goshtoso.runtime.alpine-focus", localURL: focus.LocalURL, integrity: focus.Integrity, loadAfter: []string{"margo.document.styles"}, handler: goshtosoassets.Handler(), prefix: "/assets/"},
+		{id: "goshtoso.runtime.first-party", localURL: firstParty.LocalURL, integrity: firstParty.Integrity, loadAfter: []string{"goshtoso.runtime.alpine-focus"}, handler: goshtosoassets.Handler(), prefix: "/assets/"},
+		{id: "goshtoso.runtime.alpine", localURL: alpine.LocalURL, integrity: alpine.Integrity, loadAfter: []string{"goshtoso.runtime.first-party"}, handler: goshtosoassets.Handler(), prefix: "/assets/"},
+		{id: "goshtoso-charts.controls", localURL: chartassets.ControlRuntimeURL, loadAfter: []string{"goshtoso.runtime.alpine"}, handler: chartassets.Handler(), prefix: chartassets.Prefix},
+	}
+	capabilities := make([]string, 0, len(assets))
+	for _, asset := range assets {
+		capability, err := materializeRequirementCapability(asset)
+		if err != nil {
+			return nil, err
+		}
+		capabilities = append(capabilities, capability)
+	}
+	return capabilities, nil
+}
+
+func runtimeAssetByRole(manifest goshtosoassets.RuntimeManifest, role goshtosoassets.RuntimeAssetRole) (goshtosoassets.RuntimeAsset, bool) {
+	for _, asset := range manifest.Dependencies {
+		if asset.Role == role && asset.Enabled {
+			return asset, true
+		}
+	}
+	return goshtosoassets.RuntimeAsset{}, false
+}
+
+func materializeRequirementCapability(asset controlRuntimeAsset) (string, error) {
+	if !strings.HasPrefix(asset.localURL, asset.prefix) {
+		return "", fmt.Errorf("runtime %q URL %q is outside mount %q", asset.id, asset.localURL, asset.prefix)
+	}
+	recorder := httptest.NewRecorder()
+	asset.handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, asset.localURL, nil))
+	if recorder.Code != http.StatusOK {
+		return "", fmt.Errorf("runtime %q returned HTTP %d", asset.id, recorder.Code)
+	}
+	content := append([]byte(nil), recorder.Body.Bytes()...)
+	if len(content) == 0 {
+		return "", fmt.Errorf("runtime %q returned no bytes", asset.id)
+	}
+	digest := sha256.Sum256(content)
+	value := encodedRequirementCapability{
+		ID: asset.id, Kind: "script", LocalURL: asset.localURL,
+		Integrity: asset.integrity, LoadAfter: append([]string(nil), asset.loadAfter...),
+		Inline: encodedRequirementCapabilityAsset{
+			Path: strings.TrimPrefix(asset.localURL, asset.prefix), MediaType: "application/javascript",
+			SHA256: hex.EncodeToString(digest[:]), Content: content,
+		},
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("runtime %q capability: %w", asset.id, err)
+	}
+	return "margo-html-requirement/v1:" + base64.RawURLEncoding.EncodeToString(data), nil
 }
 
 func registerFamilyHandler(name string, handler familyHandler) {

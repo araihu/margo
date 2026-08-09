@@ -62,3 +62,16 @@ func TestApplyThemeTokensMaterializesEveryThemeScope(t *testing.T) {
 		t.Fatalf("theme declarations were not materialized in both scopes: %s", css)
 	}
 }
+
+func TestCustomThemeName(t *testing.T) {
+	for _, name := range []ThemeName{"araihu", "manja-docs", ThemeModern} {
+		if err := validateThemeName(name); err != nil {
+			t.Fatalf("validateThemeName(%q): %v", name, err)
+		}
+	}
+	for _, name := range []ThemeName{"", "AraiHu", "-araihu", "araihu_website", "araihu\" data-owner=\"host"} {
+		if err := validateThemeName(name); err == nil {
+			t.Fatalf("validateThemeName(%q) unexpectedly succeeded", name)
+		}
+	}
+}

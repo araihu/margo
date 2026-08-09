@@ -15,6 +15,7 @@ type Document struct {
 	parsed              any
 	effectivePolicy     EffectivePolicy
 	plan                renderPlan
+	htmlRequirements    HTMLRequirements
 }
 
 func (d *Document) sourceBytesForTest() []byte {
@@ -53,6 +54,13 @@ func (d *Document) sourceDigest() [32]byte {
 		return [32]byte{}
 	}
 	return d.sourceHash
+}
+
+func (d *Document) projectedHTMLRequirements() HTMLRequirements {
+	if d == nil {
+		return HTMLRequirements{}
+	}
+	return HTMLRequirements{requirements: d.htmlRequirements.List()}
 }
 
 func sourceDigest(content []byte) [32]byte { return sha256.Sum256(content) }
