@@ -1,6 +1,6 @@
 # Margo editorial HTML design
 
-**Status:** Approved architecture; written specification awaiting user review.
+**Status:** Approved by the user on 2026-08-09.
 
 **Primary goal:** Make Goshtoso-compatible HTML the first-class Margo product
 for documentation and blogging. Manja consumes safe fragments inside its
