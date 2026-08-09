@@ -23,6 +23,9 @@ import (
 const (
 	platformToolchainSchema = "margo/pdf-platform-toolchain/v1"
 	runnerContractsSchema   = "margo/pdf-runner-contracts/v1"
+	rootModuleVersion       = "v0.0.0-20260808231103-771f44908d14"
+	rootModuleSum           = "h1:SFWnf6NlyC5IDfK+vvImwpVkuRlp6DdmYZ5wV9Mviuo="
+	rootModuleGoModSum      = "h1:t5vzt4j6VTYIJsreX2+d/Cr37vftL1Cd0PiXIcre11U="
 )
 
 // RunnerID is one locked native or installed-browser probe identity.
@@ -467,7 +470,7 @@ func validateModules(modules []toolchainModule) error {
 	}
 	root, rootOK := seen["github.com/araihu/margo"]
 	chromedp, chromedpOK := seen["github.com/chromedp/chromedp"]
-	if !rootOK || !chromedpOK || root.Version == "" || chromedp.Version != "v0.14.2" || chromedp.Sum != "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=" || chromedp.GoModSum != "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo=" {
+	if !rootOK || !chromedpOK || root.Version != rootModuleVersion || root.Sum != rootModuleSum || root.GoModSum != rootModuleGoModSum || chromedp.Version != "v0.14.2" || chromedp.Sum != "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=" || chromedp.GoModSum != "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo=" {
 		return platformError("pdf.platform_lock_invalid", "module identity is unsupported")
 	}
 	return nil

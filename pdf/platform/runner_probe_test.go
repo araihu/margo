@@ -9,14 +9,14 @@ import (
 )
 
 var (
-	_                       = flag.String("lock", "platform-toolchain.lock", "platform toolchain lock path relative to the pdf module")
-	runnerContractsArgument = flag.String("contracts", "platform/runner-contracts.json", "runner contracts path relative to the pdf module")
+	platformToolchainLockArgument = flag.String("lock", "platform-toolchain.lock", "platform toolchain lock path relative to the pdf module")
+	runnerContractsArgument       = flag.String("contracts", "platform/runner-contracts.json", "runner contracts path relative to the pdf module")
 )
 
 func TestRunnerContractRepositoryRecordsEveryRunner(t *testing.T) {
 	t.Parallel()
 
-	contracts, err := LoadRunnerContracts(filepath.Join("..", filepath.FromSlash(*runnerContractsArgument)))
+	contracts, err := LoadRunnerContracts(moduleArgumentPath(*runnerContractsArgument))
 	if err != nil {
 		t.Fatalf("LoadRunnerContracts(repository) error = %v", err)
 	}
@@ -38,6 +38,13 @@ func TestRunnerContractRepositoryRecordsEveryRunner(t *testing.T) {
 			t.Fatalf("runner %q ownership = source %v probe %v", runnerID, contract.OwnedSourcePaths, contract.OwnedProbePaths)
 		}
 	}
+}
+
+func moduleArgumentPath(argument string) string {
+	if filepath.IsAbs(argument) {
+		return argument
+	}
+	return filepath.Join("..", filepath.FromSlash(argument))
 }
 
 func TestRunnerContractAcceptsLockedGoTestProbe(t *testing.T) {

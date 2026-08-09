@@ -51,6 +51,103 @@ func TestPlatformToolchainLockRejectsUnknownFields(t *testing.T) {
 	requirePlatformErrorCode(t, err, "pdf.platform_lock_invalid")
 }
 
+func TestPlatformToolchainLockRejectsWrongRootIdentity(t *testing.T) {
+	t.Parallel()
+
+	modules := []toolchainModule{
+		{
+			Path:     "github.com/araihu/margo",
+			Version:  "v0.0.0-20260808231103-000000000000",
+			Sum:      "h1:SFWnf6NlyC5IDfK+vvImwpVkuRlp6DdmYZ5wV9Mviuo=",
+			GoModSum: "h1:t5vzt4j6VTYIJsreX2+d/Cr37vftL1Cd0PiXIcre11U=",
+		},
+		{
+			Path:     "github.com/chromedp/chromedp",
+			Version:  "v0.14.2",
+			Sum:      "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=",
+			GoModSum: "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo=",
+		},
+	}
+
+	err := validateModules(modules)
+	requirePlatformErrorCode(t, err, "pdf.platform_lock_invalid")
+}
+
+func TestPlatformToolchainLockRepositoryIdentity(t *testing.T) {
+	t.Parallel()
+
+	lockPath := moduleArgumentPath(*platformToolchainLockArgument)
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("ReadFile(repository lock) error = %v", err)
+	}
+	var lock toolchainLock
+	if err := decodeStrictJSON(data, &lock); err != nil {
+		t.Fatalf("decodeStrictJSON(repository lock) error = %v", err)
+	}
+	if err := validateToolchainLock(lock, ".."); err != nil {
+		t.Fatalf("validateToolchainLock(repository lock) error = %v", err)
+	}
+	for _, runner := range lock.Runners {
+		_, sdkError := os.Stat(runner.SDKEvidencePath)
+		_, runtimeError := os.Stat(runner.RuntimeEvidencePath)
+		err := VerifyPlatformToolchain(lockPath, runner.ID)
+		if sdkError == nil && runtimeError == nil {
+			if err != nil {
+				t.Fatalf("VerifyPlatformToolchain(%q) error = %v", runner.ID, err)
+			}
+			continue
+		}
+		requirePlatformErrorCode(t, err, "pdf.platform_runtime_evidence_required")
+	}
+}
+
+func TestPlatformToolchainLockRepositoryBootstrapAvailableRunner(t *testing.T) {
+	if os.Getenv("MARGO_PDF_PROBE_EXECUTION") == "1" {
+		t.Skip("parent-only repository bootstrap test")
+	}
+
+	lockPath, err := filepath.Abs(moduleArgumentPath(*platformToolchainLockArgument))
+	if err != nil {
+		t.Fatalf("Abs(repository lock) error = %v", err)
+	}
+	contractsPath, err := filepath.Abs(moduleArgumentPath(*runnerContractsArgument))
+	if err != nil {
+		t.Fatalf("Abs(repository contracts) error = %v", err)
+	}
+	workingDirectory, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatalf("Abs(repository working directory) error = %v", err)
+	}
+
+	runnerID := hostProbeRunner()
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("ReadFile(repository lock) error = %v", err)
+	}
+	var lock toolchainLock
+	if err := decodeStrictJSON(data, &lock); err != nil {
+		t.Fatalf("decodeStrictJSON(repository lock) error = %v", err)
+	}
+	selected, found := findRunner(lock.Runners, runnerID)
+	if !found {
+		t.Fatalf("runner %q is absent from repository lock", runnerID)
+	}
+	if _, err := os.Stat(selected.SDKEvidencePath); err != nil {
+		t.Skipf("runner %q SDK evidence unavailable: %v", runnerID, err)
+	}
+	if _, err := os.Stat(selected.RuntimeEvidencePath); err != nil {
+		t.Skipf("runner %q runtime evidence unavailable: %v", runnerID, err)
+	}
+	result, err := Bootstrap(context.Background(), lockPath, contractsPath, runnerID, workingDirectory)
+	if err != nil {
+		t.Fatalf("Bootstrap(repository, %q) error = %v", runnerID, err)
+	}
+	if result.SDKVersion == "" || result.RuntimeVersion == "" || !validSHA256(result.SourceDigest) {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
 func TestPlatformBootstrapExecutesLockBoundOfflineProbe(t *testing.T) {
 	if os.Getenv("MARGO_PDF_PROBE_EXECUTION") == "1" {
 		t.Skip("parent-only bootstrap test")
@@ -200,7 +297,7 @@ func writeSyntheticToolchainLock(t *testing.T) string {
 		SchemaVersion: platformToolchainSchema,
 		Go:            toolchainGo{Version: "1.26.5"},
 		Modules: []toolchainModule{
-			{Path: "github.com/araihu/margo", Version: "v0.0.1", Sum: "h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", GoModSum: "h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="},
+			{Path: "github.com/araihu/margo", Version: rootModuleVersion, Sum: rootModuleSum, GoModSum: rootModuleGoModSum},
 			{Path: "github.com/chromedp/chromedp", Version: "v0.14.2", Sum: "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=", GoModSum: "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo="},
 		},
 		NodeHarness: nodeHarness{

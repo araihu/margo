@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "margo/pdf-platform-toolchain/v1",
+  "go": {
+    "version": "1.26.5"
+  },
+  "modules": [
+    {
+      "path": "github.com/araihu/margo",
+      "version": "v0.0.0-20260808231103-771f44908d14",
+      "sum": "h1:SFWnf6NlyC5IDfK+vvImwpVkuRlp6DdmYZ5wV9Mviuo=",
+      "goModSum": "h1:t5vzt4j6VTYIJsreX2+d/Cr37vftL1Cd0PiXIcre11U="
+    },
+    {
+      "path": "github.com/chromedp/chromedp",
+      "version": "v0.14.2",
+      "sum": "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=",
+      "goModSum": "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo="
+    }
+  ],
+  "nodeHarness": {
+    "nodeVersion": "v26.5.0",
+    "npmVersion": "11.17.0",
+    "domStrategy": "DOMParser+XMLSerializer+CSSOM+css-tree/3.1.0",
+    "cssTreeVersion": "3.1.0",
+    "playwrightVersion": "1.52.0",
+    "chromiumRevision": "1169",
+    "chromiumArchiveSHA256": "6755dab7021ac7aeadceab8f3cd183f05f9c20736c456573b937e5e22212db65"
+  },
+  "muambaTool": {
+    "path": "github.com/araihu/muamba/cmd/muamba",
+    "version": "v0.0.3"
+  },
+  "runners": [
+    {
+      "id": "windows-webview2/v1",
+      "probe": "platform/engine_probe_test.go",
+      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/windows-webview2/sdk.version",
+      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/windows-webview2/runtime.version",
+      "versionPolicy": "host-evidence-exact"
+    },
+    {
+      "id": "darwin-wkwebview/v1",
+      "probe": "platform/engine_probe_test.go",
+      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/darwin-wkwebview/sdk.version",
+      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/darwin-wkwebview/runtime.version",
+      "versionPolicy": "host-evidence-exact"
+    },
+    {
+      "id": "linux-webkitgtk/v1",
+      "probe": "platform/engine_probe_test.go",
+      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/linux-webkitgtk/sdk.version",
+      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/linux-webkitgtk/runtime.version",
+      "versionPolicy": "host-evidence-exact"
+    },
+    {
+      "id": "chromium-cdp/v1",
+      "probe": "platform/engine_probe_test.go",
+      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/chromium-cdp/sdk.version",
+      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/chromium-cdp/runtime.version",
+      "versionPolicy": "exact"
+    }
+  ],
+  "networkPolicy": "no-download",
+  "recordDigest": "0ceaa27ef01f5aea0334bc0a7fe47cc45dfaf643d3163404d2d819be0487d028"
+}
