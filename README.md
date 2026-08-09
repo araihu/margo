@@ -6,8 +6,9 @@
 
 Margo compiles Markdown into semantic Goshtoso-compatible HTML. The root module
 supports a host-owned fragment and a generic complete HTML page from the same
-immutable render result. Web publication policy is optional; PDF and static
-slide projections remain separate modules.
+immutable render result. Consumer applications own routing, publication
+metadata, site identity, and deployment. PDF and static slide projections
+remain separate modules.
 
 The repository includes a deterministic browser preflight for standalone HTML
 before PDF review. See [contrast lint](docs/CONTRAST_LINT.md) to check custom
@@ -64,28 +65,19 @@ Do not strip those prefixes a second time. `HTMLAssetHandler` serves the
 scoped Margo stylesheet and progressive table-sort runtime. Goshtoso and Charts
 retain ownership of their own embedded bytes.
 
-Applications that publish to the public web may opt into the separate
-`webpublication` package. It adds verified route authority, canonical and
-social metadata, and article chrome around the generic page contract:
+Applications can compose their own metadata and chrome through the generic
+page seams. The components below belong to the consumer, not Margo:
 
 ```go
-authority, err := webpublication.VerifyAuthorityRecord(authorityJSON)
-if err != nil {
-	return err
-}
-page, err := webpublication.Render(htmlResult, webpublication.Input{
-	Kind:           webpublication.KindArticle,
-	Authority:      authority,
-	RoutePath:      authority.Routes.Representative,
-	SiteName:       siteName,
-	Locale:         locale,
-	Image:          socialImage,
-	Page: margo.HTMLPageInput{
-		Theme:           margo.ThemeName("araihu"),
-		ColorMode:       margo.ColorModeLight,
-		DependencyMode: margo.HTMLDependenciesLocal,
-		ThemeStylesheet: themeStylesheet,
-	},
+page, err := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{
+	Theme:           consumerTheme,
+	ColorMode:       margo.ColorModeLight,
+	DependencyMode: margo.HTMLDependenciesLocal,
+	ThemeStylesheet: consumerStylesheet,
+	Head:            consumerMetadata(htmlResult.Metadata()),
+	Header:          consumerNavigation(),
+	BeforeContent:   consumerArticleDetails(htmlResult.Metadata()),
+	Footer:          consumerFooter(),
 })
 if err != nil {
 	return err
@@ -122,7 +114,6 @@ page and a public article with AVIF, WebP, JPEG, PNG, and GIF assets.
 | Module | Purpose |
 | --- | --- |
 | `github.com/araihu/margo` | Core library and the `deck` package |
-| `github.com/araihu/margo/webpublication` | Optional public-web authority, social metadata, and article composition |
 | `github.com/araihu/margo/charts` | Optional chart integration |
 | `github.com/araihu/margo/pdf` | Optional PDF integration |
 | `github.com/araihu/margo/cmd/margo` | Command-line application |

@@ -1,0 +1,71 @@
+package site
+
+import (
+	"strconv"
+
+	"github.com/araihu/margo"
+)
+
+templ blogPublicationMetadata(input blogPublicationInput, metadata margo.HTMLMetadata) {
+	<link rel="canonical" href={ input.CanonicalURL }/>
+	<meta property="og:url" content={ input.CanonicalURL }/>
+	<meta property="og:type" content="article"/>
+	<meta property="og:title" content={ metadata.Title }/>
+	<meta property="og:description" content={ metadata.Description }/>
+	<meta property="og:site_name" content={ input.SiteName }/>
+	<meta property="og:image" content={ input.ImageURL }/>
+	<meta property="og:image:type" content={ input.ImageMIMEType }/>
+	<meta property="og:image:width" content={ strconv.Itoa(input.ImageWidth) }/>
+	<meta property="og:image:height" content={ strconv.Itoa(input.ImageHeight) }/>
+	<meta property="og:image:alt" content={ input.ImageAlt }/>
+	if input.Locale != "" {
+		<meta property="og:locale" content={ input.Locale }/>
+	}
+	<meta name="twitter:card" content="summary_large_image"/>
+	<meta name="twitter:title" content={ metadata.Title }/>
+	<meta name="twitter:description" content={ metadata.Description }/>
+	<meta name="twitter:image" content={ input.ImageURL }/>
+	<meta name="twitter:image:alt" content={ input.ImageAlt }/>
+	if metadata.PublishedAt != "" {
+		<meta property="article:published_time" content={ metadata.PublishedAt }/>
+	}
+	if metadata.ModifiedAt != "" {
+		<meta property="article:modified_time" content={ metadata.ModifiedAt }/>
+	}
+	for _, author := range metadata.Authors {
+		<meta property="article:author" content={ author }/>
+	}
+	for _, tag := range metadata.Tags {
+		<meta property="article:tag" content={ tag }/>
+	}
+}
+
+templ blogPublicationDetails(metadata margo.HTMLMetadata) {
+	if len(metadata.Authors) > 0 || metadata.PublishedAt != "" || metadata.ModifiedAt != "" || len(metadata.Tags) > 0 {
+		<header class="blog-publication-byline">
+			if len(metadata.Authors) > 0 {
+				<address aria-label="Authors">
+					for index, author := range metadata.Authors {
+						if index > 0 {
+							<span aria-hidden="true">, </span>
+						}
+						<span rel="author">{ author }</span>
+					}
+				</address>
+			}
+			if metadata.PublishedAt != "" {
+				<time datetime={ metadata.PublishedAt } data-publication-date="published">{ metadata.PublishedAt }</time>
+			}
+			if metadata.ModifiedAt != "" {
+				<time datetime={ metadata.ModifiedAt } data-publication-date="modified">{ metadata.ModifiedAt }</time>
+			}
+			if len(metadata.Tags) > 0 {
+				<ul aria-label="Tags">
+					for _, tag := range metadata.Tags {
+						<li>{ tag }</li>
+					}
+				</ul>
+			}
+		</header>
+	}
+}

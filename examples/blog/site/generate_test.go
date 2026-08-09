@@ -2,10 +2,14 @@ package site
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/a-h/templ"
+	"github.com/araihu/margo"
 )
 
 func TestGenerateBuildsBlogPagesWithPopularImageFormats(t *testing.T) {
@@ -29,7 +33,7 @@ func TestGenerateBuildsBlogPagesWithPopularImageFormats(t *testing.T) {
 		`<title>Inside the Margo rendering atelier</title>`,
 		`rel="canonical" href="https://margo.invalid/guide"`,
 		`property="og:type" content="article"`,
-		`class="margo-webpublication-byline"`,
+		`class="blog-publication-byline"`,
 		`<source type="image/avif" srcset="assets/atelier-hero.avif">`,
 		`<source type="image/webp" srcset="assets/atelier-hero.webp">`,
 		`src="assets/atelier-hero.jpg"`,
@@ -46,6 +50,63 @@ func TestGenerateBuildsBlogPagesWithPopularImageFormats(t *testing.T) {
 	assertImageSignature(t, readGeneratedFile(t, output, "assets/atelier-hero.avif"), "avif")
 	assertImageSignature(t, readGeneratedFile(t, output, "assets/format-study.png"), "png")
 	assertImageSignature(t, readGeneratedFile(t, output, "assets/format-study.gif"), "gif")
+}
+
+func TestBlogOwnsPublicationPolicyThroughGenericPageSeams(t *testing.T) {
+	result, err := renderMarkdown("content/field-notes.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := renderBlogPublication(result, blogPublicationInput{
+		CanonicalURL:  "https://example.test/field-notes/",
+		SiteName:      "Consumer-owned site",
+		Locale:        "en_US",
+		ImageURL:      "https://example.test/assets/preview.png",
+		ImageMIMEType: "image/png",
+		ImageWidth:    1200,
+		ImageHeight:   630,
+		ImageAlt:      "Consumer-owned preview.",
+		Page:          blogPageInput(t),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	markup := renderGeneratedComponent(t, page)
+	for _, want := range []string{
+		`rel="canonical" href="https://example.test/field-notes/"`,
+		`property="og:site_name" content="Consumer-owned site"`,
+		`property="og:locale" content="en_US"`,
+		`class="blog-publication-byline"`,
+		`data-margo-html-fingerprint="` + result.Fingerprint().String() + `"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("consumer-composed page missing %q: %s", want, markup)
+		}
+	}
+}
+
+func blogPageInput(t *testing.T) margo.HTMLPageInput {
+	t.Helper()
+	stylesheet, err := embeddedStylesheet()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return margo.HTMLPageInput{
+		Theme:           margo.ThemeName("margo-blog"),
+		ColorMode:       margo.ColorModeLight,
+		DependencyMode:  margo.HTMLDependenciesInline,
+		ThemeStylesheet: stylesheet,
+	}
+}
+
+func renderGeneratedComponent(t *testing.T, component templ.Component) string {
+	t.Helper()
+	var output strings.Builder
+	if err := component.Render(context.Background(), &output); err != nil {
+		t.Fatal(err)
+	}
+	return output.String()
 }
 
 func readGeneratedFile(t *testing.T, root, name string) []byte {

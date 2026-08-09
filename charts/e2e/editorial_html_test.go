@@ -27,7 +27,6 @@ import (
 	goshtosoassets "github.com/araihu/goshtoso/assets"
 	margo "github.com/araihu/margo"
 	charts "github.com/araihu/margo/charts"
-	"github.com/araihu/margo/webpublication"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
@@ -37,11 +36,10 @@ import (
 const themeCSS = `[data-theme="araihu"]{--color-surface:#f4f0ff;--color-on-surface:#241442;--color-primary:#6d28d9}`
 
 type editorialFixture struct {
-	server          *httptest.Server
-	editorial       *margo.HTMLResult
-	authority       webpublication.AuthorityRecord
-	localPaths      []string
-	publicationHTML string
+	server       *httptest.Server
+	editorial    *margo.HTMLResult
+	canonicalURL string
+	localPaths   []string
 }
 
 func TestGeneratedEditorialHTMLJourneys(t *testing.T) {
@@ -106,36 +104,22 @@ Margo HTML remains readable in every projection.
 		t.Fatalf("editorial fixture: %v", err)
 	}
 
-	authorityBytes, err := os.ReadFile(filepath.Join("..", "..", "testdata", "authority", "record.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	authority, err := webpublication.VerifyAuthorityRecord(authorityBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
+	const canonicalURL = "https://consumer.invalid/guide"
 	theme := materializedThemeAsset()
-	publicInput := webpublication.Input{
-		Kind:      webpublication.KindArticle,
-		Authority: authority, RoutePath: authority.Routes.Representative,
-		SiteName: "Arai Hû", Locale: "en_US",
-		Image: webpublication.SocialImage{
-			URL:      string(authority.CanonicalOrigin) + authority.Routes.Preview,
-			MIMEType: authority.Asset.MIMEType, Width: authority.Asset.Width, Height: authority.Asset.Height,
-			Alt: "Editorial preview fixture.",
-		},
-		Page: margo.HTMLPageInput{
-			Theme: margo.ThemeName("araihu"), ColorMode: margo.ColorModeLight,
-			DependencyMode: margo.HTMLDependenciesLocal, ThemeStylesheet: theme,
-		},
+	publicationHead := templ.Raw(`<link rel="canonical" href="https://consumer.invalid/guide"><meta property="og:url" content="https://consumer.invalid/guide"><meta property="og:type" content="article"><meta property="article:published_time" content="2026-08-09T12:00:00-03:00"><meta property="article:modified_time" content="2026-08-09T15:00:00Z"><meta property="article:author" content="Arai Hû"><meta property="article:tag" content="Go"><meta property="article:tag" content="HTML"><meta name="twitter:card" content="summary_large_image">`)
+	publicationDetails := templ.Raw(`<header class="consumer-publication-byline"><span rel="author">Arai Hû</span></header>`)
+	publicInput := margo.HTMLPageInput{
+		Theme: margo.ThemeName("araihu"), ColorMode: margo.ColorModeLight,
+		DependencyMode: margo.HTMLDependenciesLocal, ThemeStylesheet: theme,
+		Head: publicationHead, BeforeContent: publicationDetails,
 	}
-	publicPage, err := webpublication.Render(editorial, publicInput)
+	publicPage, err := margo.RenderHTMLPage(editorial, publicInput)
 	if err != nil {
 		t.Fatalf("public publication: %v", err)
 	}
 	publicHTML := renderComponent(t, publicPage)
 
-	inlineInput := publicInput.Page
+	inlineInput := publicInput
 	inlineInput.DependencyMode = margo.HTMLDependenciesInline
 	inlinePage, err := margo.RenderHTMLPage(editorial, inlineInput)
 	if err != nil {
@@ -164,8 +148,8 @@ Margo HTML remains readable in every projection.
 	}
 	localPaths = append(localPaths, "/theme-araihu.css")
 	return editorialFixture{
-		server: server, editorial: editorial, authority: authority,
-		localPaths: localPaths, publicationHTML: publicHTML,
+		server: server, editorial: editorial, canonicalURL: canonicalURL,
+		localPaths: localPaths,
 	}
 }
 
@@ -222,9 +206,8 @@ func assertInitialPublicationMetadata(t *testing.T, fixture editorialFixture) {
 		t.Fatal(err)
 	}
 	markup := string(data)
-	canonical := string(fixture.authority.CanonicalOrigin) + fixture.authority.Routes.Representative
-	if err := webpublication.RequireOneCompleteSocialSet(markup, webpublication.SocialMetadata{CanonicalURL: canonical}); err != nil {
-		t.Fatal(err)
+	if count := strings.Count(markup, `rel="canonical" href="`+fixture.canonicalURL+`"`); count != 1 {
+		t.Fatalf("canonical metadata count = %d, want 1", count)
 	}
 	for _, marker := range []string{
 		`property="og:type" content="article"`,

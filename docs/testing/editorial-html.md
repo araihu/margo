@@ -10,8 +10,8 @@ workspace and exercises generated HTML shaped like both downstream consumers:
 
 - a Manja-owned page embeds `HTMLResult.Fragment()` and changes the host
   Goshtoso theme and dark mode without replacing the article;
-- a public article page from `webpublication.Render` verifies initial canonical,
-  Open Graph, X/Twitter, and article metadata;
+- a consumer-composed page supplies canonical, Open Graph, X/Twitter, article
+  metadata, and byline through generic `HTMLPageInput` seams;
 - local and inline dependency modes verify request counts, ordering, no
   external traffic, no failed requests, and no browser exceptions;
 - a Markdown table cycles source, ascending, descending, and source order with
@@ -43,7 +43,7 @@ skips only the tagged browser gate; ordinary unit tests remain browser-free.
 | Requirement | Evidence |
 | --- | --- |
 | Manja-compatible fragment | `/manja` initial HTML embeds the exact fragment in `.manja-markdown`; the browser preserves article identity while changing host theme and dark mode. |
-| araihu.com blog page | `/guide` uses optional `webpublication.Render` around `RenderHTMLPage`, with a custom `araihu` theme and a verified fixture authority; initial canonical, Open Graph, X/Twitter, and article fields are asserted. |
+| Consumer-composed page | `/guide` uses `RenderHTMLPage` with caller-owned `Head` and `BeforeContent` components plus a custom theme; initial canonical, Open Graph, X/Twitter, and article fields are asserted without adding publication policy to Margo. |
 | Goshtoso theme inheritance | The Manja journey compares computed token-backed foreground/background colors before and after live `modern` to `dracula` plus light/dark changes. |
 | Table sorting | Browser clicks cover ascending, descending, and restored source order after the initial source state, including active `aria-sort`. |
 | Chart controls | Four charts retain four static SVGs and four accessible data tables while the expand dialog opens and closes. |

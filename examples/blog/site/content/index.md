@@ -19,6 +19,6 @@ One render becomes an article, a responsive hero, and a format study without smu
 ## What this example proves
 
 - The landing page uses the generic `RenderHTMLPage` contract.
-- The article opts into canonical and social metadata through `webpublication`.
+- The article composes canonical and social metadata in this consumer through generic page seams.
 - AVIF, WebP, JPEG, PNG, and GIF assets are copied and loaded as real image bytes.
 - The same page stays readable when JavaScript is absent.

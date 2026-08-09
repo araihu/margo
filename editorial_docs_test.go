@@ -9,7 +9,8 @@ import (
 func TestHTMLDocumentationNamesDecoupledPublicContract(t *testing.T) {
 	readme := readEditorialRepoFile(t, "README.md")
 	for _, want := range []string{
-		"RenderHTML", "RenderHTMLPage", "HTMLAssetHandler", "webpublication.Render",
+		"RenderHTML", "RenderHTMLPage", "HTMLAssetHandler", "HTMLPageInput",
+		"Head:", "Header:", "BeforeContent:", "Footer:",
 		"/assets/", "/margo-assets/", "/charts/assets/",
 		"HTMLDependenciesLocal", "HTMLDependenciesInline",
 	} {
@@ -17,7 +18,7 @@ func TestHTMLDocumentationNamesDecoupledPublicContract(t *testing.T) {
 			t.Fatalf("README missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"RenderEditorial", "margo.RenderPublication", "margo.PublicationInput", "EditorialAssetHandler"} {
+	for _, forbidden := range []string{"RenderEditorial", "margo.RenderPublication", "margo.PublicationInput", "EditorialAssetHandler", "webpublication"} {
 		if strings.Contains(readme, forbidden) {
 			t.Fatalf("README retains coupled API %q", forbidden)
 		}
