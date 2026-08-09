@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -56,22 +57,58 @@ func TestPlatformBootstrapExecutesLockBoundOfflineProbe(t *testing.T) {
 	}
 
 	lockPath := writeSyntheticToolchainLock(t)
-	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
-	writePlatformTestFile(t, contractsPath, validRunnerContractsJSON(`[
-    "go", "test", "./platform", "-run", "^TestProbeSynthetic$", "-count=1"
-  ]`))
+	contractsPath, err := filepath.Abs("runner-contracts.json")
+	if err != nil {
+		t.Fatalf("Abs(runner-contracts.json) error = %v", err)
+	}
 	workingDirectory, err := filepath.Abs("..")
 	if err != nil {
 		t.Fatalf("Abs() error = %v", err)
 	}
 
-	result, err := Bootstrap(context.Background(), lockPath, contractsPath, RunnerWindowsWebView2, workingDirectory)
+	result, err := Bootstrap(context.Background(), lockPath, contractsPath, hostProbeRunner(), workingDirectory)
 	if err != nil {
 		t.Fatalf("Bootstrap() error = %v", err)
 	}
-	if result.ExitCode != 0 || !strings.Contains(result.Stdout, "ok") || result.SDKVersion != "sdk-test-1" || result.RuntimeVersion != "runtime-test-2" || !validSHA256(result.SourceDigest) {
+	if result.ExitCode != 0 || !strings.Contains(result.Stdout, "ok") || strings.Contains(result.Stdout, "no tests to run") || result.SDKVersion != "sdk-test-1" || result.RuntimeVersion != "runtime-test-2" || !validSHA256(result.SourceDigest) {
 		t.Fatalf("result = %+v", result)
 	}
+}
+
+func hostProbeRunner() RunnerID {
+	switch runtime.GOOS {
+	case "windows":
+		return RunnerWindowsWebView2
+	case "darwin":
+		return RunnerDarwinWKWebView
+	case "linux":
+		return RunnerLinuxWebKitGTK
+	default:
+		return RunnerChromiumCDP
+	}
+}
+
+func TestPlatformBootstrapFailsClosedForWrongHostRunner(t *testing.T) {
+	if os.Getenv("MARGO_PDF_PROBE_EXECUTION") == "1" {
+		t.Skip("parent-only bootstrap test")
+	}
+
+	lockPath := writeSyntheticToolchainLock(t)
+	contractsPath, err := filepath.Abs("runner-contracts.json")
+	if err != nil {
+		t.Fatalf("Abs(runner-contracts.json) error = %v", err)
+	}
+	workingDirectory, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatalf("Abs() error = %v", err)
+	}
+
+	wrongRunner := RunnerWindowsWebView2
+	if runtime.GOOS == "windows" {
+		wrongRunner = RunnerLinuxWebKitGTK
+	}
+	_, err = Bootstrap(context.Background(), lockPath, contractsPath, wrongRunner, workingDirectory)
+	requirePlatformErrorCode(t, err, "pdf.platform_runtime_evidence_required")
 }
 
 func TestProbeSynthetic(t *testing.T) {
@@ -84,6 +121,44 @@ func TestProbeSynthetic(t *testing.T) {
 	} {
 		if got := os.Getenv(name); got != value {
 			t.Fatalf("%s = %q, want %q", name, got, value)
+		}
+	}
+}
+
+func TestProbeWindowsWebView2(t *testing.T) {
+	requireHostEvidenceProbe(t, RunnerWindowsWebView2, "windows")
+}
+
+func TestProbeDarwinWKWebView(t *testing.T) {
+	requireHostEvidenceProbe(t, RunnerDarwinWKWebView, "darwin")
+}
+
+func TestProbeLinuxWebKitGTK(t *testing.T) {
+	requireHostEvidenceProbe(t, RunnerLinuxWebKitGTK, "linux")
+}
+
+func TestProbeChromiumCDP(t *testing.T) {
+	requireHostEvidenceProbe(t, RunnerChromiumCDP, "")
+}
+
+func requireHostEvidenceProbe(t *testing.T, runnerID RunnerID, requiredGOOS string) {
+	t.Helper()
+	if os.Getenv("MARGO_PDF_PROBE_EXECUTION") != "1" {
+		t.Skip("bootstrap-only host evidence probe")
+	}
+	if got := RunnerID(os.Getenv("MARGO_PDF_RUNNER_ID")); got != runnerID {
+		t.Fatalf("runner ID = %q, want %q", got, runnerID)
+	}
+	if requiredGOOS != "" && runtime.GOOS != requiredGOOS {
+		t.Fatalf("pdf.platform_runtime_evidence_required: runner %q requires GOOS %q, got %q", runnerID, requiredGOOS, runtime.GOOS)
+	}
+	for _, environmentName := range []string{"MARGO_PDF_SDK_EVIDENCE_PATH", "MARGO_PDF_RUNTIME_EVIDENCE_PATH"} {
+		evidencePath := os.Getenv(environmentName)
+		if !filepath.IsAbs(evidencePath) {
+			t.Fatalf("%s must be absolute", environmentName)
+		}
+		if _, err := readEvidenceVersion(evidencePath); err != nil {
+			t.Fatalf("%s is invalid: %v", environmentName, err)
 		}
 	}
 }

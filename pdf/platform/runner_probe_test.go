@@ -2,8 +2,36 @@ package platform
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 )
+
+func TestRunnerContractRepositoryRecordsEveryRunner(t *testing.T) {
+	t.Parallel()
+
+	contracts, err := LoadRunnerContracts("runner-contracts.json")
+	if err != nil {
+		t.Fatalf("LoadRunnerContracts(repository) error = %v", err)
+	}
+	wantCommands := map[RunnerID][]string{
+		RunnerWindowsWebView2: {"go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"},
+		RunnerDarwinWKWebView: {"go", "test", "./platform", "-run", "^TestProbeDarwinWKWebView$", "-count=1"},
+		RunnerLinuxWebKitGTK:  {"go", "test", "./platform", "-run", "^TestProbeLinuxWebKitGTK$", "-count=1"},
+		RunnerChromiumCDP:     {"go", "test", "./platform", "-run", "^TestProbeChromiumCDP$", "-count=1"},
+	}
+	for runnerID, wantCommand := range wantCommands {
+		contract, ok := contracts.Runner(runnerID)
+		if !ok {
+			t.Fatalf("runner %q is absent", runnerID)
+		}
+		if !reflect.DeepEqual(contract.Command, wantCommand) {
+			t.Fatalf("runner %q command = %v, want %v", runnerID, contract.Command, wantCommand)
+		}
+		if !containsPath(contract.OwnedSourcePaths, "platform/bootstrap.go") || !containsPath(contract.OwnedProbePaths, "platform/engine_probe_test.go") {
+			t.Fatalf("runner %q ownership = source %v probe %v", runnerID, contract.OwnedSourcePaths, contract.OwnedProbePaths)
+		}
+	}
+}
 
 func TestRunnerContractAcceptsLockedGoTestProbe(t *testing.T) {
 	t.Parallel()

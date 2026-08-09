@@ -207,6 +207,10 @@ func (operatingSystemExecutor) Run(ctx context.Context, workingDirectory string,
 }
 
 func runProbe(ctx context.Context, contractsPath string, runnerID RunnerID, workingDirectory string, executor probeExecutor) (ProbeResult, error) {
+	return runProbeWithEvidence(ctx, contractsPath, runnerID, workingDirectory, "", "", executor)
+}
+
+func runProbeWithEvidence(ctx context.Context, contractsPath string, runnerID RunnerID, workingDirectory, sdkEvidencePath, runtimeEvidencePath string, executor probeExecutor) (ProbeResult, error) {
 	if ctx == nil || executor == nil {
 		return ProbeResult{}, platformError("pdf.platform_contract_invalid", "probe context and executor are required")
 	}
@@ -222,7 +226,7 @@ func runProbe(ctx context.Context, contractsPath string, runnerID RunnerID, work
 	if !ok {
 		return ProbeResult{}, platformError("pdf.platform_runtime_evidence_required", fmt.Sprintf("runner %q is not recorded", runnerID))
 	}
-	stdout, stderr, exitCode, err := executor.Run(ctx, workingDirectory, contract.Command, offlineProbeEnvironment(os.Environ()))
+	stdout, stderr, exitCode, err := executor.Run(ctx, workingDirectory, contract.Command, offlineProbeEnvironment(os.Environ(), runnerID, sdkEvidencePath, runtimeEvidencePath))
 	if err != nil {
 		return ProbeResult{}, platformError("pdf.platform_runtime_evidence_required", err.Error())
 	}
@@ -259,9 +263,12 @@ func Bootstrap(ctx context.Context, lockPath, contractsPath string, runnerID Run
 	if !found || !containsPath(contract.OwnedProbePaths, selected.Probe) {
 		return ProbeResult{}, platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q probe is not bound to its lock", runnerID))
 	}
-	result, err := runProbe(ctx, contractsPath, runnerID, workingDirectory, operatingSystemExecutor{})
+	result, err := runProbeWithEvidence(ctx, contractsPath, runnerID, workingDirectory, selected.SDKEvidencePath, selected.RuntimeEvidencePath, operatingSystemExecutor{})
 	if err != nil {
 		return ProbeResult{}, err
+	}
+	if strings.Contains(result.Stdout, "[no tests to run]") {
+		return ProbeResult{}, platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q probe test does not exist", runnerID))
 	}
 	sdkVersion, err := readEvidenceVersion(selected.SDKEvidencePath)
 	if err != nil {
@@ -298,11 +305,12 @@ func readEvidenceVersion(evidencePath string) (string, error) {
 	return version, nil
 }
 
-func offlineProbeEnvironment(environment []string) []string {
+func offlineProbeEnvironment(environment []string, runnerID RunnerID, sdkEvidencePath, runtimeEvidencePath string) []string {
 	locked := map[string]string{
 		"GOENV": "off", "GOFLAGS": "-mod=readonly", "GOPROXY": "off",
 		"GOSUMDB": "off", "GOTOOLCHAIN": "local", "GOWORK": "off",
-		"MARGO_PDF_PROBE_EXECUTION": "1",
+		"MARGO_PDF_PROBE_EXECUTION": "1", "MARGO_PDF_RUNNER_ID": string(runnerID),
+		"MARGO_PDF_SDK_EVIDENCE_PATH": sdkEvidencePath, "MARGO_PDF_RUNTIME_EVIDENCE_PATH": runtimeEvidencePath,
 	}
 	filtered := make([]string, 0, len(environment)+len(locked))
 	for _, entry := range environment {
@@ -321,7 +329,7 @@ func offlineProbeEnvironment(environment []string) []string {
 			filtered = append(filtered, entry)
 		}
 	}
-	for _, name := range []string{"GOENV", "GOFLAGS", "GOPROXY", "GOSUMDB", "GOTOOLCHAIN", "GOWORK", "MARGO_PDF_PROBE_EXECUTION"} {
+	for _, name := range []string{"GOENV", "GOFLAGS", "GOPROXY", "GOSUMDB", "GOTOOLCHAIN", "GOWORK", "MARGO_PDF_PROBE_EXECUTION", "MARGO_PDF_RUNNER_ID", "MARGO_PDF_SDK_EVIDENCE_PATH", "MARGO_PDF_RUNTIME_EVIDENCE_PATH"} {
 		filtered = append(filtered, name+"="+locked[name])
 	}
 	return filtered

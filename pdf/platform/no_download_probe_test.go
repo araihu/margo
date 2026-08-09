@@ -32,6 +32,7 @@ func TestNoDownloadProbeForcesOfflineGoEnvironment(t *testing.T) {
 		"GOTOOLCHAIN":               "local",
 		"GOWORK":                    "off",
 		"MARGO_PDF_PROBE_EXECUTION": "1",
+		"MARGO_PDF_RUNNER_ID":       string(RunnerWindowsWebView2),
 	}
 	for name, value := range want {
 		if got := environmentValue(executor.environment, name); got != value {
@@ -60,7 +61,7 @@ func TestNoDownloadEnvironmentReplacesAmbientOverrides(t *testing.T) {
 		"goflags=-mod=mod",
 		"GOTOOLCHAIN=auto",
 		"KEEP=value",
-	})
+	}, RunnerWindowsWebView2, "/tmp/sdk-evidence", "/tmp/runtime-evidence")
 	for _, name := range []string{"GOPROXY", "GOFLAGS", "GOTOOLCHAIN"} {
 		if count := environmentNameCount(environment, name); count != 1 {
 			t.Fatalf("%s entries = %d, want 1: %v", name, count, environment)
