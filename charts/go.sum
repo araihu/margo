@@ -10,8 +10,8 @@ github.com/araihu/goshtoso v0.1.2 h1:ymdPVQ+dE0NplYsiqMnUFmDtBT5bOMqtArPohmg2H8g
 github.com/araihu/goshtoso v0.1.2/go.mod h1:mY8kbNpqILeQ2MLW1eh14EIaudanLjAs6bf0sv51NXE=
 github.com/araihu/goshtoso-charts v0.0.2-0.20260803224432-297df2f562e8 h1:+Tr1yxWDGIviWgiEls/HWxlrgZC4vkGlSSR+2DGameQ=
 github.com/araihu/goshtoso-charts v0.0.2-0.20260803224432-297df2f562e8/go.mod h1:rVmduE7LdoVXhj89Fcbn5fYFxll9ZiX8NBnsPYV6/d4=
-github.com/araihu/margo v0.0.0-20260808171834-55ce4839148a h1:b5mCf7Epu+keHR8SYhnOZswERw0CYZYuoT6A4pA6Ttk=
-github.com/araihu/margo v0.0.0-20260808171834-55ce4839148a/go.mod h1:t5vzt4j6VTYIJsreX2+d/Cr37vftL1Cd0PiXIcre11U=
+github.com/araihu/margo v0.0.1 h1:UJPcKUgMzDoOmy9ZlqdCADNkZV95AAFLRikihfaDsDc=
+github.com/araihu/margo v0.0.1/go.mod h1:t5vzt4j6VTYIJsreX2+d/Cr37vftL1Cd0PiXIcre11U=
 github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327 h1:UQ4AU+BGti3Sy/aLU8KVseYKNALcX9UXY6DfpwQ6J8E=
 github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327/go.mod h1:NItd7aLkcfOA/dcMXvl8p1u+lQqioRMq/SqDp71Pb/k=
 github.com/chromedp/chromedp v0.14.2 h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=

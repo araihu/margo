@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,10 @@ func TestGenerateHTMLAppendsAndRendersChartsAtomically(t *testing.T) {
 		ColorMode:        margo.ColorModeDark,
 	})
 	if err != nil {
+		var diagnostic *margo.DiagnosticError
+		if errors.As(err, &diagnostic) {
+			t.Fatalf("generateHTML() diagnostics = %#v", diagnostic.Diagnostics)
+		}
 		t.Fatalf("generateHTML() error = %v", err)
 	}
 	data, err := os.ReadFile(outputPath)
@@ -49,10 +54,10 @@ func TestGenerateHTMLAppendsAndRendersChartsAtomically(t *testing.T) {
 		`fill:#123456`,
 		`data-margo-chart-data="v1"`,
 		`data-goshtoso-chart-wrapper-mode="enabled"`,
-		`data-margo-goshtoso-runtime="first-party"`,
-		`data-margo-goshtoso-runtime="alpine-focus"`,
-		`data-margo-goshtoso-runtime="alpine"`,
-		`data-margo-chart-controls-inline="v5"`,
+		`data-margo-requirement="goshtoso.runtime.first-party"`,
+		`data-margo-requirement="goshtoso.runtime.alpine-focus"`,
+		`data-margo-requirement="goshtoso.runtime.alpine"`,
+		`data-margo-requirement="goshtoso-charts.controls"`,
 	} {
 		if !strings.Contains(string(data), required) {
 			t.Errorf("generated HTML missing %q", required)
@@ -71,16 +76,14 @@ func TestGenerateHTMLAppendsAndRendersChartsAtomically(t *testing.T) {
 			t.Fatalf("generated HTML retains external Goshtoso runtime %q", external)
 		}
 	}
-	for _, role := range []string{"first-party", "alpine-focus", "alpine"} {
-		if strings.Count(markup, `data-margo-goshtoso-runtime="`+role+`"`) != 1 {
-			t.Fatalf("inline Goshtoso runtime %q count = %d, want 1", role, strings.Count(markup, `data-margo-goshtoso-runtime="`+role+`"`))
+	for _, requirement := range []string{"goshtoso.runtime.first-party", "goshtoso.runtime.alpine-focus", "goshtoso.runtime.alpine", "goshtoso-charts.controls"} {
+		marker := `data-margo-requirement="` + requirement + `"`
+		if strings.Count(markup, marker) != 1 {
+			t.Fatalf("inline requirement %q count = %d, want 1", requirement, strings.Count(markup, marker))
 		}
 	}
-	if strings.Count(markup, `data-margo-chart-controls-inline="v5"`) != 1 {
-		t.Fatalf("inline chart-control runtime count = %d, want 1", strings.Count(markup, `data-margo-chart-controls-inline="v5"`))
-	}
-	if strings.Index(markup, `data-margo-chart-controls-inline="v5"`) > strings.Index(markup, `</body>`) {
-		t.Fatal("inline chart-control runtime was emitted after </body>")
+	if strings.Index(markup, `data-margo-requirement="goshtoso-charts.controls"`) > strings.Index(markup, `</head>`) {
+		t.Fatal("inline chart-control runtime was emitted after </head>")
 	}
 	entries, err := os.ReadDir(filepath.Dir(outputPath))
 	if err != nil {
