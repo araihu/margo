@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "margo/canonical-authority/v1",
+  "recordDigest": "b103a64bad617c06cd2c2ed048465cfeab0253fa90bd7f58b63f433ffcfa2395",
+  "canonicalOrigin": "https://margo.invalid",
+  "routes": {"homepage": "/", "representative": "/guide", "preview": "/assets/social/margo-v0.0.1.png"},
+  "owner": {"principal": "margo-test-owner", "contact": "owner@margo.invalid"},
+  "asset": {
+    "url": "https://margo.invalid/assets/social/margo-v0.0.1.png",
+    "mimeType": "image/png",
+    "sha256": "9d570d7851a54e2024da10b3e48cbdd19f544c12f06ca4e372b426f0609b2974",
+    "bytes": 28740,
+    "width": 1280,
+    "height": 640,
+    "evidenceURL": "https://evidence.invalid/margo-preview.png",
+    "evidenceSHA256": "9d570d7851a54e2024da10b3e48cbdd19f544c12f06ca4e372b426f0609b2974"
+  },
+  "host": {
+    "provider": "fixture",
+    "account": "margo",
+    "resource": "margo.invalid",
+    "evidenceURL": "https://evidence.invalid/host",
+    "evidenceSHA256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "deployment": {
+    "provider": "fixture",
+    "project": "margo",
+    "deploymentID": "fixture-deployment",
+    "commit": "fixture-commit",
+    "evidenceURL": "https://evidence.invalid/deployment",
+    "evidenceSHA256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "receipt": {
+    "transport": "file",
+    "source": "testdata/authority/record.json",
+    "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "verifier": "fixture-verifier",
+    "verifiedAt": "2026-08-06T00:00:00Z"
+  }
+}

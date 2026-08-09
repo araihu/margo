@@ -114,6 +114,9 @@ Generated-HTML unit and browser gates are documented in
 contract does not impose public-web metadata on PDF consumers. PDF visual review
 is deferred; this HTML slice does not claim PDF acceptance.
 
+The reproducible [blog example](examples/blog/README.md) generates a landing
+page and a public article with AVIF, WebP, JPEG, PNG, and GIF assets.
+
 ## Modules
 
 | Module | Purpose |
