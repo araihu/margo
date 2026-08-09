@@ -42,6 +42,13 @@ var knownRunnerIDs = map[RunnerID]struct{}{
 	RunnerChromiumCDP:     {},
 }
 
+var lockedRunnerProbePatterns = map[RunnerID]string{
+	RunnerWindowsWebView2: "^TestProbeWindowsWebView2$",
+	RunnerDarwinWKWebView: "^TestProbeDarwinWKWebView$",
+	RunnerLinuxWebKitGTK:  "^TestProbeLinuxWebKitGTK$",
+	RunnerChromiumCDP:     "^TestProbeChromiumCDP$",
+}
+
 // RunnerContract describes one reviewed probe command. Slices returned by
 // Runner are copies, so callers cannot mutate the loaded contract.
 type RunnerContract struct {
@@ -92,7 +99,7 @@ func LoadRunnerContracts(contractsPath string) (RunnerContracts, error) {
 	if err := decodeStrictJSON(data, &document); err != nil {
 		return RunnerContracts{}, platformError("pdf.platform_contract_invalid", err.Error())
 	}
-	if document.SchemaVersion != runnerContractsSchema || len(document.Runners) == 0 {
+	if document.SchemaVersion != runnerContractsSchema || len(document.Runners) != len(knownRunnerIDs) {
 		return RunnerContracts{}, platformError("pdf.platform_contract_invalid", "runner contract schema or runner set is invalid")
 	}
 
@@ -101,7 +108,7 @@ func LoadRunnerContracts(contractsPath string) (RunnerContracts, error) {
 		if _, ok := knownRunnerIDs[id]; !ok {
 			return RunnerContracts{}, platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q is not recorded by v1", id))
 		}
-		if err := validateRunnerContract(contract); err != nil {
+		if err := validateRunnerContract(id, contract); err != nil {
 			return RunnerContracts{}, err
 		}
 		validated[id] = cloneRunnerContract(contract)
@@ -109,9 +116,12 @@ func LoadRunnerContracts(contractsPath string) (RunnerContracts, error) {
 	return RunnerContracts{runners: validated}, nil
 }
 
-func validateRunnerContract(contract RunnerContract) error {
-	if !isLockedGoTestProbe(contract.Command) {
+func validateRunnerContract(id RunnerID, contract RunnerContract) error {
+	if !isPackageLocalGoTestProbe(contract.Command) {
 		return platformError("pdf.platform_download_forbidden", "probe command must be one locked package-local go test")
+	}
+	if contract.Command[4] != lockedRunnerProbePatterns[id] {
+		return platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q probe command does not match its identity", id))
 	}
 	if contract.ExpectedExitCode != 0 {
 		return platformError("pdf.platform_contract_invalid", "probe expected exit code must be zero")
@@ -125,7 +135,7 @@ func validateRunnerContract(contract RunnerContract) error {
 	return nil
 }
 
-func isLockedGoTestProbe(command []string) bool {
+func isPackageLocalGoTestProbe(command []string) bool {
 	if len(command) != 6 || command[0] != "go" || command[1] != "test" || command[2] != "./platform" || command[3] != "-run" || command[5] != "-count=1" {
 		return false
 	}

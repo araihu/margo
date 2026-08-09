@@ -1,15 +1,22 @@
 package platform
 
 import (
+	"flag"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+)
+
+var (
+	_                       = flag.String("lock", "platform-toolchain.lock", "platform toolchain lock path relative to the pdf module")
+	runnerContractsArgument = flag.String("contracts", "platform/runner-contracts.json", "runner contracts path relative to the pdf module")
 )
 
 func TestRunnerContractRepositoryRecordsEveryRunner(t *testing.T) {
 	t.Parallel()
 
-	contracts, err := LoadRunnerContracts("runner-contracts.json")
+	contracts, err := LoadRunnerContracts(filepath.Join("..", filepath.FromSlash(*runnerContractsArgument)))
 	if err != nil {
 		t.Fatalf("LoadRunnerContracts(repository) error = %v", err)
 	}
@@ -59,6 +66,30 @@ func TestRunnerContractAcceptsLockedGoTestProbe(t *testing.T) {
 	}
 }
 
+func TestRunnerContractRejectsIncompleteRunnerSet(t *testing.T) {
+	t.Parallel()
+
+	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
+	writePlatformTestFile(t, contractsPath, singleRunnerContractsJSON(`[
+    "go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"
+  ]`))
+
+	_, err := LoadRunnerContracts(contractsPath)
+	requirePlatformErrorCode(t, err, "pdf.platform_contract_invalid")
+}
+
+func TestRunnerContractRejectsProbeBoundToDifferentRunner(t *testing.T) {
+	t.Parallel()
+
+	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
+	writePlatformTestFile(t, contractsPath, validRunnerContractsJSON(`[
+    "go", "test", "./platform", "-run", "^TestProbeDarwinWKWebView$", "-count=1"
+  ]`))
+
+	_, err := LoadRunnerContracts(contractsPath)
+	requirePlatformErrorCode(t, err, "pdf.platform_contract_invalid")
+}
+
 func TestRunnerContractRejectsDownloadCommand(t *testing.T) {
 	t.Parallel()
 
@@ -89,17 +120,9 @@ func TestRunnerContractRejectsUnownedPath(t *testing.T) {
 	t.Parallel()
 
 	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
-	writePlatformTestFile(t, contractsPath, `{
-  "schemaVersion": "margo/pdf-runner-contracts/v1",
-  "runners": {
-    "windows-webview2/v1": {
-      "command": ["go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"],
-      "expectedExitCode": 0,
-      "ownedSourcePaths": ["../go.mod"],
-      "ownedProbePaths": ["platform/engine_probe_test.go"]
-    }
-  }
-}`)
+	contents := validRunnerContractsJSON(`["go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"]`)
+	contents = strings.Replace(contents, `"ownedSourcePaths": ["platform/bootstrap.go"]`, `"ownedSourcePaths": ["../go.mod"]`, 1)
+	writePlatformTestFile(t, contractsPath, contents)
 
 	_, err := LoadRunnerContracts(contractsPath)
 	requirePlatformErrorCode(t, err, "pdf.platform_contract_invalid")
@@ -109,17 +132,9 @@ func TestRunnerContractRejectsWindowsVolumePath(t *testing.T) {
 	t.Parallel()
 
 	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
-	writePlatformTestFile(t, contractsPath, `{
-  "schemaVersion": "margo/pdf-runner-contracts/v1",
-  "runners": {
-    "windows-webview2/v1": {
-      "command": ["go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"],
-      "expectedExitCode": 0,
-      "ownedSourcePaths": ["C:/go.mod"],
-      "ownedProbePaths": ["platform/engine_probe_test.go"]
-    }
-  }
-}`)
+	contents := validRunnerContractsJSON(`["go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"]`)
+	contents = strings.Replace(contents, `"ownedSourcePaths": ["platform/bootstrap.go"]`, `"ownedSourcePaths": ["C:/go.mod"]`, 1)
+	writePlatformTestFile(t, contractsPath, contents)
 
 	_, err := LoadRunnerContracts(contractsPath)
 	requirePlatformErrorCode(t, err, "pdf.platform_contract_invalid")
@@ -129,24 +144,48 @@ func TestRunnerContractRejectsDuplicateJSONKey(t *testing.T) {
 	t.Parallel()
 
 	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
-	writePlatformTestFile(t, contractsPath, `{
-  "schemaVersion": "margo/pdf-runner-contracts/v1",
-  "schemaVersion": "margo/pdf-runner-contracts/v1",
-  "runners": {
-    "windows-webview2/v1": {
-      "command": ["go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"],
-      "expectedExitCode": 0,
-      "ownedSourcePaths": ["platform/bootstrap.go"],
-      "ownedProbePaths": ["platform/engine_probe_test.go"]
-    }
-  }
-}`)
+	contents := validRunnerContractsJSON(`["go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"]`)
+	contents = strings.Replace(contents, `"schemaVersion": "margo/pdf-runner-contracts/v1",`, `"schemaVersion": "margo/pdf-runner-contracts/v1",
+  "schemaVersion": "margo/pdf-runner-contracts/v1",`, 1)
+	writePlatformTestFile(t, contractsPath, contents)
 
 	_, err := LoadRunnerContracts(contractsPath)
 	requirePlatformErrorCode(t, err, "pdf.platform_contract_invalid")
 }
 
 func validRunnerContractsJSON(command string) string {
+	return `{
+  "schemaVersion": "margo/pdf-runner-contracts/v1",
+  "runners": {
+    "windows-webview2/v1": {
+      "command": ` + command + `,
+      "expectedExitCode": 0,
+      "ownedSourcePaths": ["platform/bootstrap.go"],
+      "ownedProbePaths": ["platform/engine_probe_test.go"]
+    },
+    "darwin-wkwebview/v1": {
+      "command": ["go", "test", "./platform", "-run", "^TestProbeDarwinWKWebView$", "-count=1"],
+      "expectedExitCode": 0,
+      "ownedSourcePaths": ["platform/bootstrap.go"],
+      "ownedProbePaths": ["platform/engine_probe_test.go"]
+    },
+    "linux-webkitgtk/v1": {
+      "command": ["go", "test", "./platform", "-run", "^TestProbeLinuxWebKitGTK$", "-count=1"],
+      "expectedExitCode": 0,
+      "ownedSourcePaths": ["platform/bootstrap.go"],
+      "ownedProbePaths": ["platform/engine_probe_test.go"]
+    },
+    "chromium-cdp/v1": {
+      "command": ["go", "test", "./platform", "-run", "^TestProbeChromiumCDP$", "-count=1"],
+      "expectedExitCode": 0,
+      "ownedSourcePaths": ["platform/bootstrap.go"],
+      "ownedProbePaths": ["platform/engine_probe_test.go"]
+    }
+  }
+}`
+}
+
+func singleRunnerContractsJSON(command string) string {
 	return `{
   "schemaVersion": "margo/pdf-runner-contracts/v1",
   "runners": {
