@@ -21,7 +21,7 @@ A useful document tool should make strong technical guarantees without pretendin
 
 `RenderHTML` produces one immutable fragment and its requirements. `RenderHTMLPage` adds a complete document shell, theme, color mode, and dependency strategy. Neither API knows a canonical domain, publishing route, Open Graph identity, or article type.
 
-The optional `webpublication` package adds those claims only when a public site asks for them. PDF and other consumers can keep using the semantic result or generic HTML without inheriting web-publication policy.
+This example adds those claims in consumer-local components passed through `HTMLPageInput`. PDF and other consumers can keep using the semantic result or generic HTML without inheriting web-publication policy.
 
 ## One hero, three delivery formats
 
@@ -41,4 +41,4 @@ GIF is deliberately included as a familiar legacy format. It is not the smallest
 
 ## A resilient publishing contract
 
-The important distinction is now explicit: fragment versus complete document is a technical choice; public-web authority is an optional product choice. Images follow the same principle—modern sources where useful, conservative fallbacks where necessary.
+The important distinction is now explicit: fragment versus complete document is an engine choice; public-web authority is entirely a consumer choice. Images follow the same principle—modern sources where useful, conservative fallbacks where necessary.

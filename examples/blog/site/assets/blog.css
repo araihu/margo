@@ -119,7 +119,7 @@ main {
   text-align: center;
 }
 
-.margo-webpublication-byline {
+.blog-publication-byline {
   display: flex;
   width: min(100%, 48rem);
   margin: 0 auto 2rem;
@@ -130,9 +130,9 @@ main {
   align-items: center;
 }
 
-.margo-webpublication-byline address { font-style: normal; }
-.margo-webpublication-byline ul { display: flex; margin: 0; padding: 0; gap: 0.4rem; list-style: none; }
-.margo-webpublication-byline li { padding: 0.2rem 0.55rem; border-radius: 999px; background: #ead6d3; }
+.blog-publication-byline address { font-style: normal; }
+.blog-publication-byline ul { display: flex; margin: 0; padding: 0; gap: 0.4rem; list-style: none; }
+.blog-publication-byline li { padding: 0.2rem 0.55rem; border-radius: 999px; background: #ead6d3; }
 
 @media (max-width: 42rem) {
   .blog-nav { align-items: flex-start; }

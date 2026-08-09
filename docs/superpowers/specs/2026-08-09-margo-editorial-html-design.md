@@ -7,12 +7,13 @@ fragment versus complete HTML document, not editorial versus publication. The
 normative root API is now `RenderHTML`/`HTMLResult` for the immutable fragment
 projection and `RenderHTMLPage`/`HTMLPageInput` for a generic document shell.
 The root page contract has no authority record, route, canonical URL, social
-metadata, or article kind. Those public-web concerns are available only through
-the optional `github.com/araihu/margo/webpublication` package. References below
-to `EditorialResult`, `RenderEditorial`, `PublicationInput`, and
-`RenderPublication` record the original design and are superseded by this
-amendment. PDF consumers may use the semantic render or generic HTML contract
-without accepting public-web policy.
+metadata, or article kind. Consumers compose those concerns through generic
+`Head`, `Header`, `BeforeContent`, and `Footer` components; Margo provides no
+publication-domain adapter. References below to `EditorialResult`,
+`RenderEditorial`, `PublicationInput`, and `RenderPublication` record the
+original design and are superseded by this amendment. PDF consumers may use
+the semantic render or generic HTML contract without accepting public-web
+policy.
 
 **Primary goal:** Make Goshtoso-compatible HTML the first-class Margo product
 for documentation and blogging. Manja consumes safe fragments inside its

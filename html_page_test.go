@@ -31,7 +31,7 @@ func TestRenderHTMLPageOwnsOnlyGenericDocumentShell(t *testing.T) {
 			t.Fatalf("missing %q: %s", want, markup)
 		}
 	}
-	for _, forbidden := range []string{`rel="canonical"`, `property="og:`, `name="twitter:`, `property="article:`, `margo-webpublication-byline`} {
+	for _, forbidden := range []string{`rel="canonical"`, `property="og:`, `name="twitter:`, `property="article:`} {
 		if strings.Contains(markup, forbidden) {
 			t.Fatalf("generic page contains publication policy %q: %s", forbidden, markup)
 		}

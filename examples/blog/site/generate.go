@@ -15,10 +15,9 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/araihu/margo"
-	"github.com/araihu/margo/webpublication"
 )
 
-//go:embed assets/* content/*.md testdata/*.json
+//go:embed assets/* content/*.md
 var exampleFiles embed.FS
 
 var imageAssets = []string{
@@ -76,25 +75,18 @@ func Generate(outputDirectory string) error {
 	if err != nil {
 		return err
 	}
-	authorityBytes, err := fs.ReadFile(exampleFiles, "testdata/authority.json")
-	if err != nil {
-		return fmt.Errorf("read blog authority fixture: %w", err)
-	}
-	authority, err := webpublication.VerifyAuthorityRecord(authorityBytes)
-	if err != nil {
-		return fmt.Errorf("verify blog authority fixture: %w", err)
-	}
 	articlePage := page
 	articlePage.BeforeContent = blogHero()
-	article, err := webpublication.Render(articleResult, webpublication.Input{
-		Kind: webpublication.KindArticle, Authority: authority,
-		RoutePath: authority.Routes.Representative, SiteName: "Margo Field Notes", Locale: "en_US",
-		Image: webpublication.SocialImage{
-			URL:      string(authority.CanonicalOrigin) + authority.Routes.Preview,
-			MIMEType: authority.Asset.MIMEType, Width: authority.Asset.Width, Height: authority.Asset.Height,
-			Alt: "Margo Field Notes preview.",
-		},
-		Page: articlePage,
+	article, err := renderBlogPublication(articleResult, blogPublicationInput{
+		CanonicalURL:  "https://margo.invalid/guide",
+		SiteName:      "Margo Field Notes",
+		Locale:        "en_US",
+		ImageURL:      "https://margo.invalid/assets/social/margo-v0.0.1.png",
+		ImageMIMEType: "image/png",
+		ImageWidth:    1280,
+		ImageHeight:   640,
+		ImageAlt:      "Margo Field Notes preview.",
+		Page:          articlePage,
 	})
 	if err != nil {
 		return fmt.Errorf("compose blog article: %w", err)
