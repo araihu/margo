@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	blogsite "github.com/araihu/margo/examples/blog/site"
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
@@ -72,4 +73,33 @@ func TestGeneratedBlogPagesDecodePopularImageFormats(t *testing.T) {
 		t.Fatalf("unexpected picture source %q", selectedHero)
 	}
 	assertCleanEvidence(t, server.URL, evidence)
+}
+
+func TestGeneratedBlogPagesHideScreenFooterWhenPrinting(t *testing.T) {
+	output := t.TempDir()
+	if err := blogsite.Generate(output); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.FileServer(http.Dir(output)))
+	defer server.Close()
+
+	browserPath := requireInstalledChromium(t)
+	allocatorOptions := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(browserPath))
+	allocatorContext, allocatorCancel := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	defer allocatorCancel()
+	ctx, cancel := chromedp.NewContext(allocatorContext)
+	defer cancel()
+
+	var display string
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL+"/index.html"),
+		chromedp.WaitVisible(`.margo-page-footer`, chromedp.ByQuery),
+		emulation.SetEmulatedMedia().WithMedia("print"),
+		chromedp.Evaluate(`getComputedStyle(document.querySelector('.margo-page-footer')).display`, &display),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if display != "none" {
+		t.Fatalf("print footer display = %q, want none to avoid a footer-only page", display)
+	}
 }

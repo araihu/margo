@@ -134,6 +134,10 @@ main {
 .blog-publication-byline ul { display: flex; margin: 0; padding: 0; gap: 0.4rem; list-style: none; }
 .blog-publication-byline li { padding: 0.2rem 0.55rem; border-radius: 999px; background: #ead6d3; }
 
+@media print {
+  .margo-page-footer { display: none; }
+}
+
 @media (max-width: 42rem) {
   .blog-nav { align-items: flex-start; }
   .blog-nav__links { flex-direction: column; gap: 0.35rem; text-align: end; }
