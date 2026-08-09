@@ -4,12 +4,98 @@
   <img src="assets/margo-mascot.png" alt="Margo, the pink Go gopher mascot, holding a rendered document in a Brazilian publishing atelier." width="480">
 </p>
 
-Margo will compile Markdown into Goshtoso-styled documents, standalone HTML,
-PDFs, and static slide decks.
+Margo compiles Markdown into semantic Goshtoso-compatible HTML. The root module
+supports a host-owned editorial fragment and a complete publication page from
+the same immutable render result. PDF and static slide projections remain
+separate modules.
 
 The repository includes a deterministic browser preflight for standalone HTML
 before PDF review. See [contrast lint](docs/CONTRAST_LINT.md) to check custom
 themes and styling in print media under both light and dark color modes.
+
+## Editorial HTML
+
+Compile and render Markdown once, then project the result as a fragment owned
+by the surrounding application:
+
+```go
+compiler := margo.New()
+document, err := compiler.Compile(ctx, margo.Source{Name: "description.md", Content: source})
+if err != nil {
+	return err
+}
+rendered, err := compiler.Render(ctx, document)
+if err != nil {
+	return err
+}
+editorial, err := margo.RenderEditorial(rendered)
+if err != nil {
+	return err
+}
+return editorial.Fragment().Render(ctx, writer)
+```
+
+`EditorialResult.Fragment()` contains one `article.margo-document`; it does not
+own the document shell, theme selection, or color mode. A Manja-style host can
+place it inside its existing `.manja-markdown` layout. The article inherits the
+host's Goshtoso `data-theme` and `.dark` state without regeneration. Inspect
+`editorial.Requirements()` when the host assembles its own head.
+
+Mount the handlers directly at their owning prefixes for local requirements:
+
+```go
+mux.Handle("/assets/", goshtosoassets.Handler())
+mux.Handle("/margo-assets/", margo.EditorialAssetHandler())
+mux.Handle("/charts/assets/", chartassets.Handler())
+```
+
+Do not strip those prefixes a second time. `EditorialAssetHandler` serves the
+scoped Margo stylesheet and progressive table-sort runtime. Goshtoso and Charts
+retain ownership of their own embedded bytes.
+
+For a complete article, pass an authority record that was already verified by
+`VerifyAuthorityRecord`; canonical and social URLs derive from that record and
+the listed route rather than from free-form caller strings:
+
+```go
+page, err := margo.RenderPublication(editorial, margo.PublicationInput{
+	Mode:           margo.PublicationPublic,
+	Kind:           margo.PublicationArticle,
+	Authority:      authority,
+	RoutePath:      authority.Routes.Representative,
+	SiteName:       siteName,
+	Locale:         locale,
+	Image:          socialImage,
+	Theme:          margo.ThemeName("araihu"),
+	ColorMode:      margo.ColorModeLight,
+	DependencyMode: margo.HTMLDependenciesLocal,
+	ThemeStylesheet: themeStylesheet,
+})
+if err != nil {
+	return err
+}
+return page.Render(ctx, writer)
+```
+
+Use `HTMLDependenciesLocal` with the three mounts above, or
+`HTMLDependenciesInline` for a private/offline page with reviewed embedded
+bytes. Both modes preserve requirement order. Custom theme CSS loads after
+Goshtoso and Margo styles.
+
+Markdown tables and charts are readable before JavaScript. Table header buttons
+are progressive client controls. For charts in the current-root editorial
+path, register
+`charts.Extension(charts.WithExternalizedControlRuntime(true))`; this declares
+one ordered runtime set and leaves static SVG plus accessible data tables in the
+initial HTML. Provenance-marked chart component styles may remain inside the
+trusted chart output; unowned styles and all fragment scripts are rejected.
+
+Manja continues to own its documentation layout and routing. An araihu.com
+consumer continues to own localization, verified route authority, custom theme,
+brand chrome, and deployment. No external consumer is modified by this API.
+Generated-HTML unit and browser gates are documented in
+[editorial HTML browser evidence](docs/testing/editorial-html.md). PDF visual
+review is deferred; this HTML slice does not claim PDF acceptance.
 
 ## Modules
 

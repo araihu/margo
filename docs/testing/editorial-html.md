@@ -37,3 +37,23 @@ find "$workspace_dir" -depth -delete
 The test discovers an installed Chromium-family browser. Set `MARGO_CHROMIUM`
 to an explicit executable when discovery is not appropriate. A missing browser
 skips only the tagged browser gate; ordinary unit tests remain browser-free.
+
+## Goal audit
+
+| Requirement | Evidence |
+| --- | --- |
+| Manja-compatible fragment | `/manja` initial HTML embeds the exact fragment in `.manja-markdown`; the browser preserves article identity while changing host theme and dark mode. |
+| araihu.com blog page | `/guide` uses `RenderPublication` with a custom `araihu` theme and a verified fixture authority; initial canonical, Open Graph, X/Twitter, and article fields are asserted. |
+| Goshtoso theme inheritance | The Manja journey compares computed token-backed foreground/background colors before and after live `modern` to `dracula` plus light/dark changes. |
+| Table sorting | Browser clicks cover ascending, descending, and restored source order after the initial source state, including active `aria-sort`. |
+| Chart controls | Four charts retain four static SVGs and four accessible data tables while the expand dialog opens and closes. |
+| JavaScript-free readability | CDP disables script execution before navigation; article text, two source-order table rows, four SVGs, and four chart data tables remain readable. |
+| No duplicate runtime | Capability graph tests assert order and identity; browser network evidence asserts each local requirement once, zero asset requests for inline mode, no external requests, and no duplicate DOM IDs. |
+| PDF deferred | This slice changes and accepts generated HTML only. PDF generation and visual correctness remain deferred to separate human review. |
+
+Goshtoso Charts currently emits component-scoped CSS with its static SVG. The
+adapter marks every such style with `data-margo-extension-style="charts"`;
+`RenderEditorial` accepts only that explicit trusted provenance, rejects
+unowned styles, and continues to reject every fragment script. Host theme and
+color-mode ownership remain unchanged because the component CSS consumes
+Goshtoso tokens.

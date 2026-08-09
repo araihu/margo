@@ -14,6 +14,23 @@ their versioned browser runtime are enabled by default:
 compiler := margo.New(margo.WithExtension(charts.Extension()))
 ```
 
+That default preserves compatibility with consumers pinned to the previously
+published Margo root: each enabled wrapper retains its exact upstream control
+loader. A consumer compiling against the current editorial root externalizes
+the shared runtime into Margo's typed requirement graph instead:
+
+```go
+compiler := margo.New(margo.WithExtension(
+    charts.Extension(charts.WithExternalizedControlRuntime(true)),
+))
+```
+
+The declarative path materializes reviewed bytes from the embedded Goshtoso and
+Charts handlers without download. It loads Alpine Focus, Goshtoso first-party
+behavior, Alpine, and the chart controls once in that order. Mount the resulting
+local URLs at `/assets/` and `/charts/assets/`, or let
+`margo.HTMLDependenciesInline` embed the same bytes.
+
 When the wrapper is enabled, its action fieldset and expand modal are hidden by
 the chart's print CSS, so browser PDF output contains only the chart and its
 accessible data table while screen HTML keeps the controls. For a static-only
@@ -23,6 +40,11 @@ without wrapper DOM, export actions, or runtime:
 ```go
 compiler := margo.New(margo.WithExtension(charts.Extension(charts.WithControlWrapper(false))))
 ```
+
+JavaScript is progressive enhancement: static SVGs and every adjacent
+accessible data table remain in initial HTML when JavaScript is disabled. The
+expand/export controls remain inert or hidden until their declared runtime is
+available.
 
 Chart appearance follows Goshtoso tokens by default. The optional `style`
 object selects a token palette and/or adds a caller class; `style.colors` sets

@@ -62,8 +62,11 @@ func (r *EditorialResult) Fingerprint() EditorialFingerprint
 
 `Fragment()` is the canonical host-embeddable output. It contains one
 `<article class="margo-document">` and no `<!doctype>`, `<html>`, `<head>`,
-`<body>`, stylesheet, script, theme attribute, or color-mode class. It inherits
-all page-level presentation from the host.
+`<body>`, host stylesheet, script, theme attribute, or color-mode class. It
+inherits all page-level presentation from the host. The trusted Charts adapter
+is the sole scoped-style exception: upstream static SVG components retain
+their required token-based CSS, marked
+`data-margo-extension-style="charts"`. Unowned styles remain invalid.
 
 Complete pages use the same `EditorialResult`:
 

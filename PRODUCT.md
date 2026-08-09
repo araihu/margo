@@ -13,10 +13,11 @@ whole composition.
 
 ## Product Purpose
 
-Margo compiles Markdown into deterministic Goshtoso-styled documents,
-standalone HTML, PDF, and static slide decks. Success means semantic source and
-policy behavior remain inspectable while the generated artifact is comfortable
-to read without opening its HTML.
+Margo compiles Markdown once into deterministic, Goshtoso-compatible editorial
+HTML that can be embedded in a host page or composed into a complete
+publication. PDF and static slide decks are later projections over that source.
+Success means semantic source, metadata, dependencies, and policy behavior
+remain inspectable while the generated artifact is comfortable to read.
 
 ## Brand Personality
 
@@ -37,9 +38,21 @@ documentation, with clear hierarchy and trustworthy component behavior.
 - Keep document-owned CSS limited to prose rhythm, pagination, print, and
   bounded brand adjustments.
 - Preserve semantic HTML and make hierarchy visible without JavaScript.
+- Let host applications own page theme, dark mode, routing, and surrounding
+  information architecture while Margo owns scoped prose rhythm.
+- Declare browser dependencies explicitly, deduplicate them, and retain static
+  table/chart fallbacks in initial HTML.
 - Keep small focused fixtures as the first visual debugging surface; use the
   broad fixture for composition and pagination regressions.
 - Render offline deterministically from reviewed embedded assets.
+
+## Current acceptance boundary
+
+The editorial HTML slice is accepted through generated-HTML unit tests and
+Chromium-family E2E journeys shaped like Manja documentation and an araihu.com
+article. The recorded browser is evidence of the tested environment, not a
+version policy for users. PDF generation and visual PDF correctness are
+deferred to later human review and are not implied by HTML acceptance.
 
 ## Accessibility & Inclusion
 
