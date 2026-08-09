@@ -27,6 +27,26 @@ func TestDocumentBindsCompilerFingerprint(t *testing.T) {
 	}
 }
 
+func TestHTMLRequirementCapabilityChangesCompilerFingerprint(t *testing.T) {
+	firstCapability, err := HTMLRequirementCapability(HTMLRequirement{ID: "demo.styles", Kind: HTMLStylesheet, LocalURL: "/demo/one.css"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondCapability, err := HTMLRequirementCapability(HTMLRequirement{ID: "demo.styles", Kind: HTMLStylesheet, LocalURL: "/demo/two.css"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registration := func(capability string) ExtensionRegistration {
+		return ExtensionRegistration{
+			Identity: ExtensionIdentity{Name: "demo", Version: "v1", Capabilities: []string{capability}},
+			Factory:  func(RenderContext) (ExtensionSession, error) { return countingSession{}, nil },
+		}
+	}
+	if New(WithExtension(registration(firstCapability))).fingerprint == New(WithExtension(registration(secondCapability))).fingerprint {
+		t.Fatal("changed HTML requirement capability did not change compiler identity")
+	}
+}
+
 func TestArtifactFingerprintExcludesExecutionID(t *testing.T) {
 	a := terminalReport("exec-a")
 	b := terminalReport("exec-b")

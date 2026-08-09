@@ -96,6 +96,7 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 		parsed:              normalized.parsed,
 		effectivePolicy:     effectivePolicy,
 		plan:                plan,
+		htmlRequirements:    HTMLRequirements{requirements: plan.htmlRequirements.List()},
 	}, nil
 }
 
@@ -126,9 +127,10 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 			_, err := out.Write(bytes)
 			return err
 		}),
-		metadata:    document.Metadata(),
-		assets:      document.Assets(),
-		diagnostics: document.Diagnostics(),
+		metadata:         document.Metadata(),
+		assets:           document.Assets(),
+		diagnostics:      document.Diagnostics(),
+		htmlRequirements: document.editorialHTMLRequirements(),
 	}, nil
 }
 

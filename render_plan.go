@@ -15,6 +15,7 @@ type renderPlan struct {
 	effectivePolicy     EffectivePolicy
 	registrations       []ExtensionRegistration
 	nodes               []plannedExtensionNode
+	htmlRequirements    HTMLRequirements
 }
 
 const extensionSlotAttribute = "margo-extension-slot"
@@ -47,6 +48,7 @@ func (p renderPlan) clone() renderPlan {
 	for i, node := range nodes {
 		p.nodes[i] = node.clone()
 	}
+	p.htmlRequirements = HTMLRequirements{requirements: p.htmlRequirements.List()}
 	return p
 }
 
@@ -65,6 +67,8 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			}
 		}
 		extensionOrdinals := make(map[int]uint32)
+		usedRegistrations := make(map[int]struct{})
+		var requirementCandidates []HTMLRequirement
 		compileContext := extensionCompileContext{normalized: normalized}
 		var missing *Diagnostic
 		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -93,6 +97,14 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				Source:  SourcePosition{Source: source.Name, Line: lineAtOffset(source.Content, parsed.frontmatter.bodyOffset+segmentAtStart(segment)), Column: 1},
 			}
 			registration := plan.registrations[registrationIndex]
+			if _, used := usedRegistrations[registrationIndex]; !used {
+				requirements, err := extensionRegistrationHTMLRequirements(registration)
+				if err != nil {
+					return ast.WalkStop, err
+				}
+				requirementCandidates = append(requirementCandidates, requirements...)
+				usedRegistrations[registrationIndex] = struct{}{}
+			}
 			if registration.compile != nil {
 				ordinal := extensionOrdinals[registrationIndex]
 				compiled, err := registration.compile(compileContext, extensionNode.clone(), ordinal)
@@ -117,6 +129,11 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		if missing != nil {
 			return renderPlan{}, &DiagnosticError{Diagnostics: []Diagnostic{*missing}}
 		}
+		requirements, err := mergeHTMLRequirements(requirementCandidates)
+		if err != nil {
+			return renderPlan{}, err
+		}
+		plan.htmlRequirements = requirements
 	}
 	return plan, nil
 }
