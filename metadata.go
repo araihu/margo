@@ -7,9 +7,19 @@ type Metadata struct {
 	BaseURL     string
 	Title       string
 	Description string
+	Language    string
+	Slug        string
+	Authors     []string
+	PublishedAt string
+	ModifiedAt  string
+	Tags        []string
 }
 
-func (m Metadata) clone() Metadata { return m }
+func (m Metadata) clone() Metadata {
+	m.Authors = append([]string(nil), m.Authors...)
+	m.Tags = append([]string(nil), m.Tags...)
+	return m
+}
 
 // AssetSet is the defensive asset identity projection for a result.
 type AssetSet struct {
