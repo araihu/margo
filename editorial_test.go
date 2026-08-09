@@ -88,6 +88,25 @@ func TestRenderEditorialRejectsNilAndDocumentShell(t *testing.T) {
 	}
 }
 
+func TestRenderEditorialAllowsOnlyProvenanceMarkedExtensionStyles(t *testing.T) {
+	allowed := &RenderResult{content: templ.Raw(`<article class="margo-document"><style data-margo-extension-style="charts">.chart{display:block}</style><p>Chart</p></article>`)}
+	editorial, err := RenderEditorial(allowed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if editorial.PlainText() != "Chart" {
+		t.Fatalf("plain text = %q", editorial.PlainText())
+	}
+	for _, markup := range []string{
+		`<article class="margo-document"><style>.host{display:none}</style></article>`,
+		`<article class="margo-document"><style data-margo-extension-style="other">.host{display:none}</style></article>`,
+	} {
+		if _, err := RenderEditorial(&RenderResult{content: templ.Raw(markup)}); diagnosticCode(err) != "editorial.metadata_invalid" {
+			t.Fatalf("unowned style accepted: %s: %v", markup, err)
+		}
+	}
+}
+
 func TestEditorialResultIsDefensiveAndFingerprintSensitive(t *testing.T) {
 	firstRendered := mustRenderSource(t, "---\ntitle: One\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n")
 	first, err := RenderEditorial(firstRendered)

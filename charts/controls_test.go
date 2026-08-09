@@ -81,6 +81,9 @@ func TestChartControlLoaderIsSuppressedOnlyWhenExternalized(t *testing.T) {
 			t.Fatalf("externalized chart missing %q: %s", want, markup)
 		}
 	}
+	if !strings.Contains(markup, `<style data-margo-extension-style="charts" data-margo-chart-print>`) {
+		t.Fatalf("chart print style is not provenance-marked: %s", markup)
+	}
 }
 
 func TestChartControlLoaderIsExternalizedForEveryFamily(t *testing.T) {
@@ -104,6 +107,9 @@ func TestChartControlLoaderIsExternalizedForEveryFamily(t *testing.T) {
 				if !strings.Contains(markup, want) {
 					t.Fatalf("externalized chart missing %q: %s", want, markup)
 				}
+			}
+			if strings.Contains(markup, `<style>`) || strings.Count(markup, `data-margo-extension-style="charts"`) != strings.Count(markup, `</style>`) {
+				t.Fatalf("chart styles are not provenance-marked: %s", markup)
 			}
 		})
 	}

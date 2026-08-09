@@ -201,8 +201,13 @@ func inspectEditorialFragment(fragment []byte) (editorialFragmentInspection, err
 		semanticText := false
 		if node.Type == xhtml.ElementNode {
 			switch node.Data {
-			case "html", "head", "body", "script", "style":
+			case "html", "head", "body", "script":
 				return editorialError("editorial.metadata_invalid", fmt.Sprintf("editorial fragment contains forbidden <%s>", node.Data))
+			case "style":
+				if !htmlAttributeEquals(node, "data-margo-extension-style", "charts") {
+					return editorialError("editorial.metadata_invalid", "editorial fragment contains an unowned <style>")
+				}
+				skip = true
 			case "article":
 				articleCount++
 			case "template", "button", "svg", "canvas":

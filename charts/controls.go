@@ -10,7 +10,7 @@ import (
 	"github.com/araihu/goshtoso-charts/components/chartcontrol"
 )
 
-const chartPrintControlStyle = `<style data-margo-chart-print>@media print {
+const chartPrintControlStyle = `<style data-margo-extension-style="charts" data-margo-chart-print>@media print {
   [data-goshtoso-chart-wrapper] [data-goshtoso-chart-actions-fieldset],
   [data-goshtoso-chart-wrapper] [data-goshtoso-chart-expand],
   [data-goshtoso-chart-wrapper] [data-goshtoso-chart-export-status] {
@@ -60,6 +60,7 @@ func renderWithChartControlAlpineRootOptions(ctx context.Context, chart templ.Co
 }
 
 const chartControlWrapperStart = `<div class="goshtoso-charts-control-wrapper" data-goshtoso-chart-wrapper`
+const chartExtensionStyleAttribute = `data-margo-extension-style="charts"`
 
 type chartControlAlpineWriter struct {
 	out                        io.Writer
@@ -87,6 +88,8 @@ func (writer *chartControlAlpineWriter) flush() error {
 		exactLoader := []byte(`<script src="` + chartassets.ControlRuntimeURL + `" defer></script>`)
 		data = bytes.ReplaceAll(data, exactLoader, nil)
 	}
+	data = bytes.ReplaceAll(data, []byte(`<style>`), []byte(`<style `+chartExtensionStyleAttribute+`>`))
+	data = bytes.ReplaceAll(data, []byte(`<style data-margo-chart-print>`), []byte(`<style `+chartExtensionStyleAttribute+` data-margo-chart-print>`))
 	_, err := writer.out.Write(data)
 	return err
 }
