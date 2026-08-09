@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
+	chartassets "github.com/araihu/goshtoso-charts/assets"
 	"github.com/araihu/goshtoso-charts/components/chartcontrol"
 )
 
@@ -56,5 +57,54 @@ func TestStaticChartDoesNotGainInteractiveAlpineScope(t *testing.T) {
 	}
 	if strings.Contains(out.String(), `x-data`) || strings.Contains(out.String(), `data-margo-chart-print`) {
 		t.Fatalf("static chart unexpectedly contains interactive policy: %s", out.String())
+	}
+}
+
+func TestChartControlLoaderIsSuppressedOnlyWhenExternalized(t *testing.T) {
+	exactLoader := `<script src="` + chartassets.ControlRuntimeURL + `" defer></script>`
+	changedLoader := `<script defer src="` + chartassets.ControlRuntimeURL + `"></script>`
+	chart := templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
+		_, err := io.WriteString(out, `<div class="goshtoso-charts-control-wrapper" data-goshtoso-chart-wrapper><svg aria-label="Chart"></svg><table><tr><td>Data</td></tr></table>`+exactLoader+changedLoader+`</div>`)
+		return err
+	})
+	var output bytes.Buffer
+	options := chartRenderOptions{controlWrapper: true, externalizedControlRuntime: true}
+	if err := applyChartPrintPolicy(chart, options).Render(context.Background(), &output); err != nil {
+		t.Fatal(err)
+	}
+	markup := output.String()
+	if strings.Contains(markup, exactLoader) {
+		t.Fatalf("exact loader remained: %s", markup)
+	}
+	for _, want := range []string{changedLoader, `<svg aria-label="Chart">`, `<table>`, `<div x-data class="goshtoso-charts-control-wrapper"`} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("externalized chart missing %q: %s", want, markup)
+		}
+	}
+}
+
+func TestChartControlLoaderIsExternalizedForEveryFamily(t *testing.T) {
+	for _, fixture := range []string{
+		"testdata/bar/bar-valid.yaml",
+		"testdata/line/line-valid.yaml",
+		"testdata/pie/pie-valid.json",
+		"testdata/scatter/scatter-valid.yaml",
+	} {
+		t.Run(fixture, func(t *testing.T) {
+			body := readChartFixtureForIntegration(t, fixture)
+			out, _, err := renderThroughRootWithExtension(t, body, 1<<20, Extension(WithExternalizedControlRuntime(true)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			markup := string(out)
+			if strings.Contains(markup, `src="/charts/assets/js/controls/5/controls.js"`) {
+				t.Fatalf("externalized chart retained loader: %s", markup)
+			}
+			for _, want := range []string{`data-goshtoso-chart-wrapper`, `data-margo-chart-data="v1"`, `<svg`} {
+				if !strings.Contains(markup, want) {
+					t.Fatalf("externalized chart missing %q: %s", want, markup)
+				}
+			}
+		})
 	}
 }
