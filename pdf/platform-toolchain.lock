@@ -34,7 +34,7 @@
     {
       "id": "windows-webview2/v1",
       "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
       "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/windows-webview2/sdk.version",
       "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/windows-webview2/runtime.version",
       "versionPolicy": "host-evidence-exact"
@@ -42,7 +42,7 @@
     {
       "id": "darwin-wkwebview/v1",
       "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
       "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/darwin-wkwebview/sdk.version",
       "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/darwin-wkwebview/runtime.version",
       "versionPolicy": "host-evidence-exact"
@@ -50,7 +50,7 @@
     {
       "id": "linux-webkitgtk/v1",
       "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
       "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/linux-webkitgtk/sdk.version",
       "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/linux-webkitgtk/runtime.version",
       "versionPolicy": "host-evidence-exact"
@@ -58,12 +58,12 @@
     {
       "id": "chromium-cdp/v1",
       "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "5977beccadb95648774be9b344eb5255f3f5abfd5e01051e1c42fa98ce29dd29",
+      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
       "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/chromium-cdp/sdk.version",
       "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/chromium-cdp/runtime.version",
-      "versionPolicy": "exact"
+      "versionPolicy": "runtime-version-reported"
     }
   ],
   "networkPolicy": "no-download",
-  "recordDigest": "0ceaa27ef01f5aea0334bc0a7fe47cc45dfaf643d3163404d2d819be0487d028"
+  "recordDigest": "cc03351c57abd5f8987f4036bbb1fd0e4a8da9d96ab0ccca4c931ed252dc7ca7"
 }

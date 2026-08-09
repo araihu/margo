@@ -172,6 +172,57 @@ func TestPlatformBootstrapExecutesLockBoundOfflineProbe(t *testing.T) {
 	}
 }
 
+func TestPlatformBootstrapReportsChromiumVersionWithoutEnforcingBrowserBuild(t *testing.T) {
+	if os.Getenv("MARGO_PDF_PROBE_EXECUTION") == "1" {
+		t.Skip("parent-only bootstrap test")
+	}
+
+	lockPath := writeSyntheticToolchainLock(t)
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("ReadFile(lock) error = %v", err)
+	}
+	var lock toolchainLock
+	if err := decodeStrictJSON(data, &lock); err != nil {
+		t.Fatalf("decodeStrictJSON(lock) error = %v", err)
+	}
+	for index := range lock.Runners {
+		if lock.Runners[index].ID == RunnerChromiumCDP {
+			lock.Runners[index].VersionPolicy = "runtime-version-reported"
+		}
+	}
+	lock.RecordDigest = ""
+	payload, err := json.Marshal(lock)
+	if err != nil {
+		t.Fatalf("Marshal(preimage) error = %v", err)
+	}
+	digest := sha256.Sum256(payload)
+	lock.RecordDigest = hex.EncodeToString(digest[:])
+	encoded, err := json.MarshalIndent(lock, "", "  ")
+	if err != nil {
+		t.Fatalf("MarshalIndent(lock) error = %v", err)
+	}
+	if err := os.WriteFile(lockPath, append(encoded, '\n'), 0o600); err != nil {
+		t.Fatalf("WriteFile(lock) error = %v", err)
+	}
+
+	contractsPath, err := filepath.Abs("runner-contracts.json")
+	if err != nil {
+		t.Fatalf("Abs(runner-contracts.json) error = %v", err)
+	}
+	workingDirectory, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatalf("Abs() error = %v", err)
+	}
+	result, err := Bootstrap(context.Background(), lockPath, contractsPath, RunnerChromiumCDP, workingDirectory)
+	if err != nil {
+		t.Fatalf("Bootstrap() error = %v", err)
+	}
+	if result.RuntimeVersion != "runtime-test-2" {
+		t.Fatalf("RuntimeVersion = %q, want reported version %q", result.RuntimeVersion, "runtime-test-2")
+	}
+}
+
 func hostProbeRunner() RunnerID {
 	switch runtime.GOOS {
 	case "windows":
@@ -284,7 +335,7 @@ func writeSyntheticToolchainLock(t *testing.T) string {
 	for _, id := range []RunnerID{RunnerWindowsWebView2, RunnerDarwinWKWebView, RunnerLinuxWebKitGTK, RunnerChromiumCDP} {
 		policy := "host-evidence-exact"
 		if id == RunnerChromiumCDP {
-			policy = "exact"
+			policy = "runtime-version-reported"
 		}
 		runners = append(runners, toolchainRunner{
 			ID: id, Probe: "platform/engine_probe_test.go",

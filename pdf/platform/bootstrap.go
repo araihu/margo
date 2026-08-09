@@ -491,7 +491,7 @@ func validateLockedRunners(runners []toolchainRunner, lockDirectory string) erro
 		seen[runner.ID] = struct{}{}
 		wantPolicy := "host-evidence-exact"
 		if runner.ID == RunnerChromiumCDP {
-			wantPolicy = "exact"
+			wantPolicy = "runtime-version-reported"
 		}
 		if !safeRelativePath(runner.Probe) || !validSHA256(runner.SourceDigest) || !filepath.IsAbs(runner.SDKEvidencePath) || !filepath.IsAbs(runner.RuntimeEvidencePath) || runner.VersionPolicy != wantPolicy {
 			return platformError("pdf.platform_lock_invalid", fmt.Sprintf("runner %q identity is incomplete", runner.ID))
