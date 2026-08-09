@@ -14,7 +14,26 @@ type renderPlan struct {
 	documentFingerprint DocumentFingerprint
 	effectivePolicy     EffectivePolicy
 	registrations       []ExtensionRegistration
-	nodes               []ExtensionNode
+	nodes               []plannedExtensionNode
+}
+
+const extensionSlotAttribute = "margo-extension-slot"
+
+type plannedExtensionNode struct {
+	ExtensionNode
+	registrationIndex int
+	slot              uint32
+}
+
+func (n plannedExtensionNode) clone() plannedExtensionNode {
+	n.ExtensionNode = n.ExtensionNode.clone()
+	return n
+}
+
+func extensionSlot(node *ast.FencedCodeBlock) (uint32, bool) {
+	value, ok := node.AttributeString(extensionSlotAttribute)
+	slot, valid := value.(uint32)
+	return slot, ok && valid
 }
 
 func (p renderPlan) clone() renderPlan {
@@ -24,7 +43,7 @@ func (p renderPlan) clone() renderPlan {
 	for i, registration := range registrations {
 		p.registrations[i] = cloneRegistration(registration)
 	}
-	p.nodes = make([]ExtensionNode, len(nodes))
+	p.nodes = make([]plannedExtensionNode, len(nodes))
 	for i, node := range nodes {
 		p.nodes[i] = node.clone()
 	}
@@ -83,7 +102,13 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				extensionNode = compiled
 				extensionOrdinals[registrationIndex] = ordinal + 1
 			}
-			plan.nodes = append(plan.nodes, extensionNode)
+			slot := uint32(len(plan.nodes))
+			fenced.SetAttributeString(extensionSlotAttribute, slot)
+			plan.nodes = append(plan.nodes, plannedExtensionNode{
+				ExtensionNode:     extensionNode,
+				registrationIndex: registrationIndex,
+				slot:              slot,
+			})
 			return ast.WalkContinue, nil
 		})
 		if walkErr != nil {
@@ -106,10 +131,10 @@ func segmentAtStart(segments *text.Segments) int {
 // executeRenderPlan creates all sessions only after the binding check and
 // spools extension bytes privately so a failed session cannot partially write
 // a caller's component.
-func executeRenderPlan(ctx context.Context, plan renderPlan) ([]byte, error) {
-	var buffer bytes.Buffer
+func executeRenderPlanSlots(ctx context.Context, plan renderPlan) ([][]byte, error) {
+	slots := make([][]byte, len(plan.nodes))
 	renderContext := RenderContext{EffectivePolicy: plan.effectivePolicy}
-	for _, registration := range plan.registrations {
+	for registrationIndex, registration := range plan.registrations {
 		if err := contextError(ctx); err != nil {
 			return nil, err
 		}
@@ -120,13 +145,32 @@ func executeRenderPlan(ctx context.Context, plan renderPlan) ([]byte, error) {
 		if session == nil {
 			return nil, fmt.Errorf("extension.session_invalid: %s returned nil", registration.Identity.Name)
 		}
-		for _, node := range plan.nodes {
-			if !ownsFence(registration, node.Fence) {
+		for _, planned := range plan.nodes {
+			if planned.registrationIndex != registrationIndex {
 				continue
 			}
-			if err := session.Render(ctx, node.clone(), &buffer); err != nil {
+			if int(planned.slot) >= len(slots) {
+				return nil, fmt.Errorf("extension.slot_invalid: %d", planned.slot)
+			}
+			var buffer bytes.Buffer
+			if err := session.Render(ctx, planned.ExtensionNode.clone(), &buffer); err != nil {
 				return nil, err
 			}
+			slots[planned.slot] = append([]byte(nil), buffer.Bytes()...)
+		}
+	}
+	return slots, nil
+}
+
+func executeRenderPlan(ctx context.Context, plan renderPlan) ([]byte, error) {
+	slots, err := executeRenderPlanSlots(ctx, plan)
+	if err != nil {
+		return nil, err
+	}
+	var buffer bytes.Buffer
+	for _, slot := range slots {
+		if _, err := buffer.Write(slot); err != nil {
+			return nil, err
 		}
 	}
 	return buffer.Bytes(), nil
@@ -139,15 +183,6 @@ func callExtensionFactory(factory ExtensionFactory, context RenderContext) (sess
 		}
 	}()
 	return factory(context)
-}
-
-func ownsFence(registration ExtensionRegistration, fence string) bool {
-	for _, owned := range registration.Fences {
-		if owned == fence {
-			return true
-		}
-	}
-	return false
 }
 
 func lineAtOffset(source []byte, offset int) int {

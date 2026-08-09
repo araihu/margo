@@ -28,6 +28,10 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 	if !ok || parsed.root == nil {
 		return nil, fmt.Errorf("render.document_invalid: compiled document has no Markdown AST")
 	}
+	extensionSlots, err := executeRenderPlanSlots(ctx, document.plan.clone())
+	if err != nil {
+		return nil, err
+	}
 	body := templ.ComponentFunc(func(renderCtx context.Context, out io.Writer) error {
 		renderer := markdownRenderer{
 			ctx:                 renderCtx,
@@ -36,21 +40,13 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 			policy:              document.effectivePolicy,
 			tableSort:           tableSortMode(renderOptions),
 			runtimeTaskOrdinals: make(map[string]uint32),
+			extensionSlots:      extensionSlots,
 		}
 		return renderer.renderBlock(parsed.root)
 	})
 	var rendered bytes.Buffer
 	if err := semanticDocument(body).Render(ctx, &rendered); err != nil {
 		return nil, err
-	}
-	extensionBytes, err := executeRenderPlan(ctx, document.plan.clone())
-	if err != nil {
-		return nil, err
-	}
-	if len(extensionBytes) > 0 {
-		if _, err := rendered.Write(extensionBytes); err != nil {
-			return nil, err
-		}
 	}
 	if int64(rendered.Len()) > document.effectivePolicy.OutputBytes {
 		return nil, policyDiagnostic("policy.output_bytes_exceeded", "rendered output exceeds the effective output byte limit")
@@ -65,6 +61,7 @@ type markdownRenderer struct {
 	policy              EffectivePolicy
 	tableSort           TableSortMode
 	runtimeTaskOrdinals map[string]uint32
+	extensionSlots      [][]byte
 }
 
 func (r markdownRenderer) renderBlock(node goldast.Node) error {
@@ -148,6 +145,16 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 		return err
 	case *goldast.FencedCodeBlock:
 		language := string(value.Language(r.source))
+		if slot, ok := extensionSlot(value); ok {
+			if language == "mermaid" {
+				return r.renderRuntimeFence(language, value.Lines().Value(r.source))
+			}
+			if int(slot) >= len(r.extensionSlots) {
+				return fmt.Errorf("extension.slot_missing: %d", slot)
+			}
+			_, err := r.out.Write(r.extensionSlots[slot])
+			return err
+		}
 		if language == "mermaid" {
 			return r.renderRuntimeFence(language, value.Lines().Value(r.source))
 		}
