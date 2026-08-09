@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/yuin/goldmark/ast"
+	tableast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -68,11 +69,22 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		}
 		extensionOrdinals := make(map[int]uint32)
 		usedRegistrations := make(map[int]struct{})
-		var requirementCandidates []HTMLRequirement
+		requirementCandidates, err := coreEditorialHTMLRequirements(false)
+		if err != nil {
+			return renderPlan{}, err
+		}
+		hasTable := false
 		compileContext := extensionCompileContext{normalized: normalized}
 		var missing *Diagnostic
 		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-			if !entering || node.Kind() != ast.KindFencedCodeBlock {
+			if !entering {
+				return ast.WalkContinue, nil
+			}
+			if _, table := node.(*tableast.Table); table {
+				hasTable = true
+				return ast.WalkContinue, nil
+			}
+			if node.Kind() != ast.KindFencedCodeBlock {
 				return ast.WalkContinue, nil
 			}
 			fenced := node.(*ast.FencedCodeBlock)
@@ -128,6 +140,13 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		}
 		if missing != nil {
 			return renderPlan{}, &DiagnosticError{Diagnostics: []Diagnostic{*missing}}
+		}
+		if hasTable {
+			coreWithTable, err := coreEditorialHTMLRequirements(true)
+			if err != nil {
+				return renderPlan{}, err
+			}
+			requirementCandidates = append(requirementCandidates, coreWithTable[len(coreWithTable)-1])
 		}
 		requirements, err := mergeHTMLRequirements(requirementCandidates)
 		if err != nil {

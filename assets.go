@@ -9,13 +9,20 @@ import (
 	"net/http"
 	"path"
 	"strings"
+
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 )
 
 // embeddedAssets contains only the reviewed, library-scoped assets. Runtime
 // and social assets are owned by later tasks and are intentionally absent.
 //
-//go:embed assets/*.css assets/*.svg
+//go:embed assets/*.css assets/*.js assets/*.svg
 var embeddedAssets embed.FS
+
+const (
+	EditorialStylesURL  = "/margo-assets/document.css"
+	TableSortRuntimeURL = "/margo-assets/table-sort.js"
+)
 
 // AssetRef identifies a validated asset and, for overrides, carries its
 // already-materialized bytes. Callers cannot make an override fetch at render
@@ -79,6 +86,8 @@ func assetMediaType(name string) string {
 	switch strings.ToLower(path.Ext(name)) {
 	case ".css":
 		return "text/css"
+	case ".js":
+		return "application/javascript"
 	case ".svg":
 		return "image/svg+xml"
 	case ".woff":
@@ -99,5 +108,60 @@ func AssetHandler() http.Handler {
 	if err != nil {
 		panic(err)
 	}
-	return http.StripPrefix("/assets/", http.FileServer(http.FS(assetFS)))
+	fileServer := http.StripPrefix("/assets/", http.FileServer(http.FS(assetFS)))
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if strings.EqualFold(path.Ext(request.URL.Path), ".js") {
+			http.NotFound(writer, request)
+			return
+		}
+		fileServer.ServeHTTP(writer, request)
+	})
+}
+
+func EditorialAssetHandler() http.Handler {
+	assetFS, err := fs.Sub(embeddedAssets, "assets")
+	if err != nil {
+		panic(err)
+	}
+	fileServer := http.StripPrefix("/margo-assets/", http.FileServer(http.FS(assetFS)))
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if strings.HasSuffix(strings.ToLower(request.URL.Path), ".js") {
+			writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		}
+		fileServer.ServeHTTP(writer, request)
+	})
+}
+
+func coreEditorialHTMLRequirements(includeTableSort bool) ([]HTMLRequirement, error) {
+	goshtosoStyles, err := goshtosoassets.StylesCSS()
+	if err != nil {
+		return nil, fmt.Errorf("margo: load Goshtoso styles: %w", err)
+	}
+	manifest := goshtosoassets.DefaultRuntimeManifest()
+	documentStyles, err := EmbeddedAsset("document.css")
+	if err != nil {
+		return nil, err
+	}
+	requirements := []HTMLRequirement{
+		{
+			ID: "goshtoso.styles", Kind: HTMLStylesheet,
+			LocalURL: manifest.Stylesheet.LocalURL, Integrity: manifest.Stylesheet.Integrity,
+			Inline: AssetRef{Path: "styles.css", MediaType: "text/css", Content: goshtosoStyles},
+		},
+		{
+			ID: "margo.document.styles", Kind: HTMLStylesheet,
+			LocalURL: EditorialStylesURL, LoadAfter: []string{"goshtoso.styles"}, Inline: documentStyles,
+		},
+	}
+	if !includeTableSort {
+		return requirements, nil
+	}
+	tableSort, err := EmbeddedAsset("table-sort.js")
+	if err != nil {
+		return nil, err
+	}
+	return append(requirements, HTMLRequirement{
+		ID: "margo.table-sort", Kind: HTMLScript,
+		LocalURL: TableSortRuntimeURL, LoadAfter: []string{"margo.document.styles"}, Inline: tableSort,
+	}), nil
 }

@@ -99,7 +99,7 @@ func renderMarkdownTable(ctx context.Context, out io.Writer, node *tableast.Tabl
 		Rows:      rows,
 		RootClass: "margo-table",
 	}
-	if _, err := io.WriteString(out, `<div data-table-client-sort="true">`); err != nil {
+	if _, err := io.WriteString(out, `<div data-table-client-sort="true" data-margo-table-sort="natural">`); err != nil {
 		return err
 	}
 	if err := goshtosotable.Table(cfg).Render(ctx, out); err != nil {

@@ -20,6 +20,19 @@ func requirementAsset(path, mediaType, content string) AssetRef {
 	}
 }
 
+func requireRequirementIDs(t *testing.T, requirements HTMLRequirements, expected ...string) {
+	t.Helper()
+	list := requirements.List()
+	if len(list) != len(expected) {
+		t.Fatalf("requirement count = %d, want %d: %#v", len(list), len(expected), list)
+	}
+	for index, id := range expected {
+		if list[index].ID != id {
+			t.Fatalf("requirement IDs[%d] = %q, want %q: %#v", index, list[index].ID, id, list)
+		}
+	}
+}
+
 func TestHTMLRequirementsMergeOrdersDeduplicatesAndClones(t *testing.T) {
 	styles := HTMLRequirement{
 		ID:       "styles",
@@ -155,7 +168,7 @@ func TestHTMLRequirementCapabilityDecoderIsStrict(t *testing.T) {
 
 func TestExtensionRequirementsAttachOnlyWhenUsed(t *testing.T) {
 	stylesCapability, err := HTMLRequirementCapability(HTMLRequirement{
-		ID: "demo.styles", Kind: HTMLStylesheet, LocalURL: "/demo/styles.css",
+		ID: "demo.styles", Kind: HTMLStylesheet, LocalURL: "/demo/styles.css", LoadAfter: []string{"margo.document.styles"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -181,9 +194,7 @@ func TestExtensionRequirementsAttachOnlyWhenUsed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := unused.editorialHTMLRequirements().List(); len(got) != 0 {
-		t.Fatalf("unused requirements = %#v", got)
-	}
+	requireRequirementIDs(t, unused.editorialHTMLRequirements(), "goshtoso.styles", "margo.document.styles")
 
 	used, err := compiler.Compile(context.Background(), Source{Name: "used.md", Content: []byte("```demo\nfirst\n```\n\n```demo\nsecond\n```\n")})
 	if err != nil {
@@ -194,11 +205,11 @@ func TestExtensionRequirementsAttachOnlyWhenUsed(t *testing.T) {
 		t.Fatal(err)
 	}
 	list := result.editorialHTMLRequirements().List()
-	if len(list) != 2 || list[0].ID != "demo.styles" || list[1].ID != "demo.runtime" {
+	if len(list) != 4 || list[0].ID != "goshtoso.styles" || list[1].ID != "margo.document.styles" || list[2].ID != "demo.styles" || list[3].ID != "demo.runtime" {
 		t.Fatalf("used requirements = %#v", list)
 	}
-	list[1].LoadAfter[0] = "mutated"
-	if result.editorialHTMLRequirements().List()[1].LoadAfter[0] != "demo.styles" {
+	list[3].LoadAfter[0] = "mutated"
+	if result.editorialHTMLRequirements().List()[3].LoadAfter[0] != "demo.styles" {
 		t.Fatal("result requirements alias caller")
 	}
 }
