@@ -151,31 +151,24 @@ func RenderSocialStandalone(result *RenderResult, input SocialRenderInput) (temp
 	if err := input.Metadata.Validate(input.Mode, input.Authority, input.RoutePath); err != nil {
 		return nil, err
 	}
-	base, err := RenderStandalone(result)
+	editorial, err := RenderEditorial(result)
 	if err != nil {
 		return nil, err
 	}
-	baseBytes, err := renderComponentBytes(base)
-	if err != nil {
-		return nil, err
+	publicationEditorial := *editorial
+	if input.Metadata.Title != "" {
+		publicationEditorial.metadata.Title = input.Metadata.Title
 	}
-	if input.Mode == PublicationPrivate {
-		return templ.Raw(string(baseBytes)), nil
+	if input.Metadata.Description != "" {
+		publicationEditorial.metadata.Description = input.Metadata.Description
 	}
 	if owner.Owner != "margo" || owner.Primitive != "socialMetadataTags" {
 		return nil, fmt.Errorf("publication.head_owner_primitive_unavailable")
 	}
-	tags, err := renderComponentBytes(socialMetadataTags(input.Metadata))
-	if err != nil {
-		return nil, err
-	}
-	html := string(baseBytes)
-	titleStart := strings.Index(html, "<title>")
-	titleEnd := strings.Index(html[titleStart:], "</title>")
-	if titleStart < 0 || titleEnd < 0 {
-		return nil, fmt.Errorf("publication.standalone_title_missing")
-	}
-	titleEnd += titleStart + len("</title>")
-	html = html[:titleStart] + string(tags) + html[titleEnd:]
-	return templ.Raw(html), nil
+	return RenderPublication(&publicationEditorial, PublicationInput{
+		Mode: input.Mode, Kind: PublicationDocument,
+		Authority: input.Authority, RoutePath: input.RoutePath,
+		SiteName: input.Metadata.SiteName, Locale: input.Metadata.Locale, Image: input.Metadata.Image,
+		Theme: ThemeModern, ColorMode: ColorModeLight, DependencyMode: HTMLDependenciesInline,
+	})
 }

@@ -1,53 +1,39 @@
 package margo
 
-templ standaloneDocument(lang string, theme ThemeName, colorMode ColorMode, title, description, fingerprint string, styles templ.Component, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
-	<!doctype html>
-	<html lang={ lang } class={ templ.KV("dark", colorMode == ColorModeDark) } data-theme={ string(theme) } data-color-mode={ string(colorMode) }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title }</title>
-			if description != "" {
-				<meta name="description" content={ description }/>
-			}
-			@styles
-		</head>
-		<body>
-			<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint }>
-				if backdropURL != "" {
-					<img class="goshtoso-document__backdrop" src={ backdropURL } alt="" aria-hidden="true"/>
+templ standalonePublicationBody(fingerprint, editorialFingerprint string, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
+	<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint } data-margo-editorial-fingerprint={ editorialFingerprint }>
+		if backdropURL != "" {
+			<img class="goshtoso-document__backdrop" src={ backdropURL } alt="" aria-hidden="true"/>
+		}
+		if logoURL != "" || brand.Header != nil {
+			<header class="goshtoso-document__header">
+				if logoURL != "" {
+					<img class="goshtoso-document__logo" src={ logoURL } alt={ brand.LogoAlt }/>
 				}
-				if logoURL != "" || brand.Header != nil {
-					<header class="goshtoso-document__header">
-						if logoURL != "" {
-							<img class="goshtoso-document__logo" src={ logoURL } alt={ brand.LogoAlt }/>
-						}
-						if brand.Header != nil {
-							@brand.Header
-						}
-					</header>
+				if brand.Header != nil {
+					@brand.Header
 				}
-				if len(brand.Stamps) > 0 {
-					<aside class="goshtoso-document__stamps" aria-label="Document status">
-						for _, stamp := range brand.Stamps {
-							<span class="goshtoso-document__stamp">{ stamp }</span>
-						}
-					</aside>
+			</header>
+		}
+		if len(brand.Stamps) > 0 {
+			<aside class="goshtoso-document__stamps" aria-label="Document status">
+				for _, stamp := range brand.Stamps {
+					<span class="goshtoso-document__stamp">{ stamp }</span>
 				}
-				if toc != nil {
-					@toc
-				}
-				@content
-				if brand.Watermark != "" {
-					<span class="goshtoso-document__watermark" aria-hidden="true">{ brand.Watermark }</span>
-				}
-				if brand.Footer != nil {
-					<footer class="goshtoso-document__footer">
-						@brand.Footer
-					</footer>
-				}
-			</div>
-			@templ.Raw(standalonePrintPaginationScript)
-		</body>
-	</html>
+			</aside>
+		}
+		if toc != nil {
+			@toc
+		}
+		@content
+		if brand.Watermark != "" {
+			<span class="goshtoso-document__watermark" aria-hidden="true">{ brand.Watermark }</span>
+		}
+		if brand.Footer != nil {
+			<footer class="goshtoso-document__footer">
+				@brand.Footer
+			</footer>
+		}
+	</div>
+	@templ.Raw(standalonePrintPaginationScript)
 }

@@ -78,6 +78,17 @@ func TestRenderPublicationComposesArticleInInitialHTML(t *testing.T) {
 			t.Fatalf("metadata %q count = %d: %s", field, strings.Count(markup, field), markup)
 		}
 	}
+	for _, want := range []string{
+		`[data-theme="araihu"]{--color-surface:#fff;--color-on-surface:#111}`,
+		`const collator = new Intl.Collator`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("inline dependency bytes missing %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, "@templ.Raw") {
+		t.Fatalf("templ expression leaked into generated HTML: %s", markup)
+	}
 	order := []string{"goshtoso.styles", "margo.document.styles", "margo.table-sort", "margo.theme.araihu"}
 	last := -1
 	for _, id := range order {

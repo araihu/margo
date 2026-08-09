@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	goshtosoassets "github.com/araihu/goshtoso/assets"
 	nethtml "golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -411,9 +410,9 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	if err := selection.Validate(); err != nil {
 		return nil, err
 	}
-	goshtosoCSS, err := goshtosoassets.StylesCSS()
+	editorial, err := RenderEditorial(result)
 	if err != nil {
-		return nil, fmt.Errorf("margo: read embedded Goshtoso stylesheet: %w", err)
+		return nil, err
 	}
 	asset, ok := config.assetOverrides["document.css"]
 	if !ok {
@@ -429,15 +428,14 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 			return nil, err
 		}
 	}
-	content, err := renderComponentBytes(result.Content())
+	content, err := renderComponentBytes(editorial.Fragment())
 	if err != nil {
 		return nil, fmt.Errorf("margo: render standalone content: %w", err)
 	}
 	hash := sha256.Sum256(append([]byte("margo/standalone-document/v1\n"), content...))
 	fingerprint := hex.EncodeToString(hash[:])
-	css := applyThemeTokens(string(asset.Content), config.tokens)
-	shellCSS := applyThemeTokens(string(shellAsset.Content), config.tokens)
-	styles := templ.Raw(`<style data-margo-stylesheet="goshtoso">` + string(goshtosoCSS) + `</style><style data-margo-stylesheet="document">` + css + `</style><style data-margo-stylesheet="shell">` + shellCSS + `</style>`)
+	asset = materializedStandaloneAsset(asset, []byte(applyThemeTokens(string(asset.Content), config.tokens)))
+	shellAsset = materializedStandaloneAsset(shellAsset, []byte(applyThemeTokens(string(shellAsset.Content), config.tokens)))
 	toc := templ.Component(nil)
 	if config.tableOfContents {
 		toc, err = tableOfContentsComponent(content)
@@ -447,7 +445,33 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	}
 	logoURL := assetDataURL(config.brand.Logo)
 	backdropURL := assetDataURL(config.brand.Backdrop)
-	return standaloneDocument(config.lang, config.theme, config.colorMode, config.title, config.description, fingerprint, styles, config.brand, logoURL, backdropURL, toc, templ.Raw(string(content))), nil
+	requirements := editorial.Requirements().List()
+	for index := range requirements {
+		if requirements[index].ID == "margo.document.styles" {
+			requirements[index].Inline = asset.clone()
+		}
+	}
+	merged, err := mergeHTMLRequirements(requirements)
+	if err != nil {
+		return nil, err
+	}
+	standaloneEditorial := *editorial
+	standaloneEditorial.metadata.Title = config.title
+	standaloneEditorial.metadata.Description = config.description
+	standaloneEditorial.metadata.Language = config.lang
+	standaloneEditorial.requirements = merged
+	standaloneEditorial.fragmentBytes = append([]byte(nil), content...)
+	body := standalonePublicationBody(fingerprint, editorial.Fingerprint().String(), config.brand, logoURL, backdropURL, toc, standaloneEditorial.Fragment())
+	return RenderPublication(&standaloneEditorial, PublicationInput{
+		Mode: PublicationPrivate, Kind: PublicationDocument,
+		Theme: config.theme, ColorMode: config.colorMode,
+		DependencyMode: HTMLDependenciesInline, ThemeStylesheet: shellAsset,
+		body: body,
+		legacyStyles: map[string]string{
+			"goshtoso.styles": "goshtoso", "margo.document.styles": "document",
+			"margo.theme." + string(config.theme): "shell",
+		},
+	})
 }
 
 // Standalone is a short alias for RenderStandalone.
@@ -473,6 +497,13 @@ func applyThemeTokens(css string, tokens map[DocumentToken]string) string {
 		}
 	}
 	return strings.ReplaceAll(css, "/* MARGO_THEME_TOKENS */", strings.Join(declarations, ";")+";")
+}
+
+func materializedStandaloneAsset(asset AssetRef, content []byte) AssetRef {
+	digest := sha256.Sum256(content)
+	asset.Content = append([]byte(nil), content...)
+	asset.SHA256 = hex.EncodeToString(digest[:])
+	return asset
 }
 
 func assetDataURL(asset AssetRef) string {

@@ -15,31 +15,23 @@ templ publicationDocument(metadata EditorialMetadata, input PublicationInput, so
 				}
 			}
 			for _, dependency := range dependencies {
-				if dependency.Kind == HTMLStylesheet {
-					if dependency.Inline != "" {
-						<style data-margo-requirement={ dependency.ID }>@templ.Raw(dependency.Inline)</style>
-					} else {
-						<link rel="stylesheet" href={ dependency.URL } integrity={ templ.KV(dependency.Integrity, dependency.Integrity != "") } crossorigin={ templ.KV("anonymous", dependency.Integrity != "") } data-margo-requirement={ dependency.ID }/>
-					}
-				} else {
-					if dependency.Inline != "" {
-						<script data-margo-requirement={ dependency.ID }>@templ.Raw(dependency.Inline)</script>
-					} else {
-						<script defer src={ dependency.URL } integrity={ templ.KV(dependency.Integrity, dependency.Integrity != "") } crossorigin={ templ.KV("anonymous", dependency.Integrity != "") } data-margo-requirement={ dependency.ID }></script>
-					}
-				}
+				@publicationDependencyComponent(dependency)
 			}
 		</head>
 		<body>
 			if input.Header != nil {
 				<header class="margo-publication-header">@input.Header</header>
 			}
-			<main data-margo-editorial-fingerprint={ fingerprint }>
-				if input.Kind == PublicationArticle {
-					@publicationArticleDetails(metadata)
-				}
-				@fragment
-			</main>
+			if input.body != nil {
+				@input.body
+			} else {
+				<main data-margo-editorial-fingerprint={ fingerprint }>
+					if input.Kind == PublicationArticle {
+						@publicationArticleDetails(metadata)
+					}
+					@fragment
+				</main>
+			}
 			if input.Footer != nil {
 				<footer class="margo-publication-footer">@input.Footer</footer>
 			}

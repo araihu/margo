@@ -2,6 +2,7 @@ package margo
 
 import (
 	"fmt"
+	"html"
 	"regexp"
 	"strings"
 
@@ -36,14 +37,17 @@ type PublicationInput struct {
 	ThemeStylesheet AssetRef
 	Header          templ.Component
 	Footer          templ.Component
+	body            templ.Component
+	legacyStyles    map[string]string
 }
 
 type publicationDependency struct {
-	ID        string
-	Kind      HTMLRequirementKind
-	URL       string
-	Integrity string
-	Inline    string
+	ID               string
+	Kind             HTMLRequirementKind
+	URL              string
+	Integrity        string
+	Inline           string
+	LegacyStylesheet string
 }
 
 var (
@@ -122,7 +126,7 @@ func validatePublicationInput(editorial *EditorialResult, input PublicationInput
 func resolvePublicationDependencies(requirements HTMLRequirements, input PublicationInput) ([]publicationDependency, error) {
 	resolved := make([]publicationDependency, 0, len(requirements.List())+1)
 	for _, requirement := range requirements.List() {
-		dependency, err := resolvePublicationDependency(requirement, input.DependencyMode)
+		dependency, err := resolvePublicationDependency(requirement, input.DependencyMode, input.legacyStyles[requirement.ID])
 		if err != nil {
 			return nil, err
 		}
@@ -145,15 +149,15 @@ func resolvePublicationDependencies(requirements HTMLRequirements, input Publica
 		ID: "margo.theme." + string(input.Theme), Kind: HTMLStylesheet,
 		LocalURL: "/" + input.ThemeStylesheet.Path, Inline: input.ThemeStylesheet.clone(),
 	}
-	dependency, err := resolvePublicationDependency(themeRequirement, input.DependencyMode)
+	dependency, err := resolvePublicationDependency(themeRequirement, input.DependencyMode, input.legacyStyles[themeRequirement.ID])
 	if err != nil {
 		return nil, editorialError("editorial.theme_invalid", err.Error())
 	}
 	return append(resolved, dependency), nil
 }
 
-func resolvePublicationDependency(requirement HTMLRequirement, mode HTMLDependencyMode) (publicationDependency, error) {
-	dependency := publicationDependency{ID: requirement.ID, Kind: requirement.Kind, Integrity: requirement.Integrity}
+func resolvePublicationDependency(requirement HTMLRequirement, mode HTMLDependencyMode, legacyStylesheet string) (publicationDependency, error) {
+	dependency := publicationDependency{ID: requirement.ID, Kind: requirement.Kind, Integrity: requirement.Integrity, LegacyStylesheet: legacyStylesheet}
 	switch mode {
 	case HTMLDependenciesLocal:
 		if requirement.LocalURL == "" {
@@ -185,4 +189,34 @@ func publicationLanguage(metadata EditorialMetadata) string {
 		return "en"
 	}
 	return metadata.Language
+}
+
+func publicationDependencyComponent(dependency publicationDependency) templ.Component {
+	attribute := func(name, value string) string {
+		if value == "" {
+			return ""
+		}
+		return " " + name + `="` + html.EscapeString(value) + `"`
+	}
+	common := attribute("data-margo-stylesheet", dependency.LegacyStylesheet) + attribute("data-margo-requirement", dependency.ID)
+	if dependency.Kind == HTMLStylesheet {
+		if dependency.Inline != "" {
+			return templ.Raw("<style" + common + ">" + dependency.Inline + "</style>")
+		}
+		return templ.Raw(`<link rel="stylesheet"` + attribute("href", dependency.URL) + attribute("integrity", dependency.Integrity) + func() string {
+			if dependency.Integrity == "" {
+				return ""
+			}
+			return ` crossorigin="anonymous"`
+		}() + common + ">")
+	}
+	if dependency.Inline != "" {
+		return templ.Raw("<script" + common + ">" + dependency.Inline + "</script>")
+	}
+	return templ.Raw("<script defer" + attribute("src", dependency.URL) + attribute("integrity", dependency.Integrity) + func() string {
+		if dependency.Integrity == "" {
+			return ""
+		}
+		return ` crossorigin="anonymous"`
+	}() + common + "></script>")
 }

@@ -72,6 +72,33 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 	}
 }
 
+func TestStandaloneUsesEditorialFragmentExactlyOnce(t *testing.T) {
+	result := mustRenderSource(t, "# Shared\n\n| Name | Count |\n|---|---:|\n| Item 2 | 2 |\n")
+	editorial, err := RenderEditorial(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fragment := renderComponent(t, editorial.Fragment())
+	standalone, err := RenderStandalone(result, WithStandaloneTheme(ThemeMinimal))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, standalone)
+	if strings.Count(markup, fragment) != 1 {
+		t.Fatalf("fragment count != 1: %s", markup)
+	}
+	for _, want := range []string{
+		`data-margo-editorial-fingerprint="` + editorial.Fingerprint().String() + `"`,
+		`data-margo-requirement="goshtoso.styles"`,
+		`data-margo-requirement="margo.document.styles"`,
+		`data-margo-requirement="margo.table-sort"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("shared standalone path missing %q: %s", want, markup)
+		}
+	}
+}
+
 func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 	result := mustRenderSource(t, "# Dark PDF\n\ncontent")
 	component, err := RenderStandalone(result, WithStandaloneColorMode(ColorModeDark))
@@ -111,12 +138,12 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		".goshtoso-document:is(.dark *) .margo-mermaid__source",
+		".margo-document:is(.dark *) .margo-mermaid__source",
 		"background: var(--color-surface-dark-alt);",
 		"color: var(--color-on-surface-dark);",
 		"border-color: var(--color-outline-dark);",
-		".goshtoso-document:is(.dark *) details",
-		".goshtoso-document:is(.dark *) :where(summary, dt)",
+		".margo-document:is(.dark *) details",
+		".margo-document:is(.dark *) :where(summary, dt)",
 	} {
 		if !strings.Contains(string(documentCSS.Content), want) {
 			t.Errorf("dark Mermaid source stylesheet missing %q", want)
@@ -169,13 +196,16 @@ func TestStandaloneEmbedsExactGoshtosoCSSBeforeDocumentAdjustments(t *testing.T)
 		t.Fatal(err)
 	}
 	html := got.String()
-	goshtosoStart := strings.Index(html, `<style data-margo-stylesheet="goshtoso">`)
-	documentStart := strings.Index(html, `<style data-margo-stylesheet="document">`)
+	goshtosoStart := strings.Index(html, `data-margo-stylesheet="goshtoso"`)
+	documentStart := strings.Index(html, `data-margo-stylesheet="document"`)
 	if goshtosoStart < 0 || documentStart < 0 || goshtosoStart >= documentStart {
 		t.Fatalf("stylesheet order invalid: goshtoso=%d document=%d", goshtosoStart, documentStart)
 	}
-	prefix := `<style data-margo-stylesheet="goshtoso">`
-	cssStart := goshtosoStart + len(prefix)
+	openingTagEnd := strings.Index(html[goshtosoStart:], `>`)
+	if openingTagEnd < 0 {
+		t.Fatal("Goshtoso stylesheet has no opening tag end")
+	}
+	cssStart := goshtosoStart + openingTagEnd + 1
 	cssEnd := strings.Index(html[cssStart:], `</style>`)
 	if cssEnd < 0 {
 		t.Fatal("Goshtoso stylesheet has no closing style tag")
@@ -301,15 +331,15 @@ func TestStandalonePrintBlocksAvoidInternalFragmentation(t *testing.T) {
 	}
 	printCSS := css[printStart:]
 	for _, want := range []string{
-		".goshtoso-document > .margo-document :where(h1, h2, h3, h4, h5, h6)",
+		".margo-document :where(h1, h2, h3, h4, h5, h6)",
 		"page-break-after: avoid;",
 		"break-after: avoid-page;",
-		".goshtoso-document > .margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre)",
+		".margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre)",
 		"page-break-inside: avoid;",
-		".goshtoso-document > .margo-document [data-table-client-sort=\"true\"]",
-		".goshtoso-document > .margo-document [data-code-block]",
-		".goshtoso-document > .margo-document div:has(> .codeblock)",
-		".goshtoso-document > .margo-document .margo-mermaid",
+		".margo-document [data-table-client-sort=\"true\"]",
+		".margo-document [data-code-block]",
+		".margo-document div:has(> .codeblock)",
+		".margo-document .margo-mermaid",
 		`[data-margo-print-break-before="page"]`,
 		"break-before: page;",
 		"break-inside: avoid-page;",
