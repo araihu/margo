@@ -1,5 +1,9 @@
 # Margo
 
+<p align="center">
+  <img src="assets/margo-mascot.png" alt="Margo, the pink Go gopher mascot, holding a rendered document in a Brazilian publishing atelier." width="480">
+</p>
+
 Margo will compile Markdown into Goshtoso-styled documents, standalone HTML,
 PDFs, and static slide decks.
 
