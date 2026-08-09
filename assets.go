@@ -20,7 +20,7 @@ import (
 var embeddedAssets embed.FS
 
 const (
-	EditorialStylesURL  = "/margo-assets/document.css"
+	HTMLStylesURL       = "/margo-assets/document.css"
 	TableSortRuntimeURL = "/margo-assets/table-sort.js"
 )
 
@@ -118,7 +118,7 @@ func AssetHandler() http.Handler {
 	})
 }
 
-func EditorialAssetHandler() http.Handler {
+func HTMLAssetHandler() http.Handler {
 	assetFS, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
 		panic(err)
@@ -132,7 +132,7 @@ func EditorialAssetHandler() http.Handler {
 	})
 }
 
-func coreEditorialHTMLRequirements(includeTableSort bool) ([]HTMLRequirement, error) {
+func coreHTMLRequirements(includeTableSort bool) ([]HTMLRequirement, error) {
 	goshtosoStyles, err := goshtosoassets.StylesCSS()
 	if err != nil {
 		return nil, fmt.Errorf("margo: load Goshtoso styles: %w", err)
@@ -150,7 +150,7 @@ func coreEditorialHTMLRequirements(includeTableSort bool) ([]HTMLRequirement, er
 		},
 		{
 			ID: "margo.document.styles", Kind: HTMLStylesheet,
-			LocalURL: EditorialStylesURL, LoadAfter: []string{"goshtoso.styles"}, Inline: documentStyles,
+			LocalURL: HTMLStylesURL, LoadAfter: []string{"goshtoso.styles"}, Inline: documentStyles,
 		},
 	}
 	if !includeTableSort {

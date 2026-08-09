@@ -48,7 +48,7 @@ var themeNamePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
 func validateThemeName(theme ThemeName) error {
 	if !themeNamePattern.MatchString(string(theme)) {
-		return editorialError("editorial.theme_invalid", fmt.Sprintf("invalid theme name %q", theme))
+		return htmlError("html.theme_invalid", fmt.Sprintf("invalid theme name %q", theme))
 	}
 	return nil
 }

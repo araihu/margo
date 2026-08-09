@@ -56,7 +56,7 @@ func (d *Document) sourceDigest() [32]byte {
 	return d.sourceHash
 }
 
-func (d *Document) editorialHTMLRequirements() HTMLRequirements {
+func (d *Document) projectedHTMLRequirements() HTMLRequirements {
 	if d == nil {
 		return HTMLRequirements{}
 	}

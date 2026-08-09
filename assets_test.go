@@ -30,8 +30,8 @@ func TestLibraryCSSNeverTargetsHostRoot(t *testing.T) {
 	}
 }
 
-func TestEditorialAssetHandlerOwnsOnlyMargoMount(t *testing.T) {
-	handler := EditorialAssetHandler()
+func TestHTMLAssetHandlerOwnsOnlyMargoMount(t *testing.T) {
+	handler := HTMLAssetHandler()
 	for _, test := range []struct {
 		path        string
 		contentType string

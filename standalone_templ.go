@@ -8,7 +8,7 @@ package margo
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func standalonePublicationBody(fingerprint, editorialFingerprint string, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) templ.Component {
+func standalonePublicationBody(fingerprint, htmlFingerprint string, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -42,14 +42,14 @@ func standalonePublicationBody(fingerprint, editorialFingerprint string, brand B
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-margo-editorial-fingerprint=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-margo-html-fingerprint=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(editorialFingerprint)
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(htmlFingerprint)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `standalone.templ`, Line: 4, Col: 176}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `standalone.templ`, Line: 4, Col: 166}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {

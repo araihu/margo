@@ -1,7 +1,7 @@
 package margo
 
-templ standalonePublicationBody(fingerprint, editorialFingerprint string, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
-	<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint } data-margo-editorial-fingerprint={ editorialFingerprint }>
+templ standalonePublicationBody(fingerprint, htmlFingerprint string, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
+	<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint } data-margo-html-fingerprint={ htmlFingerprint }>
 		if backdropURL != "" {
 			<img class="goshtoso-document__backdrop" src={ backdropURL } alt="" aria-hidden="true"/>
 		}

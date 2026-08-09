@@ -23,7 +23,7 @@ func TestMarkdownTableUsesClientOnlyGoshtosoTable(t *testing.T) {
 
 func TestMarkdownTableDeclaresProgressiveSort(t *testing.T) {
 	result := mustRenderSource(t, "| Name | Count |\n|---|---:|\n| Item 10 | 10 |\n| Item 2 | 2 |\n")
-	editorial, err := RenderEditorial(result)
+	editorial, err := RenderHTML(result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestMarkdownTableDeclaresProgressiveSort(t *testing.T) {
 }
 
 func TestEditorialWithoutTableDeclaresOnlyStyles(t *testing.T) {
-	editorial, err := RenderEditorial(mustRenderSource(t, "Body\n"))
+	editorial, err := RenderHTML(mustRenderSource(t, "Body\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

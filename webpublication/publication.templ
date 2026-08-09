@@ -1,0 +1,69 @@
+package webpublication
+
+import "github.com/araihu/margo"
+
+templ publicationMetadataTags(metadata SocialMetadata, kind Kind, htmlMetadata margo.HTMLMetadata) {
+	<link rel="canonical" href={ metadata.CanonicalURL }/>
+	<meta property="og:url" content={ metadata.CanonicalURL }/>
+	<meta property="og:type" content={ openGraphType(kind) }/>
+	<meta property="og:title" content={ metadata.Title }/>
+	<meta property="og:description" content={ metadata.Description }/>
+	<meta property="og:site_name" content={ metadata.SiteName }/>
+	<meta property="og:image" content={ metadata.Image.URL }/>
+	<meta property="og:image:type" content={ metadata.Image.MIMEType }/>
+	<meta property="og:image:width" content={ formatInt(metadata.Image.Width) }/>
+	<meta property="og:image:height" content={ formatInt(metadata.Image.Height) }/>
+	<meta property="og:image:alt" content={ metadata.Image.Alt }/>
+	if metadata.Locale != "" {
+		<meta property="og:locale" content={ metadata.Locale }/>
+	}
+	<meta name="twitter:card" content="summary_large_image"/>
+	<meta name="twitter:title" content={ metadata.Title }/>
+	<meta name="twitter:description" content={ metadata.Description }/>
+	<meta name="twitter:image" content={ metadata.Image.URL }/>
+	<meta name="twitter:image:alt" content={ metadata.Image.Alt }/>
+	if kind == KindArticle {
+		if htmlMetadata.PublishedAt != "" {
+			<meta property="article:published_time" content={ htmlMetadata.PublishedAt }/>
+		}
+		if htmlMetadata.ModifiedAt != "" {
+			<meta property="article:modified_time" content={ htmlMetadata.ModifiedAt }/>
+		}
+		for _, author := range htmlMetadata.Authors {
+			<meta property="article:author" content={ author }/>
+		}
+		for _, tag := range htmlMetadata.Tags {
+			<meta property="article:tag" content={ tag }/>
+		}
+	}
+}
+
+templ publicationArticleDetails(metadata margo.HTMLMetadata) {
+	if len(metadata.Authors) > 0 || metadata.PublishedAt != "" || metadata.ModifiedAt != "" || len(metadata.Tags) > 0 {
+		<header class="margo-webpublication-byline">
+			if len(metadata.Authors) > 0 {
+				<address aria-label="Authors">
+					for index, author := range metadata.Authors {
+						if index > 0 {
+							<span aria-hidden="true">, </span>
+						}
+						<span rel="author">{ author }</span>
+					}
+				</address>
+			}
+			if metadata.PublishedAt != "" {
+				<time datetime={ metadata.PublishedAt } data-publication-date="published">{ metadata.PublishedAt }</time>
+			}
+			if metadata.ModifiedAt != "" {
+				<time datetime={ metadata.ModifiedAt } data-publication-date="modified">{ metadata.ModifiedAt }</time>
+			}
+			if len(metadata.Tags) > 0 {
+				<ul aria-label="Tags">
+					for _, tag := range metadata.Tags {
+						<li>{ tag }</li>
+					}
+				</ul>
+			}
+		</header>
+	}
+}

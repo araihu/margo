@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	editorialLanguagePattern = regexp.MustCompile(`^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$`)
-	editorialSlugPattern     = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	sourceLanguagePattern = regexp.MustCompile(`^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$`)
+	sourceSlugPattern     = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 )
 
 type normalizedMarkdown struct {
@@ -41,7 +41,7 @@ func normalizeMarkdownSource(source Source) (sourceNormalization, error) {
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 	).Parser().Parse(text.NewReader(frontmatter.body))
 	headingIDs := collectHeadingIDs(root)
-	metadata, err := normalizeEditorialMetadata(source, frontmatter.values)
+	metadata, err := normalizeSourceMetadata(source, frontmatter.values)
 	if err != nil {
 		return sourceNormalization{}, err
 	}
@@ -51,7 +51,7 @@ func normalizeMarkdownSource(source Source) (sourceNormalization, error) {
 	}, nil
 }
 
-func normalizeEditorialMetadata(source Source, values map[string]any) (Metadata, error) {
+func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, error) {
 	metadata := Metadata{Name: source.Name, BaseURL: source.BaseURL}
 	scalarFields := []struct {
 		key         string
@@ -69,69 +69,69 @@ func normalizeEditorialMetadata(source Source, values map[string]any) (Metadata,
 		}
 		text, ok := value.(string)
 		if !ok {
-			return Metadata{}, invalidEditorialMetadata(source.Name, "/"+field.key, fmt.Sprintf("%s must be a string", field.key))
+			return Metadata{}, invalidSourceMetadata(source.Name, "/"+field.key, fmt.Sprintf("%s must be a string", field.key))
 		}
 		*field.destination = text
 	}
-	if metadata.Language != "" && !editorialLanguagePattern.MatchString(metadata.Language) {
-		return Metadata{}, invalidEditorialMetadata(source.Name, "/language", "language must be a valid BCP 47-style tag")
+	if metadata.Language != "" && !sourceLanguagePattern.MatchString(metadata.Language) {
+		return Metadata{}, invalidSourceMetadata(source.Name, "/language", "language must be a valid BCP 47-style tag")
 	}
-	if metadata.Slug != "" && !editorialSlugPattern.MatchString(metadata.Slug) {
-		return Metadata{}, invalidEditorialMetadata(source.Name, "/slug", "slug must contain lowercase letters, digits, and single hyphens")
+	if metadata.Slug != "" && !sourceSlugPattern.MatchString(metadata.Slug) {
+		return Metadata{}, invalidSourceMetadata(source.Name, "/slug", "slug must contain lowercase letters, digits, and single hyphens")
 	}
 
 	var err error
-	if metadata.Authors, err = editorialStringList(source.Name, values, "authors"); err != nil {
+	if metadata.Authors, err = sourceStringList(source.Name, values, "authors"); err != nil {
 		return Metadata{}, err
 	}
-	if metadata.Tags, err = editorialStringList(source.Name, values, "tags"); err != nil {
+	if metadata.Tags, err = sourceStringList(source.Name, values, "tags"); err != nil {
 		return Metadata{}, err
 	}
-	if metadata.PublishedAt, err = editorialDate(source.Name, values, "publishedAt"); err != nil {
+	if metadata.PublishedAt, err = sourceDate(source.Name, values, "publishedAt"); err != nil {
 		return Metadata{}, err
 	}
-	if metadata.ModifiedAt, err = editorialDate(source.Name, values, "modifiedAt"); err != nil {
+	if metadata.ModifiedAt, err = sourceDate(source.Name, values, "modifiedAt"); err != nil {
 		return Metadata{}, err
 	}
 	return metadata, nil
 }
 
-func editorialStringList(source string, values map[string]any, key string) ([]string, error) {
+func sourceStringList(source string, values map[string]any, key string) ([]string, error) {
 	value, exists := values[key]
 	if !exists {
 		return nil, nil
 	}
 	items, ok := value.([]any)
 	if !ok {
-		return nil, invalidEditorialMetadata(source, "/"+key, fmt.Sprintf("%s must be a list of strings", key))
+		return nil, invalidSourceMetadata(source, "/"+key, fmt.Sprintf("%s must be a list of strings", key))
 	}
 	result := make([]string, len(items))
 	for index, item := range items {
 		text, ok := item.(string)
 		if !ok {
-			return nil, invalidEditorialMetadata(source, fmt.Sprintf("/%s/%d", key, index), fmt.Sprintf("%s entries must be strings", key))
+			return nil, invalidSourceMetadata(source, fmt.Sprintf("/%s/%d", key, index), fmt.Sprintf("%s entries must be strings", key))
 		}
 		result[index] = text
 	}
 	return result, nil
 }
 
-func editorialDate(source string, values map[string]any, key string) (string, error) {
+func sourceDate(source string, values map[string]any, key string) (string, error) {
 	value, exists := values[key]
 	if !exists {
 		return "", nil
 	}
 	text, ok := value.(string)
 	if !ok {
-		return "", invalidEditorialMetadata(source, "/"+key, fmt.Sprintf("%s must be an RFC 3339 string", key))
+		return "", invalidSourceMetadata(source, "/"+key, fmt.Sprintf("%s must be an RFC 3339 string", key))
 	}
 	parsed, err := time.Parse(time.RFC3339, text)
 	if err != nil {
-		return "", invalidEditorialMetadata(source, "/"+key, fmt.Sprintf("%s must be an RFC 3339 string", key))
+		return "", invalidSourceMetadata(source, "/"+key, fmt.Sprintf("%s must be an RFC 3339 string", key))
 	}
 	return parsed.Format(time.RFC3339), nil
 }
 
-func invalidEditorialMetadata(source, pointer, message string) error {
-	return diagnosticAt("editorial.metadata_invalid", source, pointer, message, 1, 1)
+func invalidSourceMetadata(source, pointer, message string) error {
+	return diagnosticAt("source.metadata_invalid", source, pointer, message, 1, 1)
 }

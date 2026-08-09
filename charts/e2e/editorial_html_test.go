@@ -27,6 +27,7 @@ import (
 	goshtosoassets "github.com/araihu/goshtoso/assets"
 	margo "github.com/araihu/margo"
 	charts "github.com/araihu/margo/charts"
+	"github.com/araihu/margo/webpublication"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
@@ -37,8 +38,8 @@ const themeCSS = `[data-theme="araihu"]{--color-surface:#f4f0ff;--color-on-surfa
 
 type editorialFixture struct {
 	server          *httptest.Server
-	editorial       *margo.EditorialResult
-	authority       margo.AuthorityRecord
+	editorial       *margo.HTMLResult
+	authority       webpublication.AuthorityRecord
 	localPaths      []string
 	publicationHTML string
 }
@@ -100,7 +101,7 @@ Margo HTML remains readable in every projection.
 	if err != nil {
 		t.Fatalf("render fixture: %v", err)
 	}
-	editorial, err := margo.RenderEditorial(rendered)
+	editorial, err := margo.RenderHTML(rendered)
 	if err != nil {
 		t.Fatalf("editorial fixture: %v", err)
 	}
@@ -109,38 +110,34 @@ Margo HTML remains readable in every projection.
 	if err != nil {
 		t.Fatal(err)
 	}
-	authority, err := margo.VerifyAuthorityRecord(authorityBytes)
+	authority, err := webpublication.VerifyAuthorityRecord(authorityBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
 	theme := materializedThemeAsset()
-	publicInput := margo.PublicationInput{
-		Mode: margo.PublicationPublic, Kind: margo.PublicationArticle,
+	publicInput := webpublication.Input{
+		Kind:      webpublication.KindArticle,
 		Authority: authority, RoutePath: authority.Routes.Representative,
 		SiteName: "Arai Hû", Locale: "en_US",
-		Image: margo.SocialImage{
+		Image: webpublication.SocialImage{
 			URL:      string(authority.CanonicalOrigin) + authority.Routes.Preview,
 			MIMEType: authority.Asset.MIMEType, Width: authority.Asset.Width, Height: authority.Asset.Height,
 			Alt: "Editorial preview fixture.",
 		},
-		Theme: margo.ThemeName("araihu"), ColorMode: margo.ColorModeLight,
-		DependencyMode: margo.HTMLDependenciesLocal, ThemeStylesheet: theme,
+		Page: margo.HTMLPageInput{
+			Theme: margo.ThemeName("araihu"), ColorMode: margo.ColorModeLight,
+			DependencyMode: margo.HTMLDependenciesLocal, ThemeStylesheet: theme,
+		},
 	}
-	publicPage, err := margo.RenderPublication(editorial, publicInput)
+	publicPage, err := webpublication.Render(editorial, publicInput)
 	if err != nil {
 		t.Fatalf("public publication: %v", err)
 	}
 	publicHTML := renderComponent(t, publicPage)
 
-	inlineInput := publicInput
-	inlineInput.Mode = margo.PublicationPrivate
-	inlineInput.Authority = margo.AuthorityRecord{}
-	inlineInput.RoutePath = ""
-	inlineInput.SiteName = ""
-	inlineInput.Locale = ""
-	inlineInput.Image = margo.SocialImage{}
+	inlineInput := publicInput.Page
 	inlineInput.DependencyMode = margo.HTMLDependenciesInline
-	inlinePage, err := margo.RenderPublication(editorial, inlineInput)
+	inlinePage, err := margo.RenderHTMLPage(editorial, inlineInput)
 	if err != nil {
 		t.Fatalf("inline publication: %v", err)
 	}
@@ -149,7 +146,7 @@ Margo HTML remains readable in every projection.
 
 	mux := http.NewServeMux()
 	mux.Handle("/assets/", goshtosoassets.Handler())
-	mux.Handle("/margo-assets/", margo.EditorialAssetHandler())
+	mux.Handle("/margo-assets/", margo.HTMLAssetHandler())
 	mux.Handle(chartassets.Prefix, chartassets.Handler())
 	mux.HandleFunc("/theme-araihu.css", func(writer http.ResponseWriter, _ *http.Request) {
 		writer.Header().Set("Content-Type", "text/css; charset=utf-8")
@@ -188,7 +185,7 @@ func htmlHandler(markup string) http.HandlerFunc {
 	}
 }
 
-func renderManjaHost(t *testing.T, editorial *margo.EditorialResult) string {
+func renderManjaHost(t *testing.T, editorial *margo.HTMLResult) string {
 	t.Helper()
 	var head strings.Builder
 	for _, requirement := range editorial.Requirements().List() {
@@ -226,7 +223,7 @@ func assertInitialPublicationMetadata(t *testing.T, fixture editorialFixture) {
 	}
 	markup := string(data)
 	canonical := string(fixture.authority.CanonicalOrigin) + fixture.authority.Routes.Representative
-	if err := margo.RequireOneCompleteSocialSet(markup, margo.SocialMetadata{CanonicalURL: canonical}); err != nil {
+	if err := webpublication.RequireOneCompleteSocialSet(markup, webpublication.SocialMetadata{CanonicalURL: canonical}); err != nil {
 		t.Fatal(err)
 	}
 	for _, marker := range []string{

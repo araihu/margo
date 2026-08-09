@@ -5,15 +5,15 @@
 </p>
 
 Margo compiles Markdown into semantic Goshtoso-compatible HTML. The root module
-supports a host-owned editorial fragment and a complete publication page from
-the same immutable render result. PDF and static slide projections remain
-separate modules.
+supports a host-owned fragment and a generic complete HTML page from the same
+immutable render result. Web publication policy is optional; PDF and static
+slide projections remain separate modules.
 
 The repository includes a deterministic browser preflight for standalone HTML
 before PDF review. See [contrast lint](docs/CONTRAST_LINT.md) to check custom
 themes and styling in print media under both light and dark color modes.
 
-## Editorial HTML
+## HTML
 
 Compile and render Markdown once, then project the result as a fragment owned
 by the surrounding application:
@@ -28,48 +28,64 @@ rendered, err := compiler.Render(ctx, document)
 if err != nil {
 	return err
 }
-editorial, err := margo.RenderEditorial(rendered)
+htmlResult, err := margo.RenderHTML(rendered)
 if err != nil {
 	return err
 }
-return editorial.Fragment().Render(ctx, writer)
+return htmlResult.Fragment().Render(ctx, writer)
 ```
 
-`EditorialResult.Fragment()` contains one `article.margo-document`; it does not
+`HTMLResult.Fragment()` contains one `article.margo-document`; it does not
 own the document shell, theme selection, or color mode. A Manja-style host can
 place it inside its existing `.manja-markdown` layout. The article inherits the
 host's Goshtoso `data-theme` and `.dark` state without regeneration. Inspect
-`editorial.Requirements()` when the host assembles its own head.
+`htmlResult.Requirements()` when the host assembles its own head.
+
+For a complete generic page, use the technical page contract. It does not
+infer routes, canonical URLs, social metadata, or article semantics:
+
+```go
+page, err := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{
+	Theme:           margo.ThemeModern,
+	ColorMode:       margo.ColorModeLight,
+	DependencyMode: margo.HTMLDependenciesLocal,
+})
+```
 
 Mount the handlers directly at their owning prefixes for local requirements:
 
 ```go
 mux.Handle("/assets/", goshtosoassets.Handler())
-mux.Handle("/margo-assets/", margo.EditorialAssetHandler())
+mux.Handle("/margo-assets/", margo.HTMLAssetHandler())
 mux.Handle("/charts/assets/", chartassets.Handler())
 ```
 
-Do not strip those prefixes a second time. `EditorialAssetHandler` serves the
+Do not strip those prefixes a second time. `HTMLAssetHandler` serves the
 scoped Margo stylesheet and progressive table-sort runtime. Goshtoso and Charts
 retain ownership of their own embedded bytes.
 
-For a complete article, pass an authority record that was already verified by
-`VerifyAuthorityRecord`; canonical and social URLs derive from that record and
-the listed route rather than from free-form caller strings:
+Applications that publish to the public web may opt into the separate
+`webpublication` package. It adds verified route authority, canonical and
+social metadata, and article chrome around the generic page contract:
 
 ```go
-page, err := margo.RenderPublication(editorial, margo.PublicationInput{
-	Mode:           margo.PublicationPublic,
-	Kind:           margo.PublicationArticle,
+authority, err := webpublication.VerifyAuthorityRecord(authorityJSON)
+if err != nil {
+	return err
+}
+page, err := webpublication.Render(htmlResult, webpublication.Input{
+	Kind:           webpublication.KindArticle,
 	Authority:      authority,
 	RoutePath:      authority.Routes.Representative,
 	SiteName:       siteName,
 	Locale:         locale,
 	Image:          socialImage,
-	Theme:          margo.ThemeName("araihu"),
-	ColorMode:      margo.ColorModeLight,
-	DependencyMode: margo.HTMLDependenciesLocal,
-	ThemeStylesheet: themeStylesheet,
+	Page: margo.HTMLPageInput{
+		Theme:           margo.ThemeName("araihu"),
+		ColorMode:       margo.ColorModeLight,
+		DependencyMode: margo.HTMLDependenciesLocal,
+		ThemeStylesheet: themeStylesheet,
+	},
 })
 if err != nil {
 	return err
@@ -83,7 +99,7 @@ bytes. Both modes preserve requirement order. Custom theme CSS loads after
 Goshtoso and Margo styles.
 
 Markdown tables and charts are readable before JavaScript. Table header buttons
-are progressive client controls. For charts in the current-root editorial
+are progressive client controls. For charts in the current-root HTML
 path, register
 `charts.Extension(charts.WithExternalizedControlRuntime(true))`; this declares
 one ordered runtime set and leaves static SVG plus accessible data tables in the
@@ -94,14 +110,16 @@ Manja continues to own its documentation layout and routing. An araihu.com
 consumer continues to own localization, verified route authority, custom theme,
 brand chrome, and deployment. No external consumer is modified by this API.
 Generated-HTML unit and browser gates are documented in
-[editorial HTML browser evidence](docs/testing/editorial-html.md). PDF visual
-review is deferred; this HTML slice does not claim PDF acceptance.
+[HTML browser evidence](docs/testing/editorial-html.md). The generic HTML
+contract does not impose public-web metadata on PDF consumers. PDF visual review
+is deferred; this HTML slice does not claim PDF acceptance.
 
 ## Modules
 
 | Module | Purpose |
 | --- | --- |
 | `github.com/araihu/margo` | Core library and the `deck` package |
+| `github.com/araihu/margo/webpublication` | Optional public-web authority, social metadata, and article composition |
 | `github.com/araihu/margo/charts` | Optional chart integration |
 | `github.com/araihu/margo/pdf` | Optional PDF integration |
 | `github.com/araihu/margo/cmd/margo` | Command-line application |

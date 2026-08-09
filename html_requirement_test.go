@@ -194,7 +194,7 @@ func TestExtensionRequirementsAttachOnlyWhenUsed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requireRequirementIDs(t, unused.editorialHTMLRequirements(), "goshtoso.styles", "margo.document.styles")
+	requireRequirementIDs(t, unused.projectedHTMLRequirements(), "goshtoso.styles", "margo.document.styles")
 
 	used, err := compiler.Compile(context.Background(), Source{Name: "used.md", Content: []byte("```demo\nfirst\n```\n\n```demo\nsecond\n```\n")})
 	if err != nil {
@@ -204,12 +204,12 @@ func TestExtensionRequirementsAttachOnlyWhenUsed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	list := result.editorialHTMLRequirements().List()
+	list := result.projectedHTMLRequirements().List()
 	if len(list) != 4 || list[0].ID != "goshtoso.styles" || list[1].ID != "margo.document.styles" || list[2].ID != "demo.styles" || list[3].ID != "demo.runtime" {
 		t.Fatalf("used requirements = %#v", list)
 	}
 	list[3].LoadAfter[0] = "mutated"
-	if result.editorialHTMLRequirements().List()[3].LoadAfter[0] != "demo.styles" {
+	if result.projectedHTMLRequirements().List()[3].LoadAfter[0] != "demo.styles" {
 		t.Fatal("result requirements alias caller")
 	}
 }

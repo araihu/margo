@@ -1,6 +1,6 @@
-# Editorial HTML browser evidence
+# HTML browser evidence
 
-Margo's tagged editorial HTML journey was tested on 2026-08-09 with Google
+Margo's tagged HTML journey was tested on 2026-08-09 with Google
 Chrome 151.0.7922.77 on macOS 26.5.2 (build 25F84), arm64. This records the
 environment used for the gate; it is not a minimum, maximum, pinned, or
 otherwise required browser version for users.
@@ -8,9 +8,9 @@ otherwise required browser version for users.
 The gate composes the current root and charts modules in a temporary Go
 workspace and exercises generated HTML shaped like both downstream consumers:
 
-- a Manja-owned page embeds `EditorialResult.Fragment()` and changes the host
+- a Manja-owned page embeds `HTMLResult.Fragment()` and changes the host
   Goshtoso theme and dark mode without replacing the article;
-- a public article page from `RenderPublication` verifies initial canonical,
+- a public article page from `webpublication.Render` verifies initial canonical,
   Open Graph, X/Twitter, and article metadata;
 - local and inline dependency modes verify request counts, ordering, no
   external traffic, no failed requests, and no browser exceptions;
@@ -43,7 +43,7 @@ skips only the tagged browser gate; ordinary unit tests remain browser-free.
 | Requirement | Evidence |
 | --- | --- |
 | Manja-compatible fragment | `/manja` initial HTML embeds the exact fragment in `.manja-markdown`; the browser preserves article identity while changing host theme and dark mode. |
-| araihu.com blog page | `/guide` uses `RenderPublication` with a custom `araihu` theme and a verified fixture authority; initial canonical, Open Graph, X/Twitter, and article fields are asserted. |
+| araihu.com blog page | `/guide` uses optional `webpublication.Render` around `RenderHTMLPage`, with a custom `araihu` theme and a verified fixture authority; initial canonical, Open Graph, X/Twitter, and article fields are asserted. |
 | Goshtoso theme inheritance | The Manja journey compares computed token-backed foreground/background colors before and after live `modern` to `dracula` plus light/dark changes. |
 | Table sorting | Browser clicks cover ascending, descending, and restored source order after the initial source state, including active `aria-sort`. |
 | Chart controls | Four charts retain four static SVGs and four accessible data tables while the expand dialog opens and closes. |
@@ -53,7 +53,7 @@ skips only the tagged browser gate; ordinary unit tests remain browser-free.
 
 Goshtoso Charts currently emits component-scoped CSS with its static SVG. The
 adapter marks every such style with `data-margo-extension-style="charts"`;
-`RenderEditorial` accepts only that explicit trusted provenance, rejects
+`RenderHTML` accepts only that explicit trusted provenance, rejects
 unowned styles, and continues to reject every fragment script. Host theme and
 color-mode ownership remain unchanged because the component CSS consumes
 Goshtoso tokens.

@@ -69,7 +69,7 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		}
 		extensionOrdinals := make(map[int]uint32)
 		usedRegistrations := make(map[int]struct{})
-		requirementCandidates, err := coreEditorialHTMLRequirements(false)
+		requirementCandidates, err := coreHTMLRequirements(false)
 		if err != nil {
 			return renderPlan{}, err
 		}
@@ -142,7 +142,7 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			return renderPlan{}, &DiagnosticError{Diagnostics: []Diagnostic{*missing}}
 		}
 		if hasTable {
-			coreWithTable, err := coreEditorialHTMLRequirements(true)
+			coreWithTable, err := coreHTMLRequirements(true)
 			if err != nil {
 				return renderPlan{}, err
 			}

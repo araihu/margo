@@ -7,9 +7,9 @@ import (
 	"github.com/a-h/templ"
 )
 
-func TestRenderEditorialProducesHostOwnedFragment(t *testing.T) {
+func TestRenderHTMLProducesDefensiveProjection(t *testing.T) {
 	result := mustRenderSource(t, "---\ntitle: Host title\n---\n\nBody with **meaning**.\n")
-	editorial, err := RenderEditorial(result)
+	editorial, err := RenderHTML(result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,8 +30,8 @@ func TestRenderEditorialProducesHostOwnedFragment(t *testing.T) {
 	}
 }
 
-func TestRenderEditorialPlainTextExcludesComponentChrome(t *testing.T) {
-	editorial, err := RenderEditorial(mustRenderSource(t, "# Example\n\n![Architecture diagram](diagram.png)\n\n```go\nfmt.Println(\"hello\")\n```\n"))
+func TestRenderHTMLPlainTextExcludesComponentChrome(t *testing.T) {
+	editorial, err := RenderHTML(mustRenderSource(t, "# Example\n\n![Architecture diagram](diagram.png)\n\n```go\nfmt.Println(\"hello\")\n```\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,8 +40,8 @@ func TestRenderEditorialPlainTextExcludesComponentChrome(t *testing.T) {
 	}
 }
 
-func TestRenderEditorialTitlePolicy(t *testing.T) {
-	fromBody, err := RenderEditorial(mustRenderSource(t, "# Body title\n"))
+func TestRenderHTMLTitlePolicy(t *testing.T) {
+	fromBody, err := RenderHTML(mustRenderSource(t, "# Body title\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,14 +50,14 @@ func TestRenderEditorialTitlePolicy(t *testing.T) {
 	}
 
 	withoutHeading := mustRenderSource(t, "---\ntitle: Metadata title\n---\n\nBody\n")
-	plain, err := RenderEditorial(withoutHeading)
+	plain, err := RenderHTML(withoutHeading)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(renderComponent(t, plain.Fragment()), "<h1") {
 		t.Fatal("default fragment invented a heading")
 	}
-	withHeader, err := RenderEditorial(withoutHeading, WithEditorialHeader())
+	withHeader, err := RenderHTML(withoutHeading, WithHTMLHeader())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestRenderEditorialTitlePolicy(t *testing.T) {
 		t.Fatalf("explicit header = %s", got)
 	}
 
-	conflict, err := RenderEditorial(mustRenderSource(t, "---\ntitle: Metadata title\n---\n\n# Body title\n"), WithEditorialHeader())
+	conflict, err := RenderHTML(mustRenderSource(t, "---\ntitle: Metadata title\n---\n\n# Body title\n"), WithHTMLHeader())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,24 +73,24 @@ func TestRenderEditorialTitlePolicy(t *testing.T) {
 		t.Fatal("body heading was duplicated")
 	}
 	diagnostics := conflict.Diagnostics()
-	if len(diagnostics) != 1 || diagnostics[0].Code != "editorial.title_conflict" || diagnostics[0].Severity != SeverityInfo {
+	if len(diagnostics) != 1 || diagnostics[0].Code != "html.title_conflict" || diagnostics[0].Severity != SeverityInfo {
 		t.Fatalf("conflict diagnostics = %#v", diagnostics)
 	}
 }
 
-func TestRenderEditorialRejectsNilAndDocumentShell(t *testing.T) {
-	if _, err := RenderEditorial(nil); diagnosticCode(err) != "editorial.result_required" {
+func TestRenderHTMLRejectsNilAndDocumentShell(t *testing.T) {
+	if _, err := RenderHTML(nil); diagnosticCode(err) != "html.result_required" {
 		t.Fatalf("nil diagnostic = %v", err)
 	}
 	result := &RenderResult{content: templ.Raw(`<html><body>wrong</body></html>`)}
-	if _, err := RenderEditorial(result); diagnosticCode(err) != "editorial.metadata_invalid" {
+	if _, err := RenderHTML(result); diagnosticCode(err) != "html.metadata_invalid" {
 		t.Fatalf("shell diagnostic = %v", err)
 	}
 }
 
-func TestRenderEditorialAllowsOnlyProvenanceMarkedExtensionStyles(t *testing.T) {
+func TestRenderHTMLAllowsOnlyProvenanceMarkedExtensionStyles(t *testing.T) {
 	allowed := &RenderResult{content: templ.Raw(`<article class="margo-document"><style data-margo-extension-style="charts">.chart{display:block}</style><p>Chart</p></article>`)}
-	editorial, err := RenderEditorial(allowed)
+	editorial, err := RenderHTML(allowed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,15 +101,15 @@ func TestRenderEditorialAllowsOnlyProvenanceMarkedExtensionStyles(t *testing.T) 
 		`<article class="margo-document"><style>.host{display:none}</style></article>`,
 		`<article class="margo-document"><style data-margo-extension-style="other">.host{display:none}</style></article>`,
 	} {
-		if _, err := RenderEditorial(&RenderResult{content: templ.Raw(markup)}); diagnosticCode(err) != "editorial.metadata_invalid" {
+		if _, err := RenderHTML(&RenderResult{content: templ.Raw(markup)}); diagnosticCode(err) != "html.metadata_invalid" {
 			t.Fatalf("unowned style accepted: %s: %v", markup, err)
 		}
 	}
 }
 
-func TestEditorialResultIsDefensiveAndFingerprintSensitive(t *testing.T) {
+func TestHTMLResultIsDefensiveAndFingerprintSensitive(t *testing.T) {
 	firstRendered := mustRenderSource(t, "---\ntitle: One\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n")
-	first, err := RenderEditorial(firstRendered)
+	first, err := RenderHTML(firstRendered)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,15 +122,15 @@ func TestEditorialResultIsDefensiveAndFingerprintSensitive(t *testing.T) {
 		t.Fatal("editorial result aliases caller")
 	}
 
-	equivalent, err := RenderEditorial(mustRenderSource(t, "---\ntitle: One\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n"))
+	equivalent, err := RenderHTML(mustRenderSource(t, "---\ntitle: One\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	changedMetadata, err := RenderEditorial(mustRenderSource(t, "---\ntitle: Two\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n"))
+	changedMetadata, err := RenderHTML(mustRenderSource(t, "---\ntitle: Two\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	withHeader, err := RenderEditorial(mustRenderSource(t, "---\ntitle: One\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n"), WithEditorialHeader())
+	withHeader, err := RenderHTML(mustRenderSource(t, "---\ntitle: One\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n"), WithHTMLHeader())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestEditorialResultIsDefensiveAndFingerprintSensitive(t *testing.T) {
 	}
 	resultWithRequirement := *firstRendered
 	resultWithRequirement.htmlRequirements = requirements
-	withRequirement, err := RenderEditorial(&resultWithRequirement)
+	withRequirement, err := RenderHTML(&resultWithRequirement)
 	if err != nil {
 		t.Fatal(err)
 	}

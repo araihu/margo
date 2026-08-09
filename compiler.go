@@ -130,7 +130,7 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 		metadata:         document.Metadata(),
 		assets:           document.Assets(),
 		diagnostics:      document.Diagnostics(),
-		htmlRequirements: document.editorialHTMLRequirements(),
+		htmlRequirements: document.projectedHTMLRequirements(),
 	}, nil
 }
 

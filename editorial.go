@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-type EditorialMetadata struct {
+type HTMLMetadata struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Language    string   `json:"language"`
@@ -26,57 +26,57 @@ type EditorialMetadata struct {
 	Tags        []string `json:"tags,omitempty"`
 }
 
-func (m EditorialMetadata) clone() EditorialMetadata {
+func (m HTMLMetadata) clone() HTMLMetadata {
 	m.Authors = append([]string(nil), m.Authors...)
 	m.Tags = append([]string(nil), m.Tags...)
 	return m
 }
 
-type EditorialResult struct {
+type HTMLResult struct {
 	fragmentBytes []byte
 	plainText     string
-	metadata      EditorialMetadata
+	metadata      HTMLMetadata
 	requirements  HTMLRequirements
 	diagnostics   []Diagnostic
-	fingerprint   EditorialFingerprint
+	fingerprint   HTMLFingerprint
 }
 
-type editorialConfig struct {
+type htmlConfig struct {
 	header bool
 }
 
-type EditorialOption func(*editorialConfig) error
+type HTMLOption func(*htmlConfig) error
 
-func WithEditorialHeader() EditorialOption {
-	return func(config *editorialConfig) error {
+func WithHTMLHeader() HTMLOption {
+	return func(config *htmlConfig) error {
 		config.header = true
 		return nil
 	}
 }
 
-func RenderEditorial(result *RenderResult, options ...EditorialOption) (*EditorialResult, error) {
+func RenderHTML(result *RenderResult, options ...HTMLOption) (*HTMLResult, error) {
 	if result == nil || result.Content() == nil {
-		return nil, editorialError("editorial.result_required", "render result and content are required")
+		return nil, htmlError("html.result_required", "render result and content are required")
 	}
-	config := editorialConfig{}
+	config := htmlConfig{}
 	for index, option := range options {
 		if option == nil {
-			return nil, editorialError("editorial.metadata_invalid", fmt.Sprintf("nil editorial option at index %d", index))
+			return nil, htmlError("html.metadata_invalid", fmt.Sprintf("nil HTML option at index %d", index))
 		}
 		if err := option(&config); err != nil {
 			return nil, err
 		}
 	}
 
-	metadata, err := normalizeEditorialResultMetadata(result.Metadata())
+	metadata, err := normalizeHTMLResultMetadata(result.Metadata())
 	if err != nil {
 		return nil, err
 	}
-	fragment, err := renderEditorialComponentBytes(result.Content())
+	fragment, err := renderHTMLComponentBytes(result.Content())
 	if err != nil {
-		return nil, fmt.Errorf("editorial.fragment_render: %w", err)
+		return nil, fmt.Errorf("html.fragment_render: %w", err)
 	}
-	inspection, err := inspectEditorialFragment(fragment)
+	inspection, err := inspectHTMLFragment(fragment)
 	if err != nil {
 		return nil, err
 	}
@@ -86,26 +86,26 @@ func RenderEditorial(result *RenderResult, options ...EditorialOption) (*Editori
 	diagnostics := result.Diagnostics()
 	if metadata.Title != "" && inspection.firstH1 != "" && metadata.Title != inspection.firstH1 {
 		diagnostics = append(diagnostics, Diagnostic{
-			Code: "editorial.title_conflict", Severity: SeverityInfo,
+			Code: "html.title_conflict", Severity: SeverityInfo,
 			Message: fmt.Sprintf("metadata title %q differs from body heading %q", metadata.Title, inspection.firstH1),
 		})
 	}
 	if config.header && inspection.firstH1 == "" && metadata.Title != "" {
-		fragment, err = insertEditorialHeader(fragment, metadata.Title)
+		fragment, err = insertHTMLHeader(fragment, metadata.Title)
 		if err != nil {
 			return nil, err
 		}
-		inspection, err = inspectEditorialFragment(fragment)
+		inspection, err = inspectHTMLFragment(fragment)
 		if err != nil {
 			return nil, err
 		}
 	}
-	requirements := result.editorialHTMLRequirements()
-	fingerprint, err := editorialFingerprint(fragment, metadata, requirements, config)
+	requirements := result.projectedHTMLRequirements()
+	fingerprint, err := htmlFingerprint(fragment, metadata, requirements, config)
 	if err != nil {
 		return nil, err
 	}
-	return &EditorialResult{
+	return &HTMLResult{
 		fragmentBytes: append([]byte(nil), fragment...),
 		plainText:     inspection.plainText,
 		metadata:      metadata.clone(),
@@ -115,7 +115,7 @@ func RenderEditorial(result *RenderResult, options ...EditorialOption) (*Editori
 	}, nil
 }
 
-func (r *EditorialResult) Fragment() templ.Component {
+func (r *HTMLResult) Fragment() templ.Component {
 	if r == nil {
 		return nil
 	}
@@ -126,42 +126,42 @@ func (r *EditorialResult) Fragment() templ.Component {
 	})
 }
 
-func (r *EditorialResult) PlainText() string {
+func (r *HTMLResult) PlainText() string {
 	if r == nil {
 		return ""
 	}
 	return r.plainText
 }
 
-func (r *EditorialResult) Metadata() EditorialMetadata {
+func (r *HTMLResult) Metadata() HTMLMetadata {
 	if r == nil {
-		return EditorialMetadata{}
+		return HTMLMetadata{}
 	}
 	return r.metadata.clone()
 }
 
-func (r *EditorialResult) Requirements() HTMLRequirements {
+func (r *HTMLResult) Requirements() HTMLRequirements {
 	if r == nil {
 		return HTMLRequirements{}
 	}
 	return HTMLRequirements{requirements: r.requirements.List()}
 }
 
-func (r *EditorialResult) Diagnostics() []Diagnostic {
+func (r *HTMLResult) Diagnostics() []Diagnostic {
 	if r == nil {
 		return nil
 	}
 	return cloneDiagnostics(r.diagnostics)
 }
 
-func (r *EditorialResult) Fingerprint() EditorialFingerprint {
+func (r *HTMLResult) Fingerprint() HTMLFingerprint {
 	if r == nil {
-		return EditorialFingerprint{}
+		return HTMLFingerprint{}
 	}
 	return r.fingerprint
 }
 
-func renderEditorialComponentBytes(component templ.Component) ([]byte, error) {
+func renderHTMLComponentBytes(component templ.Component) ([]byte, error) {
 	var buffer bytes.Buffer
 	if err := component.Render(context.Background(), &buffer); err != nil {
 		return nil, err
@@ -169,16 +169,16 @@ func renderEditorialComponentBytes(component templ.Component) ([]byte, error) {
 	return append([]byte(nil), buffer.Bytes()...), nil
 }
 
-type editorialFragmentInspection struct {
+type htmlFragmentInspection struct {
 	firstH1   string
 	plainText string
 }
 
-func inspectEditorialFragment(fragment []byte) (editorialFragmentInspection, error) {
+func inspectHTMLFragment(fragment []byte) (htmlFragmentInspection, error) {
 	contextNode := &xhtml.Node{Type: xhtml.ElementNode, DataAtom: atom.Div, Data: "div"}
 	nodes, err := xhtml.ParseFragment(bytes.NewReader(fragment), contextNode)
 	if err != nil {
-		return editorialFragmentInspection{}, editorialError("editorial.metadata_invalid", fmt.Sprintf("invalid editorial fragment: %v", err))
+		return htmlFragmentInspection{}, htmlError("html.metadata_invalid", fmt.Sprintf("invalid HTML fragment: %v", err))
 	}
 	var article *xhtml.Node
 	for _, node := range nodes {
@@ -186,12 +186,12 @@ func inspectEditorialFragment(fragment []byte) (editorialFragmentInspection, err
 			continue
 		}
 		if node.Type != xhtml.ElementNode || node.Data != "article" || article != nil {
-			return editorialFragmentInspection{}, editorialError("editorial.metadata_invalid", "editorial fragment must contain exactly one top-level article")
+			return htmlFragmentInspection{}, htmlError("html.metadata_invalid", "HTML fragment must contain exactly one top-level article")
 		}
 		article = node
 	}
 	if article == nil || !htmlClassContains(article, "margo-document") {
-		return editorialFragmentInspection{}, editorialError("editorial.metadata_invalid", "editorial fragment must contain one margo-document article")
+		return htmlFragmentInspection{}, htmlError("html.metadata_invalid", "HTML fragment must contain one margo-document article")
 	}
 	articleCount := 0
 	var firstH1 string
@@ -202,10 +202,10 @@ func inspectEditorialFragment(fragment []byte) (editorialFragmentInspection, err
 		if node.Type == xhtml.ElementNode {
 			switch node.Data {
 			case "html", "head", "body", "script":
-				return editorialError("editorial.metadata_invalid", fmt.Sprintf("editorial fragment contains forbidden <%s>", node.Data))
+				return htmlError("html.metadata_invalid", fmt.Sprintf("HTML fragment contains forbidden <%s>", node.Data))
 			case "style":
 				if !htmlAttributeEquals(node, "data-margo-extension-style", "charts") {
-					return editorialError("editorial.metadata_invalid", "editorial fragment contains an unowned <style>")
+					return htmlError("html.metadata_invalid", "HTML fragment contains an unowned <style>")
 				}
 				skip = true
 			case "article":
@@ -220,7 +220,7 @@ func inspectEditorialFragment(fragment []byte) (editorialFragmentInspection, err
 			if htmlAttributeEquals(node, "aria-hidden", "true") {
 				skip = true
 			}
-			semanticText = isEditorialTextElement(node.Data)
+			semanticText = isHTMLTextElement(node.Data)
 			if semanticText {
 				semanticDepth++
 			}
@@ -245,12 +245,12 @@ func inspectEditorialFragment(fragment []byte) (editorialFragmentInspection, err
 		return nil
 	}
 	if err := walk(article, false, 0); err != nil {
-		return editorialFragmentInspection{}, err
+		return htmlFragmentInspection{}, err
 	}
 	if articleCount != 1 {
-		return editorialFragmentInspection{}, editorialError("editorial.metadata_invalid", "editorial fragment must contain exactly one article")
+		return htmlFragmentInspection{}, htmlError("html.metadata_invalid", "HTML fragment must contain exactly one article")
 	}
-	return editorialFragmentInspection{firstH1: firstH1, plainText: normalizeEditorialText(text.String())}, nil
+	return htmlFragmentInspection{firstH1: firstH1, plainText: normalizeHTMLText(text.String())}, nil
 }
 
 func htmlAttributeEquals(node *xhtml.Node, name, expected string) bool {
@@ -293,10 +293,10 @@ func normalizedNodeText(node *xhtml.Node) string {
 		}
 	}
 	visit(node)
-	return normalizeEditorialText(text.String())
+	return normalizeHTMLText(text.String())
 }
 
-func isEditorialTextElement(tag string) bool {
+func isHTMLTextElement(tag string) bool {
 	switch tag {
 	case "address", "caption", "code", "dd", "dt", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6", "li", "p", "pre", "td", "th":
 		return true
@@ -305,14 +305,14 @@ func isEditorialTextElement(tag string) bool {
 	}
 }
 
-func insertEditorialHeader(fragment []byte, title string) ([]byte, error) {
+func insertHTMLHeader(fragment []byte, title string) ([]byte, error) {
 	articleStart := bytes.Index(fragment, []byte("<article"))
 	if articleStart < 0 {
-		return nil, editorialError("editorial.metadata_invalid", "editorial article start is missing")
+		return nil, htmlError("html.metadata_invalid", "HTML article start is missing")
 	}
 	openingEnd := bytes.IndexByte(fragment[articleStart:], '>')
 	if openingEnd < 0 {
-		return nil, editorialError("editorial.metadata_invalid", "editorial article opening tag is malformed")
+		return nil, htmlError("html.metadata_invalid", "HTML article opening tag is malformed")
 	}
 	openingEnd += articleStart + 1
 	header := []byte(`<header class="margo-document__header"><h1>` + stdhtml.EscapeString(title) + `</h1></header>`)
@@ -323,56 +323,56 @@ func insertEditorialHeader(fragment []byte, title string) ([]byte, error) {
 	return result, nil
 }
 
-func normalizeEditorialResultMetadata(metadata Metadata) (EditorialMetadata, error) {
-	result := EditorialMetadata{
-		Title: normalizeEditorialText(metadata.Title), Description: normalizeEditorialText(metadata.Description),
+func normalizeHTMLResultMetadata(metadata Metadata) (HTMLMetadata, error) {
+	result := HTMLMetadata{
+		Title: normalizeHTMLText(metadata.Title), Description: normalizeHTMLText(metadata.Description),
 		Language: strings.TrimSpace(metadata.Language), Slug: strings.TrimSpace(metadata.Slug),
 		PublishedAt: strings.TrimSpace(metadata.PublishedAt), ModifiedAt: strings.TrimSpace(metadata.ModifiedAt),
 	}
 	if len([]byte(result.Title)) > 256 || len([]byte(result.Description)) > 512 || len([]byte(result.Language)) > 64 || len([]byte(result.Slug)) > 128 {
-		return EditorialMetadata{}, editorialError("editorial.metadata_invalid", "editorial scalar metadata exceeds its byte limit")
+		return HTMLMetadata{}, htmlError("html.metadata_invalid", "HTML scalar metadata exceeds its byte limit")
 	}
-	invalidLanguage := result.Language != "" && !editorialLanguagePattern.MatchString(result.Language)
-	invalidSlug := result.Slug != "" && !editorialSlugPattern.MatchString(result.Slug)
+	invalidLanguage := result.Language != "" && !sourceLanguagePattern.MatchString(result.Language)
+	invalidSlug := result.Slug != "" && !sourceSlugPattern.MatchString(result.Slug)
 	if invalidLanguage || invalidSlug {
-		return EditorialMetadata{}, editorialError("editorial.metadata_invalid", "editorial language or slug is invalid")
+		return HTMLMetadata{}, htmlError("html.metadata_invalid", "HTML language or slug is invalid")
 	}
 	var err error
-	if result.Authors, err = normalizeEditorialList(metadata.Authors, "authors"); err != nil {
-		return EditorialMetadata{}, err
+	if result.Authors, err = normalizeHTMLList(metadata.Authors, "authors"); err != nil {
+		return HTMLMetadata{}, err
 	}
-	if result.Tags, err = normalizeEditorialList(metadata.Tags, "tags"); err != nil {
-		return EditorialMetadata{}, err
+	if result.Tags, err = normalizeHTMLList(metadata.Tags, "tags"); err != nil {
+		return HTMLMetadata{}, err
 	}
 	for _, date := range []string{result.PublishedAt, result.ModifiedAt} {
 		if date == "" {
 			continue
 		}
 		if _, err := time.Parse(time.RFC3339, date); err != nil {
-			return EditorialMetadata{}, editorialError("editorial.metadata_invalid", "editorial date is not RFC 3339")
+			return HTMLMetadata{}, htmlError("html.metadata_invalid", "HTML date is not RFC 3339")
 		}
 	}
 	return result, nil
 }
 
-func normalizeEditorialList(values []string, name string) ([]string, error) {
+func normalizeHTMLList(values []string, name string) ([]string, error) {
 	if len(values) > 64 {
-		return nil, editorialError("editorial.metadata_invalid", fmt.Sprintf("editorial %s exceed the item limit", name))
+		return nil, htmlError("html.metadata_invalid", fmt.Sprintf("HTML %s exceed the item limit", name))
 	}
 	result := make([]string, len(values))
 	for index, value := range values {
-		result[index] = normalizeEditorialText(value)
+		result[index] = normalizeHTMLText(value)
 		if result[index] == "" || len([]byte(result[index])) > 128 {
-			return nil, editorialError("editorial.metadata_invalid", fmt.Sprintf("editorial %s entry is invalid", name))
+			return nil, htmlError("html.metadata_invalid", fmt.Sprintf("HTML %s entry is invalid", name))
 		}
 	}
 	return result, nil
 }
 
-func normalizeEditorialText(value string) string {
+func normalizeHTMLText(value string) string {
 	return strings.Join(strings.FieldsFunc(value, unicode.IsSpace), " ")
 }
 
-func editorialError(code, message string) error {
+func htmlError(code, message string) error {
 	return newDiagnosticError(Diagnostic{Code: code, Severity: SeverityError, Message: message})
 }

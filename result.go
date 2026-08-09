@@ -43,7 +43,7 @@ func (r *RenderResult) Diagnostics() []Diagnostic {
 	return cloneDiagnostics(r.diagnostics)
 }
 
-func (r *RenderResult) editorialHTMLRequirements() HTMLRequirements {
+func (r *RenderResult) projectedHTMLRequirements() HTMLRequirements {
 	if r == nil {
 		return HTMLRequirements{}
 	}

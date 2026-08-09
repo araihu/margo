@@ -7,11 +7,11 @@ import (
 	"github.com/araihu/margo/internal/canonicaljson"
 )
 
-type EditorialFingerprint [32]byte
+type HTMLFingerprint [32]byte
 
-func (f EditorialFingerprint) String() string { return hex.EncodeToString(f[:]) }
+func (f HTMLFingerprint) String() string { return hex.EncodeToString(f[:]) }
 
-type editorialRequirementFingerprint struct {
+type htmlRequirementFingerprint struct {
 	ID           string              `json:"id"`
 	Kind         HTMLRequirementKind `json:"kind"`
 	LocalURL     string              `json:"localURL,omitempty"`
@@ -22,22 +22,22 @@ type editorialRequirementFingerprint struct {
 	InlineSHA256 string              `json:"inlineSHA256,omitempty"`
 }
 
-func editorialFingerprint(fragment []byte, metadata EditorialMetadata, requirements HTMLRequirements, config editorialConfig) (EditorialFingerprint, error) {
+func htmlFingerprint(fragment []byte, metadata HTMLMetadata, requirements HTMLRequirements, config htmlConfig) (HTMLFingerprint, error) {
 	fragmentDigest := sha256.Sum256(fragment)
 	list := requirements.List()
-	projection := make([]editorialRequirementFingerprint, len(list))
+	projection := make([]htmlRequirementFingerprint, len(list))
 	for index, requirement := range list {
-		projection[index] = editorialRequirementFingerprint{
+		projection[index] = htmlRequirementFingerprint{
 			ID: requirement.ID, Kind: requirement.Kind, LocalURL: requirement.LocalURL,
 			Integrity: requirement.Integrity, LoadAfter: append([]string(nil), requirement.LoadAfter...),
 			InlinePath: requirement.Inline.Path, InlineType: requirement.Inline.MediaType, InlineSHA256: requirement.Inline.SHA256,
 		}
 	}
 	encoded, err := canonicaljson.Marshal(struct {
-		FragmentSHA256 string                            `json:"fragmentSHA256"`
-		Metadata       EditorialMetadata                 `json:"metadata"`
-		Requirements   []editorialRequirementFingerprint `json:"requirements,omitempty"`
-		Header         bool                              `json:"header"`
+		FragmentSHA256 string                       `json:"fragmentSHA256"`
+		Metadata       HTMLMetadata                 `json:"metadata"`
+		Requirements   []htmlRequirementFingerprint `json:"requirements,omitempty"`
+		Header         bool                         `json:"header"`
 	}{
 		FragmentSHA256: hex.EncodeToString(fragmentDigest[:]),
 		Metadata:       metadata.clone(),
@@ -45,8 +45,8 @@ func editorialFingerprint(fragment []byte, metadata EditorialMetadata, requireme
 		Header:         config.header,
 	})
 	if err != nil {
-		return EditorialFingerprint{}, err
+		return HTMLFingerprint{}, err
 	}
-	preimage := append([]byte("margo/editorial/v1\n"), encoded...)
-	return EditorialFingerprint(sha256.Sum256(preimage)), nil
+	preimage := append([]byte("margo/html/v1\n"), encoded...)
+	return HTMLFingerprint(sha256.Sum256(preimage)), nil
 }
