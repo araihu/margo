@@ -1,7 +1,7 @@
 # Margo unified module and CLI design
 
 Date: 2026-08-10
-Status: conversational design approved, written specification awaiting review
+Status: approved for implementation
 Decision record: [ADR 0001](../../decisions/0001-unified-module-and-cli.md)
 
 ## Purpose
