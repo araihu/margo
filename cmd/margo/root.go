@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -40,7 +39,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	cmd.AddCommand(
 		newHTMLCommand(deps),
 		newPDFCommand(deps),
-		newPlaceholderCommand("deck", "Render an HTML or PDF presentation deck"),
+		newDeckCommand(deps),
 		newDoctorCommand(deps),
 		newVersionCommand(deps),
 	)
@@ -79,15 +78,4 @@ func randomExecutionID() margo.ExecutionID {
 		return ""
 	}
 	return margo.ExecutionID("exec-" + hex.EncodeToString(data[:]))
-}
-
-func newPlaceholderCommand(name, description string) *cobra.Command {
-	return &cobra.Command{
-		Use:   name,
-		Short: description,
-		Args:  cobra.NoArgs,
-		RunE: func(*cobra.Command, []string) error {
-			return fmt.Errorf("margo.command_not_implemented: %s", name)
-		},
-	}
 }

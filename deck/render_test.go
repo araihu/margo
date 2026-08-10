@@ -97,6 +97,7 @@ func TestRenderEmbedsNavigationPrintAndDependencies(t *testing.T) {
 		"@media print",
 		"break-after: page",
 		"window.print",
+		`script-src 'self' 'unsafe-inline'`,
 	} {
 		if !strings.Contains(html, value) {
 			t.Fatalf("HTML missing %q", value)

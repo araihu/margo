@@ -29,7 +29,7 @@ func renderDeckPage(metadata Metadata, theme margo.ThemeName, colorMode margo.Co
 	_, _ = output.WriteString("\" data-color-mode=\"")
 	_, _ = output.WriteString(html.EscapeString(string(colorMode)))
 	_, _ = output.WriteString("\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
-	_, _ = output.WriteString(`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:">`)
+	_, _ = output.WriteString(`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src data:">`)
 	_, _ = output.WriteString("<title>")
 	_, _ = output.WriteString(html.EscapeString(title))
 	_, _ = output.WriteString("</title>")
