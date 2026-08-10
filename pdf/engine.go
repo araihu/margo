@@ -51,12 +51,27 @@ func (result Result) Clone() Result {
 type EngineInfo struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
+	Path    string `json:"path,omitempty"`
+	Source  string `json:"source,omitempty"`
 }
 
 // Validate rejects incomplete engine provenance.
 func (info EngineInfo) Validate() error {
 	if strings.TrimSpace(info.Name) == "" || strings.TrimSpace(info.Version) == "" {
 		return fmt.Errorf("pdf.engine_identity_invalid: engine name and version are required")
+	}
+	if info.Source != "" {
+		switch info.Source {
+		case "flag", "environment", "path", "known-location", "native":
+		default:
+			return fmt.Errorf("pdf.engine_identity_invalid: engine selection source is invalid")
+		}
+		if info.Source == "native" && info.Path != "" {
+			return fmt.Errorf("pdf.engine_identity_invalid: native engine must not report an executable path")
+		}
+		if info.Source != "native" && strings.TrimSpace(info.Path) == "" {
+			return fmt.Errorf("pdf.engine_identity_invalid: Chromium engine path is required")
+		}
 	}
 	return nil
 }
