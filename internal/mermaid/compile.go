@@ -11,7 +11,7 @@ import (
 const (
 	RuntimeVersion        = "11.16.1"
 	RuntimeDigest         = "sha384:4ebed2d056672dc504310c8a5be4d28abe2b2a08c0c11487650801f9528cb8cb2ad6faf66bbb1ae9db2aeff023fd414f"
-	ProfileFingerprintHex = "6e4899904bf55acdd2b5c39a290dbac378a7f6fdf8e904b41c38c4d9c3fdda75"
+	ProfileFingerprintHex = "bfe4c79b9ccb911c2511c5d24fe14458d148cd64e4bcd5faab97acc84b6cfd1a"
 )
 
 type TaskInput struct {
