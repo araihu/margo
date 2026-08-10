@@ -20,7 +20,7 @@ env:
 
 jobs:
   required:
-    name: Multi-module CI
+    name: Single-module CI
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
@@ -35,45 +35,28 @@ jobs:
           check-latest: false
           cache: false
 
-      - name: Verify every module independently
+      - name: Verify module layout
         shell: bash
         run: |
           set -euo pipefail
-          while IFS= read -r module_file; do
-            module_dir="$(dirname "$module_file")"
-            printf 'Verifying %s\n' "$module_dir"
-            (
-              cd "$module_dir"
-              before_mod="$(sha256sum go.mod | awk '{print $1}')"
-              before_sum='missing'
-              if [[ -f go.sum ]]; then
-                before_sum="$(sha256sum go.sum | awk '{print $1}')"
-              fi
+          module_files="$(find . -name go.mod -not -path './.git/*' -not -path '*/vendor/*' -print | sort)"
+          if [[ "$module_files" != './go.mod' ]]; then
+            echo "::error::expected exactly ./go.mod, found:"
+            echo "$module_files"
+            exit 1
+          fi
 
-              go mod verify
-              go vet ./...
-              go test ./... -count=1
-              build_dir="$RUNNER_TEMP/margo-build/${module_dir//\//_}"
-              mkdir -p "$build_dir"
-              package_index=0
-              while IFS= read -r package_name; do
-                package_index=$((package_index + 1))
-                go build -o "$build_dir/$package_index" "$package_name"
-              done < <(go list -f '{{if .GoFiles}}{{.ImportPath}}{{end}}' ./...)
+      - name: Verify dependencies
+        run: go mod verify
 
-              after_mod="$(sha256sum go.mod | awk '{print $1}')"
-              after_sum='missing'
-              if [[ -f go.sum ]]; then
-                after_sum="$(sha256sum go.sum | awk '{print $1}')"
-              fi
-              if [[ "$before_mod" != "$after_mod" || "$before_sum" != "$after_sum" ]]; then
-                echo "::error::module metadata changed under readonly verification: $module_dir"
-                printf 'go.mod: %s -> %s\n' "$before_mod" "$after_mod"
-                printf 'go.sum: %s -> %s\n' "$before_sum" "$after_sum"
-                exit 1
-              fi
-            )
-          done < <(find . -name go.mod -not -path '*/vendor/*' -print | sort)
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./... -count=1
+
+      - name: Build
+        run: go build ./...
 
       - name: Check formatting and module drift
         shell: bash
@@ -86,3 +69,121 @@ jobs:
             exit 1
           fi
           git diff --exit-code
+
+  release-shape:
+    name: Release shape (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: portable-linux
+            runner: ubuntu-24.04
+            cgo: '0'
+            artifact: margo
+          - label: macos
+            runner: macos-15
+            cgo: '1'
+            artifact: margo
+          - label: windows
+            runner: windows-2025
+            cgo: '0'
+            artifact: margo.exe
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+          cache: false
+
+      - name: Build one root-versioned margo binary
+        shell: bash
+        env:
+          CGO_ENABLED: ${{ matrix.cgo }}
+          MARGO_ARTIFACT: ${{ matrix.artifact }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          go build -trimpath -o "dist/${MARGO_ARTIFACT}" ./cmd/margo
+          go version -m "dist/${MARGO_ARTIFACT}"
+          scripts/verify-release-shape.sh dist
+
+  goreleaser:
+    name: GoReleaser snapshot
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository and tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+          cache: false
+
+      - name: Build release snapshot
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: v2.17.1
+          args: release --snapshot --clean --skip=publish
+
+      - name: Verify archives and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          shasum -a 256 -c checksums.txt
+          archive_count="$(find . -maxdepth 1 -type f \( -name 'margo_*.tar.gz' -o -name 'margo_*.zip' \) | wc -l | tr -d ' ')"
+          test "$archive_count" -eq 6
+          for archive in margo_*.tar.gz; do
+            tar -tzf "$archive" | grep -qx 'margo'
+            tar -tzf "$archive" | grep -qx 'LICENSE'
+            tar -tzf "$archive" | grep -qx 'README.md'
+          done
+          for archive in margo_*.zip; do
+            unzip -Z1 "$archive" | grep -qx 'margo.exe'
+            unzip -Z1 "$archive" | grep -qx 'LICENSE'
+            unzip -Z1 "$archive" | grep -qx 'README.md'
+          done
+
+  musl:
+    name: Portable musl and no-browser behavior
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Execute in Alpine Linux
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$PWD:/src:ro" \
+            --workdir /src \
+            --env GOWORK=off \
+            --env GOFLAGS=-mod=readonly \
+            "golang:${GO_VERSION}-alpine" \
+            sh -euxc '
+              export CGO_ENABLED=0
+              go test ./pdf/native -count=1
+              go build -trimpath -o /tmp/margo ./cmd/margo
+              /tmp/margo doctor --diagnostics json | grep -q pdf.native.compiled_out
+              if printf "# no browser\n" | /tmp/margo pdf - --output /tmp/should-not-exist.pdf; then
+                echo "PDF unexpectedly succeeded without an engine" >&2
+                exit 1
+              fi
+              test ! -e /tmp/should-not-exist.pdf
+            '

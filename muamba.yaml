@@ -8,6 +8,11 @@ resources:
         path: assets/mermaid/11.16.1/mermaid.esm.min.mjs
         max_size: 5MiB
         integrity: sha384-Tr7S0FZnLcUEMQyKW+TSir4rKgjAwRSHZQgB+VKMuMsq1vr2a7sa6dsq7/Aj/UFP
+      browser-bundle:
+        url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/mermaid.min.js
+        path: assets/mermaid/11.16.1/mermaid.min.js
+        max_size: 5MiB
+        integrity: sha384-aBQXj4hK6Jm05i7aQAsUV3bLdSUrHX1BGYfMB0166TtWt/RRaw+h0Eelme9OCOvy
       chunk-2aehwxpw:
         url: https://cdn.jsdelivr.net/npm/mermaid@${version}/dist/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs
         path: assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs

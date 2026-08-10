@@ -1,15 +1,10 @@
 {
-  "schemaVersion": "margo/pdf-platform-toolchain/v1",
+  "schemaVersion": "margo/pdf-platform-toolchain/v2",
+  "modulePath": "github.com/araihu/margo",
   "go": {
     "version": "1.26.5"
   },
   "modules": [
-    {
-      "path": "github.com/araihu/margo",
-      "version": "v0.0.0-20260808231103-771f44908d14",
-      "sum": "h1:SFWnf6NlyC5IDfK+vvImwpVkuRlp6DdmYZ5wV9Mviuo=",
-      "goModSum": "h1:t5vzt4j6VTYIJsreX2+d/Cr37vftL1Cd0PiXIcre11U="
-    },
     {
       "path": "github.com/chromedp/chromedp",
       "version": "v0.14.2",
@@ -32,38 +27,38 @@
   },
   "runners": [
     {
-      "id": "windows-webview2/v1",
-      "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
-      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/windows-webview2/sdk.version",
-      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/windows-webview2/runtime.version",
-      "versionPolicy": "host-evidence-exact"
+      "id": "windows-webview2/v2",
+      "probe": "pdf/platform/engine_probe_test.go",
+      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sdkEvidencePath": "pdf/platform/evidence/windows-webview2/sdk.version",
+      "runtimeEvidencePath": "pdf/platform/evidence/windows-webview2/runtime.version",
+      "versionPolicy": "tested-version-reported"
     },
     {
-      "id": "darwin-wkwebview/v1",
-      "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
-      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/darwin-wkwebview/sdk.version",
-      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/darwin-wkwebview/runtime.version",
-      "versionPolicy": "host-evidence-exact"
+      "id": "darwin-wkwebview/v2",
+      "probe": "pdf/platform/engine_probe_test.go",
+      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sdkEvidencePath": "pdf/platform/evidence/darwin-wkwebview/sdk.version",
+      "runtimeEvidencePath": "pdf/platform/evidence/darwin-wkwebview/runtime.version",
+      "versionPolicy": "tested-version-reported"
     },
     {
-      "id": "linux-webkitgtk/v1",
-      "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
-      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/linux-webkitgtk/sdk.version",
-      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/linux-webkitgtk/runtime.version",
-      "versionPolicy": "host-evidence-exact"
+      "id": "linux-webkitgtk/v2",
+      "probe": "pdf/platform/engine_probe_test.go",
+      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sdkEvidencePath": "pdf/platform/evidence/linux-webkitgtk/sdk.version",
+      "runtimeEvidencePath": "pdf/platform/evidence/linux-webkitgtk/runtime.version",
+      "versionPolicy": "tested-version-reported"
     },
     {
-      "id": "chromium-cdp/v1",
-      "probe": "platform/engine_probe_test.go",
-      "sourceDigest": "d0f600cba2aa030c3abdb49f857bc912a7377ef9e6925e84cdc9a241eeef2e24",
-      "sdkEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/chromium-cdp/sdk.version",
-      "runtimeEvidencePath": "/private/tmp/margo-v001-pdf-p1-platform-evidence/chromium-cdp/runtime.version",
-      "versionPolicy": "runtime-version-reported"
+      "id": "chromium-cdp/v2",
+      "probe": "pdf/platform/engine_probe_test.go",
+      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sdkEvidencePath": "pdf/platform/evidence/chromium-cdp/sdk.version",
+      "runtimeEvidencePath": "pdf/platform/evidence/chromium-cdp/runtime.version",
+      "versionPolicy": "tested-version-reported"
     }
   ],
   "networkPolicy": "no-download",
-  "recordDigest": "cc03351c57abd5f8987f4036bbb1fd0e4a8da9d96ab0ccca4c931ed252dc7ca7"
+  "recordDigest": "09c372453e819523453b907c5dbd5155e9f4d3a9156b64e8bbab7f906f606269"
 }

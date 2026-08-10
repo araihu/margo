@@ -17,7 +17,7 @@ import (
 	"github.com/araihu/margo/internal/canonicaljson"
 )
 
-const expectedProfileFingerprint = "6e4899904bf55acdd2b5c39a290dbac378a7f6fdf8e904b41c38c4d9c3fdda75"
+const expectedProfileFingerprint = "bfe4c79b9ccb911c2511c5d24fe14458d148cd64e4bcd5faab97acc84b6cfd1a"
 
 type profile struct {
 	AssetCount              int                    `json:"assetCount"`

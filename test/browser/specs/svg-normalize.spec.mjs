@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 const cssTreeEntry = require.resolve("css-tree");
 const cssTreePath = path.resolve(path.dirname(cssTreeEntry), "../dist/csstree.js");
 const cssTreePackageVersion = require("css-tree/package.json").version;
-const profileFingerprint = "6e4899904bf55acdd2b5c39a290dbac378a7f6fdf8e904b41c38c4d9c3fdda75";
+const profileFingerprint = "bfe4c79b9ccb911c2511c5d24fe14458d148cd64e4bcd5faab97acc84b6cfd1a";
 
 function fixture(name) {
   return fs.readFileSync(path.join(fixturesRoot, name), "utf8");

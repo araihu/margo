@@ -4,7 +4,7 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
   const XLINK_NS = "http://www.w3.org/1999/xlink";
   const XMLNS_NS = "http://www.w3.org/2000/xmlns/";
-  const PROFILE_FINGERPRINT = "6e4899904bf55acdd2b5c39a290dbac378a7f6fdf8e904b41c38c4d9c3fdda75";
+  const PROFILE_FINGERPRINT = "bfe4c79b9ccb911c2511c5d24fe14458d148cd64e4bcd5faab97acc84b6cfd1a";
   const PROFILE_DOMAIN = "margo/mermaid-svg-profile/v1\n";
   const ROOT_ID = /^margo-(ri-[0-9a-z]{8,32})-mermaid-[0-9]{8}$/;
   const CSS_TREE_VERSION = "3.1.0";

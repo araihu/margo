@@ -17,7 +17,8 @@ func TestPlatformToolchainLockRejectsUnrecordedRunner(t *testing.T) {
 
 	lockPath := filepath.Join(t.TempDir(), "platform-toolchain.lock")
 	writePlatformTestFile(t, lockPath, `{
-  "schemaVersion": "margo/pdf-platform-toolchain/v1",
+  "schemaVersion": "margo/pdf-platform-toolchain/v2",
+  "modulePath": "github.com/araihu/margo",
   "go": {"version": "1.26.5"},
   "modules": [],
   "nodeHarness": {},
@@ -36,7 +37,8 @@ func TestPlatformToolchainLockRejectsUnknownFields(t *testing.T) {
 
 	lockPath := filepath.Join(t.TempDir(), "platform-toolchain.lock")
 	writePlatformTestFile(t, lockPath, `{
-  "schemaVersion": "margo/pdf-platform-toolchain/v1",
+  "schemaVersion": "margo/pdf-platform-toolchain/v2",
+  "modulePath": "github.com/araihu/margo",
   "go": {"version": "1.26.5"},
   "modules": [],
   "nodeHarness": {},
@@ -115,7 +117,7 @@ func TestPlatformToolchainLockRepositoryBootstrapAvailableRunner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Abs(repository contracts) error = %v", err)
 	}
-	workingDirectory, err := filepath.Abs("..")
+	workingDirectory, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatalf("Abs(repository working directory) error = %v", err)
 	}
@@ -158,7 +160,7 @@ func TestPlatformBootstrapExecutesLockBoundOfflineProbe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Abs(runner-contracts.json) error = %v", err)
 	}
-	workingDirectory, err := filepath.Abs("..")
+	workingDirectory, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatalf("Abs() error = %v", err)
 	}
@@ -188,7 +190,7 @@ func TestPlatformBootstrapReportsChromiumVersionWithoutEnforcingBrowserBuild(t *
 	}
 	for index := range lock.Runners {
 		if lock.Runners[index].ID == RunnerChromiumCDP {
-			lock.Runners[index].VersionPolicy = "runtime-version-reported"
+			lock.Runners[index].VersionPolicy = "tested-version-reported"
 		}
 	}
 	lock.RecordDigest = ""
@@ -210,7 +212,7 @@ func TestPlatformBootstrapReportsChromiumVersionWithoutEnforcingBrowserBuild(t *
 	if err != nil {
 		t.Fatalf("Abs(runner-contracts.json) error = %v", err)
 	}
-	workingDirectory, err := filepath.Abs("..")
+	workingDirectory, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatalf("Abs() error = %v", err)
 	}
@@ -246,7 +248,7 @@ func TestPlatformBootstrapFailsClosedForWrongHostRunner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Abs(runner-contracts.json) error = %v", err)
 	}
-	workingDirectory, err := filepath.Abs("..")
+	workingDirectory, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatalf("Abs() error = %v", err)
 	}
@@ -314,7 +316,8 @@ func requireHostEvidenceProbe(t *testing.T, runnerID RunnerID, requiredGOOS stri
 func writeSyntheticToolchainLock(t *testing.T) string {
 	t.Helper()
 	temporaryDirectory := t.TempDir()
-	probePath := filepath.Join(temporaryDirectory, "platform", "engine_probe_test.go")
+	moduleDirectory := filepath.Join(temporaryDirectory, "pdf")
+	probePath := filepath.Join(moduleDirectory, "platform", "engine_probe_test.go")
 	if err := os.MkdirAll(filepath.Dir(probePath), 0o700); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
@@ -326,29 +329,25 @@ func writeSyntheticToolchainLock(t *testing.T) string {
 		t.Fatalf("WriteFile(probe) error = %v", err)
 	}
 	probeDigest := sha256.Sum256(probeBytes)
-	sdkEvidencePath := filepath.Join(temporaryDirectory, "sdk-evidence.txt")
-	runtimeEvidencePath := filepath.Join(temporaryDirectory, "runtime-evidence.txt")
+	sdkEvidencePath := filepath.Join(moduleDirectory, "sdk-evidence.txt")
+	runtimeEvidencePath := filepath.Join(moduleDirectory, "runtime-evidence.txt")
 	writePlatformTestFile(t, sdkEvidencePath, "sdk-test-1\n")
 	writePlatformTestFile(t, runtimeEvidencePath, "runtime-test-2\n")
 
 	runners := make([]toolchainRunner, 0, len(knownRunnerIDs))
 	for _, id := range []RunnerID{RunnerWindowsWebView2, RunnerDarwinWKWebView, RunnerLinuxWebKitGTK, RunnerChromiumCDP} {
-		policy := "host-evidence-exact"
-		if id == RunnerChromiumCDP {
-			policy = "runtime-version-reported"
-		}
 		runners = append(runners, toolchainRunner{
-			ID: id, Probe: "platform/engine_probe_test.go",
+			ID: id, Probe: "pdf/platform/engine_probe_test.go",
 			SourceDigest:    hex.EncodeToString(probeDigest[:]),
-			SDKEvidencePath: sdkEvidencePath, RuntimeEvidencePath: runtimeEvidencePath,
-			VersionPolicy: policy,
+			SDKEvidencePath: "pdf/sdk-evidence.txt", RuntimeEvidencePath: "pdf/runtime-evidence.txt",
+			VersionPolicy: "tested-version-reported",
 		})
 	}
 	lock := toolchainLock{
 		SchemaVersion: platformToolchainSchema,
+		ModulePath:    "github.com/araihu/margo",
 		Go:            toolchainGo{Version: "1.26.5"},
 		Modules: []toolchainModule{
-			{Path: "github.com/araihu/margo", Version: rootModuleVersion, Sum: rootModuleSum, GoModSum: rootModuleGoModSum},
 			{Path: "github.com/chromedp/chromedp", Version: "v0.14.2", Sum: "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=", GoModSum: "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo="},
 		},
 		NodeHarness: nodeHarness{
@@ -371,7 +370,7 @@ func writeSyntheticToolchainLock(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("MarshalIndent() error = %v", err)
 	}
-	lockPath := filepath.Join(temporaryDirectory, "platform-toolchain.lock")
+	lockPath := filepath.Join(moduleDirectory, "platform-toolchain.lock")
 	if err := os.WriteFile(lockPath, append(encoded, '\n'), 0o600); err != nil {
 		t.Fatalf("WriteFile(lock) error = %v", err)
 	}

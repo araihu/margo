@@ -122,15 +122,21 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 	if err != nil {
 		return nil, err
 	}
+	runtimeTasks, err := runtimeTaskTemplates(document.plan.clone())
+	if err != nil {
+		return nil, err
+	}
 	return &RenderResult{
 		content: templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
 			_, err := out.Write(bytes)
 			return err
 		}),
-		metadata:         document.Metadata(),
-		assets:           document.Assets(),
-		diagnostics:      document.Diagnostics(),
-		htmlRequirements: document.projectedHTMLRequirements(),
+		metadata:            document.Metadata(),
+		assets:              document.Assets(),
+		diagnostics:         document.Diagnostics(),
+		htmlRequirements:    document.projectedHTMLRequirements(),
+		documentFingerprint: document.documentFingerprint,
+		runtimeTasks:        cloneRuntimeTaskTemplates(runtimeTasks),
 	}, nil
 }
 

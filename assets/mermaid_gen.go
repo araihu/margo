@@ -8,10 +8,11 @@ import (
 	"io/fs"
 )
 
-//go:embed mermaid/11.16.1/LICENSE mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6BELYETK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6L755F7B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-W44A43WB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs mermaid/11.16.1/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs mermaid/11.16.1/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs mermaid/11.16.1/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs mermaid/11.16.1/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs mermaid/11.16.1/mermaid.esm.min.mjs
+//go:embed mermaid/11.16.1/LICENSE mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6BELYETK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6L755F7B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-W44A43WB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs mermaid/11.16.1/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs mermaid/11.16.1/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs mermaid/11.16.1/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs mermaid/11.16.1/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs mermaid/11.16.1/mermaid.esm.min.mjs mermaid/11.16.1/mermaid.min.js
 var muambaFiles embed.FS
 
 const (
+	muambaDownloadMermaidBrowserBundle           = "browser-bundle"
 	muambaDownloadMermaidChunk2aehwxpw           = "chunk-2aehwxpw"
 	muambaDownloadMermaidChunk2srehg4o           = "chunk-2srehg4o"
 	muambaDownloadMermaidChunk5iminlnl           = "chunk-5iminlnl"
@@ -66,6 +67,7 @@ type MuambaDownload struct {
 
 var muambaResources = []MuambaResource{
 	{Name: "mermaid", Version: "11.16.1", Downloads: []MuambaDownload{
+		{Name: "browser-bundle", URL: "https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/mermaid.min.js", Path: "assets/mermaid/11.16.1/mermaid.min.js", Integrity: "sha384-aBQXj4hK6Jm05i7aQAsUV3bLdSUrHX1BGYfMB0166TtWt/RRaw+h0Eelme9OCOvy", Hash: "sha384:6814178f884ae899b4e62eda400b145776cb75252b1d7d411987cc074d7ae93b56b7f4516b0fa1d047a599ef4e08ebf2"},
 		{Name: "chunk-2aehwxpw", URL: "https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs", Path: "assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs", Integrity: "sha384-/nYOcHv1Gka+0IixdQE4DNOaYXiIIdGI1CJnrs4IUhoxWiOh5443H4vAD5O9oNra", Hash: "sha384:fe760e707bf51a46bed088b17501380cd39a61788821d188d42267aece08521a315a23a1e78e371f8bc00f93bda0dada"},
 		{Name: "chunk-2srehg4o", URL: "https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs", Path: "assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs", Integrity: "sha384-LvhpWdZtOehiuRnYNLT6b7eyKqXX822RFJuY56JmxplBXjwhu3o1tXVuDqn2PkAC", Hash: "sha384:2ef86959d66d39e862b919d834b4fa6fb7b22aa5d7f36d91149b98e7a266c699415e3c21bb7a35b5756e0ea9f63e4002"},
 		{Name: "chunk-5iminlnl", URL: "https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs", Path: "assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs", Integrity: "sha384-NuD0ohsgJw0XELLapD4dJe9jyNA4l34Y3N0PFJsb/Ih2G6zYCtGE0V13qzzz/89C", Hash: "sha384:36e0f4a21b20270d1710b2daa43e1d25ef63c8d038977e18dcdd0f149b1bfc88761bacd80ad184d15d77ab3cf3ffcf42"},
@@ -105,6 +107,7 @@ var muambaResources = []MuambaResource{
 }
 
 var muambaEmbeddedPaths = map[string]string{
+	"mermaid\x00browser-bundle":            "mermaid/11.16.1/mermaid.min.js",
 	"mermaid\x00chunk-2aehwxpw":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs",
 	"mermaid\x00chunk-2srehg4o":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs",
 	"mermaid\x00chunk-5iminlnl":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs",
@@ -143,6 +146,7 @@ var muambaEmbeddedPaths = map[string]string{
 }
 
 var muambaHashes = map[string]string{
+	"mermaid\x00browser-bundle":            "sha384:6814178f884ae899b4e62eda400b145776cb75252b1d7d411987cc074d7ae93b56b7f4516b0fa1d047a599ef4e08ebf2",
 	"mermaid\x00chunk-2aehwxpw":            "sha384:fe760e707bf51a46bed088b17501380cd39a61788821d188d42267aece08521a315a23a1e78e371f8bc00f93bda0dada",
 	"mermaid\x00chunk-2srehg4o":            "sha384:2ef86959d66d39e862b919d834b4fa6fb7b22aa5d7f36d91149b98e7a266c699415e3c21bb7a35b5756e0ea9f63e4002",
 	"mermaid\x00chunk-5iminlnl":            "sha384:36e0f4a21b20270d1710b2daa43e1d25ef63c8d038977e18dcdd0f149b1bfc88761bacd80ad184d15d77ab3cf3ffcf42",

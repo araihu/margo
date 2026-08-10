@@ -21,21 +21,18 @@ import (
 )
 
 const (
-	platformToolchainSchema = "margo/pdf-platform-toolchain/v1"
-	runnerContractsSchema   = "margo/pdf-runner-contracts/v1"
-	rootModuleVersion       = "v0.0.0-20260808231103-771f44908d14"
-	rootModuleSum           = "h1:SFWnf6NlyC5IDfK+vvImwpVkuRlp6DdmYZ5wV9Mviuo="
-	rootModuleGoModSum      = "h1:t5vzt4j6VTYIJsreX2+d/Cr37vftL1Cd0PiXIcre11U="
+	platformToolchainSchema = "margo/pdf-platform-toolchain/v2"
+	runnerContractsSchema   = "margo/pdf-platform-contracts/v2"
 )
 
 // RunnerID is one locked native or installed-browser probe identity.
 type RunnerID string
 
 const (
-	RunnerWindowsWebView2 RunnerID = "windows-webview2/v1"
-	RunnerDarwinWKWebView RunnerID = "darwin-wkwebview/v1"
-	RunnerLinuxWebKitGTK  RunnerID = "linux-webkitgtk/v1"
-	RunnerChromiumCDP     RunnerID = "chromium-cdp/v1"
+	RunnerWindowsWebView2 RunnerID = "windows-webview2/v2"
+	RunnerDarwinWKWebView RunnerID = "darwin-wkwebview/v2"
+	RunnerLinuxWebKitGTK  RunnerID = "linux-webkitgtk/v2"
+	RunnerChromiumCDP     RunnerID = "chromium-cdp/v2"
 )
 
 var knownRunnerIDs = map[RunnerID]struct{}{
@@ -109,7 +106,7 @@ func LoadRunnerContracts(contractsPath string) (RunnerContracts, error) {
 	validated := make(map[RunnerID]RunnerContract, len(document.Runners))
 	for id, contract := range document.Runners {
 		if _, ok := knownRunnerIDs[id]; !ok {
-			return RunnerContracts{}, platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q is not recorded by v1", id))
+			return RunnerContracts{}, platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q is not recorded by v2", id))
 		}
 		if err := validateRunnerContract(id, contract); err != nil {
 			return RunnerContracts{}, err
@@ -139,7 +136,7 @@ func validateRunnerContract(id RunnerID, contract RunnerContract) error {
 }
 
 func isPackageLocalGoTestProbe(command []string) bool {
-	if len(command) != 6 || command[0] != "go" || command[1] != "test" || command[2] != "./platform" || command[3] != "-run" || command[5] != "-count=1" {
+	if len(command) != 6 || command[0] != "go" || command[1] != "test" || command[2] != "./pdf/platform" || command[3] != "-run" || command[5] != "-count=1" {
 		return false
 	}
 	pattern := command[4]
@@ -165,7 +162,7 @@ func validateOwnedPaths(paths []string) error {
 	seen := make(map[string]struct{}, len(paths))
 	for _, filePath := range paths {
 		if !safeRelativePath(filePath) {
-			return platformError("pdf.platform_contract_invalid", fmt.Sprintf("owned path %q escapes the pdf module", filePath))
+			return platformError("pdf.platform_contract_invalid", fmt.Sprintf("owned path %q escapes the repository", filePath))
 		}
 		if _, duplicate := seen[filePath]; duplicate {
 			return platformError("pdf.platform_contract_invalid", fmt.Sprintf("owned path %q is duplicated", filePath))
@@ -276,18 +273,21 @@ func Bootstrap(ctx context.Context, lockPath, contractsPath string, runnerID Run
 	if !found || !containsPath(contract.OwnedProbePaths, selected.Probe) {
 		return ProbeResult{}, platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q probe is not bound to its lock", runnerID))
 	}
-	result, err := runProbeWithEvidence(ctx, contractsPath, runnerID, workingDirectory, selected.SDKEvidencePath, selected.RuntimeEvidencePath, operatingSystemExecutor{})
+	repositoryRoot := repositoryRootForLockDirectory(filepath.Dir(lockPath))
+	sdkEvidencePath := filepath.Join(repositoryRoot, filepath.FromSlash(selected.SDKEvidencePath))
+	runtimeEvidencePath := filepath.Join(repositoryRoot, filepath.FromSlash(selected.RuntimeEvidencePath))
+	result, err := runProbeWithEvidence(ctx, contractsPath, runnerID, workingDirectory, sdkEvidencePath, runtimeEvidencePath, operatingSystemExecutor{})
 	if err != nil {
 		return ProbeResult{}, err
 	}
 	if strings.Contains(result.Stdout, "[no tests to run]") {
 		return ProbeResult{}, platformError("pdf.platform_contract_invalid", fmt.Sprintf("runner %q probe test does not exist", runnerID))
 	}
-	sdkVersion, err := readEvidenceVersion(selected.SDKEvidencePath)
+	sdkVersion, err := readEvidenceVersion(sdkEvidencePath)
 	if err != nil {
 		return ProbeResult{}, platformError("pdf.platform_runtime_evidence_required", fmt.Sprintf("runner %q SDK evidence is invalid", runnerID))
 	}
-	runtimeVersion, err := readEvidenceVersion(selected.RuntimeEvidencePath)
+	runtimeVersion, err := readEvidenceVersion(runtimeEvidencePath)
 	if err != nil {
 		return ProbeResult{}, platformError("pdf.platform_runtime_evidence_required", fmt.Sprintf("runner %q runtime evidence is invalid", runnerID))
 	}
@@ -350,6 +350,7 @@ func offlineProbeEnvironment(environment []string, runnerID RunnerID, sdkEvidenc
 
 type toolchainLock struct {
 	SchemaVersion string            `json:"schemaVersion"`
+	ModulePath    string            `json:"modulePath"`
 	Go            toolchainGo       `json:"go"`
 	Modules       []toolchainModule `json:"modules"`
 	NodeHarness   nodeHarness       `json:"nodeHarness"`
@@ -416,10 +417,11 @@ func VerifyPlatformToolchain(lockPath string, runnerID RunnerID) error {
 	if err := validateToolchainLock(lock, filepath.Dir(lockPath)); err != nil {
 		return err
 	}
-	if _, err := os.Stat(selected.SDKEvidencePath); err != nil {
+	repositoryRoot := repositoryRootForLockDirectory(filepath.Dir(lockPath))
+	if _, err := os.Stat(filepath.Join(repositoryRoot, filepath.FromSlash(selected.SDKEvidencePath))); err != nil {
 		return platformError("pdf.platform_runtime_evidence_required", fmt.Sprintf("runner %q SDK evidence is unavailable", runnerID))
 	}
-	if _, err := os.Stat(selected.RuntimeEvidencePath); err != nil {
+	if _, err := os.Stat(filepath.Join(repositoryRoot, filepath.FromSlash(selected.RuntimeEvidencePath))); err != nil {
 		return platformError("pdf.platform_runtime_evidence_required", fmt.Sprintf("runner %q runtime evidence is unavailable", runnerID))
 	}
 	return nil
@@ -428,6 +430,9 @@ func VerifyPlatformToolchain(lockPath string, runnerID RunnerID) error {
 func validateToolchainLock(lock toolchainLock, lockDirectory string) error {
 	if lock.Go.Version != "1.26.5" {
 		return platformError("pdf.platform_lock_invalid", "Go version must be 1.26.5")
+	}
+	if lock.ModulePath != "github.com/araihu/margo" {
+		return platformError("pdf.platform_lock_invalid", "root module path is invalid")
 	}
 	if err := validateModules(lock.Modules); err != nil {
 		return err
@@ -455,8 +460,8 @@ func validateToolchainLock(lock toolchainLock, lockDirectory string) error {
 }
 
 func validateModules(modules []toolchainModule) error {
-	if len(modules) != 2 {
-		return platformError("pdf.platform_lock_invalid", "platform lock must contain root and chromedp modules")
+	if len(modules) != 1 {
+		return platformError("pdf.platform_lock_invalid", "platform lock must contain the external chromedp module")
 	}
 	seen := make(map[string]toolchainModule, len(modules))
 	for _, module := range modules {
@@ -468,9 +473,8 @@ func validateModules(modules []toolchainModule) error {
 		}
 		seen[module.Path] = module
 	}
-	root, rootOK := seen["github.com/araihu/margo"]
 	chromedp, chromedpOK := seen["github.com/chromedp/chromedp"]
-	if !rootOK || !chromedpOK || root.Version != rootModuleVersion || root.Sum != rootModuleSum || root.GoModSum != rootModuleGoModSum || chromedp.Version != "v0.14.2" || chromedp.Sum != "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=" || chromedp.GoModSum != "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo=" {
+	if !chromedpOK || chromedp.Version != "v0.14.2" || chromedp.Sum != "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=" || chromedp.GoModSum != "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo=" {
 		return platformError("pdf.platform_lock_invalid", "module identity is unsupported")
 	}
 	return nil
@@ -489,14 +493,11 @@ func validateLockedRunners(runners []toolchainRunner, lockDirectory string) erro
 			return platformError("pdf.platform_lock_invalid", fmt.Sprintf("runner %q is duplicated", runner.ID))
 		}
 		seen[runner.ID] = struct{}{}
-		wantPolicy := "host-evidence-exact"
-		if runner.ID == RunnerChromiumCDP {
-			wantPolicy = "runtime-version-reported"
-		}
-		if !safeRelativePath(runner.Probe) || !validSHA256(runner.SourceDigest) || !filepath.IsAbs(runner.SDKEvidencePath) || !filepath.IsAbs(runner.RuntimeEvidencePath) || runner.VersionPolicy != wantPolicy {
+		if !safeRelativePath(runner.Probe) || !safeRelativePath(runner.SDKEvidencePath) || !safeRelativePath(runner.RuntimeEvidencePath) || !validSHA256(runner.SourceDigest) || runner.VersionPolicy != "tested-version-reported" {
 			return platformError("pdf.platform_lock_invalid", fmt.Sprintf("runner %q identity is incomplete", runner.ID))
 		}
-		data, err := os.ReadFile(filepath.Join(lockDirectory, filepath.FromSlash(runner.Probe)))
+		repositoryRoot := repositoryRootForLockDirectory(lockDirectory)
+		data, err := os.ReadFile(filepath.Join(repositoryRoot, filepath.FromSlash(runner.Probe)))
 		if err != nil {
 			return platformError("pdf.platform_lock_invalid", fmt.Sprintf("runner %q probe source is unavailable", runner.ID))
 		}
@@ -506,6 +507,14 @@ func validateLockedRunners(runners []toolchainRunner, lockDirectory string) erro
 		}
 	}
 	return nil
+}
+
+func repositoryRootForLockDirectory(lockDirectory string) string {
+	absolute, err := filepath.Abs(lockDirectory)
+	if err != nil {
+		return filepath.Dir(lockDirectory)
+	}
+	return filepath.Dir(absolute)
 }
 
 func findRunner(runners []toolchainRunner, runnerID RunnerID) (toolchainRunner, bool) {

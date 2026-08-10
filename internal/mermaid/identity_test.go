@@ -99,7 +99,7 @@ func TestMermaidSupportedFamilyESMClosureIsEmbedded(t *testing.T) {
 	}
 	downloadByPath := map[string]string{}
 	for _, download := range resource.Downloads {
-		if download.Name == "license" {
+		if download.Name == "license" || download.Name == "browser-bundle" {
 			continue
 		}
 		const prefix = "assets/mermaid/11.16.1/"

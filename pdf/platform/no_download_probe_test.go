@@ -12,7 +12,7 @@ func TestNoDownloadProbeForcesOfflineGoEnvironment(t *testing.T) {
 
 	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
 	writePlatformTestFile(t, contractsPath, validRunnerContractsJSON(`[
-    "go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"
+    "go", "test", "./pdf/platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"
   ]`))
 
 	executor := &recordingExecutor{exitCode: 0}
@@ -46,7 +46,7 @@ func TestNoDownloadProbeRejectsUnexpectedExitCode(t *testing.T) {
 
 	contractsPath := filepath.Join(t.TempDir(), "runner-contracts.json")
 	writePlatformTestFile(t, contractsPath, validRunnerContractsJSON(`[
-    "go", "test", "./platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"
+    "go", "test", "./pdf/platform", "-run", "^TestProbeWindowsWebView2$", "-count=1"
   ]`))
 
 	_, err := runProbe(context.Background(), contractsPath, RunnerWindowsWebView2, t.TempDir(), &recordingExecutor{exitCode: 1})

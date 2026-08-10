@@ -12,7 +12,7 @@ import { chromium } from "playwright";
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, "../..");
 const MERMAID_MODULE_URL = "https://margo.invalid/mermaid/mermaid.esm.min.mjs";
-const PROFILE_FINGERPRINT = "6e4899904bf55acdd2b5c39a290dbac378a7f6fdf8e904b41c38c4d9c3fdda75";
+const PROFILE_FINGERPRINT = "bfe4c79b9ccb911c2511c5d24fe14458d148cd64e4bcd5faab97acc84b6cfd1a";
 const LOCAL_PROTOCOLS = new Set(["file:", "data:", "blob:", "about:"]);
 
 function usage(message = "") {
