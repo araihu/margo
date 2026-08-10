@@ -43,6 +43,34 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 	}
 }
 
+func TestStandaloneMermaidEmbedsOfflineBrowserRuntime(t *testing.T) {
+	if _, err := mermaidBrowserCapabilities(); err != nil {
+		if diagnostic, ok := err.(*DiagnosticError); ok {
+			t.Fatalf("browser capabilities: %+v", diagnostic.Diagnostics)
+		}
+		t.Fatal(err)
+	}
+	compiler := New()
+	document, err := compiler.Compile(context.Background(), Source{Name: "diagram.md", Content: []byte("```mermaid\ngraph TD; A-->B\n```\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := compiler.Render(context.Background(), document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	component, err := RenderStandalone(rendered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, component)
+	for _, marker := range []string{`data-margo-requirement="margo.mermaid.runtime"`, `data-margo-requirement="margo.mermaid.execute"`, "margoRuntimeReady"} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("standalone Mermaid HTML missing %q", marker)
+		}
+	}
+}
+
 func TestStandaloneUsesEditorialFragmentExactlyOnce(t *testing.T) {
 	result := mustRenderSource(t, "# Shared\n\n| Name | Count |\n|---|---:|\n| Item 2 | 2 |\n")
 	editorial, err := RenderHTML(result)

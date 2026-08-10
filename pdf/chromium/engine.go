@@ -216,6 +216,11 @@ type browserRuntimeOutput struct {
 const runtimeExpression = `(async () => {
 	const nodes = Array.from(document.querySelectorAll('[data-margo-runtime-task="mermaid"]'));
 	if (nodes.length === 0) return {svg: []};
+	if (globalThis.margoRuntimeReady && typeof globalThis.margoRuntimeReady.then === 'function') {
+		await globalThis.margoRuntimeReady;
+		const embedded = nodes.map((node) => node.querySelector('.margo-mermaid__canvas svg')?.outerHTML ?? '');
+		if (embedded.every((svg) => svg.length > 0)) return {svg: embedded};
+	}
 	const mermaid = (await import('/margo-assets/mermaid/11.16.1/mermaid.esm.min.mjs')).default;
 	const outputs = [];
 	for (let index = 0; index < nodes.length; index += 1) {
