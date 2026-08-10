@@ -11,6 +11,7 @@ import (
 
 	"github.com/araihu/margo/pdf"
 	pdfchromium "github.com/araihu/margo/pdf/chromium"
+	pdfnative "github.com/araihu/margo/pdf/native"
 )
 
 type Mode string
@@ -175,8 +176,35 @@ func normalizeProbe(probe Probe) Probe {
 		}
 	}
 	if probe.Native == nil {
-		probe.Native = func(context.Context) (pdf.Engine, Candidate) {
-			return nil, Candidate{Name: "native", Source: SourceNative, Code: "pdf.native.compiled_out", Reason: "native engine is not compiled"}
+		probe.Native = func(ctx context.Context) (pdf.Engine, Candidate) {
+			capability := pdfnative.Probe(ctx)
+			candidate := Candidate{
+				Name:      capability.Name,
+				Source:    SourceNative,
+				Compiled:  capability.Compiled,
+				Available: capability.Available,
+				Code:      capability.Code,
+				Reason:    capability.Reason,
+			}
+			if !capability.Available {
+				return nil, candidate
+			}
+			engine, err := pdfnative.New()
+			if err != nil {
+				candidate.Available = false
+				candidate.Code = "pdf.native.unavailable"
+				candidate.Reason = err.Error()
+				return nil, candidate
+			}
+			version, err := engine.Version(ctx)
+			if err != nil {
+				candidate.Available = false
+				candidate.Code = "pdf.native.probe_failed"
+				candidate.Reason = err.Error()
+				return nil, candidate
+			}
+			candidate.Version = version
+			return engine, candidate
 		}
 	}
 	if probe.GOOS == "" {

@@ -123,6 +123,20 @@ func TestDefaultProbeConstructsInstalledChromium(t *testing.T) {
 	}
 }
 
+func TestDefaultNativeProbeReportsHonestCompiledOutState(t *testing.T) {
+	discovery, err := Discover(context.Background(), Request{Mode: ModeNative}, Probe{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates := discovery.Candidates()
+	if len(candidates) != 1 || candidates[0].Name != "native" || candidates[0].Available || candidates[0].Code != "pdf.native.compiled_out" {
+		t.Fatalf("native candidates = %+v", candidates)
+	}
+	if _, _, err := discovery.Select(); diagnosticCode(err) != "pdf.engine_unavailable" {
+		t.Fatalf("Select() error = %v", err)
+	}
+}
+
 func testProbe() Probe {
 	return Probe{
 		LookupEnv: func(string) (string, bool) { return "", false },
