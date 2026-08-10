@@ -69,3 +69,78 @@ jobs:
             exit 1
           fi
           git diff --exit-code
+
+  release-shape:
+    name: Release shape (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: portable-linux
+            runner: ubuntu-24.04
+            cgo: '0'
+            artifact: margo
+          - label: macos
+            runner: macos-15
+            cgo: '1'
+            artifact: margo
+          - label: windows
+            runner: windows-2025
+            cgo: '0'
+            artifact: margo.exe
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+          cache: false
+
+      - name: Build one root-versioned margo binary
+        shell: bash
+        env:
+          CGO_ENABLED: ${{ matrix.cgo }}
+          MARGO_ARTIFACT: ${{ matrix.artifact }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          go build -trimpath -o "dist/${MARGO_ARTIFACT}" ./cmd/margo
+          go version -m "dist/${MARGO_ARTIFACT}"
+          scripts/verify-release-shape.sh dist
+
+  musl:
+    name: Portable musl and no-browser behavior
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Execute in Alpine Linux
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$PWD:/src:ro" \
+            --workdir /src \
+            --env GOWORK=off \
+            --env GOFLAGS=-mod=readonly \
+            "golang:${GO_VERSION}-alpine" \
+            sh -euxc '
+              export CGO_ENABLED=0
+              go test ./pdf/native -count=1
+              go build -trimpath -o /tmp/margo ./cmd/margo
+              /tmp/margo doctor --diagnostics json | grep -q pdf.native.compiled_out
+              if printf "# no browser\n" | /tmp/margo pdf - --output /tmp/should-not-exist.pdf; then
+                echo "PDF unexpectedly succeeded without an engine" >&2
+                exit 1
+              fi
+              test ! -e /tmp/should-not-exist.pdf
+            '
