@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/debug"
@@ -85,5 +88,26 @@ func TestReadBuildInfoReportsRuntimeAndCapabilities(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got.Engines, []string{"chromium"}) {
 		t.Fatalf("engines = %v", got.Engines)
+	}
+}
+
+func TestReleaseLinkerIdentityOverridesDevelopmentMetadata(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "margo")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
+	build := exec.Command("go", "build", "-trimpath", "-ldflags", "-X main.releaseVersion=v0.0.3 -X main.releaseCommit=0123456789abcdef", "-o", binary, ".")
+	build.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=readonly", "CGO_ENABLED=0")
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build release binary: %v\n%s", err, output)
+	}
+	command := exec.Command(binary, "version")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("run release binary: %v\n%s", err, output)
+	}
+	identity := string(output)
+	if !strings.Contains(identity, "margo v0.0.3\n") || !strings.Contains(identity, "commit 0123456789abcdef\n") {
+		t.Fatalf("release identity missing linker values:\n%s", identity)
 	}
 }

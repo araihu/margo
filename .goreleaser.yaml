@@ -1,0 +1,67 @@
+version: 2
+
+project_name: margo
+
+git:
+  ignore_tags:
+    - '*/v*'
+
+builds:
+  - id: margo
+    main: ./cmd/margo
+    binary: margo
+    env:
+      - CGO_ENABLED=0
+      - GOWORK=off
+      - GOFLAGS=-mod=readonly
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - >-
+        -s -w
+        -X main.releaseVersion=v{{ .Version }}
+        -X main.releaseCommit={{ .FullCommit }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: margo
+    ids:
+      - margo
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+release:
+  github:
+    owner: araihu
+    name: margo
+  prerelease: auto

@@ -14,11 +14,26 @@ navigation, publication metadata, storage, and deployment.
 ## Install the command
 
 Margo requires Go 1.26.5 or newer. A released version installs from one root
-tag:
+tag. Choose either Go installation or a ready-to-run release binary.
+
+### Install with Go
 
 ```sh
 go install github.com/araihu/margo/cmd/margo@vX.Y.Z
 ```
+
+### Download a release binary
+
+Starting with `v0.0.3`, each root
+[GitHub Release](https://github.com/araihu/margo/releases) includes portable
+`margo_VERSION_OS_ARCH` archives for Linux, macOS, and Windows on amd64 and
+arm64, plus `checksums.txt` with SHA-256 digests. Unix archives use `.tar.gz`;
+Windows archives use `.zip` and contain `margo.exe`.
+
+Download the archive for your platform, verify its entry in `checksums.txt`,
+extract it, and place `margo` (or `margo.exe`) on `PATH`. Release binaries use
+`CGO_ENABLED=0`: they discover an installed Chromium but do not acquire a
+browser or load native WebKit libraries.
 
 The one binary contains the full command surface:
 
@@ -204,8 +219,8 @@ canonical URLs, feeds, and deployment remain consumer concerns. The checked
 ## One module and release
 
 `github.com/araihu/margo`, `/charts`, `/deck`, `/pdf`, and `/cmd/margo` are
-packages in one Go module. One future root tag versions the libraries and
-binary together. The architecture decision is recorded in
+packages in one Go module. One root tag versions the libraries, `go install`,
+and every GoReleaser binary together. The architecture decision is recorded in
 [ADR 0001](docs/decisions/0001-unified-module-and-cli.md).
 
 The historical submodule tags are not rewritten. Consumers that previously

@@ -44,7 +44,12 @@ available native engine. Discovery may fall back; rendering may not. Explicit
 engine selection disables fallback. Failure reports every attempted engine.
 Margo never downloads a browser or native runtime.
 
-Official release capabilities are:
+Current release capability is installed Chromium discovery on Linux, macOS,
+and Windows. Portable binaries use `CGO_ENABLED=0`; the native engine slots are
+compiled out and report that state through `doctor`.
+
+Target native capabilities, after their platform runners provide verifiable
+backend evidence, are:
 
 - macOS: installed Chromium with WKWebView fallback;
 - Windows: installed Chromium with WebView2 fallback;

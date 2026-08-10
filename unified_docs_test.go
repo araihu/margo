@@ -15,6 +15,7 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 	for _, required := range []string{
 		"Margo turns Markdown into standalone HTML, PDF documents, and presentation decks.",
 		"go install github.com/araihu/margo/cmd/margo@vX.Y.Z",
+		"Starting with `v0.0.3`", "GitHub Release", "checksums.txt", "margo_VERSION_OS_ARCH",
 		"margo html", "margo pdf", "margo deck", "margo doctor", "margo version",
 		"margo.WithExtension(charts.Extension())",
 		"--engine auto|chromium|native", "MARGO_CHROMIUM_PATH", "never downloads",
@@ -46,5 +47,21 @@ func TestPDFEngineMatrixSeparatesEvidenceFromVersionPolicy(t *testing.T) {
 		if !strings.Contains(matrix, required) {
 			t.Fatalf("engine matrix missing %q", required)
 		}
+	}
+}
+
+func TestUnifiedDecisionSeparatesCurrentAndTargetNativeCapabilities(t *testing.T) {
+	data, err := os.ReadFile("docs/decisions/0001-unified-module-and-cli.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision := string(data)
+	for _, required := range []string{"Current release capability", "Target native capabilities", "compiled out"} {
+		if !strings.Contains(decision, required) {
+			t.Fatalf("unified decision missing %q", required)
+		}
+	}
+	if strings.Contains(decision, "Official release capabilities are") {
+		t.Fatal("unified decision still claims unimplemented native engines as official release capabilities")
 	}
 }

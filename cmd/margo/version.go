@@ -20,12 +20,24 @@ type BuildInfo struct {
 	Engines   []string
 }
 
+var (
+	releaseVersion string
+	releaseCommit  string
+)
+
 func ReadBuildInfo(engines []string) BuildInfo {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		info = &debug.BuildInfo{GoVersion: runtime.Version()}
 	}
-	return buildInfoFromGoMetadata(info, runtime.GOOS, runtime.GOARCH, engines)
+	build := buildInfoFromGoMetadata(info, runtime.GOOS, runtime.GOARCH, engines)
+	if releaseVersion != "" {
+		build.Version = releaseVersion
+	}
+	if releaseCommit != "" {
+		build.Commit = releaseCommit
+	}
+	return build
 }
 
 func buildInfoFromGoMetadata(info *debug.BuildInfo, goos, goarch string, engines []string) BuildInfo {
