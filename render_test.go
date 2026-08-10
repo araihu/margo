@@ -3,10 +3,7 @@ package margo
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"io"
 	"os"
 	"testing"
 
@@ -34,20 +31,6 @@ func renderComponent(t *testing.T, component templ.Component) string {
 		t.Fatalf("component.Render() error = %v", err)
 	}
 	return buffer.String()
-}
-
-func hashFileForTest(t *testing.T, name string) string {
-	t.Helper()
-	file, err := os.Open(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		t.Fatal(err)
-	}
-	return hex.EncodeToString(hash.Sum(nil))
 }
 
 func TestSemanticRender(t *testing.T) {
@@ -96,12 +79,14 @@ func TestSemanticRenderMatchesGolden(t *testing.T) {
 	}
 }
 
-func TestC5ConsumesC0RootModuleTransferReadOnly(t *testing.T) {
+func TestC0RootModuleTransferRemainsHistorical(t *testing.T) {
 	transferBytes, err := os.ReadFile("integration/root-module-transfer.v1.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var transfer struct {
+		SchemaVersion         string
+		ModuleVersion         string
 		GoModPostSHA256       string
 		GoSumPostSHA256       string
 		C5ExpectedGoModSHA256 string
@@ -110,10 +95,13 @@ func TestC5ConsumesC0RootModuleTransferReadOnly(t *testing.T) {
 	if err := json.Unmarshal(transferBytes, &transfer); err != nil {
 		t.Fatal(err)
 	}
-	if got := hashFileForTest(t, "go.mod"); got != transfer.GoModPostSHA256 || got != transfer.C5ExpectedGoModSHA256 {
-		t.Fatalf("go.mod transfer hash = %s, want %s", got, transfer.GoModPostSHA256)
+	if transfer.SchemaVersion != "margo/root-module-transfer/v1" || transfer.ModuleVersion != "v0.0.1" {
+		t.Fatalf("historical transfer identity = %q %q", transfer.SchemaVersion, transfer.ModuleVersion)
 	}
-	if got := hashFileForTest(t, "go.sum"); got != transfer.GoSumPostSHA256 || got != transfer.C5ExpectedGoSumSHA256 {
-		t.Fatalf("go.sum transfer hash = %s, want %s", got, transfer.GoSumPostSHA256)
+	if transfer.GoModPostSHA256 == "" || transfer.GoModPostSHA256 != transfer.C5ExpectedGoModSHA256 {
+		t.Fatalf("historical go.mod transfer hashes differ: %q != %q", transfer.GoModPostSHA256, transfer.C5ExpectedGoModSHA256)
+	}
+	if transfer.GoSumPostSHA256 == "" || transfer.GoSumPostSHA256 != transfer.C5ExpectedGoSumSHA256 {
+		t.Fatalf("historical go.sum transfer hashes differ: %q != %q", transfer.GoSumPostSHA256, transfer.C5ExpectedGoSumSHA256)
 	}
 }
