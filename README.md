@@ -4,113 +4,141 @@
   <img src="assets/margo-mascot.png" alt="Margo, a pink Go gopher holding a rendered document in a publishing atelier." width="480">
 </p>
 
-Margo is a Go document engine for turning Markdown into reusable, semantic
-HTML. It can produce an embeddable article, a complete static page, or
-print-ready HTML for an explicitly selected PDF engine.
+Margo turns Markdown into standalone HTML, PDF documents, and presentation decks.
 
-Use Margo as the rendering layer for documentation sites, blogs, reports,
-previews, and export tools. Your application keeps control of routes, URLs,
-navigation, site metadata, storage, and deployment.
+It is both a consumer-neutral Go document engine and one `margo` command. Margo
+owns compilation, semantic rendering, embedded runtime assets, PDF engine
+discovery, and artifact safety. Your application still owns routes, URLs,
+navigation, publication metadata, storage, and deployment.
 
-## What it provides
+## Install the command
 
-- Markdown with tables, task lists, footnotes, autolinks, syntax-highlighted
-  code, and Mermaid source handling.
-- YAML frontmatter for title, description, language, slug, authors, dates, and
-  tags.
-- Semantic HTML that remains readable before JavaScript runs.
-- Embeddable fragments and complete pages from the same compiled document.
-- Inline dependencies for self-contained output, or local asset URLs for web
-  applications.
-- Caller-owned composition points for `<head>` content, headers, content before
-  the article, and footers.
-- Immutable compile and render results, diagnostics, resource limits, and
-  deterministic fingerprints.
-- Renderer-neutral PDF contracts without downloading or bundling a browser.
-
-## Quick start
-
-Margo requires Go 1.26.5 or newer.
+Margo requires Go 1.26.5 or newer. A released version installs from one root
+tag:
 
 ```sh
-go get github.com/araihu/margo@v0.0.2
+go install github.com/araihu/margo/cmd/margo@vX.Y.Z
 ```
 
-This program writes one self-contained HTML file:
+The one binary contains the full command surface:
+
+```sh
+margo html article.md --output article.html
+margo pdf article.md --output article.pdf
+margo deck talk.md --output talk.html
+margo deck talk.md --format pdf --output talk.pdf
+margo doctor
+margo version
+```
+
+`INPUT` is exactly one file path or `-` for stdin. `html` and HTML decks
+default to artifact stdout. PDF output requires an explicit path; `--output -`
+allows binary stdout. An existing file is refused unless `--force` is present.
+Diagnostics go to stderr and artifacts go to stdout or their destination;
+choose deterministic text or JSON with `--diagnostics text|json`.
+
+## PDF engines
+
+Use `--engine auto|chromium|native` and, for unusual installations or
+containers, `--engine-path PATH`. Auto discovery checks:
+
+1. the explicit `--engine-path`;
+2. `MARGO_CHROMIUM_PATH`;
+3. Chromium-family executables on `PATH` and known platform locations;
+4. a native engine compiled into that platform build.
+
+Discovery can move past an unavailable candidate. Once an engine is selected,
+rendering never falls back: a failed Chromium render cannot silently become a
+different native PDF. `margo doctor --diagnostics json` reports the exact
+candidate order, path, version, compiled state, availability, and reason.
+
+Margo never downloads a browser, native runtime, helper binary, or package at
+runtime. It uses installed Chromium when available. Native WKWebView, WebView2,
+and opt-in WebKitGTK slots are capability-gated and currently report
+`pdf.native.compiled_out` until their matching platform runners provide
+verifiable backend evidence. If no usable engine exists, PDF commands fail
+before publishing an output.
+
+Portable Linux and musl builds use `CGO_ENABLED=0`; they support installed
+Chromium and intentionally contain no native WebKitGTK dependency. This keeps
+the default binary suitable for minimal containers. A future WebKitGTK build
+is a distinct CGO-enabled artifact with declared dynamic libraries, not an
+implicit dependency of the portable binary.
+
+The [PDF engine matrix](docs/testing/pdf-engine-matrix.md) records versions
+actually tested. Those observations are evidence, not a policy that rejects
+other Chromium versions.
+
+## Use the Go engine
+
+All packages share the same module version and root release:
+
+```sh
+go get github.com/araihu/margo@vX.Y.Z
+```
+
+This program writes one standalone HTML page:
 
 ```go
 package main
 
 import (
 	"context"
-	"log"
 	"os"
 
 	"github.com/araihu/margo"
 )
 
-const source = `---
-title: Hello, Margo
-description: A small standalone document.
----
-
-# Hello, Margo
-
-Markdown goes in. A complete HTML page comes out.
-
-## Included by default
-
-- semantic headings
-- readable typography
-- print styles
-`
-
 func main() {
 	ctx := context.Background()
 	compiler := margo.New()
-
 	document, err := compiler.Compile(ctx, margo.Source{
 		Name:    "hello.md",
-		Content: []byte(source),
+		Content: []byte("# Hello, Margo\n\nMarkdown goes in. HTML comes out.\n"),
 	})
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-
 	rendered, err := compiler.Render(ctx, document)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-
 	page, err := margo.RenderStandalone(rendered, margo.WithTableOfContents())
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-
 	output, err := os.Create("hello.html")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	defer output.Close()
-
 	if err := page.Render(ctx, output); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 ```
 
-Run it and open `hello.html` in a browser:
+### Opt into charts
 
-```sh
-go run .
+The CLI registers charts. Library consumers choose them explicitly:
+
+```go
+import (
+	"github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
+)
+
+compiler := margo.New(margo.WithExtension(charts.Extension()))
 ```
 
-## Choose the output you need
+Charts produce static SVG plus an accessible data table. Interactive controls
+can be externalized through the requirement graph when a host needs them.
 
-### Embed an article
+### Embed a fragment or compose a page
 
-Project a rendered document to `HTMLResult`, then render its fragment inside an
-existing page:
+`RenderHTML` projects a rendered document to an `HTMLResult`. Its fragment is
+one semantic `article.margo-document` and does not claim a blog, editorial, or
+publication domain:
 
 ```go
 htmlResult, err := margo.RenderHTML(rendered)
@@ -120,43 +148,24 @@ if err != nil {
 return htmlResult.Fragment().Render(ctx, writer)
 ```
 
-The fragment contains one `article.margo-document`. It doesn't own the page
-shell, navigation, color mode, or site metadata. `HTMLResult` also exposes
-normalized metadata, plain text, diagnostics, dependencies, and a fingerprint.
-
-### Build a complete page
-
-`RenderHTMLPage` adds a generic document shell. Use inline dependencies for a
-self-contained file:
+`RenderHTMLPage` provides a generic page shell. `HTMLPageInput` exposes
+caller-owned composition points and dependency policy:
 
 ```go
 page, err := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{
 	Theme:           margo.ThemeModern,
 	ColorMode:       margo.ColorModeLight,
-	DependencyMode: margo.HTMLDependenciesInline,
-})
-```
-
-For a web application, choose `HTMLDependenciesLocal`, inspect
-`htmlResult.Requirements()`, and serve each requirement at its declared local
-URL. The page API also accepts caller-owned `Head`, `Header`, `BeforeContent`,
-and `Footer` components, plus a custom theme stylesheet.
-
-```go
-page, err := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{
-	Theme:           siteTheme,
-	ColorMode:       margo.ColorModeLight,
 	DependencyMode: margo.HTMLDependenciesLocal,
-	ThemeStylesheet: siteStyles,
-	Head:            siteMetadata(htmlResult.Metadata()),
+	Head:            siteMetadata(),
 	Header:          siteNavigation(),
 	BeforeContent:   documentContext(),
 	Footer:          siteFooter(),
 })
 ```
 
-Mount local handlers at their owning prefixes. The chart handler is needed
-only when the chart extension is registered:
+Use `HTMLDependenciesInline` for a self-contained page or
+`HTMLDependenciesLocal` when an application serves reviewed assets. Relevant
+handlers include `HTMLAssetHandler` and these owning prefixes:
 
 ```go
 mux.Handle("/assets/", goshtosoassets.Handler())
@@ -164,37 +173,8 @@ mux.Handle("/margo-assets/", margo.HTMLAssetHandler())
 mux.Handle("/charts/assets/", chartassets.Handler())
 ```
 
-The handlers already understand those prefixes, so don't strip them again.
-
-### Generate static sites
-
-Margo renders pages but doesn't prescribe a site generator. A consumer can map
-source files to routes, supply canonical and social metadata through `Head`,
-and write the rendered components to any output directory.
-
-The checked [blog example](examples/blog/README.md) does exactly that. It builds
-a landing page and an article with a custom theme, public metadata, and AVIF,
-WebP, JPEG, PNG, and GIF images.
-
-```sh
-GOWORK=off GOFLAGS=-mod=readonly go run ./examples/blog \
-  -out examples/blog/generated
-```
-
-### Integrate a PDF engine
-
-The optional `pdf` module defines `Engine`, `Request`, `Result`, `EngineInfo`,
-`ExportReport`, and validated physical page settings. It doesn't download a
-browser or silently choose one. Engine selection and browser installation stay
-with the application:
-
-```sh
-go get github.com/araihu/margo/pdf@v0.0.2
-```
-
-The installed browser version is recorded as runtime evidence, not enforced as
-a compatibility requirement. Project gates validate generated HTML in a real
-browser; PDF output remains a separate visual-review surface.
+The handlers already understand `/assets/`, `/margo-assets/`, and
+`/charts/assets/`; do not strip those prefixes again.
 
 ## Rendering model
 
@@ -204,46 +184,50 @@ Markdown source
 immutable Document
     | Render
 immutable RenderResult
-    | RenderHTML
-HTMLResult
-    | Fragment, RenderHTMLPage, or consumer-selected PDF engine
-output artifact
+    | project
+HTML fragment, standalone page, deck, or renderer-neutral PDF request
+    | publish complete artifact
+stdout or atomic file destination
 ```
 
-Compile once and project the result as needed. Margo doesn't infer publication
-semantics from a document: a blog post, API guide, invoice, and internal report
-all use the same core contracts.
+Compile and render results are immutable. Runtime descriptors bind Mermaid
+work to a document and render instance. Standalone HTML embeds the locked
+Mermaid browser bytes and exposes a terminal `margoRuntimeReady` promise; PDF
+engines wait for the same work before printing. Raw HTML fails closed unless a
+host explicitly enables the matching sanitized policy.
 
-Raw HTML fails closed by default. Hosts that allow it must set an explicit
-policy, and the document must request the matching sanitized capability.
+Margo can be the rendering engine inside a static-site generator, preview
+service, report system, or export tool. Site crawling, route generation,
+canonical URLs, feeds, and deployment remain consumer concerns. The checked
+[blog example](examples/blog/README.md) demonstrates that boundary.
 
-## Packages and modules
+## One module and release
 
-| Import path | Status | Purpose |
-| --- | --- | --- |
-| `github.com/araihu/margo` | Released | Compiler, semantic renderer, HTML fragments, complete pages, and standalone output |
-| `github.com/araihu/margo/pdf` | Released separately | PDF engine contracts, page configuration, runtime evidence, and platform probes |
-| `github.com/araihu/margo/charts` | Optional repository module | Validated chart fences, accessible data, and static SVG output |
-| `github.com/araihu/margo/deck` | Reserved | Package boundary for future static deck support |
+`github.com/araihu/margo`, `/charts`, `/deck`, `/pdf`, and `/cmd/margo` are
+packages in one Go module. One future root tag versions the libraries and
+binary together. The architecture decision is recorded in
+[ADR 0001](docs/decisions/0001-unified-module-and-cli.md).
 
-Margo currently uses Goshtoso for its embedded visual primitives. That is an
-implementation dependency; consumers integrate through Margo's public document
-and page APIs and don't need prior knowledge of the wider Arai Hû ecosystem.
+The historical submodule tags are not rewritten. Consumers that previously
+required `github.com/araihu/margo/pdf`, `github.com/araihu/margo/charts`, or
+`github.com/araihu/margo/cmd/margo` as independently versioned modules must
+remove those old requirements and select a root Margo release. Otherwise an
+old nested module can shadow the package supplied by the root module.
 
 ## Development and verification
 
-Each Go module is tested independently with workspace mode disabled:
+Run the repository as one module:
 
 ```sh
-GOWORK=off GOFLAGS=-mod=readonly go test ./...
-(cd charts && GOWORK=off GOFLAGS=-mod=readonly go test ./...)
-(cd pdf && GOWORK=off GOFLAGS=-mod=readonly go test ./...)
+GOWORK=off GOFLAGS=-mod=readonly go test -race ./...
+GOWORK=off GOFLAGS=-mod=readonly go vet ./...
+CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=readonly go build ./cmd/margo
 ```
 
-Generated HTML also has browser-level checks for semantics, interaction,
-images, accessibility behavior, and print preparation. See
-[HTML browser evidence](docs/testing/editorial-html.md) and the
-[print contrast checker](docs/CONTRAST_LINT.md).
+Tests cover command process boundaries, atomic publication, generated HTML in
+an installed browser, charts, popular image formats, Mermaid completion, deck
+navigation, print CSS, PDF structure, and selected-engine provenance. PDF
+visual quality remains a human review gate.
 
 ## Security
 
