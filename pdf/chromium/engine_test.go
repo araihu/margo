@@ -1,0 +1,153 @@
+package chromium
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+
+	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/pdf"
+)
+
+func TestNewRejectsMissingExecutable(t *testing.T) {
+	_, err := New(Config{ExecutablePath: filepath.Join(t.TempDir(), "missing")})
+	if code(err) != "pdf.chromium.path_invalid" {
+		t.Fatalf("New() error = %v", err)
+	}
+}
+
+func TestExportRejectsInvalidRequestBeforeLaunch(t *testing.T) {
+	path := fakeExecutable(t)
+	engine, err := New(Config{ExecutablePath: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = engine.Export(context.Background(), pdf.Request{})
+	if code(err) != "pdf.request_invalid" {
+		t.Fatalf("Export() error = %v", err)
+	}
+}
+
+func TestOfflineHTMLAllowsLinksButRejectsRenderTimeNetworkAssets(t *testing.T) {
+	if err := validateOfflineHTML([]byte(`<p>Read <a href="https://example.com/post">the post</a>.</p><img src="data:image/png;base64,AA==">`)); err != nil {
+		t.Fatalf("offline document rejected: %v", err)
+	}
+	for _, document := range []string{
+		`<img src="https://example.com/image.png">`,
+		`<script src="/app.js"></script>`,
+		`<style>.hero{background:url(https://example.com/hero.webp)}</style>`,
+	} {
+		if err := validateOfflineHTML([]byte(document)); code(err) != "pdf.network_forbidden" {
+			t.Fatalf("validateOfflineHTML(%q) error = %v", document, err)
+		}
+	}
+}
+
+func TestExportWithInstalledChromium(t *testing.T) {
+	path := installedChromium()
+	if path == "" {
+		t.Skip("no installed Chromium-family browser")
+	}
+	engine, err := New(Config{ExecutablePath: path, Timeout: 20 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor := margo.RuntimeDescriptor{
+		Protocol:            margo.RuntimeProtocolV1,
+		DocumentFingerprint: margo.DocumentFingerprint{1},
+		RenderInstanceID:    "ri-00000000",
+		Tasks:               []margo.RuntimeTask{},
+	}
+	result, err := engine.Export(context.Background(), pdf.Request{
+		HTML:        []byte("<!doctype html><html><body><h1>Margo Chromium E2E</h1></body></html>"),
+		Runtime:     descriptor,
+		ExecutionID: "chromium-e2e",
+		Page:        pdf.PageConfig{Size: pdf.PageA4, Orientation: pdf.Portrait},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(result.PDF), "%PDF-") || len(result.PDF) < 1000 {
+		t.Fatalf("PDF bytes = %d prefix = %q", len(result.PDF), result.PDF[:min(8, len(result.PDF))])
+	}
+	if err := margo.ValidateRuntimeReport(descriptor, "chromium-e2e", result.Runtime); err != nil {
+		t.Fatalf("runtime report: %v", err)
+	}
+	if result.Engine.Name != "chromium" || result.Engine.Version == "" {
+		t.Fatalf("engine info = %+v", result.Engine)
+	}
+}
+
+func TestExportExecutesMermaidRuntimeTaskWithInstalledChromium(t *testing.T) {
+	path := installedChromium()
+	if path == "" {
+		t.Skip("no installed Chromium-family browser")
+	}
+	const input = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	descriptor := margo.RuntimeDescriptor{
+		Protocol:            margo.RuntimeProtocolV1,
+		DocumentFingerprint: margo.DocumentFingerprint{2},
+		RenderInstanceID:    "ri-00000001",
+		Tasks: []margo.RuntimeTask{{
+			ID:          "ri-00000001:mermaid:00000000:" + input,
+			Kind:        "mermaid",
+			InputSHA256: input,
+			DependsOn:   []string{},
+		}},
+	}
+	engine, err := New(Config{ExecutablePath: path, Timeout: 20 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := engine.Export(context.Background(), pdf.Request{
+		HTML:    []byte(`<!doctype html><html><body><figure class="margo-runtime-task margo-mermaid" data-margo-runtime-task="mermaid" data-margo-runtime-task-ordinal="0"><div class="margo-mermaid__canvas"></div><details class="margo-mermaid__source"><summary>Source</summary><pre><code>graph TD; A--&gt;B</code></pre></details></figure></body></html>`),
+		Runtime: descriptor, ExecutionID: "chromium-mermaid-e2e",
+		Page: pdf.PageConfig{Size: pdf.PageA4},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := margo.ValidateRuntimeReport(descriptor, "chromium-mermaid-e2e", result.Runtime); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Runtime.Tasks) != 1 || result.Runtime.Tasks[0].OutputBytes < 100 || result.Runtime.Tasks[0].OutputSHA256 == "" {
+		t.Fatalf("runtime tasks = %+v", result.Runtime.Tasks)
+	}
+}
+
+func fakeExecutable(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "browser")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 1\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func installedChromium() string {
+	candidates := []string{"/opt/homebrew/bin/chromium"}
+	if runtime.GOOS == "darwin" {
+		candidates = append(candidates, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func code(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	if index := strings.IndexByte(message, ':'); index >= 0 {
+		return message[:index]
+	}
+	return message
+}

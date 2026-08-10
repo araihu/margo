@@ -79,6 +79,21 @@ func TestEngineContractClonesMutablePayloads(t *testing.T) {
 	}
 }
 
+func TestRequestClonePreservesExplicitEmptyRuntimeCollections(t *testing.T) {
+	t.Parallel()
+
+	request := Request{Runtime: margo.RuntimeDescriptor{Tasks: []margo.RuntimeTask{}}}
+	cloned := request.Clone()
+	if cloned.Runtime.Tasks == nil {
+		t.Fatal("Clone() changed an explicit empty task list to nil")
+	}
+	request.Runtime.Tasks = []margo.RuntimeTask{{DependsOn: []string{}}}
+	cloned = request.Clone()
+	if cloned.Runtime.Tasks[0].DependsOn == nil {
+		t.Fatal("Clone() changed an explicit empty dependency list to nil")
+	}
+}
+
 func TestEngineInfoRejectsIncompleteIdentity(t *testing.T) {
 	t.Parallel()
 

@@ -105,6 +105,24 @@ func TestSelectedEngineDecoratesSuccessfulResult(t *testing.T) {
 	}
 }
 
+func TestDefaultProbeConstructsInstalledChromium(t *testing.T) {
+	path := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	if _, err := os.Stat(path); err != nil {
+		t.Skip("known installed Chromium unavailable")
+	}
+	discovery, err := Discover(context.Background(), Request{Mode: ModeChromium, EnginePath: path}, Probe{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine, candidate, err := discovery.Select()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if engine == nil || !candidate.Available || candidate.Version == "" {
+		t.Fatalf("candidate = %+v engine = %T", candidate, engine)
+	}
+}
+
 func testProbe() Probe {
 	return Probe{
 		LookupEnv: func(string) (string, bool) { return "", false },

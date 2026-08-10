@@ -77,17 +77,27 @@ func (info EngineInfo) Validate() error {
 }
 
 func cloneRuntimeDescriptor(descriptor margo.RuntimeDescriptor) margo.RuntimeDescriptor {
-	descriptor.Tasks = append([]margo.RuntimeTask(nil), descriptor.Tasks...)
+	if descriptor.Tasks != nil {
+		descriptor.Tasks = append([]margo.RuntimeTask{}, descriptor.Tasks...)
+	}
 	for index := range descriptor.Tasks {
-		descriptor.Tasks[index].DependsOn = append([]string(nil), descriptor.Tasks[index].DependsOn...)
+		if descriptor.Tasks[index].DependsOn != nil {
+			descriptor.Tasks[index].DependsOn = append([]string{}, descriptor.Tasks[index].DependsOn...)
+		}
 	}
 	return descriptor
 }
 
 func cloneRuntimeReport(report margo.RuntimeReport) margo.RuntimeReport {
-	report.Tasks = append([]margo.RuntimeTaskReport(nil), report.Tasks...)
-	report.FontChecks = append([]margo.FontCheck(nil), report.FontChecks...)
-	report.BlockedRequests = append([]margo.BlockedRequest(nil), report.BlockedRequests...)
+	if report.Tasks != nil {
+		report.Tasks = append([]margo.RuntimeTaskReport{}, report.Tasks...)
+	}
+	if report.FontChecks != nil {
+		report.FontChecks = append([]margo.FontCheck{}, report.FontChecks...)
+	}
+	if report.BlockedRequests != nil {
+		report.BlockedRequests = append([]margo.BlockedRequest{}, report.BlockedRequests...)
+	}
 	if report.Diagnostic != nil {
 		diagnostic := *report.Diagnostic
 		report.Diagnostic = &diagnostic

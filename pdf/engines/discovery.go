@@ -2,14 +2,15 @@ package engines
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/araihu/margo/pdf"
+	pdfchromium "github.com/araihu/margo/pdf/chromium"
 )
 
 type Mode string
@@ -149,20 +150,29 @@ func Discover(ctx context.Context, request Request, probe Probe) (Discovery, err
 }
 
 func normalizeProbe(probe Probe) Probe {
+	defaultKnownPaths := probe.LookupEnv == nil && probe.LookPath == nil && probe.Stat == nil && probe.ChromiumVersion == nil && probe.ChromiumEngine == nil && probe.Native == nil && probe.KnownPaths == nil && probe.GOOS == ""
 	if probe.LookupEnv == nil {
 		probe.LookupEnv = os.LookupEnv
 	}
 	if probe.LookPath == nil {
-		probe.LookPath = func(string) (string, error) { return "", os.ErrNotExist }
+		probe.LookPath = exec.LookPath
 	}
 	if probe.Stat == nil {
 		probe.Stat = os.Stat
 	}
 	if probe.ChromiumVersion == nil {
-		probe.ChromiumVersion = func(context.Context, string) (string, error) { return "", fmt.Errorf("version probe unavailable") }
+		probe.ChromiumVersion = func(ctx context.Context, path string) (string, error) {
+			engine, err := pdfchromium.New(pdfchromium.Config{ExecutablePath: path})
+			if err != nil {
+				return "", err
+			}
+			return engine.Version(ctx)
+		}
 	}
 	if probe.ChromiumEngine == nil {
-		probe.ChromiumEngine = func(string) (pdf.Engine, error) { return nil, fmt.Errorf("Chromium engine unavailable") }
+		probe.ChromiumEngine = func(path string) (pdf.Engine, error) {
+			return pdfchromium.New(pdfchromium.Config{ExecutablePath: path})
+		}
 	}
 	if probe.Native == nil {
 		probe.Native = func(context.Context) (pdf.Engine, Candidate) {
@@ -172,8 +182,26 @@ func normalizeProbe(probe Probe) Probe {
 	if probe.GOOS == "" {
 		probe.GOOS = runtime.GOOS
 	}
+	if defaultKnownPaths {
+		probe.KnownPaths = knownChromiumPaths(probe.GOOS)
+	}
 	probe.KnownPaths = append([]string(nil), probe.KnownPaths...)
 	return probe
+}
+
+func knownChromiumPaths(goos string) []string {
+	switch goos {
+	case "darwin":
+		return []string{
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+			"/Applications/Chromium.app/Contents/MacOS/Chromium",
+			"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+		}
+	case "windows":
+		return []string{}
+	default:
+		return []string{"/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/microsoft-edge"}
+	}
 }
 
 func probeChromium(ctx context.Context, path string, source Source, probe Probe) (Candidate, pdf.Engine, error) {
