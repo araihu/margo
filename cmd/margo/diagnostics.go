@@ -70,6 +70,15 @@ func projectDiagnostic(failure error) diagnosticProjection {
 
 func cliDiagnosticCode(failure error) string { return projectDiagnostic(failure).Code }
 
+type reportedError struct{ error }
+
+func reportCommandError(command interface{ ErrOrStderr() io.Writer }, format diagnosticFormat, failure error) error {
+	if err := writeDiagnostic(command.ErrOrStderr(), format, failure); err != nil {
+		return err
+	}
+	return reportedError{error: failure}
+}
+
 func validDiagnosticCode(value string) bool {
 	if value == "" || strings.HasPrefix(value, ".") || strings.HasSuffix(value, ".") {
 		return false

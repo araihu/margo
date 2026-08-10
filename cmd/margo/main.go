@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 )
@@ -14,7 +15,10 @@ func main() {
 		Build:  ReadBuildInfo(nil),
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		var reported reportedError
+		if !errors.As(err, &reported) {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		os.Exit(1)
 	}
 }

@@ -4,17 +4,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 type Dependencies struct {
-	Stdin        io.Reader
-	Stdout       io.Writer
-	Stderr       io.Writer
-	SourceReader SourceReader
-	Build        BuildInfo
+	Stdin            io.Reader
+	Stdout           io.Writer
+	Stderr           io.Writer
+	SourceReader     SourceReader
+	WorkingDirectory string
+	Build            BuildInfo
 }
 
 func NewRootCommand(deps Dependencies) *cobra.Command {
@@ -29,7 +31,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	cmd.SetOut(deps.Stdout)
 	cmd.SetErr(deps.Stderr)
 	cmd.AddCommand(
-		newPlaceholderCommand("html", "Render standalone HTML"),
+		newHTMLCommand(deps),
 		newPlaceholderCommand("pdf", "Render a PDF document"),
 		newPlaceholderCommand("deck", "Render an HTML or PDF presentation deck"),
 		newPlaceholderCommand("doctor", "Report available rendering engines"),
@@ -54,6 +56,9 @@ func normalizeDependencies(deps Dependencies) Dependencies {
 	}
 	if deps.SourceReader == nil {
 		deps.SourceReader = osSourceReader{}
+	}
+	if deps.WorkingDirectory == "" {
+		deps.WorkingDirectory, _ = os.Getwd()
 	}
 	return deps
 }

@@ -26,7 +26,7 @@ func TestRootHelpListsCompleteSurface(t *testing.T) {
 	}
 }
 
-func TestRootPlaceholderReportsUnimplementedCommand(t *testing.T) {
+func TestRootPlaceholderReportsUnimplementedPDFCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd := NewRootCommand(Dependencies{
 		Stdin:  strings.NewReader(""),
@@ -34,9 +34,9 @@ func TestRootPlaceholderReportsUnimplementedCommand(t *testing.T) {
 		Stderr: &stderr,
 		Build:  testBuildInfo(),
 	})
-	cmd.SetArgs([]string{"html"})
+	cmd.SetArgs([]string{"pdf"})
 	err := cmd.ExecuteContext(context.Background())
-	if err == nil || err.Error() != "margo.command_not_implemented: html" {
+	if err == nil || err.Error() != "margo.command_not_implemented: pdf" {
 		t.Fatalf("error = %v", err)
 	}
 	if stdout.Len() != 0 || stderr.Len() != 0 {
