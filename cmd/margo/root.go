@@ -10,10 +10,11 @@ import (
 )
 
 type Dependencies struct {
-	Stdin  io.Reader
-	Stdout io.Writer
-	Stderr io.Writer
-	Build  BuildInfo
+	Stdin        io.Reader
+	Stdout       io.Writer
+	Stderr       io.Writer
+	SourceReader SourceReader
+	Build        BuildInfo
 }
 
 func NewRootCommand(deps Dependencies) *cobra.Command {
@@ -50,6 +51,9 @@ func normalizeDependencies(deps Dependencies) Dependencies {
 	}
 	if deps.Stderr == nil {
 		deps.Stderr = io.Discard
+	}
+	if deps.SourceReader == nil {
+		deps.SourceReader = osSourceReader{}
 	}
 	return deps
 }
