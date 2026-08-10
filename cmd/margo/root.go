@@ -2,12 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/pdf/engines"
 )
 
 type Dependencies struct {
@@ -16,6 +21,8 @@ type Dependencies struct {
 	Stderr           io.Writer
 	SourceReader     SourceReader
 	WorkingDirectory string
+	EngineProbe      engines.Probe
+	NextExecutionID  func() margo.ExecutionID
 	Build            BuildInfo
 }
 
@@ -32,9 +39,9 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	cmd.SetErr(deps.Stderr)
 	cmd.AddCommand(
 		newHTMLCommand(deps),
-		newPlaceholderCommand("pdf", "Render a PDF document"),
+		newPDFCommand(deps),
 		newPlaceholderCommand("deck", "Render an HTML or PDF presentation deck"),
-		newPlaceholderCommand("doctor", "Report available rendering engines"),
+		newDoctorCommand(deps),
 		newVersionCommand(deps),
 	)
 	return cmd
@@ -60,7 +67,18 @@ func normalizeDependencies(deps Dependencies) Dependencies {
 	if deps.WorkingDirectory == "" {
 		deps.WorkingDirectory, _ = os.Getwd()
 	}
+	if deps.NextExecutionID == nil {
+		deps.NextExecutionID = randomExecutionID
+	}
 	return deps
+}
+
+func randomExecutionID() margo.ExecutionID {
+	var data [16]byte
+	if _, err := rand.Read(data[:]); err != nil {
+		return ""
+	}
+	return margo.ExecutionID("exec-" + hex.EncodeToString(data[:]))
 }
 
 func newPlaceholderCommand(name, description string) *cobra.Command {
