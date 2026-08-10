@@ -1,8 +1,10 @@
 package margo
 
 import (
+	"context"
 	"fmt"
 	"html"
+	"io"
 	"regexp"
 
 	"github.com/a-h/templ"
@@ -28,6 +30,45 @@ var (
 	inlineScriptClose = regexp.MustCompile(`(?i)</script`)
 	inlineStyleClose  = regexp.MustCompile(`(?i)</style`)
 )
+
+// MergeHTMLRequirements validates, deduplicates, and dependency-orders one or
+// more requirement groups without exposing Margo's internal storage.
+func MergeHTMLRequirements(groups ...HTMLRequirements) (HTMLRequirements, error) {
+	var requirements []HTMLRequirement
+	for _, group := range groups {
+		requirements = append(requirements, group.List()...)
+	}
+	return mergeHTMLRequirements(requirements)
+}
+
+// RenderHTMLDependencies materializes a validated requirement graph as HTML
+// tags. Inline mode produces a self-contained component; local mode preserves
+// the reviewed local URLs from the graph.
+func RenderHTMLDependencies(requirements HTMLRequirements, mode HTMLDependencyMode) (templ.Component, error) {
+	if mode != HTMLDependenciesInline && mode != HTMLDependenciesLocal {
+		return nil, htmlRequirementError("html.dependency_mode_invalid", "dependency mode must be inline or local")
+	}
+	merged, err := mergeHTMLRequirements(requirements.List())
+	if err != nil {
+		return nil, err
+	}
+	components := make([]templ.Component, 0, len(merged.List()))
+	for _, requirement := range merged.List() {
+		dependency, err := resolveHTMLDependency(requirement, mode, "")
+		if err != nil {
+			return nil, err
+		}
+		components = append(components, htmlDependencyComponent(dependency))
+	}
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		for _, component := range components {
+			if err := component.Render(ctx, writer); err != nil {
+				return err
+			}
+		}
+		return nil
+	}), nil
+}
 
 func resolveHTMLDependency(requirement HTMLRequirement, mode HTMLDependencyMode, legacyStylesheet string) (htmlDependency, error) {
 	dependency := htmlDependency{ID: requirement.ID, Kind: requirement.Kind, Integrity: requirement.Integrity, LegacyStylesheet: legacyStylesheet}
