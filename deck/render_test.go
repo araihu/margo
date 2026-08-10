@@ -97,6 +97,8 @@ func TestRenderEmbedsNavigationPrintAndDependencies(t *testing.T) {
 		"@media print",
 		"break-after: page",
 		"window.print",
+		"margoPrepareDeckPrint",
+		"beforeprint",
 		`script-src 'self' 'unsafe-inline'`,
 	} {
 		if !strings.Contains(html, value) {

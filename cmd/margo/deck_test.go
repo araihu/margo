@@ -52,8 +52,10 @@ func TestDeckPDFExecutesMermaidAndKeepsStaticChart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.HasPrefix(data, []byte("%PDF-")) || len(data) < 1000 {
-		t.Fatalf("PDF bytes = %d", len(data))
+	// The fixture has two slides. Chromium emits one /Pages tree object plus
+	// one /Page object per printed slide.
+	if !bytes.HasPrefix(data, []byte("%PDF-")) || len(data) < 1000 || bytes.Count(data, []byte("/Type /Page")) < 3 {
+		t.Fatalf("PDF bytes = %d page objects = %d", len(data), bytes.Count(data, []byte("/Type /Page")))
 	}
 }
 

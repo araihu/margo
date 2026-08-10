@@ -27,6 +27,21 @@
     if (focus) slides[current].focus({ preventScroll: true });
   };
 
+  const preparePrint = () => {
+    slides.forEach((slide) => { slide.hidden = false; });
+  };
+
+  const restoreScreen = () => show(current, false);
+
+  globalThis.margoPrepareDeckPrint = preparePrint;
+  globalThis.margoRestoreDeckScreen = restoreScreen;
+  window.addEventListener("beforeprint", preparePrint);
+  window.addEventListener("afterprint", restoreScreen);
+  const printMedia = window.matchMedia("print");
+  if (typeof printMedia.addEventListener === "function") {
+    printMedia.addEventListener("change", (event) => event.matches ? preparePrint() : restoreScreen());
+  }
+
   if (previous) previous.addEventListener("click", () => show(current - 1, true));
   if (next) next.addEventListener("click", () => show(current + 1, true));
   if (print) print.addEventListener("click", () => window.print());

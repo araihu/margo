@@ -119,6 +119,11 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	if err := chromedp.Run(browserCtx,
 		chromedp.Navigate(server.URL),
 		chromedp.Evaluate(runtimeExpression, &runtimeOutput, awaitPromise),
+		chromedp.Evaluate(`(() => {
+			if (typeof globalThis.margoPreparePrintTOC === "function") globalThis.margoPreparePrintTOC();
+			if (typeof globalThis.margoPrepareDeckPrint === "function") globalThis.margoPrepareDeckPrint();
+			return true;
+		})()`, nil),
 		chromedp.Evaluate(`(async () => {
 			await document.fonts.ready;
 			await Promise.all(Array.from(document.images).map((image) => image.complete ? true : new Promise((resolve, reject) => {
