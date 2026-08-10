@@ -28,6 +28,7 @@ type Result struct {
 	theme        margo.ThemeName
 	colorMode    margo.ColorMode
 	metadata     Metadata
+	requirements margo.HTMLRequirements
 }
 
 func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput) (*Result, error) {
@@ -51,6 +52,7 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput) (*
 	slides := document.Slides()
 	fragments := make([][]byte, len(slides))
 	rendered := make([]*margo.RenderResult, len(slides))
+	requirementGroups := make([]margo.HTMLRequirements, len(slides))
 	for index, slide := range slides {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -77,8 +79,17 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput) (*
 		}
 		fragments[index] = append([]byte(nil), fragment.Bytes()...)
 		rendered[index] = renderResult
+		requirementGroups[index] = htmlResult.Requirements()
 	}
-	page := renderDeckArticle(slides, fragments)
+	requirements, err := margo.MergeHTMLRequirements(requirementGroups...)
+	if err != nil {
+		return nil, err
+	}
+	article := renderDeckArticle(slides, fragments)
+	page, err := renderDeckPage(document.Metadata(), theme, colorMode, article, requirements)
+	if err != nil {
+		return nil, err
+	}
 	fingerprint := deckFingerprint(input, theme, colorMode)
 	return &Result{
 		html:         page,
@@ -88,6 +99,7 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput) (*
 		theme:        theme,
 		colorMode:    colorMode,
 		metadata:     document.Metadata(),
+		requirements: requirements,
 	}, nil
 }
 
@@ -112,6 +124,13 @@ func (r *Result) DocumentFingerprint() margo.DocumentFingerprint {
 	return r.fingerprint
 }
 
+func (r *Result) Requirements() margo.HTMLRequirements {
+	if r == nil {
+		return margo.HTMLRequirements{}
+	}
+	return r.requirements
+}
+
 func (r *Result) RuntimeDescriptor(instance margo.RenderInstanceID) (margo.RuntimeDescriptor, error) {
 	if r == nil {
 		return margo.RuntimeDescriptor{}, deckError("deck.result_required", "", 1, "deck result is required")
@@ -134,8 +153,14 @@ func renderDeckArticle(slides []Slide, fragments [][]byte) []byte {
 	var output bytes.Buffer
 	_, _ = output.WriteString(`<article class="margo-deck">`)
 	for index, slide := range slides {
-		_, _ = fmt.Fprintf(&output, `<section id="%s" class="margo-deck__slide" role="region" aria-label="Slide %d of %d" tabindex="-1" data-margo-slide="%d">`,
-			html.EscapeString(slide.ID()), slide.Ordinal(), len(slides), index)
+		state := " hidden"
+		current := ""
+		if index == 0 {
+			state = ""
+			current = ` aria-current="page"`
+		}
+		_, _ = fmt.Fprintf(&output, `<section id="%s" class="margo-deck__slide" role="region" aria-label="Slide %d of %d" tabindex="-1" data-margo-slide="%d"%s%s>`,
+			html.EscapeString(slide.ID()), slide.Ordinal(), len(slides), index, current, state)
 		_, _ = output.Write(fragments[index])
 		_, _ = output.WriteString(`</section>`)
 	}

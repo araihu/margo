@@ -1,0 +1,67 @@
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-surface, Canvas);
+  color: var(--color-on-surface, CanvasText);
+}
+
+.margo-deck-controls {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.margo-deck-controls button {
+  font: inherit;
+  min-block-size: 2.75rem;
+  padding-inline: 1rem;
+}
+
+.margo-deck {
+  margin: 0 auto;
+  max-inline-size: 96rem;
+}
+
+.margo-deck__slide {
+  box-sizing: border-box;
+  min-block-size: calc(100vh - 4.25rem);
+  padding: clamp(1.5rem, 5vw, 5rem);
+}
+
+.margo-deck__slide:focus {
+  outline: 0.2rem solid currentColor;
+  outline-offset: -0.4rem;
+}
+
+@media print {
+  .margo-deck-controls {
+    display: none !important;
+  }
+
+  .margo-deck {
+    max-inline-size: none;
+  }
+
+  .margo-deck__slide,
+  .margo-deck__slide[hidden] {
+    display: block !important;
+    min-block-size: auto;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .margo-deck__slide:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

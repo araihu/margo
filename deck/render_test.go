@@ -82,6 +82,40 @@ func TestResultHTMLIsDefensive(t *testing.T) {
 	}
 }
 
+func TestRenderEmbedsNavigationPrintAndDependencies(t *testing.T) {
+	result := mustRenderDeck(t, "# One\n---\n# Two\n")
+	html := string(result.HTML())
+	for _, value := range []string{
+		"<!doctype html>",
+		`data-margo-requirement="margo.document.styles"`,
+		"data-margo-deck-previous",
+		"data-margo-deck-next",
+		"ArrowLeft",
+		"ArrowRight",
+		"Home",
+		"End",
+		"@media print",
+		"break-after: page",
+		"window.print",
+	} {
+		if !strings.Contains(html, value) {
+			t.Fatalf("HTML missing %q", value)
+		}
+	}
+}
+
+func TestResultRequirementsAreMergedAndDefensive(t *testing.T) {
+	result := mustRenderDeck(t, "| A | B |\n|---|---|\n| 1 | 2 |\n---\n# Two\n")
+	first := result.Requirements().List()
+	if len(first) < 3 {
+		t.Fatalf("requirements = %#v", first)
+	}
+	first[0].ID = "changed"
+	if result.Requirements().List()[0].ID == "changed" {
+		t.Fatal("requirements alias result storage")
+	}
+}
+
 func mustRenderDeck(t *testing.T, source string) *Result {
 	t.Helper()
 	result, err := Render(context.Background(), margo.New(), RenderInput{Name: "deck.md", Markdown: []byte(source)})
