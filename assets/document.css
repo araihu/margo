@@ -136,6 +136,20 @@
     border-inline-start: 1px solid var(--color-outline);
     padding-inline-start: calc(var(--spacing) * 5);
   }
+  .margo-document .margo-trusted-embed {
+    max-inline-size: 100%;
+    margin-block: calc(var(--spacing) * 4);
+    overflow: hidden;
+  }
+  .margo-document :where(.margo-trusted-embed__frame, .margo-trusted-embed__media) {
+    display: block;
+    max-inline-size: 100%;
+    block-size: auto;
+    border: 0;
+  }
+  .margo-document .margo-trusted-embed__link {
+    overflow-wrap: anywhere;
+  }
   .margo-document a {
     color: var(--color-primary);
     font-weight: var(--font-weight-medium);

@@ -216,6 +216,53 @@ Supply `margo.WithCheckAssetReader` when local asset existence and SVG
 compatibility should be checked; without a reader, source-only checks still
 run.
 
+### Authorize trusted embeds
+
+Margo denies raw HTML and remote embeds by default. A host that intentionally
+needs remote media can register the typed `embed` extension; the document can
+then request only an allowed kind and exact HTTPS origin. It cannot supply HTML
+or widen the host policy:
+
+```go
+import (
+	"github.com/araihu/margo"
+	"github.com/araihu/margo/embed"
+)
+
+trustedEmbeds := embed.Extension(embed.Policy{
+	Projection:     embed.ProjectionInteractive,
+	AllowedKinds:   []embed.Kind{embed.KindIframe},
+	AllowedOrigins: []string{"https://video.example.com"},
+	IframeSandbox:  []embed.SandboxToken{embed.SandboxAllowPresentation},
+})
+compiler := margo.New(margo.WithExtension(trustedEmbeds))
+checks, err := margo.Check(ctx, source, margo.WithCheckExtension(trustedEmbeds))
+```
+
+The matching Markdown fence contains typed data, not markup:
+
+```yaml
+kind: iframe
+url: https://video.example.com/watch/123
+title: Architecture overview
+width: 800
+height: 450
+```
+
+The command uses the same model through a trusted operator-selected JSON file:
+
+```sh
+margo check article.md --policy margo-policy.json
+margo html article.md --policy margo-policy.json --output article.html
+margo site docs/ --policy margo-policy.json --output-dir public/
+margo pdf article.md --policy margo-policy.json --output article.pdf
+margo deck talk.md --policy margo-policy.json --output talk.html
+```
+
+See [Host policy and trusted embeds](docs/policy.md) for the policy schema,
+target projections, sanitized raw-HTML handshake, CSP obligations, and audit
+identity.
+
 ### Opt into charts
 
 The CLI registers charts. Library consumers choose them explicitly:

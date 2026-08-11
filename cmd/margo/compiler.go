@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newCompiler() *margo.Compiler {
-	return margo.New(margo.WithExtension(charts.Extension(charts.WithExternalizedControlRuntime(true))))
+func newCompiler(options ...margo.Option) *margo.Compiler {
+	compilerOptions := []margo.Option{margo.WithExtension(charts.Extension(charts.WithExternalizedControlRuntime(true)))}
+	compilerOptions = append(compilerOptions, options...)
+	return margo.New(compilerOptions...)
 }
 
 type compiledStandalone struct {
@@ -42,6 +44,10 @@ func (options standaloneMetadataFlags) standaloneOptions(command *cobra.Command)
 }
 
 func compileStandalone(ctx context.Context, deps Dependencies, input string, options ...margo.StandaloneOption) (compiledStandalone, error) {
+	return compileStandaloneWithCompiler(ctx, deps, input, newCompiler(), options...)
+}
+
+func compileStandaloneWithCompiler(ctx context.Context, deps Dependencies, input string, compiler *margo.Compiler, options ...margo.StandaloneOption) (compiledStandalone, error) {
 	source, err := readInput(ctx, deps.SourceReader, deps.Stdin, input)
 	if err != nil {
 		return compiledStandalone{}, err
@@ -53,7 +59,6 @@ func compileStandalone(ctx context.Context, deps Dependencies, input string, opt
 		}
 		source.BaseURL = filepath.Dir(absolute)
 	}
-	compiler := newCompiler()
 	document, err := compiler.Compile(ctx, source)
 	if err != nil {
 		return compiledStandalone{}, err

@@ -8,17 +8,20 @@ import (
 	"path/filepath"
 
 	margo "github.com/araihu/margo"
+	margoembed "github.com/araihu/margo/embed"
 	"github.com/spf13/cobra"
 )
 
 type checkReport struct {
 	Diagnostics []margo.Diagnostic `json:"diagnostics"`
+	Policy      string             `json:"policy,omitempty"`
 	Errors      int                `json:"errors"`
 	Warnings    int                `json:"warnings"`
 }
 
 func newCheckCommand(deps Dependencies) *cobra.Command {
 	diagnostics := string(diagnosticText)
+	policyOptions := policyFlags{}
 	command := &cobra.Command{
 		Use:   "check INPUT",
 		Short: "Check Markdown compatibility without rendering",
@@ -27,6 +30,10 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {
 				return err
+			}
+			policy, err := policyOptions.load(command.Context(), deps.SourceReader)
+			if err != nil {
+				return reportCommandError(command, format, err)
 			}
 			source, err := readInput(command.Context(), deps.SourceReader, deps.Stdin, args[0])
 			if err != nil {
@@ -42,11 +49,21 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, fmt.Errorf("cli.input_path_invalid: %w", err))
 			}
-			findings, err := margo.Check(command.Context(), source, margo.WithCheckAssetReader(deps.CheckAssetReader))
+			checkOptions := []margo.CheckOption{margo.WithCheckAssetReader(deps.CheckAssetReader)}
+			if policy != nil {
+				checkOptions = append(checkOptions, margo.WithCheckPolicy(policy.Host))
+				if embedPolicy, ok := policy.CheckEmbedPolicy(); ok {
+					checkOptions = append(checkOptions, margo.WithCheckExtension(margoembed.Extension(embedPolicy)))
+				}
+			}
+			findings, err := margo.Check(command.Context(), source, checkOptions...)
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
 			report := summarizeCheck(findings)
+			if policy != nil {
+				report.Policy = policy.Digest
+			}
 			if err := writeCheckReport(command.OutOrStdout(), format, report); err != nil {
 				return err
 			}
@@ -57,6 +74,7 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
+	policyOptions.bind(command)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
@@ -89,6 +107,11 @@ func writeCheckReport(writer io.Writer, format diagnosticFormat, report checkRep
 	}
 	for _, diagnostic := range report.Diagnostics {
 		if _, err := fmt.Fprintf(writer, "%s:%d:%d: %s %s: %s [%s]\n  hint: %s\n", diagnostic.Source, diagnostic.Line, diagnostic.Column, diagnostic.Severity, diagnostic.Code, diagnostic.Message, diagnostic.Pointer, diagnostic.Hint); err != nil {
+			return err
+		}
+	}
+	if report.Policy != "" {
+		if _, err := fmt.Fprintf(writer, "policy %s\n", report.Policy); err != nil {
 			return err
 		}
 	}

@@ -36,6 +36,7 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	pageOptions := pageFlags{Size: string(pdf.PageA4), Orientation: string(pdf.Portrait)}
 	linkOptions := pdfLinkFlags{Policy: string(pdf.RelativeLinksStrip)}
 	metadata := standaloneMetadataFlags{}
+	policyOptions := policyFlags{}
 	diagnostics := string(diagnosticText)
 	command := &cobra.Command{
 		Use:   "pdf INPUT",
@@ -58,7 +59,11 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions, linkConfig, metadata.standaloneOptions(command))
+			policy, err := policyOptions.load(command.Context(), deps.SourceReader)
+			if err != nil {
+				return reportCommandError(command, format, err)
+			}
+			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions, linkConfig, policy, metadata.standaloneOptions(command))
 			if err == nil {
 				_, err = publish(command.Context(), artifact, output, command.OutOrStdout())
 			}
@@ -75,12 +80,13 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	pageOptions.bind(command)
 	linkOptions.bind(command)
 	metadata.bind(command)
+	policyOptions.bind(command)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
 
-func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig, standaloneOptions []margo.StandaloneOption) ([]byte, error) {
-	compiled, err := compileStandalone(command.Context(), deps, input, standaloneOptions...)
+func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig, policy *loadedPolicy, standaloneOptions []margo.StandaloneOption) ([]byte, error) {
+	compiled, err := compileStandaloneWithCompiler(command.Context(), deps, input, compilerForPolicy(policy, policyTargetPDF), standaloneOptions...)
 	if err != nil {
 		return nil, err
 	}

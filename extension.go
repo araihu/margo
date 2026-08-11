@@ -20,8 +20,13 @@ type ExtensionRegistration struct {
 	Identity ExtensionIdentity
 	Fences   []string
 	Factory  ExtensionFactory
+	Check    ExtensionCheck
 	compile  extensionCompileHook
 }
+
+// ExtensionCheck performs read-only preflight validation for one detached
+// fence payload under the same immutable extension configuration.
+type ExtensionCheck func(context.Context, ExtensionNode) error
 
 type extensionCompileContext struct {
 	normalized sourceNormalization

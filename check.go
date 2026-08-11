@@ -102,6 +102,9 @@ func (FilesystemCheckAssetReader) ReadAsset(ctx context.Context, root, name stri
 type checkConfig struct {
 	assetReader CheckAssetReader
 	assetBytes  int64
+	policy      Policy
+	policySet   bool
+	extensions  []ExtensionRegistration
 }
 
 // CheckOption configures compatibility analysis.
@@ -114,6 +117,64 @@ func WithCheckAssetReader(reader CheckAssetReader) CheckOption {
 			return errors.New("check.asset_reader_invalid: asset reader is nil")
 		}
 		config.assetReader = reader
+		return nil
+	}
+}
+
+// WithCheckPolicy evaluates compatibility against the same host capability
+// ceiling used for compilation. Document metadata can request capabilities but
+// cannot elevate this policy.
+func WithCheckPolicy(policy Policy) CheckOption {
+	return func(config *checkConfig) error {
+		if policy.RawHTML == "" {
+			policy.RawHTML = RawHTMLDeny
+		}
+		if err := validateRawHTMLMode(policy.RawHTML); err != nil {
+			return err
+		}
+		if policy.OutputBytes < MinOutputBytes || policy.OutputBytes > MaxOutputBytes {
+			return policyDiagnostic("policy.output_bytes_invalid", "output byte limit must be between 1 and 67108864")
+		}
+		config.policy = policy
+		config.policySet = true
+		return nil
+	}
+}
+
+// WithCheckExtension enables an extension's read-only fence validation during
+// compatibility analysis.
+func WithCheckExtension(registration ExtensionRegistration) CheckOption {
+	return func(config *checkConfig) error {
+		if registration.Check == nil {
+			return fmt.Errorf("check.extension_invalid: extension %q has no checker", registration.Identity.Name)
+		}
+		if registration.Identity.Name == "" || registration.Identity.Version == "" || len(registration.Fences) == 0 {
+			return fmt.Errorf("check.extension_invalid: extension identity and fences are required")
+		}
+		registration = cloneRegistration(registration)
+		localFences := make(map[string]struct{}, len(registration.Fences))
+		for _, fence := range registration.Fences {
+			if fence == "" {
+				return fmt.Errorf("check.extension_invalid: extension fence is empty")
+			}
+			if _, exists := localFences[fence]; exists {
+				return fmt.Errorf("check.extension_invalid: duplicate fence %q", fence)
+			}
+			localFences[fence] = struct{}{}
+		}
+		for _, existing := range config.extensions {
+			if existing.Identity.Name == registration.Identity.Name {
+				return fmt.Errorf("check.extension_invalid: duplicate extension name %q", registration.Identity.Name)
+			}
+			for _, left := range existing.Fences {
+				for _, right := range registration.Fences {
+					if left == right {
+						return fmt.Errorf("check.extension_invalid: duplicate fence %q", left)
+					}
+				}
+			}
+		}
+		config.extensions = append(config.extensions, registration)
 		return nil
 	}
 }
@@ -142,6 +203,13 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 		return actionableCheckFailure(snapshot, err), nil
 	}
 	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
+	allowRawHTML := checkAllowsRawHTML(config, frontmatter)
+	extensionChecks := make(map[string]ExtensionCheck)
+	for _, registration := range config.extensions {
+		for _, fence := range registration.Fences {
+			extensionChecks[fence] = registration.Check
+		}
+	}
 	diagnostics := checkMetadata(snapshot, frontmatter)
 	locator := checkLocator{source: frontmatter.body}
 	lastHeadingLevel := 0
@@ -161,9 +229,15 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			}
 			lastHeadingLevel = value.Level
 		case *goldast.HTMLBlock:
+			if allowRawHTML {
+				break
+			}
 			offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 			diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.raw_html", SeverityError, "/rawHTML", "raw HTML is not accepted by the default CLI policy", "Replace the fragment with Markdown before rendering.", offset))
 		case *goldast.RawHTML:
+			if allowRawHTML {
+				break
+			}
 			container := value.Parent()
 			if _, exists := rawContainers[container]; exists {
 				break
@@ -184,10 +258,22 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 				diagnostics = append(diagnostics, checkDiagnostic(snapshot, code, severity, "/link/destination", message, hint, offset))
 			}
 		case *goldast.FencedCodeBlock:
-			if string(value.Language(frontmatter.body)) != "mermaid" {
+			language := string(value.Language(frontmatter.body))
+			payloadStart := segmentAtStart(value.Lines())
+			if checker := extensionChecks[language]; checker != nil {
+				node := ExtensionNode{
+					Fence: language, Payload: append([]byte(nil), value.Lines().Value(frontmatter.body)...),
+					Source: SourcePosition{Source: snapshot.Name, Line: lineAtOffset(snapshot.Content, frontmatter.bodyOffset+payloadStart), Column: 1},
+				}
+				failure := checker(ctx, node)
+				if errors.Is(failure, context.Canceled) || errors.Is(failure, context.DeadlineExceeded) {
+					return goldast.WalkStop, failure
+				}
+				diagnostics = append(diagnostics, extensionCheckDiagnostics(snapshot, node, failure)...)
+			}
+			if language != "mermaid" {
 				break
 			}
-			payloadStart := segmentAtStart(value.Lines())
 			payload := value.Lines().Value(frontmatter.body)
 			if preflightErr := internalmermaid.Preflight(payload); preflightErr != nil {
 				var mermaidDiagnostic *internalmermaid.DiagnosticError
@@ -212,6 +298,45 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 		return diagnostics[left].Code < diagnostics[right].Code
 	})
 	return diagnostics, nil
+}
+
+func extensionCheckDiagnostics(source Source, node ExtensionNode, failure error) []Diagnostic {
+	if failure == nil {
+		return nil
+	}
+	var diagnosticFailure *DiagnosticError
+	if errors.As(failure, &diagnosticFailure) && len(diagnosticFailure.Diagnostics) > 0 {
+		diagnostics := cloneDiagnostics(diagnosticFailure.Diagnostics)
+		for index := range diagnostics {
+			if diagnostics[index].Source == "" {
+				diagnostics[index].Source = source.Name
+			}
+			if diagnostics[index].Line <= 0 {
+				diagnostics[index].Line = node.Source.Line
+			}
+			if diagnostics[index].Column <= 0 {
+				diagnostics[index].Column = node.Source.Column
+			}
+		}
+		return diagnostics
+	}
+	return []Diagnostic{{
+		Code: "check.extension_invalid", Severity: SeverityError, Source: source.Name,
+		Line: node.Source.Line, Column: node.Source.Column, Pointer: "/extension",
+		Message: failure.Error(), Hint: "Correct the extension payload and run margo check again.",
+	}}
+}
+
+func checkAllowsRawHTML(config checkConfig, frontmatter frontmatterResult) bool {
+	if !config.policySet || config.policy.RawHTML != RawHTMLSanitized || frontmatter.goshtoso == nil {
+		return false
+	}
+	security, ok := frontmatter.goshtoso["security"].(map[string]any)
+	if !ok {
+		return false
+	}
+	mode, ok := security["rawHTML"].(string)
+	return ok && RawHTMLMode(mode) == RawHTMLSanitized
 }
 
 func actionableCheckFailure(source Source, failure error) []Diagnostic {

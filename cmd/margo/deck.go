@@ -16,6 +16,7 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	engineOptions := engineFlags{Mode: "auto"}
 	pageOptions := pageFlags{Size: "A4", Orientation: "portrait"}
 	diagnostics := string(diagnosticText)
+	var policyOptions policyFlags
 	command := &cobra.Command{
 		Use:   "deck INPUT",
 		Short: "Render an HTML or PDF presentation deck",
@@ -31,7 +32,11 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 			if formatValue == "pdf" && !command.Flags().Changed("output") {
 				return reportCommandError(command, format, fmt.Errorf("cli.output_required: PDF deck requires --output PATH or --output -"))
 			}
-			artifact, err := renderDeckArtifact(command, deps, args[0], formatValue, engineOptions, pageOptions)
+			policy, err := policyOptions.load(command.Context(), deps.SourceReader)
+			if err != nil {
+				return reportCommandError(command, format, err)
+			}
+			artifact, err := renderDeckArtifact(command, deps, args[0], formatValue, engineOptions, pageOptions, policy)
 			if err == nil {
 				_, err = publish(command.Context(), artifact, output, command.OutOrStdout())
 			}
@@ -47,11 +52,12 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
 	engineOptions.bind(command)
 	pageOptions.bind(command)
+	policyOptions.bind(command)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
 
-func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format string, engineOptions engineFlags, pageOptions pageFlags) ([]byte, error) {
+func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format string, engineOptions engineFlags, pageOptions pageFlags, policy *loadedPolicy) ([]byte, error) {
 	source, err := readInput(command.Context(), deps.SourceReader, deps.Stdin, input)
 	if err != nil {
 		return nil, err
@@ -64,7 +70,7 @@ func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format
 		}
 		baseURL = filepath.Dir(absolute)
 	}
-	result, err := deck.Render(command.Context(), newCompiler(), deck.RenderInput{
+	result, err := deck.Render(command.Context(), compilerForPolicy(policy, policyTargetDeck), deck.RenderInput{
 		Name: source.Name, Markdown: source.Content, BaseURL: baseURL,
 	})
 	if err != nil {

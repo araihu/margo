@@ -156,6 +156,23 @@ func TestDocumentCSSKeepsExpandedMermaidSourceReadableWhenPrinted(t *testing.T) 
 	}
 }
 
+func TestDocumentCSSConstrainsTrustedEmbedsToDocumentWidth(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".margo-document .margo-trusted-embed"),
+		[]byte("max-inline-size: 100%"),
+		[]byte("overflow: hidden"),
+		[]byte("overflow-wrap: anywhere"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document stylesheet missing trusted-embed rule %q", want)
+		}
+	}
+}
+
 func TestAssetOverrideRejectsInvalidPathWithoutFallback(t *testing.T) {
 	result := mustRenderSource(t, "# override")
 	_, err := RenderStandalone(result, WithAssetOverride("document.css", AssetRef{Path: "../outside.css"}))

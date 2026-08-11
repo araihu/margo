@@ -78,6 +78,76 @@ func TestCheckReportsActionableCompatibilityDiagnostics(t *testing.T) {
 	}
 }
 
+func TestCheckPolicyAllowsOnlyDeclaredSanitizedRawHTML(t *testing.T) {
+	declared := Source{Name: "trusted.md", Content: []byte("---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<span>trusted text</span>\n")}
+	diagnostics, err := Check(context.Background(), declared, WithCheckPolicy(Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diagnostics) != 0 {
+		t.Fatalf("declared sanitized diagnostics = %+v", diagnostics)
+	}
+
+	undeclared := Source{Name: "undeclared.md", Content: []byte("---\nlanguage: en\n---\n\n<span>not declared</span>\n")}
+	diagnostics, err = Check(context.Background(), undeclared, WithCheckPolicy(Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Code != "check.raw_html" {
+		t.Fatalf("undeclared diagnostics = %+v", diagnostics)
+	}
+}
+
+func TestWithCheckExtensionRejectsAmbiguousRegistrations(t *testing.T) {
+	checker := func(context.Context, ExtensionNode) error { return nil }
+	tests := []struct {
+		name    string
+		options []CheckOption
+	}{
+		{
+			name: "empty fence",
+			options: []CheckOption{WithCheckExtension(ExtensionRegistration{
+				Identity: ExtensionIdentity{Name: "one", Version: "v1"}, Fences: []string{""}, Check: checker,
+			})},
+		},
+		{
+			name: "duplicate local fence",
+			options: []CheckOption{WithCheckExtension(ExtensionRegistration{
+				Identity: ExtensionIdentity{Name: "one", Version: "v1"}, Fences: []string{"demo", "demo"}, Check: checker,
+			})},
+		},
+		{
+			name: "duplicate identity",
+			options: []CheckOption{
+				WithCheckExtension(ExtensionRegistration{Identity: ExtensionIdentity{Name: "one", Version: "v1"}, Fences: []string{"first"}, Check: checker}),
+				WithCheckExtension(ExtensionRegistration{Identity: ExtensionIdentity{Name: "one", Version: "v1"}, Fences: []string{"second"}, Check: checker}),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := Check(context.Background(), Source{Name: "x.md", Content: []byte("# x\n")}, test.options...); err == nil || !strings.Contains(err.Error(), "check.extension_invalid") {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+func TestCheckExtensionPlainFailureUsesFenceSourcePosition(t *testing.T) {
+	registration := ExtensionRegistration{
+		Identity: ExtensionIdentity{Name: "demo", Version: "v1"}, Fences: []string{"demo"},
+		Check: func(context.Context, ExtensionNode) error { return errors.New("invalid demo payload") },
+	}
+	source := Source{Name: "demo.md", Content: []byte("---\nlanguage: en\n---\n\n```demo\ninvalid\n```\n")}
+	diagnostics, err := Check(context.Background(), source, WithCheckExtension(registration))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Code != "check.extension_invalid" || diagnostics[0].Line != 6 || diagnostics[0].Column != 1 {
+		t.Fatalf("diagnostics = %+v", diagnostics)
+	}
+}
+
 func TestCheckDoesNotDropSameLineFindings(t *testing.T) {
 	source := Source{Name: "/workspace/guide.md", BaseURL: "/workspace", Content: []byte("![one](one.png) ![two](two.png) [x](x.md) [y](y.md)\n")}
 	diagnostics, err := Check(context.Background(), source, WithCheckAssetReader(checkMapReader{}))

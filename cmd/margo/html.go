@@ -9,6 +9,7 @@ import (
 func newHTMLCommand(deps Dependencies) *cobra.Command {
 	options := outputOptions{Path: "-"}
 	metadata := standaloneMetadataFlags{}
+	policyOptions := policyFlags{}
 	diagnostics := string(diagnosticText)
 	command := &cobra.Command{
 		Use:   "html INPUT",
@@ -19,7 +20,11 @@ func newHTMLCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			compiled, err := compileStandalone(command.Context(), deps, args[0], metadata.standaloneOptions(command)...)
+			policy, err := policyOptions.load(command.Context(), deps.SourceReader)
+			if err != nil {
+				return reportCommandError(command, format, err)
+			}
+			compiled, err := compileStandaloneWithCompiler(command.Context(), deps, args[0], compilerForPolicy(policy, policyTargetHTML), metadata.standaloneOptions(command)...)
 			if err == nil {
 				_, err = publish(command.Context(), compiled.HTML, options, command.OutOrStdout())
 			}
@@ -33,6 +38,7 @@ func newHTMLCommand(deps Dependencies) *cobra.Command {
 	command.Flags().BoolVarP(&options.Force, "force", "f", false, "replace an existing output file")
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
 	metadata.bind(command)
+	policyOptions.bind(command)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
