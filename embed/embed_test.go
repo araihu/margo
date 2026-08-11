@@ -320,7 +320,12 @@ func TestPolicyCanonicalizesBrowserEquivalentHostsAndRejectsWildcards(t *testing
 		Projection:   margoembed.ProjectionStaticLink,
 		AllowedKinds: []margoembed.Kind{margoembed.KindIframe},
 	}
-	for _, origin := range []string{"https://*.example.com", "https://127.1"} {
+	for _, origin := range []string{
+		"https://*.example.com",
+		"https://127.1",
+		"https://１２７．１",
+		"https://127.1.",
+	} {
 		policy := base
 		policy.AllowedOrigins = []string{origin}
 		if _, err := margoembed.NormalizePolicy(policy); err == nil || !strings.Contains(err.Error(), "embed.policy_invalid") {
@@ -335,6 +340,7 @@ func TestPolicyCanonicalizesBrowserEquivalentHostsAndRejectsWildcards(t *testing
 	}{
 		{name: "IDN", left: "https://bücher.example", right: "https://xn--bcher-kva.example"},
 		{name: "IPv6", left: "https://[2001:0db8:0:0:0:0:0:1]", right: "https://[2001:db8::1]"},
+		{name: "fullwidth IPv4", left: "https://１２７．０．０．１", right: "https://127.0.0.1"},
 	}
 	for _, test := range equivalent {
 		t.Run(test.name, func(t *testing.T) {

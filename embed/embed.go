@@ -327,9 +327,6 @@ func canonicalHost(value string) (string, error) {
 		}
 		return address.String(), nil
 	}
-	if looksLikeNoncanonicalIP(value) {
-		return "", fmt.Errorf("noncanonical IP address syntax is not allowed")
-	}
 	ascii, err := idna.Lookup.ToASCII(value)
 	if err != nil {
 		return "", fmt.Errorf("hostname is not a valid IDNA domain: %w", err)
@@ -338,6 +335,15 @@ func canonicalHost(value string) (string, error) {
 	if ascii == "" || strings.ContainsAny(ascii, `*\`) {
 		return "", fmt.Errorf("hostname is invalid")
 	}
+	if address, err := netip.ParseAddr(ascii); err == nil {
+		if address.Zone() != "" {
+			return "", fmt.Errorf("scoped IP addresses are not allowed")
+		}
+		return address.String(), nil
+	}
+	if looksLikeNoncanonicalIP(ascii) {
+		return "", fmt.Errorf("noncanonical IP address syntax is not allowed")
+	}
 	return ascii, nil
 }
 
@@ -345,6 +351,7 @@ func looksLikeNoncanonicalIP(value string) bool {
 	if strings.Contains(value, ":") {
 		return true
 	}
+	value = strings.TrimSuffix(value, ".")
 	parts := strings.Split(strings.ToLower(value), ".")
 	if len(parts) == 0 || len(parts) > 4 {
 		return false
