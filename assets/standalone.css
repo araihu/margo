@@ -158,6 +158,7 @@
   }
 
   .goshtoso-document__toc a {
+    color: var(--color-primary);
     overflow-wrap: anywhere;
   }
 
@@ -215,6 +216,10 @@
 
   html.dark .goshtoso-document__toc-title {
     color: var(--color-on-surface-dark-strong);
+  }
+
+  html.dark .goshtoso-document__toc a {
+    color: var(--color-primary-dark);
   }
 }
 

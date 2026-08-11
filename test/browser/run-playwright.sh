@@ -69,7 +69,7 @@ test -x "$MARGO_CHROMIUM_EXECUTABLE" || { printf '%s\n' "margo.harness_chromium_
 test "$(shasum -a 256 "$MARGO_NODE_BIN" | awk '{print $1}')" = "$MARGO_NODE_SHA256" || { printf '%s\n' "margo.harness_node_digest_mismatch" >&2; exit 1; }
 test "$(shasum -a 256 "$MARGO_NPM_BIN" | awk '{print $1}')" = "$MARGO_NPM_SHA256" || { printf '%s\n' "margo.harness_npm_digest_mismatch" >&2; exit 1; }
 test "$(shasum -a 256 "$MARGO_CHROMIUM_EXECUTABLE" | awk '{print $1}')" = "$MARGO_CHROMIUM_SHA256" || { printf '%s\n' "margo.harness_chromium_digest_mismatch" >&2; exit 1; }
-test "$MARGO_CHROMIUM_REVISION" = 1169 && test "$MARGO_CHROMIUM_VERSION" = 136.0.7103.25
+test "$MARGO_CHROMIUM_REVISION" = 1193 && test "$MARGO_CHROMIUM_VERSION" = 140.0.7339.186
 
 MARGO_NODE_BIN="$MARGO_NODE_BIN" MARGO_NPM_BIN="$MARGO_NPM_BIN" \
   "$MARGO_NODE_BIN" "$SCRIPT_DIR/populate-npm-cache.mjs" --check \

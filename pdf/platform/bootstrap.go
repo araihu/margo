@@ -437,7 +437,7 @@ func validateToolchainLock(lock toolchainLock, lockDirectory string) error {
 	if err := validateModules(lock.Modules); err != nil {
 		return err
 	}
-	if lock.NodeHarness.NodeVersion != "v26.5.0" || lock.NodeHarness.NPMVersion != "11.17.0" || lock.NodeHarness.DOMStrategy == "" || lock.NodeHarness.CSSTreeVersion != "3.1.0" || lock.NodeHarness.PlaywrightVersion != "1.52.0" || lock.NodeHarness.ChromiumRevision != "1169" || !validSHA256(lock.NodeHarness.ChromiumArchiveSHA256) {
+	if lock.NodeHarness.NodeVersion != "v26.5.0" || lock.NodeHarness.NPMVersion != "11.17.0" || lock.NodeHarness.DOMStrategy == "" || lock.NodeHarness.CSSTreeVersion != "3.1.0" || lock.NodeHarness.PlaywrightVersion != "1.55.1" || lock.NodeHarness.ChromiumRevision != "1193" || !validSHA256(lock.NodeHarness.ChromiumArchiveSHA256) {
 		return platformError("pdf.platform_lock_invalid", "node harness identity is incomplete or unsupported")
 	}
 	if lock.MuambaTool.Path != "github.com/araihu/muamba/cmd/muamba" || lock.MuambaTool.Version != "v0.0.3" {

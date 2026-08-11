@@ -34,7 +34,7 @@ function Assert-SHA256([string]$Path, [string]$Expected, [string]$Code) {
 Assert-SHA256 $environment.MARGO_NODE_BIN $environment.MARGO_NODE_SHA256 "margo.harness_node_digest_mismatch"
 Assert-SHA256 $environment.MARGO_NPM_BIN $environment.MARGO_NPM_SHA256 "margo.harness_npm_digest_mismatch"
 Assert-SHA256 $environment.MARGO_CHROMIUM_EXECUTABLE $environment.MARGO_CHROMIUM_SHA256 "margo.harness_chromium_digest_mismatch"
-if ($environment.MARGO_CHROMIUM_REVISION -ne "1169" -or $environment.MARGO_CHROMIUM_VERSION -ne "136.0.7103.25") { throw "margo.harness_chromium_identity_mismatch" }
+if ($environment.MARGO_CHROMIUM_REVISION -ne "1193" -or $environment.MARGO_CHROMIUM_VERSION -ne "140.0.7339.186") { throw "margo.harness_chromium_identity_mismatch" }
 & $environment.MARGO_NODE_BIN (Join-Path $scriptRoot "populate-npm-cache.mjs") --check --lock (Join-Path $scriptRoot "package-lock.json") --cache $environment.MARGO_NPM_CACHE --receipt $environment.MARGO_NPM_CACHE_RECEIPT
 if ($LASTEXITCODE -ne 0) { throw "margo.npm_cache_check_failed" }
 $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1"

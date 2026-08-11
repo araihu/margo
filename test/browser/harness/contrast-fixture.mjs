@@ -59,7 +59,7 @@ export function fixture(documentCSS, standaloneCSS, mode) {
       <header class="goshtoso-document__header"><strong>Margo</strong><span>Markdown for Goshtoso</span></header>
       <aside class="goshtoso-document__stamps" aria-label="Document status"><span class="goshtoso-document__stamp">dark review</span></aside>
       <nav class="goshtoso-document__toc" aria-label="Table of contents"><p class="goshtoso-document__toc-title">Contents</p><a href="#audit">Contrast audit</a></nav>
-      <article>
+      <article class="margo-document">
         <h1 id="audit">Contrast audit</h1>
         <p>Visible text, <a href="#audit">links</a>, tables, code, and source disclosures must remain readable.</p>
         <blockquote>Boundary evidence is part of the human artifact.</blockquote>

@@ -342,8 +342,22 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 		}
 	}
 	linkStart := strings.Index(css, ".goshtoso-document__toc a {")
-	if linkStart < 0 || !strings.Contains(css[linkStart:], "overflow-wrap: anywhere;") {
-		t.Fatal("table-of-contents links must wrap long labels")
+	if linkStart < 0 {
+		t.Fatal("standalone stylesheet has no table-of-contents link block")
+	}
+	linkEnd := strings.Index(css[linkStart:], "\n  }")
+	if linkEnd < 0 {
+		t.Fatal("table-of-contents link block has no stable end")
+	}
+	linkCSS := css[linkStart : linkStart+linkEnd]
+	for _, want := range []string{"color: var(--color-primary);", "overflow-wrap: anywhere;"} {
+		if !strings.Contains(linkCSS, want) {
+			t.Errorf("table-of-contents links missing %q", want)
+		}
+	}
+	if !strings.Contains(css, "html.dark .goshtoso-document__toc a {") ||
+		!strings.Contains(css, "color: var(--color-primary-dark);") {
+		t.Fatal("dark table-of-contents links must use the dark primary color")
 	}
 	printStart := strings.Index(css, "@media print {")
 	if printStart < 0 {

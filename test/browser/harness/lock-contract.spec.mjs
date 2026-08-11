@@ -13,21 +13,21 @@ test("@margo-harness package Node and browser locks are exact", async () => {
   const packageJSON = await json("package.json");
   expect(packageJSON.engines).toEqual({ node: "26.5.0", npm: "11.17.0" });
   expect(packageJSON.devDependencies).toEqual({
-    "@playwright/browser-chromium": "1.52.0",
-    "@playwright/test": "1.52.0",
+    "@playwright/browser-chromium": "1.55.1",
+    "@playwright/test": "1.55.1",
     "css-tree": "3.1.0",
-    playwright: "1.52.0",
+    playwright: "1.55.1",
   });
 
   const packageLock = await json("package-lock.json");
   const pinnedIntegrities = new Map([
-    ["node_modules/@playwright/browser-chromium", "sha512-n2/e2Q0dFACFg/1JZ0t2IYLorDdno6q1QwKnNbPICHwCkAtW7+fSMqCvJ9FSMWSyPugxZqIFhownSpyATxtiTw=="],
-    ["node_modules/@playwright/test", "sha512-uh6W7sb55hl7D6vsAeA+V2p5JnlAqzhqFyF0VcJkKZXkgnFcVG9PziERRHQfPLfNGx1C292a4JqbWzhR8L4R1g=="],
+    ["node_modules/@playwright/browser-chromium", "sha512-T4Iyhcv38bdOrtCxpjHA6WaQk4EHeud38J+SnLaOoIuGFPK7zNgSqEuilqTGB6xqfcVHYKHWePkXcYFVOux8ew=="],
+    ["node_modules/@playwright/test", "sha512-IVAh/nOJaw6W9g+RJVlIQJ6gSiER+ae6mKQ5CX1bERzQgbC1VSeBlwdvczT7pxb0GWiyrxH4TGKbMfDb4Sq/ig=="],
     ["node_modules/css-tree", "sha512-0eW44TGN5SQXU1mWSkKwFstI/22X2bG1nYzZTYMAWjylYURhse752YgbE4Cx46AC+bAvI+/dYTPRk1LqSUnu6w=="],
-    ["node_modules/playwright", "sha512-JAwMNMBlxJ2oD1kce4KPtMkDeKGHQstdpFPcPH3maElAXon/QZeTvtsfXmTMRyO9TslfoYOXkSsvao2nE1ilTw=="],
+    ["node_modules/playwright", "sha512-cJW4Xd/G3v5ovXtJJ52MAOclqeac9S/aGGgRzLabuF8TnIb6xHvMzKIa6JmrRzUkeXJgfL1MhukP0NK6l39h3A=="],
   ]);
   for (const [path, integrity] of pinnedIntegrities) {
-    expect(packageLock.packages[path].version).toBe(path.endsWith("css-tree") ? "3.1.0" : "1.52.0");
+    expect(packageLock.packages[path].version).toBe(path.endsWith("css-tree") ? "3.1.0" : "1.55.1");
     expect(packageLock.packages[path].integrity).toBe(integrity);
   }
 
@@ -51,15 +51,15 @@ test("@margo-harness package Node and browser locks are exact", async () => {
   ]);
 
   const browserLock = await json("browser-lock.json");
-  expect(browserLock).toMatchObject({ schemaVersion: "margo/browser-lock/v1", revision: "1169", version: "136.0.7103.25" });
+  expect(browserLock).toMatchObject({ schemaVersion: "margo/browser-lock/v1", revision: "1193", version: "140.0.7339.186" });
   expect(browserLock.runners.map(({ id, sha256 }) => [id, sha256])).toEqual([
-    ["darwin-arm64", "6755dab7021ac7aeadceab8f3cd183f05f9c20736c456573b937e5e22212db65"],
-    ["darwin-x64", "22c56a4fdc5b9de64a510176bcf8eb930e597c0985964736067ed505cd0109b2"],
-    ["linux-x64", "1a2f6e3e519049b51c59b2503ecf808af4ff1fcf13ffa1177dacfda4a02d7a59"],
-    ["windows-x64", "241f8aa5c0fde70fb0cd9fdedfb65ee34e422fef8c30b39bd1158d0e10fcb884"],
+    ["darwin-arm64", "bfba74e7bd40db5cc2a0ef603ec9ba91736cf6b6a0836c27a5969b57b8044b61"],
+    ["darwin-x64", "b847ddba0145a3bc1eb9e0d4709c3a194d522d7c8b990fc8adb58bfd31c63f37"],
+    ["linux-x64", "033556f38ba72e5fb07c1a9c9a6e0ff56b5823c2cc405e034ba5763a62e2ad12"],
+    ["windows-x64", "2a90e488c4e86e65ef694e3cd2834de8361dced490a5aaa40c3de148937d1cf8"],
   ]);
   for (const runner of browserLock.runners) {
     expect(runner.urls).toHaveLength(3);
-    expect(runner.urls[0]).toContain(`/chromium/1169/${runner.archive}`);
+    expect(runner.urls[0]).toContain(`/chromium/1193/${runner.archive}`);
   }
 });

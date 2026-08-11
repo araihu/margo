@@ -17,9 +17,9 @@
     "npmVersion": "11.17.0",
     "domStrategy": "DOMParser+XMLSerializer+CSSOM+css-tree/3.1.0",
     "cssTreeVersion": "3.1.0",
-    "playwrightVersion": "1.52.0",
-    "chromiumRevision": "1169",
-    "chromiumArchiveSHA256": "6755dab7021ac7aeadceab8f3cd183f05f9c20736c456573b937e5e22212db65"
+    "playwrightVersion": "1.55.1",
+    "chromiumRevision": "1193",
+    "chromiumArchiveSHA256": "bfba74e7bd40db5cc2a0ef603ec9ba91736cf6b6a0836c27a5969b57b8044b61"
   },
   "muambaTool": {
     "path": "github.com/araihu/muamba/cmd/muamba",
@@ -29,7 +29,7 @@
     {
       "id": "windows-webview2/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sourceDigest": "a4517242a3d9d9c7f812ee4f96dd29bd83f2fee6083af926fa8872c432281344",
       "sdkEvidencePath": "pdf/platform/evidence/windows-webview2/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/windows-webview2/runtime.version",
       "versionPolicy": "tested-version-reported"
@@ -37,7 +37,7 @@
     {
       "id": "darwin-wkwebview/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sourceDigest": "a4517242a3d9d9c7f812ee4f96dd29bd83f2fee6083af926fa8872c432281344",
       "sdkEvidencePath": "pdf/platform/evidence/darwin-wkwebview/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/darwin-wkwebview/runtime.version",
       "versionPolicy": "tested-version-reported"
@@ -45,7 +45,7 @@
     {
       "id": "linux-webkitgtk/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sourceDigest": "a4517242a3d9d9c7f812ee4f96dd29bd83f2fee6083af926fa8872c432281344",
       "sdkEvidencePath": "pdf/platform/evidence/linux-webkitgtk/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/linux-webkitgtk/runtime.version",
       "versionPolicy": "tested-version-reported"
@@ -53,12 +53,12 @@
     {
       "id": "chromium-cdp/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "e370f76371b315d0b2d3371627daf7ea4f1b772505aefa96ed8dce95b4b5f4f3",
+      "sourceDigest": "a4517242a3d9d9c7f812ee4f96dd29bd83f2fee6083af926fa8872c432281344",
       "sdkEvidencePath": "pdf/platform/evidence/chromium-cdp/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/chromium-cdp/runtime.version",
       "versionPolicy": "tested-version-reported"
     }
   ],
   "networkPolicy": "no-download",
-  "recordDigest": "09c372453e819523453b907c5dbd5155e9f4d3a9156b64e8bbab7f906f606269"
+  "recordDigest": "3b9bb76c94feafdc211cfb2e13556c6f6171eec72c224b396ea6a52c207e8e2d"
 }

@@ -88,7 +88,7 @@ path, runner, lock_path = sys.argv[1:]
 data = open(path, 'rb').read(); record = json.loads(data); lock = json.load(open(lock_path, encoding='utf-8'))
 if set(record) != {'archiveURL','archiveSHA256','executable','executableSHA256','revision','runner','schemaVersion','version'}: raise SystemExit('margo.browser_receipt_fields')
 if record.get('schemaVersion') != 'margo/browser-install/v1' or record.get('runner') != runner: raise SystemExit('margo.browser_receipt_mismatch')
-if record.get('revision') != '1169' or record.get('version') != '136.0.7103.25': raise SystemExit('margo.browser_identity_mismatch')
+if record.get('revision') != '1193' or record.get('version') != '140.0.7339.186': raise SystemExit('margo.browser_identity_mismatch')
 entry = next((row for row in lock['runners'] if row['id'] == runner), None)
 if entry is None or record.get('archiveURL') != entry['urls'][0] or record.get('archiveSHA256') != entry['sha256']: raise SystemExit('margo.browser_archive_identity_mismatch')
 executable = record.get('executable', '')

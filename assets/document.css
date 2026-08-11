@@ -375,8 +375,8 @@
   }
 
   .margo-document [data-margo-print-heading-group="true"] {
-    break-inside: avoid-page;
     page-break-inside: avoid;
+    break-inside: avoid-page;
   }
   .margo-document [data-code-block-header],
   .margo-document [data-code-block] > :first-child,

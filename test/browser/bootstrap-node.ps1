@@ -33,7 +33,7 @@ function Assert-BrowserReceipt {
   $expectedFieldList = @("archiveURL","archiveSHA256","executable","executableSHA256","revision","runner","schemaVersion","version")
   $expectedFields = @($expectedFieldList | Sort-Object) -join "`n"
   if ($actualFields -ne $expectedFields -or $browserEntry.Count -ne 1) { throw "margo.browser_receipt_fields" }
-  if ($record.schemaVersion -ne "margo/browser-install/v1" -or $record.runner -ne $runner -or $record.revision -ne "1169" -or $record.version -ne "136.0.7103.25" -or $record.archiveURL -ne $browserEntry[0].urls[0] -or $record.archiveSHA256 -ne $browserEntry[0].sha256) { throw "margo.browser_receipt_mismatch" }
+  if ($record.schemaVersion -ne "margo/browser-install/v1" -or $record.runner -ne $runner -or $record.revision -ne "1193" -or $record.version -ne "140.0.7339.186" -or $record.archiveURL -ne $browserEntry[0].urls[0] -or $record.archiveSHA256 -ne $browserEntry[0].sha256) { throw "margo.browser_receipt_mismatch" }
   if ([IO.Path]::GetFullPath($record.executable) -ne $record.executable) { throw "margo.browser_executable_path_mismatch" }
   Assert-SHA256 $record.executable $record.executableSHA256 "margo.browser_executable_digest_mismatch"
   return $record

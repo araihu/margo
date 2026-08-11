@@ -353,7 +353,7 @@ func writeSyntheticToolchainLock(t *testing.T) string {
 		NodeHarness: nodeHarness{
 			NodeVersion: "v26.5.0", NPMVersion: "11.17.0",
 			DOMStrategy: "DOMParser/XMLSerializer/CSSOM+css-tree", CSSTreeVersion: "3.1.0",
-			PlaywrightVersion: "1.52.0", ChromiumRevision: "1169",
+			PlaywrightVersion: "1.55.1", ChromiumRevision: "1193",
 			ChromiumArchiveSHA256: strings.Repeat("a", 64),
 		},
 		MuambaTool:    muambaTool{Path: "github.com/araihu/muamba/cmd/muamba", Version: "v0.0.3"},
