@@ -45,21 +45,30 @@ Omitted `rawHTML` defaults to `deny`, omitted `outputBytes` defaults to the
 Non-deny projections require at least one allowed kind and origin.
 
 The complete normalized CLI policy is hashed as a `sha256:...` digest.
-`check --diagnostics json` reports that identity. A site JSON report and its
-`margo-manifest.json` record the same value, binding the published output to
-the operator policy. This whole-policy digest is distinct from a library
-extension's unprefixed `ExtensionRegistration.Identity.ConfigurationHash`,
-which binds that extension's normalized configuration into compiler and
-artifact fingerprints.
+`margo check INPUT --diagnostics json` reports that identity. A site JSON report
+and its `margo-manifest.json` record the same value, binding the published
+output to the operator policy. This whole-policy digest is distinct from a
+library extension's unprefixed
+`ExtensionRegistration.Identity.ConfigurationHash`, which binds that
+extension's normalized configuration into compiler and artifact fingerprints.
 
 ## Resource limits
 
-Each Markdown source is limited to 16 MiB before compilation; a site applies
-that limit independently to every discovered Markdown file. The policy
-`outputBytes` value must be between 1 byte and 64 MiB. It bounds the semantic
-document HTML produced by Margo's renderer, before a target adds a standalone
-HTML shell or packages that rendering as PDF or site artifacts. It is not a
-limit on the final standalone HTML file, PDF file, or aggregate site size.
+The CLI bounds each Markdown input read at 16 MiB before parsing or compilation;
+`site` applies that read limit independently to every discovered Markdown
+file. The Go library's `Compiler.Compile` enforces the same ceiling after source
+normalization and Markdown parsing. The library's read-only `margo.Check`
+applies the ceiling after parsing when the caller supplies `WithCheckPolicy`;
+without that option, `Check` does not enforce the 16 MiB policy ceiling.
+
+In CLI JSON, omitted `outputBytes` and explicit `0` both select the 64 MiB
+default; a nonzero value must be between 1 byte and 64 MiB. The resulting limit
+bounds the semantic document HTML produced by each renderer invocation, before
+a target adds a standalone HTML shell or packages that rendering as PDF or site
+artifacts. A deck compiles and renders each slide separately, so the limit
+applies per slide rather than to their aggregate semantic HTML. It is not a
+limit on the final standalone HTML file, PDF file, deck file, or aggregate site
+size.
 
 Each trusted-embed request additionally limits its URL to 4096 UTF-8 bytes,
 its accessible title to 256 UTF-8 bytes, and each dimension to the inclusive
@@ -130,9 +139,11 @@ goshtoso:
 ---
 ```
 
-Margo then validates the fragment against the closed, versioned
-`margo-html-v1` profile. It rejects invalid markup instead of rewriting it.
-The complete v1 profile is:
+Margo parses the fragment using HTML5 parsing rules, including the parser's
+normal error recovery, and validates the resulting tree against the closed,
+versioned `margo-html-v1` profile. A profile-invalid tree is rejected. On
+success, Margo emits the accepted original source bytes rather than rewriting
+or sanitizing them. The complete v1 profile is:
 
 - Elements: `a`, `abbr`, `b`, `blockquote`, `br`, `cite`, `code`, `dd`, `del`,
   `details`, `dfn`, `dl`, `dt`, `em`, `h1` through `h6`, `hr`, `i`, `kbd`,
@@ -151,10 +162,13 @@ The complete v1 profile is:
 - `href` may be a relative reference or use `http`, `https`, `mailto`, or
   `tel`. Network-path references such as `//example.com` and every other URL
   scheme are rejected.
-- Text is allowed. Comments, namespaces, namespaced or duplicate attributes,
-  and control characters are rejected. Any element or attribute not listed
-  above is rejected; notably this excludes `img`, `class`, `id`, `style`,
-  event handlers, and arbitrary `data-*` or `aria-*` attributes.
+- Text is allowed. Comments, namespaces, and namespaced or duplicate attributes
+  are rejected. At the fragment level, Margo rejects NUL, U+0001 through
+  U+0008, U+000B through U+000C, U+000E through U+001F, and U+007F; TAB, LF,
+  and CR may occur in text. Attribute values reject every Unicode control
+  character. Any element or attribute not listed above is rejected; notably
+  this excludes `img`, `class`, `id`, `style`, event handlers, and arbitrary
+  `data-*` or `aria-*` attributes.
 
 This path is for those allowlisted semantic fragments; use `trusted-embed` for
 remote media. Neither mechanism enables scripts, event attributes, or
