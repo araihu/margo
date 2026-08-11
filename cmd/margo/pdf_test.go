@@ -66,23 +66,36 @@ func TestPDFCommandPropagatesTitleAndLanguageOverrides(t *testing.T) {
 
 func TestPDFCommandUsesReadableDefaultMarginsAndAllowsExplicitZero(t *testing.T) {
 	tests := []struct {
-		name        string
-		extraArgs   []string
-		wantMargins pdf.Margins
+		name      string
+		markdown  string
+		extraArgs []string
+		wantPage  pdf.PageConfig
 	}{
 		{
-			name: "readable document defaults",
-			wantMargins: pdf.Margins{
-				Top: 24, Right: 22, Bottom: 26, Left: 22,
+			name:     "readable document defaults",
+			markdown: "# Page\n",
+			wantPage: pdf.PageConfig{
+				Size: pdf.PageA4, Orientation: pdf.Portrait,
+				Margins: pdf.Margins{Top: 24, Right: 22, Bottom: 26, Left: 22},
 			},
 		},
 		{
-			name: "explicit full bleed",
+			name:     "document selects Letter landscape and partial margins",
+			markdown: "---\nmargo:\n  page:\n    size: Letter\n    orientation: landscape\n    margins:\n      top: 8\n      right: 9\n      bottom: 0\n---\n# Page\n",
+			wantPage: pdf.PageConfig{
+				Size: pdf.PageLetter, Orientation: pdf.Landscape,
+				Margins: pdf.Margins{Top: 8, Right: 9, Bottom: 0, Left: 22},
+			},
+		},
+		{
+			name:     "explicit CLI geometry overrides document",
+			markdown: "---\nmargo:\n  page:\n    size: Letter\n    orientation: landscape\n    margins:\n      top: 8\n      right: 9\n      bottom: 10\n      left: 11\n---\n# Page\n",
 			extraArgs: []string{
+				"--page-size", "A4", "--orientation", "portrait",
 				"--margin-top", "0", "--margin-right", "0",
 				"--margin-bottom", "0", "--margin-left", "0",
 			},
-			wantMargins: pdf.Margins{},
+			wantPage: pdf.PageConfig{Size: pdf.PageA4, Orientation: pdf.Portrait},
 		},
 	}
 
@@ -94,7 +107,7 @@ func TestPDFCommandUsesReadableDefaultMarginsAndAllowsExplicitZero(t *testing.T)
 			}}
 			output := filepath.Join(t.TempDir(), "page.pdf")
 			command := NewRootCommand(Dependencies{
-				Stdin: strings.NewReader("# Page\n"), EngineProbe: probe, Stderr: io.Discard,
+				Stdin: strings.NewReader(test.markdown), EngineProbe: probe, Stderr: io.Discard,
 				Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
 				NextExecutionID: func() margo.ExecutionID { return "cli-pdf-margins" },
 			})
@@ -103,8 +116,8 @@ func TestPDFCommandUsesReadableDefaultMarginsAndAllowsExplicitZero(t *testing.T)
 			if err := command.ExecuteContext(context.Background()); err != nil {
 				t.Fatal(err)
 			}
-			if engine.request.Page.Margins != test.wantMargins {
-				t.Fatalf("margins = %+v, want %+v", engine.request.Page.Margins, test.wantMargins)
+			if engine.request.Page != test.wantPage {
+				t.Fatalf("page = %+v, want %+v", engine.request.Page, test.wantPage)
 			}
 		})
 	}

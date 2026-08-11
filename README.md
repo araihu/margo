@@ -53,6 +53,24 @@ margo pdf proposal.md --output proposal.pdf
 No policy file is needed for ordinary Markdown, local images, Mermaid, tables,
 or code. A policy is required only for privileged raw HTML or iframe embeds.
 
+Page geometry is an optional document preference. Every field can still be
+overridden by an explicit CLI or API value:
+
+```yaml
+margo:
+  page:
+    size: Letter
+    orientation: landscape
+    margins:
+      top: 12
+      right: 0
+      bottom: 12
+      left: 0
+```
+
+Margin sides are independent. Omit a side to retain its target default or set
+it to `0` for full bleed on that edge.
+
 ## Supported Go packages
 
 Install every supported library package through the root module:

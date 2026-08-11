@@ -134,6 +134,12 @@ func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, er
 			if value, ok := pageValues["orientation"].(string); ok {
 				metadata.Margo.Page.Orientation = value
 			}
+			if marginValues, ok := pageValues["margins"].(map[string]any); ok {
+				metadata.Margo.Page.Margins = &PageMarginPreference{
+					Top: pageMarginValue(marginValues, "top"), Right: pageMarginValue(marginValues, "right"),
+					Bottom: pageMarginValue(marginValues, "bottom"), Left: pageMarginValue(marginValues, "left"),
+				}
+			}
 		}
 	}
 	known := map[string]struct{}{
@@ -150,6 +156,27 @@ func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, er
 		metadata.Additional[key] = cloneOptionValue(value)
 	}
 	return metadata, nil
+}
+
+func pageMarginValue(values map[string]any, key string) *float64 {
+	value, exists := values[key]
+	if !exists {
+		return nil
+	}
+	var result float64
+	switch number := value.(type) {
+	case int:
+		result = float64(number)
+	case int64:
+		result = float64(number)
+	case uint64:
+		result = float64(number)
+	case float64:
+		result = number
+	default:
+		return nil
+	}
+	return &result
 }
 
 func sourceStringList(source string, values map[string]any, key string) ([]string, error) {

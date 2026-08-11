@@ -156,8 +156,10 @@ need no `frame-src` widening.
 ## Document metadata ownership
 
 Generic metadata stays at the frontmatter root. The only Margo-owned document
-namespace is closed `margo`; it currently contains optional PDF page size and
-orientation preferences. Security, brand, theme, table behavior, and Mermaid
+namespace is closed `margo`; it currently contains optional page size,
+orientation, and per-side margin preferences for PDF documents and PDF decks.
+An explicit zero margin requests full bleed on that side; an omitted side keeps
+the target default. Security, brand, theme, table behavior, and Mermaid
 configuration are not document metadata. See the generated
 [document metadata reference](reference/document-metadata.md) and print the
 matching bytes with `margo schema document`.

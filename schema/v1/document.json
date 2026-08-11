@@ -88,7 +88,7 @@
       "description": "Closed namespace for non-authoritative Margo document preferences.",
       "type": "object",
       "additionalProperties": false,
-      "examples": [{"page": {"size": "A4", "orientation": "portrait"}}],
+      "examples": [{"page": {"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}}],
       "x-margo-targets": ["pdf", "deck"],
       "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
       "x-margo-security": "Non-authoritative preferences only; capabilities are forbidden here.",
@@ -98,10 +98,10 @@
           "description": "Optional PDF page preferences overridden by explicit CLI or API values.",
           "type": "object",
           "additionalProperties": false,
-          "examples": [{"size": "A4", "orientation": "portrait"}],
+          "examples": [{"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}],
           "x-margo-targets": ["pdf", "deck"],
           "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
-          "x-margo-interactions": "Size and orientation combine into one browser-owned PageConfig.",
+          "x-margo-interactions": "Size, orientation, and four physical margins combine into one browser-owned PageConfig.",
           "properties": {
             "size": {
               "description": "Preferred physical page size.",
@@ -120,6 +120,58 @@
               "examples": ["portrait"],
               "x-margo-targets": ["pdf", "deck"],
               "x-margo-precedence": "explicit CLI or API option, then document preference, then portrait"
+            },
+            "margins": {
+              "description": "Optional physical page margins in millimeters; omitted sides retain the target default and explicit zero requests full bleed on that side. PDF documents default to 24/22/26/22 mm while decks default to zero.",
+              "type": "object",
+              "additionalProperties": false,
+              "examples": [
+                {"top": 24, "right": 22, "bottom": 26, "left": 22},
+                {"top": 0, "right": 0, "bottom": 0, "left": 0},
+                {"left": 30}
+              ],
+              "x-margo-targets": ["pdf", "deck"],
+              "x-margo-precedence": "explicit CLI or API margin for a side, then that document side, then the target-specific built-in side default",
+              "x-margo-security": "No capability or privacy effect; changes printable content geometry.",
+              "x-margo-interactions": "Each side resolves independently before all values enter the single browser-owned PageConfig.",
+              "properties": {
+                "top": {
+                  "description": "Top page margin in millimeters.",
+                  "type": "number",
+                  "minimum": 0,
+                  "examples": [24, 0],
+                  "x-margo-targets": ["pdf", "deck"],
+                  "x-margo-precedence": "explicit CLI or API top margin, then document preference, then 24 mm for PDF or 0 for deck",
+                  "x-margo-interactions": "Zero enables full bleed at the top edge."
+                },
+                "right": {
+                  "description": "Right page margin in millimeters.",
+                  "type": "number",
+                  "minimum": 0,
+                  "examples": [22, 0],
+                  "x-margo-targets": ["pdf", "deck"],
+                  "x-margo-precedence": "explicit CLI or API right margin, then document preference, then 22 mm for PDF or 0 for deck",
+                  "x-margo-interactions": "Zero enables full bleed at the right edge."
+                },
+                "bottom": {
+                  "description": "Bottom page margin in millimeters.",
+                  "type": "number",
+                  "minimum": 0,
+                  "examples": [26, 0],
+                  "x-margo-targets": ["pdf", "deck"],
+                  "x-margo-precedence": "explicit CLI or API bottom margin, then document preference, then 26 mm for PDF or 0 for deck",
+                  "x-margo-interactions": "Zero enables full bleed at the bottom edge."
+                },
+                "left": {
+                  "description": "Left page margin in millimeters.",
+                  "type": "number",
+                  "minimum": 0,
+                  "examples": [22, 0],
+                  "x-margo-targets": ["pdf", "deck"],
+                  "x-margo-precedence": "explicit CLI or API left margin, then document preference, then 22 mm for PDF or 0 for deck",
+                  "x-margo-interactions": "Zero enables full bleed at the left edge."
+                }
+              }
             }
           },
           "default": {}
@@ -130,6 +182,6 @@
   },
   "examples": [
     {"title": "Architecture overview", "language": "en"},
-    {"title": "Proposta técnica", "language": "pt-BR", "margo": {"page": {"size": "A4", "orientation": "portrait"}}, "consumerOwner": "docs"}
+    {"title": "Proposta técnica", "language": "pt-BR", "margo": {"page": {"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}}, "consumerOwner": "docs"}
   ]
 }

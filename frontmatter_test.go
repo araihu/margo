@@ -36,13 +36,22 @@ func TestFrontmatterPreservesGenericMetadata(t *testing.T) {
 }
 
 func TestFrontmatterAcceptsClosedMargoPagePreferences(t *testing.T) {
-	doc, err := New().Compile(context.Background(), Source{Name: "page.md", Content: []byte("---\nmargo:\n  page:\n    size: Letter\n    orientation: landscape\n---\n# Page")})
+	doc, err := New().Compile(context.Background(), Source{Name: "page.md", Content: []byte("---\nmargo:\n  page:\n    size: Letter\n    orientation: landscape\n    margins:\n      top: 12.5\n      right: 0\n      left: 18\n---\n# Page")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	page := doc.Metadata().Margo.Page
 	if page == nil || page.Size != "Letter" || page.Orientation != "landscape" {
 		t.Fatalf("page preference = %#v", page)
+	}
+	if page.Margins == nil || page.Margins.Top == nil || *page.Margins.Top != 12.5 ||
+		page.Margins.Right == nil || *page.Margins.Right != 0 || page.Margins.Bottom != nil ||
+		page.Margins.Left == nil || *page.Margins.Left != 18 {
+		t.Fatalf("margin preference = %#v", page.Margins)
+	}
+	*page.Margins.Left = 999
+	if got := *doc.Metadata().Margo.Page.Margins.Left; got != 18 {
+		t.Fatalf("margin preference was not defensively copied: %v", got)
 	}
 }
 
@@ -51,6 +60,35 @@ func TestFrontmatterRejectsUnknownMargoFieldAtSourcePosition(t *testing.T) {
 	diagnostic := unwrapDiagnostic(err)
 	if diagnostic == nil || diagnostic.Diagnostics[0].Code != "frontmatter.schema_invalid" || diagnostic.Diagnostics[0].Line != 3 || diagnostic.Diagnostics[0].Pointer != "/margo" {
 		t.Fatalf("diagnostic = %#v, error = %v", diagnostic, err)
+	}
+}
+
+func TestFrontmatterRejectsInvalidPageMarginPreferences(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		pointer string
+	}{
+		{
+			name:    "negative side",
+			content: "---\nmargo:\n  page:\n    margins:\n      top: -1\n---\n# Page",
+			pointer: "/margo/page/margins/top",
+		},
+		{
+			name:    "unknown side",
+			content: "---\nmargo:\n  page:\n    margins:\n      horizontal: 10\n---\n# Page",
+			pointer: "/margo/page/margins",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := New().Compile(context.Background(), Source{Name: "page.md", Content: []byte(test.content)})
+			diagnostic := unwrapDiagnostic(err)
+			if diagnostic == nil || diagnostic.Diagnostics[0].Code != "frontmatter.schema_invalid" || diagnostic.Diagnostics[0].Pointer != test.pointer {
+				t.Fatalf("diagnostic = %#v, error = %v", diagnostic, err)
+			}
+		})
 	}
 }
 

@@ -24,6 +24,17 @@ type DocumentPreferences struct {
 type PagePreference struct {
 	Size        string
 	Orientation string
+	Margins     *PageMarginPreference
+}
+
+// PageMarginPreference keeps every side optional so an author can override
+// one side without discarding the built-in values for the others. Pointers
+// distinguish an omitted side from an explicit zero used for full bleed.
+type PageMarginPreference struct {
+	Top    *float64
+	Right  *float64
+	Bottom *float64
+	Left   *float64
 }
 
 func (m Metadata) clone() Metadata {
@@ -31,12 +42,28 @@ func (m Metadata) clone() Metadata {
 	m.Tags = append([]string(nil), m.Tags...)
 	if m.Margo.Page != nil {
 		page := *m.Margo.Page
+		if page.Margins != nil {
+			margins := *page.Margins
+			margins.Top = cloneFloat64Pointer(margins.Top)
+			margins.Right = cloneFloat64Pointer(margins.Right)
+			margins.Bottom = cloneFloat64Pointer(margins.Bottom)
+			margins.Left = cloneFloat64Pointer(margins.Left)
+			page.Margins = &margins
+		}
 		m.Margo.Page = &page
 	}
 	if len(m.Additional) > 0 {
 		m.Additional = cloneStringAnyMap(m.Additional)
 	}
 	return m
+}
+
+func cloneFloat64Pointer(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
 }
 
 // AssetSet is the defensive asset identity projection for a result.

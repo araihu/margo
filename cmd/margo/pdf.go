@@ -164,6 +164,7 @@ func (options *pageFlags) bind(command *cobra.Command) {
 func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata) (pdf.PageConfig, error) {
 	size := options.Size
 	orientation := options.Orientation
+	top, right, bottom, left := options.Top, options.Right, options.Bottom, options.Left
 	if metadata.Margo.Page != nil {
 		if !command.Flags().Changed("page-size") && metadata.Margo.Page.Size != "" {
 			size = metadata.Margo.Page.Size
@@ -171,13 +172,27 @@ func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata)
 		if !command.Flags().Changed("orientation") && metadata.Margo.Page.Orientation != "" {
 			orientation = metadata.Margo.Page.Orientation
 		}
+		if margins := metadata.Margo.Page.Margins; margins != nil {
+			if !command.Flags().Changed("margin-top") && margins.Top != nil {
+				top = *margins.Top
+			}
+			if !command.Flags().Changed("margin-right") && margins.Right != nil {
+				right = *margins.Right
+			}
+			if !command.Flags().Changed("margin-bottom") && margins.Bottom != nil {
+				bottom = *margins.Bottom
+			}
+			if !command.Flags().Changed("margin-left") && margins.Left != nil {
+				left = *margins.Left
+			}
+		}
 	}
 	config := pdf.PageConfig{
 		Size:        pdf.PageSize(size),
 		Orientation: pdf.Orientation(orientation),
 		Margins: pdf.Margins{
-			Top: pdf.Millimeters(options.Top), Right: pdf.Millimeters(options.Right),
-			Bottom: pdf.Millimeters(options.Bottom), Left: pdf.Millimeters(options.Left),
+			Top: pdf.Millimeters(top), Right: pdf.Millimeters(right),
+			Bottom: pdf.Millimeters(bottom), Left: pdf.Millimeters(left),
 		},
 	}
 	if err := config.Validate(); err != nil {
