@@ -35,11 +35,17 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	engineOptions := engineFlags{Mode: "auto"}
 	pageOptions := pageFlags{Size: string(pdf.PageA4), Orientation: string(pdf.Portrait)}
 	linkOptions := pdfLinkFlags{Policy: string(pdf.RelativeLinksStrip)}
+	metadata := standaloneMetadataFlags{}
 	diagnostics := string(diagnosticText)
 	command := &cobra.Command{
 		Use:   "pdf INPUT",
 		Short: "Render a PDF document",
-		Args:  diagnosticExactArgs(1, &diagnostics),
+		Long:  "Render a PDF document. Run margo check before conversion and margo doctor when no PDF engine is discovered.",
+		Example: "  margo check guide.md\n" +
+			"  margo doctor\n" +
+			"  margo pdf guide.md --output guide.pdf\n" +
+			"  margo pdf guide.md --output guide.pdf --base-url https://docs.example.com/guide/",
+		Args: diagnosticExactArgs(1, &diagnostics),
 		RunE: func(command *cobra.Command, args []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {
@@ -52,7 +58,7 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions, linkConfig)
+			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions, linkConfig, metadata.standaloneOptions(command))
 			if err == nil {
 				_, err = publish(command.Context(), artifact, output, command.OutOrStdout())
 			}
@@ -68,12 +74,13 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	engineOptions.bind(command)
 	pageOptions.bind(command)
 	linkOptions.bind(command)
+	metadata.bind(command)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
 
-func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig) ([]byte, error) {
-	compiled, err := compileStandalone(command.Context(), deps, input)
+func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig, standaloneOptions []margo.StandaloneOption) ([]byte, error) {
+	compiled, err := compileStandalone(command.Context(), deps, input, standaloneOptions...)
 	if err != nil {
 		return nil, err
 	}

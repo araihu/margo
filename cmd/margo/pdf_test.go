@@ -28,6 +28,42 @@ func TestPDFRequiresExplicitOutput(t *testing.T) {
 	}
 }
 
+func TestPDFHelpExplainsPreflightEngineDiscoveryAndRecovery(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Build: testBuildInfo()})
+	command.SetArgs([]string{"pdf", "--help"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"margo check", "margo doctor", "--output", "--base-url", "--title", "--lang"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("PDF help missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+func TestPDFCommandPropagatesTitleAndLanguageOverrides(t *testing.T) {
+	engine := &capturingEngine{name: "native"}
+	probe := engines.Probe{Native: func(context.Context) (pdf.Engine, engines.Candidate) {
+		return engine, engines.Candidate{Name: "native", Version: "test", Compiled: true, Available: true}
+	}}
+	output := filepath.Join(t.TempDir(), "metadata.pdf")
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("# Original\n"), EngineProbe: probe, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		NextExecutionID: func() margo.ExecutionID { return "cli-pdf-metadata" },
+	})
+	command.SetArgs([]string{"pdf", "-", "--output", output, "--engine", "native", "--title", "Published PDF", "--lang", "pt-BR"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<title>Published PDF</title>`, `<html lang="pt-BR"`} {
+		if !bytes.Contains(engine.request.HTML, []byte(want)) {
+			t.Fatalf("PDF renderer input missing %q", want)
+		}
+	}
+}
+
 func TestPDFLinkFlagsUseSafeDefaultsAndExplicitResolution(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -186,6 +222,11 @@ type countingEngine struct {
 	exports   int
 }
 
+type capturingEngine struct {
+	name    string
+	request pdf.Request
+}
+
 func installedCLITestChromium() string {
 	for _, candidate := range []string{
 		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -210,4 +251,29 @@ func (engine *countingEngine) Version(context.Context) (string, error) {
 func (engine *countingEngine) Export(context.Context, pdf.Request) (pdf.Result, error) {
 	engine.exports++
 	return pdf.Result{}, engine.exportErr
+}
+
+func (engine *capturingEngine) Name() string { return engine.name }
+func (engine *capturingEngine) Version(context.Context) (string, error) {
+	return "test", nil
+}
+func (engine *capturingEngine) Export(_ context.Context, request pdf.Request) (pdf.Result, error) {
+	engine.request = request.Clone()
+	tasks := make([]margo.RuntimeTaskReport, len(request.Runtime.Tasks))
+	for index, task := range request.Runtime.Tasks {
+		tasks[index] = margo.RuntimeTaskReport{
+			ID: task.ID, Kind: task.Kind, InputSHA256: task.InputSHA256,
+			OutputSHA256: strings.Repeat("a", 64), OutputBytes: 1, Status: margo.RuntimeTaskSucceeded,
+		}
+	}
+	return pdf.Result{
+		PDF: []byte("%PDF-test"),
+		Runtime: margo.RuntimeReport{
+			Protocol: request.Runtime.Protocol, DocumentFingerprint: request.Runtime.DocumentFingerprint,
+			RenderInstanceID: request.Runtime.RenderInstanceID, ExecutionID: request.ExecutionID,
+			Status: margo.RuntimeReady, Tasks: tasks, FontChecks: []margo.FontCheck{},
+			BlockedRequests: []margo.BlockedRequest{}, Layout: margo.LayoutMetrics{ScrollWidth: 1, ScrollHeight: 1},
+		},
+		Engine: pdf.EngineInfo{Name: engine.name, Version: "test"},
+	}, nil
 }

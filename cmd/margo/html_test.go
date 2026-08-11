@@ -44,3 +44,37 @@ func TestHTMLCommandRefusesExistingOutput(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestHTMLCommandOverridesTitleAndLanguage(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("# Original\n"), Stdout: &stdout,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"html", "-", "--title", "Published guide", "--lang", "pt-BR"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<title>Published guide</title>`, `<html lang="pt-BR"`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("HTML override missing %q", want)
+		}
+	}
+}
+
+func TestHTMLCommandReportsInvalidLanguageAsActionableJSON(t *testing.T) {
+	var stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("# Original\n"), Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"html", "-", "--lang", "pt_BR", "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "html.metadata_invalid" {
+		t.Fatalf("error = %v", err)
+	}
+	for _, want := range []string{`"code":"html.metadata_invalid"`, `"pointer":"/language"`, `"hint":"Use a BCP 47 language tag`} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("diagnostic missing %q: %s", want, stderr.String())
+		}
+	}
+}

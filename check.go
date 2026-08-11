@@ -144,6 +144,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
 	diagnostics := checkMetadata(snapshot, frontmatter)
 	locator := checkLocator{source: frontmatter.body}
+	lastHeadingLevel := 0
 	rawContainers := make(map[goldast.Node]struct{})
 	walkErr := goldast.Walk(root, func(node goldast.Node, entering bool) (goldast.WalkStatus, error) {
 		if !entering {
@@ -153,6 +154,12 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			return goldast.WalkStop, err
 		}
 		switch value := node.(type) {
+		case *goldast.Heading:
+			offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
+			if value.Level > lastHeadingLevel+1 {
+				diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.heading_level_skipped", SeverityWarning, "/heading/level", fmt.Sprintf("heading level jumps from %d to %d", lastHeadingLevel, value.Level), "Use consecutive heading levels without skipping an intermediate level.", offset))
+			}
+			lastHeadingLevel = value.Level
 		case *goldast.HTMLBlock:
 			offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 			diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.raw_html", SeverityError, "/rawHTML", "raw HTML is not accepted by the default CLI policy", "Replace the fragment with Markdown before rendering.", offset))
@@ -250,6 +257,9 @@ func checkMetadata(source Source, frontmatter frontmatterResult) []Diagnostic {
 		{pointer: "/slug", value: metadata.Slug, limit: 128},
 	}
 	diagnostics := make([]Diagnostic, 0)
+	if metadata.Language == "" {
+		diagnostics = append(diagnostics, Diagnostic{Code: "check.language_missing", Severity: SeverityWarning, Source: source.Name, Line: 1, Column: 1, Pointer: "/language", Message: "document language is not declared", Hint: "Add a BCP 47 language tag such as language: en or language: pt-BR to frontmatter, or pass --lang when rendering."})
+	}
 	for _, field := range fields {
 		if len([]byte(normalizeHTMLText(field.value))) <= field.limit {
 			continue
@@ -351,7 +361,10 @@ func checkImageValidationDiagnostic(source Source, subject string, failure error
 
 func checkLinkReference(value string) (string, Severity, string, string) {
 	trimmed := strings.TrimSpace(value)
-	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+	if trimmed == "" {
+		return "check.link_destination_empty", SeverityWarning, "link destination is empty", "Add a destination URL or remove the link markup."
+	}
+	if strings.HasPrefix(trimmed, "#") {
 		return "", "", "", ""
 	}
 	parsed, err := url.Parse(trimmed)
@@ -403,6 +416,11 @@ type checkLocator struct {
 
 func (locator *checkLocator) find(value []byte) int {
 	if len(value) == 0 {
+		if index := bytes.Index(locator.source[locator.next:], []byte("](")); index >= 0 {
+			offset := locator.next + index + 2
+			locator.next = offset
+			return offset
+		}
 		return locator.next
 	}
 	for _, prefix := range [][]byte{append([]byte("]("), value...), append([]byte("](<"), value...)} {

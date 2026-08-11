@@ -30,12 +30,33 @@ func TestVersionWritesCompleteBuildIdentityToStdout(t *testing.T) {
 		"commit abc123\n" +
 		"go go1.26.5\n" +
 		"platform darwin/arm64\n" +
-		"engines chromium,native\n"
+		"compiled engines chromium,native\n" +
+		"external engine discovery run \"margo doctor\"\n"
 	if got := stdout.String(); got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRootVersionFlagAliasesVersionCommand(t *testing.T) {
+	var commandOutput, flagOutput bytes.Buffer
+	for _, test := range []struct {
+		args   []string
+		output *bytes.Buffer
+	}{
+		{args: []string{"version"}, output: &commandOutput},
+		{args: []string{"--version"}, output: &flagOutput},
+	} {
+		command := NewRootCommand(Dependencies{Stdout: test.output, Build: testBuildInfo()})
+		command.SetArgs(test.args)
+		if err := command.ExecuteContext(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if commandOutput.String() != flagOutput.String() {
+		t.Fatalf("--version output = %q, version output = %q", flagOutput.String(), commandOutput.String())
 	}
 }
 

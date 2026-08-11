@@ -84,14 +84,14 @@ func TestCheckDoesNotDropSameLineFindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"check.asset_missing", "check.asset_missing", "check.link_relative", "check.link_relative"}
+	want := []string{"check.language_missing", "check.asset_missing", "check.asset_missing", "check.link_relative", "check.link_relative"}
 	got := make([]string, len(diagnostics))
 	columns := make(map[int]struct{})
 	for index, diagnostic := range diagnostics {
 		got[index] = diagnostic.Code
 		columns[diagnostic.Column] = struct{}{}
 	}
-	if !reflect.DeepEqual(got, want) || len(columns) != 4 {
+	if !reflect.DeepEqual(got, want) || len(columns) != 5 {
 		t.Fatalf("diagnostics = %+v", diagnostics)
 	}
 }
@@ -102,7 +102,26 @@ func TestCheckLocatesLinkSyntaxInsteadOfEarlierDestinationText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diagnostics) != 1 || diagnostics[0].Code != "check.link_relative" || diagnostics[0].Line != 3 {
+	if len(diagnostics) != 2 || diagnostics[1].Code != "check.link_relative" || diagnostics[1].Line != 3 {
+		t.Fatalf("diagnostics = %+v", diagnostics)
+	}
+}
+
+func TestCheckWarnsForMissingLanguageSkippedHeadingAndEmptyLink(t *testing.T) {
+	source := Source{Name: "guide.md", Content: []byte("# Main\n\n### Skipped level\n\n[unfinished]()\n")}
+	diagnostics, err := Check(context.Background(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"check.language_missing", "check.heading_level_skipped", "check.link_destination_empty"}
+	got := make([]string, len(diagnostics))
+	for index := range diagnostics {
+		got[index] = diagnostics[index].Code
+		if diagnostics[index].Severity != SeverityWarning || diagnostics[index].Hint == "" {
+			t.Fatalf("accessibility diagnostic is not actionable: %+v", diagnostics[index])
+		}
+	}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("diagnostics = %+v", diagnostics)
 	}
 }
@@ -118,7 +137,7 @@ func TestCheckEnforcesMetadataListLimitsAndSequencePositions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diagnostics) != 1 || diagnostics[0].Code != "source.metadata_invalid" || diagnostics[0].Pointer != "/authors" || diagnostics[0].Line != 2 {
+	if len(diagnostics) != 2 || diagnostics[0].Code != "check.language_missing" || diagnostics[1].Code != "source.metadata_invalid" || diagnostics[1].Pointer != "/authors" || diagnostics[1].Line != 2 {
 		t.Fatalf("list limit diagnostics = %+v", diagnostics)
 	}
 
@@ -162,7 +181,7 @@ func TestFilesystemCheckAssetReaderRejectsEscapeAndOversize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"check.asset_outside_root", "check.asset_too_large"}
+	want := []string{"check.language_missing", "check.asset_outside_root", "check.asset_too_large"}
 	got := make([]string, len(diagnostics))
 	for index := range diagnostics {
 		got[index] = diagnostics[index].Code
@@ -185,7 +204,7 @@ func TestCheckValidatesAssetContentAndDataSVG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"check.svg_incompatible", "check.asset_incompatible", "check.svg_incompatible"}
+	want := []string{"check.language_missing", "check.svg_incompatible", "check.asset_incompatible", "check.svg_incompatible"}
 	got := make([]string, len(diagnostics))
 	for index := range diagnostics {
 		got[index] = diagnostics[index].Code
@@ -202,7 +221,7 @@ func TestCheckRejectsMislabeledDataImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diagnostics) != 1 || diagnostics[0].Code != "check.asset_incompatible" {
+	if len(diagnostics) != 2 || diagnostics[1].Code != "check.asset_incompatible" {
 		t.Fatalf("diagnostics = %+v", diagnostics)
 	}
 }
@@ -212,7 +231,7 @@ func TestCheckRejectsWindowsAbsoluteLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diagnostics) != 1 || diagnostics[0].Code != "check.link_unsupported" || diagnostics[0].Severity != SeverityError {
+	if len(diagnostics) != 2 || diagnostics[1].Code != "check.link_unsupported" || diagnostics[1].Severity != SeverityError {
 		t.Fatalf("diagnostics = %+v", diagnostics)
 	}
 }
@@ -257,7 +276,7 @@ func TestCheckIsDeterministicAndDoesNotMutateSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(first) != 0 || !reflect.DeepEqual(first, second) || !reflect.DeepEqual(source.Content, original) {
+	if len(first) != 1 || first[0].Code != "check.language_missing" || !reflect.DeepEqual(first, second) || !reflect.DeepEqual(source.Content, original) {
 		t.Fatalf("first=%+v second=%+v source=%q", first, second, source.Content)
 	}
 }

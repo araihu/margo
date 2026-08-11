@@ -361,9 +361,29 @@ func WithStandaloneTheme(theme ThemeName) StandaloneOption {
 func WithPageTitle(title string) StandaloneOption {
 	return func(config *standaloneConfig) error {
 		if strings.TrimSpace(title) == "" || len([]byte(title)) > 256 {
-			return fmt.Errorf("margo: invalid standalone title")
+			return newDiagnosticError(Diagnostic{
+				Code: "html.metadata_invalid", Severity: SeverityError, Pointer: "/title",
+				Message: "standalone title must contain text and be at most 256 UTF-8 bytes",
+				Hint:    "Use a non-empty title of at most 256 UTF-8 bytes.",
+			})
 		}
 		config.title = title
+		return nil
+	}
+}
+
+// WithPageLanguage sets the document language using a BCP 47 language tag.
+func WithPageLanguage(language string) StandaloneOption {
+	return func(config *standaloneConfig) error {
+		language = strings.TrimSpace(language)
+		if !sourceLanguagePattern.MatchString(language) {
+			return newDiagnosticError(Diagnostic{
+				Code: "html.metadata_invalid", Severity: SeverityError, Pointer: "/language",
+				Message: "standalone language must be a valid BCP 47 language tag",
+				Hint:    "Use a BCP 47 language tag such as en or pt-BR.",
+			})
+		}
+		config.lang = language
 		return nil
 	}
 }

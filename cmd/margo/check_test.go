@@ -35,7 +35,7 @@ func TestCheckCommandReportsAllFindingsAsJSON(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatalf("decode report: %v\n%s", err, stdout.String())
 	}
-	if len(report.Diagnostics) != 4 || report.Errors != 2 || report.Warnings != 2 {
+	if len(report.Diagnostics) != 5 || report.Errors != 2 || report.Warnings != 3 {
 		t.Fatalf("report = %+v", report)
 	}
 	for _, diagnostic := range report.Diagnostics {
@@ -48,7 +48,7 @@ func TestCheckCommandReportsAllFindingsAsJSON(t *testing.T) {
 func TestCheckCommandSucceedsForCompatibleInput(t *testing.T) {
 	root := t.TempDir()
 	input := filepath.Join(root, "clean.md")
-	if err := os.WriteFile(input, []byte("# Clean\n\n[External](https://example.com)\n"), 0o600); err != nil {
+	if err := os.WriteFile(input, []byte("---\nlanguage: en\n---\n\n# Clean\n\n[External](https://example.com)\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer

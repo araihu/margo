@@ -106,6 +106,8 @@ func cliDiagnosticCode(failure error) string { return projectDiagnostic(failure)
 
 type reportedError struct{ error }
 
+func (failure reportedError) Unwrap() error { return failure.error }
+
 func reportCommandError(command interface{ ErrOrStderr() io.Writer }, format diagnosticFormat, failure error) error {
 	if err := writeDiagnostic(command.ErrOrStderr(), format, failure); err != nil {
 		return err

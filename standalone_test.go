@@ -66,6 +66,20 @@ func TestStandalonePreservesDerivedMetadataAndMainLandmark(t *testing.T) {
 	}
 }
 
+func TestStandaloneAllowsExplicitPageLanguage(t *testing.T) {
+	result := mustRenderSource(t, "# Guia\n")
+	component, err := RenderStandalone(result, WithPageLanguage("pt-BR"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if markup := renderComponent(t, component); !strings.Contains(markup, `<html lang="pt-BR"`) {
+		t.Fatalf("standalone language override missing: %s", markup)
+	}
+	if _, err := RenderStandalone(result, WithPageLanguage("pt_BR")); diagnosticCode(err) != "html.metadata_invalid" {
+		t.Fatalf("invalid language error = %v", err)
+	}
+}
+
 func TestStandaloneMermaidEmbedsOfflineBrowserRuntime(t *testing.T) {
 	if _, err := mermaidBrowserCapabilities(); err != nil {
 		if diagnostic, ok := err.(*DiagnosticError); ok {

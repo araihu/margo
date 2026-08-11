@@ -47,6 +47,7 @@ margo deck talk.md --output talk.html
 margo deck talk.md --format pdf --output talk.pdf
 margo doctor
 margo version
+margo --version
 ```
 
 Single-document `INPUT` is exactly one file path or `-` for stdin. `html` and
@@ -58,7 +59,8 @@ JSON with `--diagnostics text|json`.
 
 Run `margo check INPUT` before rendering an unfamiliar document. It reports
 raw HTML, missing or remote images, incompatible SVG, invalid frontmatter,
-legacy Mermaid configuration, empty image alternatives, and relative links.
+legacy Mermaid configuration, empty image alternatives, missing document
+language, skipped heading levels, empty link destinations, and relative links.
 Every finding includes the source, line, field pointer, and a remediation
 hint. Errors make the command exit nonzero; accessibility and link-policy
 warnings remain visible without blocking the check.
@@ -99,6 +101,11 @@ The HTML title precedence is frontmatter `title`, the first H1, then the source
 filename without its Markdown extension. Standalone output defaults the
 document language to `en` when `language` is absent.
 
+For one-off publication metadata, `margo html` and `margo pdf` accept
+`--title TEXT` and `--lang TAG`; these override frontmatter in the generated
+HTML shell and PDF metadata. Run `margo check` first: it warns when language is
+missing instead of guessing editorial content.
+
 ## PDF engines
 
 Use `--engine auto|chromium|native` and, for unusual installations or
@@ -113,6 +120,8 @@ Discovery can move past an unavailable candidate. Once an engine is selected,
 rendering never falls back: a failed Chromium render cannot silently become a
 different native PDF. `margo doctor --diagnostics json` reports the exact
 candidate order, path, version, compiled state, availability, and reason.
+`margo version` and `margo --version` report compiled engine capabilities;
+they do not perform external engine discovery.
 
 Margo never downloads a browser, native runtime, helper binary, or package at
 runtime. It uses installed Chromium when available. Native WKWebView, WebView2,

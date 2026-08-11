@@ -28,15 +28,24 @@ type Dependencies struct {
 
 func NewRootCommand(deps Dependencies) *cobra.Command {
 	deps = normalizeDependencies(deps)
+	version := false
 	cmd := &cobra.Command{
 		Use:           "margo",
 		Short:         "Render Markdown as HTML, PDF, or presentation decks",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Args:          cobra.NoArgs,
+		RunE: func(command *cobra.Command, _ []string) error {
+			if version {
+				return writeVersion(command.OutOrStdout(), deps.Build)
+			}
+			return command.Help()
+		},
 	}
 	cmd.SetIn(deps.Stdin)
 	cmd.SetOut(deps.Stdout)
 	cmd.SetErr(deps.Stderr)
+	cmd.Flags().BoolVar(&version, "version", false, "print version and compiled engine capabilities")
 	cmd.AddCommand(
 		newCheckCommand(deps),
 		newHTMLCommand(deps),
