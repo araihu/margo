@@ -1,27 +1,25 @@
 # Chart-aware optimistic renderer
 
-This module-local developer command renders the Margo optimistic benchmark with
-the interactive `goshtosochart` extension enabled. The root renderer stays
-extension-neutral because `github.com/araihu/margo/charts` is an optional Go
-module.
+This developer command renders the Margo optimistic benchmark with the optional
+`goshtosochart` extension enabled. It is part of the root Margo module, not an
+independent module or release artifact.
 
-From the repository root, run through the checkout workspace:
+From the repository root:
 
 ```sh
-go run ./charts/tools/optimistic-renderer \
+GOWORK=off GOFLAGS=-mod=readonly \
+  go run ./charts/tools/optimistic-renderer \
   --source testdata/markdown/margo-full-feature-set.md \
   --charts-source charts/testdata/markdown/optimistic-charts.md \
-  --output /tmp/margo-v0.0.1-optimistic-charts.html \
+  --output /tmp/margo-optimistic-charts.html \
   --color-mode light
 ```
 
-Keep the checkout's `go.work` active for this integration artifact so the
-renderer uses the local root module. The independent module gates still use
-`GOWORK=off GOFLAGS=-mod=readonly`.
-
 Use `--color-mode dark` for the dark projection. The chart appendix covers bar,
-line, doughnut, and scatter, including theme tokens, caller classes, and
-explicit hexadecimal colors. The command embeds the pinned chart-controls
-runtime in the HTML, so expand/fullscreen/export actions work offline. Print
-CSS hides those controls from PDF output while retaining the SVG and accessible
-data table.
+line, doughnut, and scatter charts, including token palettes, caller classes,
+and explicit hexadecimal colors. Generated HTML embeds the pinned control
+runtime, so `Expand` and capability-derived `Export` controls work offline.
+Print CSS hides controls while preserving SVG and the accessible data table.
+
+Run this command with `GOWORK=off GOFLAGS=-mod=readonly`. No `go.work` setup,
+nested `go.mod`, or `v0.0.1-dev` release claim applies.

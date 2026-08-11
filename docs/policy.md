@@ -5,6 +5,47 @@ request a capability, but only the application or CLI operator can grant it.
 Without an explicit host policy, raw HTML is denied and `trusted-embed` fences
 remain ordinary code blocks.
 
+## Library API
+
+Library hosts set the allowed kinds and exact HTTPS origins before compiling.
+The document can request one of those values through a `trusted-embed` fence;
+it cannot add a kind, origin, sandbox capability, or arbitrary HTML.
+
+```go
+import (
+	"context"
+
+	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/embed"
+)
+
+func compileAndCheck(ctx context.Context, source margo.Source) error {
+	policy := embed.Policy{
+		Projection:     embed.ProjectionInteractive,
+		AllowedKinds:   []embed.Kind{embed.KindIframe},
+		AllowedOrigins: []string{"https://video.example.com"},
+		IframeSandbox:  []embed.SandboxToken{embed.SandboxAllowPresentation},
+		ReferrerPolicy: embed.ReferrerNoReferrer,
+	}
+	trustedEmbeds := embed.Extension(policy)
+	compiler := margo.New(margo.WithExtension(trustedEmbeds))
+
+	document, err := compiler.Compile(ctx, source)
+	if err != nil {
+		return err
+	}
+	if _, err := compiler.Render(ctx, document); err != nil {
+		return err
+	}
+	_, err = margo.Check(ctx, source, margo.WithCheckExtension(trustedEmbeds))
+	return err
+}
+```
+
+Use the same registration with `margo.New(margo.WithExtension(...))` and
+`margo.Check(..., margo.WithCheckExtension(...))` so rendering and preflight
+enforce the same host-owned limits.
+
 ## CLI policy file
 
 `margo check`, `html`, `pdf`, `site`, and `deck` accept

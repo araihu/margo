@@ -1,5 +1,10 @@
 # Goshtoso Markdown
 
+> **HISTORICAL RECORD. SUPERSEDED.** This proposal is retained for historical
+> context only. It is not the current CLI, package, or release contract. See
+> the [Margo README](../README.md) and
+> [ADR 0001](decisions/0001-unified-module-and-cli.md) for the current contract.
+
 Status: proposed for v0.0.1
 Release stage: pre-v0.1.0
 Date: 2026-08-06

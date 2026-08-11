@@ -13,6 +13,10 @@ func TestHTMLDocumentationNamesDecoupledPublicContract(t *testing.T) {
 		"Head:", "Header:", "BeforeContent:", "Footer:",
 		"/assets/", "/margo-assets/", "/charts/assets/",
 		"HTMLDependenciesLocal", "HTMLDependenciesInline",
+		"mux.Handle(\"/assets/\", goshtosoassets.Handler())",
+		"mux.Handle(\"/margo-assets/\", margo.HTMLAssetHandler())",
+		"mux.Handle(chartassets.Prefix, chartassets.Handler())",
+		"Margo handler does not serve either dependency mount.",
 	} {
 		if !strings.Contains(readme, want) {
 			t.Fatalf("README missing %q", want)
@@ -31,15 +35,45 @@ func TestHTMLDocumentationNamesDecoupledPublicContract(t *testing.T) {
 		}
 	}
 
+	rendererReadme := readEditorialRepoFile(t, "charts/tools/optimistic-renderer/README.md")
+	for _, want := range []string{"`Expand`", "capability-derived `Export`"} {
+		if !strings.Contains(rendererReadme, want) {
+			t.Fatalf("chart renderer README missing %q", want)
+		}
+	}
+	if strings.Contains(rendererReadme, "fullscreen") {
+		t.Fatal("chart renderer README promises fullscreen control")
+	}
+
 	testingDoc := readEditorialRepoFile(t, "docs/testing/editorial-html.md")
-	for _, want := range []string{"tested", "not a minimum", "PDF deferred", "Manja-compatible fragment", "No duplicate runtime"} {
+	for _, want := range []string{
+		"tested", "not a minimum", "PDF deferred", "Manja-compatible fragment", "No duplicate runtime",
+		"missing Chromium skips this tagged gate", "Untagged tests may opportunistically", "Chromium is not required for the ordinary suite.",
+	} {
 		if !strings.Contains(testingDoc, want) {
 			t.Fatalf("testing evidence missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"users must install Chrome 151", "requires Chrome 151", "minimum browser version: 151"} {
+	for _, forbidden := range []string{
+		"users must install Chrome 151", "requires Chrome 151", "minimum browser version: 151",
+		"Chromium is required for the ordinary suite.",
+	} {
 		if strings.Contains(strings.ToLower(testingDoc), strings.ToLower(forbidden)) {
 			t.Fatalf("testing evidence pins user browser policy %q", forbidden)
+		}
+	}
+}
+
+func TestPolicyDocumentationShowsHostOwnedLibraryEmbedPolicy(t *testing.T) {
+	policyDoc := readEditorialRepoFile(t, "docs/policy.md")
+	for _, want := range []string{
+		"## Library API", "embed.Policy", "embed.Extension(policy)",
+		"margo.New(margo.WithExtension(trustedEmbeds))",
+		"margo.Check(ctx, source, margo.WithCheckExtension(trustedEmbeds))",
+		"AllowedKinds", "AllowedOrigins", "cannot add a kind, origin",
+	} {
+		if !strings.Contains(policyDoc, want) {
+			t.Fatalf("policy documentation missing %q", want)
 		}
 	}
 }
