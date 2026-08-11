@@ -23,7 +23,7 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		"margo.WithExtension(charts.Extension())",
 		"--engine auto|chromium|native", "MARGO_CHROMIUM_PATH", "never downloads",
 		"CGO_ENABLED=0", "--output -", "--force", "stderr", "stdout",
-		"--relative-links strip|error|keep|resolve", "Defaults are `--engine auto`, zero margins, and A4 portrait unless",
+		"--relative-links strip|error|keep|resolve", "readable document margins of", "set all four margin flags to `0` for full bleed",
 		"Its defaults are HTML to stdout, `--engine auto`, A4, portrait, and zero", "margins. PDF decks require",
 		"historical submodule tags", "docs/decisions/0001-unified-module-and-cli.md",
 		"docs/testing/pdf-engine-matrix.md",

@@ -20,6 +20,24 @@ type pageFlags struct {
 	Left        float64
 }
 
+const (
+	defaultDocumentMarginTop    = 24
+	defaultDocumentMarginRight  = 22
+	defaultDocumentMarginBottom = 26
+	defaultDocumentMarginLeft   = 22
+)
+
+func defaultDocumentPageFlags() pageFlags {
+	return pageFlags{
+		Size:        string(pdf.PageA4),
+		Orientation: string(pdf.Portrait),
+		Top:         defaultDocumentMarginTop,
+		Right:       defaultDocumentMarginRight,
+		Bottom:      defaultDocumentMarginBottom,
+		Left:        defaultDocumentMarginLeft,
+	}
+}
+
 type pdfLinkFlags struct {
 	Policy  string
 	BaseURL string
@@ -33,7 +51,7 @@ type pdfLinkConfig struct {
 func newPDFCommand(deps Dependencies) *cobra.Command {
 	output := outputOptions{}
 	engineOptions := engineFlags{Mode: "auto"}
-	pageOptions := pageFlags{Size: string(pdf.PageA4), Orientation: string(pdf.Portrait)}
+	pageOptions := defaultDocumentPageFlags()
 	linkOptions := pdfLinkFlags{Policy: string(pdf.RelativeLinksStrip)}
 	metadata := standaloneMetadataFlags{}
 	policyOptions := policyFlags{}
@@ -137,10 +155,10 @@ func (options pdfLinkFlags) config(policyExplicit bool) (pdfLinkConfig, error) {
 func (options *pageFlags) bind(command *cobra.Command) {
 	command.Flags().StringVar(&options.Size, "page-size", string(pdf.PageA4), "page size: A4 or Letter")
 	command.Flags().StringVar(&options.Orientation, "orientation", string(pdf.Portrait), "orientation: portrait or landscape")
-	command.Flags().Float64Var(&options.Top, "margin-top", 0, "top margin in millimeters")
-	command.Flags().Float64Var(&options.Right, "margin-right", 0, "right margin in millimeters")
-	command.Flags().Float64Var(&options.Bottom, "margin-bottom", 0, "bottom margin in millimeters")
-	command.Flags().Float64Var(&options.Left, "margin-left", 0, "left margin in millimeters")
+	command.Flags().Float64Var(&options.Top, "margin-top", options.Top, "top margin in millimeters")
+	command.Flags().Float64Var(&options.Right, "margin-right", options.Right, "right margin in millimeters")
+	command.Flags().Float64Var(&options.Bottom, "margin-bottom", options.Bottom, "bottom margin in millimeters")
+	command.Flags().Float64Var(&options.Left, "margin-left", options.Left, "left margin in millimeters")
 }
 
 func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata) (pdf.PageConfig, error) {

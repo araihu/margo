@@ -206,9 +206,10 @@ the destination and published by rename only after a successful build.
 [--relative-links strip|error|keep|resolve] [--base-url URL] [--title TEXT]
 [--lang TAG] [--policy FILE] [--diagnostics text|json]` renders a PDF.
 
-Defaults are `--engine auto`, zero margins, and A4 portrait unless
-`margo.page` supplies a page preference. Explicit CLI flags override document
-preferences. The default
+Defaults are `--engine auto`, A4 portrait, and readable document margins of
+24 mm top, 22 mm right, 26 mm bottom, and 22 mm left unless `margo.page`
+supplies a page preference. Explicit CLI flags override document preferences;
+set all four margin flags to `0` for full bleed. The default
 `--relative-links strip` keeps visible text while removing relative PDF link
 targets. `--base-url URL` selects `resolve` when `--relative-links` was not set;
 explicit `resolve` requires `--base-url`. `margo doctor` reports candidate

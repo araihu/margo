@@ -64,6 +64,52 @@ func TestPDFCommandPropagatesTitleAndLanguageOverrides(t *testing.T) {
 	}
 }
 
+func TestPDFCommandUsesReadableDefaultMarginsAndAllowsExplicitZero(t *testing.T) {
+	tests := []struct {
+		name        string
+		extraArgs   []string
+		wantMargins pdf.Margins
+	}{
+		{
+			name: "readable document defaults",
+			wantMargins: pdf.Margins{
+				Top: 24, Right: 22, Bottom: 26, Left: 22,
+			},
+		},
+		{
+			name: "explicit full bleed",
+			extraArgs: []string{
+				"--margin-top", "0", "--margin-right", "0",
+				"--margin-bottom", "0", "--margin-left", "0",
+			},
+			wantMargins: pdf.Margins{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			engine := &capturingEngine{name: "native"}
+			probe := engines.Probe{Native: func(context.Context) (pdf.Engine, engines.Candidate) {
+				return engine, engines.Candidate{Name: "native", Version: "test", Compiled: true, Available: true}
+			}}
+			output := filepath.Join(t.TempDir(), "page.pdf")
+			command := NewRootCommand(Dependencies{
+				Stdin: strings.NewReader("# Page\n"), EngineProbe: probe, Stderr: io.Discard,
+				Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+				NextExecutionID: func() margo.ExecutionID { return "cli-pdf-margins" },
+			})
+			args := []string{"pdf", "-", "--output", output, "--engine", "native"}
+			command.SetArgs(append(args, test.extraArgs...))
+			if err := command.ExecuteContext(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if engine.request.Page.Margins != test.wantMargins {
+				t.Fatalf("margins = %+v, want %+v", engine.request.Page.Margins, test.wantMargins)
+			}
+		})
+	}
+}
+
 func TestPDFCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 	engine := &capturingEngine{name: "native"}
 	probe := engines.Probe{Native: func(context.Context) (pdf.Engine, engines.Candidate) {

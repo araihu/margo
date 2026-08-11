@@ -118,4 +118,7 @@ func TestDeckPDFUsesDocumentPagePreferenceUnlessCLIOverridesIt(t *testing.T) {
 	if engine.request.Page.Size != pdf.PageLetter || engine.request.Page.Orientation != pdf.Landscape {
 		t.Fatalf("page config = %+v", engine.request.Page)
 	}
+	if engine.request.Page.Margins != (pdf.Margins{}) {
+		t.Fatalf("deck default margins = %+v, want full bleed", engine.request.Page.Margins)
+	}
 }
