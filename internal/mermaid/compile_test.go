@@ -61,19 +61,14 @@ func TestMermaidStrictConfigurationHashIsPinned(t *testing.T) {
 }
 
 func TestMermaidStrictIsDefaultRegisteredAtCompile(t *testing.T) {
-	for _, source := range []string{
-		"```mermaid\nflowchart TD\n  A --> B\n```\n",
-		"---\ngoshtoso:\n  security:\n    mermaid: strict\n---\n```mermaid\nflowchart TD\n  A --> B\n```\n",
-	} {
-		compiler := margo.New()
-		_, err := compiler.Compile(context.Background(), margo.Source{Name: "strict.md", Content: []byte(source)})
-		if err != nil {
-			t.Fatal(err)
-		}
+	compiler := margo.New()
+	_, err := compiler.Compile(context.Background(), margo.Source{Name: "strict.md", Content: []byte("```mermaid\nflowchart TD\n  A --> B\n```\n")})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestMermaidStrictRejectsDocumentConfigurationOtherThanLiteralStrict(t *testing.T) {
+func TestMermaidRejectsRemovedDocumentConfiguration(t *testing.T) {
 	for _, value := range []string{"deny", "loose", "{}"} {
 		t.Run(value, func(t *testing.T) {
 			compiler := margo.New()
@@ -83,7 +78,7 @@ func TestMermaidStrictRejectsDocumentConfigurationOtherThanLiteralStrict(t *test
 			if !errors.As(err, &diagnostic) {
 				t.Fatalf("error = %v, want DiagnosticError", err)
 			}
-			if len(diagnostic.Diagnostics) != 1 || diagnostic.Diagnostics[0].Code != internalmermaid.ConfigurationForbiddenCode {
+			if len(diagnostic.Diagnostics) != 1 || diagnostic.Diagnostics[0].Code != "frontmatter.goshtoso_removed" {
 				t.Fatalf("diagnostics = %#v", diagnostic.Diagnostics)
 			}
 		})

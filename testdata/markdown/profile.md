@@ -1,7 +1,5 @@
 ---
 title: Profile fixture
-goshtoso:
-  theme: minimal
 ---
 
 # Heading

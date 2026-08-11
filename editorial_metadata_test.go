@@ -57,7 +57,7 @@ func TestEditorialFrontmatterRejectsInvalidMetadata(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			source := []byte("---\n" + test.field + ": " + test.value + "\n---\nBody\n")
 			_, err := New().Compile(context.Background(), Source{Name: "invalid.md", Content: source})
-			if got := diagnosticCode(err); got != "source.metadata_invalid" {
+			if got := diagnosticCode(err); got != "frontmatter.schema_invalid" {
 				t.Fatalf("diagnostic code = %q, err = %v", got, err)
 			}
 			var diagnosticErr *DiagnosticError

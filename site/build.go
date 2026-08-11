@@ -167,7 +167,7 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	if err != nil {
 		return err
 	}
-	rendered, err := b.request.Compiler.Render(ctx, document, margo.WithTableSort(margo.TableSortClient))
+	rendered, err := b.request.Compiler.Render(ctx, document, margo.WithTableSort(margo.TableSortClient), margo.WithRenderTarget(margo.TargetSite))
 	if err != nil {
 		return err
 	}

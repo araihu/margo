@@ -105,6 +105,20 @@ type checkConfig struct {
 	policy      Policy
 	policySet   bool
 	extensions  []ExtensionRegistration
+	target      RenderTarget
+}
+
+// WithCheckTarget selects the output projection analyzed by Check.
+func WithCheckTarget(target RenderTarget) CheckOption {
+	return func(config *checkConfig) error {
+		switch target {
+		case TargetHTML, TargetSite, TargetPDF, TargetDeck:
+			config.target = target
+			return nil
+		default:
+			return fmt.Errorf("check.target_invalid: unsupported target %q", target)
+		}
+	}
 }
 
 // CheckOption configures compatibility analysis.
@@ -122,13 +136,12 @@ func WithCheckAssetReader(reader CheckAssetReader) CheckOption {
 }
 
 // WithCheckPolicy evaluates compatibility against the same host capability
-// ceiling used for compilation. Document metadata can request capabilities but
-// cannot elevate this policy.
+// ceiling used for compilation. Document metadata has no capability authority.
 func WithCheckPolicy(policy Policy) CheckOption {
 	if policy.RawHTML == "" {
 		policy.RawHTML = RawHTMLDeny
 	}
-	frozen := policy
+	frozen := clonePolicy(policy)
 	return func(config *checkConfig) error {
 		if err := validateRawHTMLMode(frozen.RawHTML); err != nil {
 			return err
@@ -136,7 +149,7 @@ func WithCheckPolicy(policy Policy) CheckOption {
 		if frozen.OutputBytes < MinOutputBytes || frozen.OutputBytes > MaxOutputBytes {
 			return policyDiagnostic("policy.output_bytes_invalid", "output byte limit must be between 1 and 67108864")
 		}
-		config.policy = frozen
+		config.policy = clonePolicy(frozen)
 		config.policySet = true
 		return nil
 	}
@@ -188,6 +201,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 		return nil, err
 	}
 	config := checkConfig{}
+	config.target = TargetHTML
 	for index, option := range options {
 		if option == nil {
 			return nil, fmt.Errorf("check.option_invalid: nil option at index %d", index)
@@ -225,6 +239,11 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			return goldast.WalkStop, err
 		}
 		switch value := node.(type) {
+		case *goldast.Text:
+			if index := bytes.Index(value.Value(frontmatter.body), []byte("<!--")); index >= 0 && !insideCodeSpan(value) {
+				offset := frontmatter.bodyOffset + value.Segment.Start + index
+				diagnostics = append(diagnostics, checkDiagnostic(snapshot, "source.html_comment_malformed", SeverityError, "/rawHTML", "HTML comment must end with -->", "Close the HTML comment with -->.", offset))
+			}
 		case *goldast.Heading:
 			offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 			if value.Level > lastHeadingLevel+1 {
@@ -232,9 +251,23 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			}
 			lastHeadingLevel = value.Level
 		case *goldast.HTMLBlock:
+			fragment := value.Text(frontmatter.body)
+			remaining, commentErr := stripHTMLComments(fragment)
+			if commentErr != nil {
+				offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
+				diagnostics = append(diagnostics, checkDiagnostic(snapshot, "source.html_comment_malformed", SeverityError, "/rawHTML", commentErr.Error(), "Close the HTML comment with -->.", offset))
+				break
+			}
+			if strings.TrimSpace(string(remaining)) == "" {
+				break
+			}
+			if embed, recognized, embedErr := parseIframeFragment(remaining); recognized {
+				offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
+				diagnostics = append(diagnostics, checkIframeDiagnostics(snapshot, config.target, effectivePolicy.Iframe, embed, embedErr, offset)...)
+				break
+			}
 			if allowRawHTML {
-				fragment := value.Lines().Value(frontmatter.body)
-				if validationErr := ValidateHTML(string(fragment)); validationErr != nil {
+				if validationErr := ValidateHTML(string(remaining)); validationErr != nil {
 					offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 					diagnostics = append(diagnostics, checkDiagnostic(snapshot, "policy.html.invalid", SeverityError, "/rawHTML", validationErr.Error(), "Use only elements and attributes accepted by the margo-html-v1 allowlist.", offset))
 				}
@@ -246,9 +279,23 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 			diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.raw_html", SeverityError, "/rawHTML", "raw HTML is not accepted by the default CLI policy", "Replace the fragment with Markdown before rendering.", offset))
 		case *goldast.RawHTML:
+			fragment := value.Segments.Value(frontmatter.body)
+			remaining, commentErr := stripHTMLComments(fragment)
+			if commentErr != nil {
+				offset := frontmatter.bodyOffset + segmentAtStart(value.Segments)
+				diagnostics = append(diagnostics, checkDiagnostic(snapshot, "source.html_comment_malformed", SeverityError, "/rawHTML", commentErr.Error(), "Close the HTML comment with -->.", offset))
+				break
+			}
+			if strings.TrimSpace(string(remaining)) == "" {
+				break
+			}
+			if embed, recognized, embedErr := parseIframeFragment(remaining); recognized {
+				offset := frontmatter.bodyOffset + segmentAtStart(value.Segments)
+				diagnostics = append(diagnostics, checkIframeDiagnostics(snapshot, config.target, effectivePolicy.Iframe, embed, embedErr, offset)...)
+				break
+			}
 			if allowRawHTML {
-				fragment := value.Segments.Value(frontmatter.body)
-				if validationErr := ValidateHTML(string(fragment)); validationErr != nil {
+				if validationErr := ValidateHTML(string(remaining)); validationErr != nil {
 					offset := frontmatter.bodyOffset + segmentAtStart(value.Segments)
 					diagnostics = append(diagnostics, checkDiagnostic(snapshot, "policy.html.invalid", SeverityError, "/rawHTML", validationErr.Error(), "Use only elements and attributes accepted by the margo-html-v1 allowlist.", offset))
 				}
@@ -319,6 +366,22 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 	return diagnostics, nil
 }
 
+func checkIframeDiagnostics(source Source, target RenderTarget, policy *IframePolicy, embed iframeEmbed, failure error, offset int) []Diagnostic {
+	if failure == nil {
+		failure = authorizeIframe(policy, embed)
+	}
+	if failure == nil && iframeProjection(policy, target) == ProjectionDeny {
+		failure = fmt.Errorf("iframe projection is deny for target %s", target)
+	}
+	if failure != nil {
+		return []Diagnostic{checkDiagnostic(source, "policy.iframe_denied", SeverityError, "/policy/iframe", failure.Error(), "Authorize the exact HTTPS origin and target projection in the trusted host policy, or remove the iframe.", offset)}
+	}
+	if embed.Title == "" {
+		return []Diagnostic{checkDiagnostic(source, "check.iframe_title_missing", SeverityWarning, "/iframe/title", "iframe has no accessible title", "Add a concise title attribute.", offset)}
+	}
+	return nil
+}
+
 func extensionCheckDiagnostics(source Source, node ExtensionNode, failure error) []Diagnostic {
 	if failure == nil {
 		return nil
@@ -353,7 +416,7 @@ func checkPolicyCompatibility(config checkConfig, source Source, frontmatter fro
 	compilerConfig := newCompilerConfig()
 	compilerConfig.values["hostPolicy"] = config.policy
 	normalized := sourceNormalization{
-		parsed: normalizedMarkdown{frontmatter: frontmatter, root: root}, sourceBytes: int64(len(source.Content)),
+		parsed: normalizedMarkdown{frontmatter: frontmatter, root: root}, sourceBytes: int64(len(source.Content)), skipRemoteImages: true,
 	}
 	effective, err := defaultEvaluatePolicy(compilerConfig, normalized)
 	if err == nil {
@@ -361,7 +424,7 @@ func checkPolicyCompatibility(config checkConfig, source Source, frontmatter fro
 	}
 	var diagnosticFailure *DiagnosticError
 	if !errors.As(err, &diagnosticFailure) || len(diagnosticFailure.Diagnostics) == 0 {
-		return EffectivePolicy{}, []Diagnostic{checkDiagnostic(source, "check.policy_invalid", SeverityError, "/goshtoso/security/rawHTML", err.Error(), "Align the document declaration with the trusted host policy.", 0)}
+		return EffectivePolicy{}, []Diagnostic{checkDiagnostic(source, "check.policy_invalid", SeverityError, "/policy/rawHTML", err.Error(), "Update the trusted host policy.", 0)}
 	}
 	diagnostics := cloneDiagnostics(diagnosticFailure.Diagnostics)
 	for index := range diagnostics {
@@ -369,9 +432,9 @@ func checkPolicyCompatibility(config checkConfig, source Source, frontmatter fro
 		diagnostics[index].Line = 1
 		diagnostics[index].Column = 1
 		if diagnostics[index].Pointer == "" {
-			diagnostics[index].Pointer = "/goshtoso/security/rawHTML"
+			diagnostics[index].Pointer = "/policy/rawHTML"
 		}
-		diagnostics[index].Hint = "Align the document raw-HTML declaration with the trusted host policy."
+		diagnostics[index].Hint = "Update the trusted host policy or replace raw HTML with Markdown."
 	}
 	return EffectivePolicy{}, diagnostics
 }

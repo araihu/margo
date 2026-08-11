@@ -54,6 +54,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 		newDeckCommand(deps),
 		newDoctorCommand(deps),
 		newVersionCommand(deps),
+		newSchemaCommand(),
 	)
 	return cmd
 }

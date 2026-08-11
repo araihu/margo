@@ -2,8 +2,6 @@ package margo
 
 import (
 	"fmt"
-
-	"github.com/yuin/goldmark/ast"
 )
 
 // RawHTMLMode is the versioned raw-HTML capability vocabulary.
@@ -26,37 +24,77 @@ const (
 // explicit host policy; callers that do not provide one receive the built-in
 // deny/MaxOutputBytes ceiling.
 type Policy struct {
-	RawHTML     RawHTMLMode `json:"rawHTML"`
-	OutputBytes int64       `json:"outputBytes"`
+	SchemaVersion string        `json:"schemaVersion,omitempty"`
+	RawHTML       RawHTMLMode   `json:"rawHTML"`
+	InputBytes    int64         `json:"inputBytes"`
+	OutputBytes   int64         `json:"outputBytes"`
+	Iframe        *IframePolicy `json:"iframe,omitempty"`
 }
 
 // EffectivePolicy is the immutable intersection stored on a compiled
 // Document. It is a value, not a pointer, so renderers cannot mutate the
 // compiler's decision after Compile.
 type EffectivePolicy struct {
-	RawHTML     RawHTMLMode `json:"rawHTML"`
-	OutputBytes int64       `json:"outputBytes"`
+	RawHTML     RawHTMLMode   `json:"rawHTML"`
+	InputBytes  int64         `json:"inputBytes"`
+	OutputBytes int64         `json:"outputBytes"`
+	Iframe      *IframePolicy `json:"iframe,omitempty"`
+}
+
+// DefaultPolicy returns the least-authoritative host policy and documented
+// resource defaults for this Margo version.
+func DefaultPolicy() Policy {
+	return Policy{
+		SchemaVersion: "margo-policy/v1",
+		RawHTML:       RawHTMLDeny, InputBytes: MaxDocumentBytes, OutputBytes: MaxOutputBytes,
+	}
+}
+
+func configuredInputLimit(config compilerConfig) (int64, error) {
+	limit := int64(MaxDocumentBytes)
+	value, ok := config.values["hostPolicy"]
+	if !ok {
+		return limit, nil
+	}
+	policy, ok := value.(Policy)
+	if !ok {
+		return 0, policyDiagnostic("policy.host.invalid", "host policy has the wrong type")
+	}
+	if policy.InputBytes != 0 {
+		limit = policy.InputBytes
+	}
+	if limit < 1 || limit > MaxDocumentBytes {
+		return 0, policyDiagnostic("policy.input_bytes_invalid", "input byte limit must be between 1 and 16777216")
+	}
+	return limit, nil
 }
 
 // WithHostPolicy supplies the host ceiling. Validation happens at Compile so
 // an invalid value produces a stable diagnostic rather than a construction
 // panic.
 func WithHostPolicy(policy Policy) Option {
+	frozen := clonePolicy(policy)
 	return func(config *compilerConfig) error {
-		config.values["hostPolicy"] = policy
+		config.values["hostPolicy"] = clonePolicy(frozen)
 		config.values["hostPolicySet"] = true
 		return nil
 	}
 }
 
 func defaultEvaluatePolicy(config compilerConfig, normalized sourceNormalization) (EffectivePolicy, error) {
-	host := Policy{RawHTML: RawHTMLDeny, OutputBytes: MaxOutputBytes}
+	host := DefaultPolicy()
 	if value, ok := config.values["hostPolicy"]; ok {
 		candidate, valid := value.(Policy)
 		if !valid {
 			return EffectivePolicy{}, policyDiagnostic("policy.host.invalid", "host policy has the wrong type")
 		}
-		host = candidate
+		host = clonePolicy(candidate)
+	}
+	if host.SchemaVersion == "" {
+		host.SchemaVersion = "margo-policy/v1"
+	}
+	if host.SchemaVersion != "margo-policy/v1" {
+		return EffectivePolicy{}, policyDiagnostic("policy.schema_version_invalid", "schemaVersion must be margo-policy/v1")
 	}
 	if host.RawHTML == "" {
 		host.RawHTML = RawHTMLDeny
@@ -64,36 +102,49 @@ func defaultEvaluatePolicy(config compilerConfig, normalized sourceNormalization
 	if err := validateRawHTMLMode(host.RawHTML); err != nil {
 		return EffectivePolicy{}, err
 	}
+	if host.InputBytes == 0 {
+		host.InputBytes = MaxDocumentBytes
+	}
+	if host.InputBytes < 1 || host.InputBytes > MaxDocumentBytes {
+		return EffectivePolicy{}, policyDiagnostic("policy.input_bytes_invalid", "input byte limit must be between 1 and 16777216")
+	}
 	if host.OutputBytes < MinOutputBytes || host.OutputBytes > MaxOutputBytes {
 		return EffectivePolicy{}, policyDiagnostic("policy.output_bytes_invalid", "output byte limit must be between 1 and 67108864")
 	}
 
-	effective := EffectivePolicy{RawHTML: RawHTMLDeny, OutputBytes: host.OutputBytes}
-	declaredMode, declared := declaredRawHTML(normalized)
-	if declared {
-		if err := validateRawHTMLMode(declaredMode); err != nil {
-			return EffectivePolicy{}, err
+	if host.Iframe != nil {
+		normalized, err := normalizeIframePolicy(*host.Iframe)
+		if err != nil {
+			return EffectivePolicy{}, policyDiagnostic("policy.iframe_invalid", err.Error())
 		}
-		if declaredMode == RawHTMLSanitized && host.RawHTML == RawHTMLDeny {
-			return EffectivePolicy{}, policyDiagnostic("policy.raw_html.mismatch", "document requests sanitized raw HTML above the host deny ceiling")
-		}
-		if declaredMode == RawHTMLSanitized {
-			effective.RawHTML = RawHTMLSanitized
-		}
+		host.Iframe = &normalized
 	}
 
-	if normalized.sourceBytes > MaxDocumentBytes {
+	effective := EffectivePolicy{RawHTML: host.RawHTML, InputBytes: host.InputBytes, OutputBytes: host.OutputBytes, Iframe: cloneIframePolicy(host.Iframe)}
+
+	if normalized.sourceBytes > effective.InputBytes {
 		return EffectivePolicy{}, policyDiagnostic("policy.resource.document_too_large", "document exceeds the maximum byte limit")
 	}
-	if hasRawHTML(normalized) {
-		if !declared {
-			return EffectivePolicy{}, policyDiagnostic("policy.raw_html.undeclared", "raw HTML requires an explicit sanitized declaration")
+	rawHTML, err := inspectSourceHTML(normalized, effective.Iframe)
+	if err != nil {
+		return EffectivePolicy{}, err
+	}
+	if rawHTML {
+		if effective.RawHTML == RawHTMLDeny {
+			return EffectivePolicy{}, policyDiagnostic("policy.raw_html.denied", "raw HTML is denied by the host policy")
 		}
-		if declaredMode == RawHTMLDeny {
-			return EffectivePolicy{}, policyDiagnostic("policy.raw_html.denied", "raw HTML is denied by the document policy")
+	}
+	if !normalized.skipRemoteImages {
+		if err := rejectRemoteImages(normalized); err != nil {
+			return EffectivePolicy{}, err
 		}
 	}
 	return effective, nil
+}
+
+func clonePolicy(policy Policy) Policy {
+	policy.Iframe = cloneIframePolicy(policy.Iframe)
+	return policy
 }
 
 func validateRawHTMLMode(mode RawHTMLMode) error {
@@ -105,36 +156,4 @@ func validateRawHTMLMode(mode RawHTMLMode) error {
 
 func policyDiagnostic(code, message string) error {
 	return newDiagnosticError(Diagnostic{Code: code, Severity: SeverityError, Message: message})
-}
-
-func declaredRawHTML(normalized sourceNormalization) (RawHTMLMode, bool) {
-	parsed, ok := normalized.parsed.(normalizedMarkdown)
-	if !ok || parsed.frontmatter.goshtoso == nil {
-		return "", false
-	}
-	security, ok := parsed.frontmatter.goshtoso["security"].(map[string]any)
-	if !ok {
-		return "", false
-	}
-	value, ok := security["rawHTML"].(string)
-	if !ok {
-		return "", false
-	}
-	return RawHTMLMode(value), true
-}
-
-func hasRawHTML(normalized sourceNormalization) bool {
-	parsed, ok := normalized.parsed.(normalizedMarkdown)
-	if !ok || parsed.root == nil {
-		return false
-	}
-	found := false
-	_ = ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering && (node.Kind() == ast.KindRawHTML || node.Kind() == ast.KindHTMLBlock) {
-			found = true
-			return ast.WalkStop, nil
-		}
-		return ast.WalkContinue, nil
-	})
-	return found
 }

@@ -27,6 +27,32 @@ and place `margo` or `margo.exe` on `PATH`. Release binaries use
 `CGO_ENABLED=0`: they discover installed Chromium but do not download a browser
 or load native WebKit libraries.
 
+## Ordinary Markdown quick start
+
+Create `proposal.md` with ordinary Markdown. Only generic metadata is needed:
+
+```markdown
+---
+title: Proposta técnica
+language: pt-BR
+---
+
+# Proposta técnica
+
+The same source renders to every target.
+```
+
+Check it, then render HTML or PDF:
+
+```sh
+margo check proposal.md
+margo html proposal.md --output proposal.html
+margo pdf proposal.md --output proposal.pdf
+```
+
+No policy file is needed for ordinary Markdown, local images, Mermaid, tables,
+or code. A policy is required only for privileged raw HTML or iframe embeds.
+
 ## Supported Go packages
 
 Install every supported library package through the root module:
@@ -41,7 +67,6 @@ go get github.com/araihu/margo@vX.Y.Z
 | `github.com/araihu/margo/assets` | Serve and inspect embedded Muamba runtime assets. | `assets.MuambaHTTPHandler` |
 | `github.com/araihu/margo/charts` | Register optional static Goshtoso chart fences. | `charts.Extension` |
 | `github.com/araihu/margo/deck` | Parse and render accessible HTML presentation decks. | `deck.Render` |
-| `github.com/araihu/margo/embed` | Register host-owned, typed trusted-embed policy. | `embed.Extension` |
 | `github.com/araihu/margo/pdf` | Define PDF engine, request, page, and link-policy contracts. | `pdf.Engine.Export` |
 | `github.com/araihu/margo/pdf/chromium` | Export Margo HTML through an explicitly selected installed Chromium executable. | `chromium.New` |
 | `github.com/araihu/margo/pdf/engines` | Discover and select PDF engine candidates. | `engines.Discover` |
@@ -107,8 +132,9 @@ mux.Handle(chartassets.Prefix, chartassets.Handler()) // /charts/assets/
 `/margo-assets/`; `chartassets.Handler` owns `chartassets.Prefix`,
 `/charts/assets/`. The Margo handler does not serve either dependency mount.
 
-See [Host policy and trusted embeds](docs/policy.md) for `embed.Extension`,
-the trusted-policy file, and projection limits.
+See [Host policy and natural iframe embeds](docs/policy.md), the generated
+[policy reference](docs/reference/policy.md), and the generated
+[document metadata reference](docs/reference/document-metadata.md).
 
 ## CLI reference
 
@@ -125,6 +151,8 @@ margo version
 margo --version
 margo help [command]
 margo completion SHELL [--no-descriptions]
+margo schema policy
+margo schema document
 ```
 
 `INPUT` for `check`, `html`, `pdf`, and `deck` is one path or `-` for stdin.
@@ -143,6 +171,8 @@ keeps assets local; `--assets inline` embeds them.
 
 All rendering commands accept `--policy FILE` for a trusted host policy.
 `html` and `pdf` also accept `--title TEXT` and `--lang TAG`.
+`margo schema policy` and `margo schema document` emit the exact embedded
+Draft 2020-12 schema bytes for this Margo version.
 
 ### Check
 
@@ -176,7 +206,9 @@ the destination and published by rename only after a successful build.
 [--relative-links strip|error|keep|resolve] [--base-url URL] [--title TEXT]
 [--lang TAG] [--policy FILE] [--diagnostics text|json]` renders a PDF.
 
-Defaults are `--engine auto`, A4, portrait, and zero margins. The default
+Defaults are `--engine auto`, zero margins, and A4 portrait unless
+`margo.page` supplies a page preference. Explicit CLI flags override document
+preferences. The default
 `--relative-links strip` keeps visible text while removing relative PDF link
 targets. `--base-url URL` selects `resolve` when `--relative-links` was not set;
 explicit `resolve` requires `--base-url`. `margo doctor` reports candidate

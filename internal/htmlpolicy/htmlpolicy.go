@@ -2,8 +2,11 @@
 package htmlpolicy
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -37,25 +40,96 @@ var elementAttributes = map[string]map[string]struct{}{
 // Validate parses and validates a fragment. It does not perform lossy
 // rewriting: disallowed syntax is an error and must be rejected by the caller.
 func Validate(fragment []byte) error {
+	if _, err := NormalizeTokens(fragment); err != nil {
+		return err
+	}
+	_, err := Normalize(fragment)
+	return err
+}
+
+// Normalize parses, validates, and serializes a fresh canonical fragment. It
+// never returns the caller's original HTML bytes.
+func Normalize(fragment []byte) ([]byte, error) {
 	if len(fragment) == 0 {
-		return nil
+		return nil, nil
 	}
 	for _, r := range string(fragment) {
 		if r == '\x00' || (r >= 0x01 && r <= 0x08) || (r >= 0x0b && r <= 0x0c) || (r >= 0x0e && r <= 0x1f) || r == '\x7f' {
-			return fmt.Errorf("control character is not allowed")
+			return nil, fmt.Errorf("control character is not allowed")
 		}
 	}
 	context := &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"}
 	nodes, err := html.ParseFragment(strings.NewReader(string(fragment)), context)
 	if err != nil {
-		return fmt.Errorf("parse fragment: %w", err)
+		return nil, fmt.Errorf("parse fragment: %w", err)
 	}
 	for _, node := range nodes {
 		if err := validateNode(node); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	var output bytes.Buffer
+	for _, node := range nodes {
+		if err := html.Render(&output, node); err != nil {
+			return nil, fmt.Errorf("serialize fragment: %w", err)
+		}
+	}
+	return output.Bytes(), nil
+}
+
+// NormalizeTokens canonicalizes a Goldmark raw-HTML segment without assuming
+// that matching inline start and end tags live in the same AST node.
+func NormalizeTokens(fragment []byte) ([]byte, error) {
+	if len(fragment) == 0 {
+		return nil, nil
+	}
+	tokenizer := html.NewTokenizer(bytes.NewReader(fragment))
+	var output bytes.Buffer
+	for {
+		tokenType := tokenizer.Next()
+		switch tokenType {
+		case html.ErrorToken:
+			if tokenizer.Err() == nil {
+				return nil, fmt.Errorf("tokenize fragment")
+			}
+			if tokenizer.Err() == io.EOF {
+				return output.Bytes(), nil
+			}
+			return nil, fmt.Errorf("tokenize fragment: %w", tokenizer.Err())
+		case html.CommentToken, html.DoctypeToken:
+			return nil, fmt.Errorf("node type is not allowed")
+		case html.TextToken:
+			token := tokenizer.Token()
+			for _, r := range token.Data {
+				if r == '\x00' || (r >= 0x01 && r <= 0x08) || (r >= 0x0b && r <= 0x0c) || (r >= 0x0e && r <= 0x1f) || r == '\x7f' {
+					return nil, fmt.Errorf("control character is not allowed")
+				}
+			}
+			output.WriteString(token.String())
+		case html.StartTagToken, html.SelfClosingTagToken:
+			token := tokenizer.Token()
+			name := strings.ToLower(token.Data)
+			if _, ok := allowedElements[name]; !ok {
+				return nil, fmt.Errorf("element %q is not allowed", token.Data)
+			}
+			if err := validateAttributes(name, token.Attr); err != nil {
+				return nil, err
+			}
+			token.Data = name
+			sort.Slice(token.Attr, func(i, j int) bool { return token.Attr[i].Key < token.Attr[j].Key })
+			output.WriteString(token.String())
+		case html.EndTagToken:
+			token := tokenizer.Token()
+			name := strings.ToLower(token.Data)
+			if _, ok := allowedElements[name]; !ok {
+				return nil, fmt.Errorf("element %q is not allowed", token.Data)
+			}
+			token.Data = name
+			output.WriteString(token.String())
+		default:
+			return nil, fmt.Errorf("token type %d is not allowed", tokenType)
+		}
+	}
 }
 
 func validateNode(node *html.Node) error {

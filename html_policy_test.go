@@ -3,7 +3,7 @@ package margo
 import "testing"
 
 func TestHTMLPolicyRejectsScriptAndUnsafeURLs(t *testing.T) {
-	for _, input := range []string{`<script>alert(1)</script>`, `<a href="javascript:alert(1)">x</a>`, `<div onclick="x">x</div>`} {
+	for _, input := range []string{`<script>alert(1)</script>`, `</script>`, `<a href="javascript:alert(1)">x</a>`, `<div onclick="x">x</div>`} {
 		if err := ValidateHTML(input); err == nil {
 			t.Fatalf("unsafe HTML unexpectedly accepted: %s", input)
 		}

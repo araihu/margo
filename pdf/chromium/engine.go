@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,6 +93,10 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	if err != nil {
 		return pdf.Result{}, err
 	}
+	request.HTML, err = injectPageGeometry(request.HTML, request.Page)
+	if err != nil {
+		return pdf.Result{}, err
+	}
 
 	exportCtx, cancelExport := context.WithTimeout(ctx, engine.timeout)
 	defer cancelExport()
@@ -125,7 +130,7 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 		chromedp.Navigate(server.URL),
 		chromedp.Evaluate(runtimeExpression, &runtimeOutput, awaitPromise),
 		chromedp.Evaluate(`(() => {
-			if (typeof globalThis.margoPreparePrintTOC === "function") globalThis.margoPreparePrintTOC();
+			if (typeof globalThis.margoPreparePrint === "function") globalThis.margoPreparePrint();
 			if (typeof globalThis.margoPrepareDeckPrint === "function") globalThis.margoPrepareDeckPrint();
 			return true;
 		})()`, nil),
@@ -138,16 +143,9 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 			return {scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight};
 		})()`, &metrics, awaitPromise),
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			width, height := paperInches(request.Page.Size)
 			params := page.PrintToPDF().
-				WithLandscape(request.Page.Orientation == pdf.Landscape).
 				WithPrintBackground(true).
-				WithPaperWidth(width).
-				WithPaperHeight(height).
-				WithMarginTop(mmToInches(request.Page.Margins.Top)).
-				WithMarginRight(mmToInches(request.Page.Margins.Right)).
-				WithMarginBottom(mmToInches(request.Page.Margins.Bottom)).
-				WithMarginLeft(mmToInches(request.Page.Margins.Left)).
+				WithPreferCSSPageSize(true).
 				WithGenerateTaggedPDF(true).
 				WithGenerateDocumentOutline(true)
 			var err error
@@ -275,14 +273,34 @@ func runtimeTaskReports(tasks []margo.RuntimeTask, outputs []string) []margo.Run
 	return reports
 }
 
-func paperInches(size pdf.PageSize) (float64, float64) {
-	if size == pdf.PageA4 {
-		return 210 / 25.4, 297 / 25.4
+func injectPageGeometry(document []byte, config pdf.PageConfig) ([]byte, error) {
+	orientation := config.Orientation
+	if orientation == "" {
+		orientation = pdf.Portrait
 	}
-	return 8.5, 11
+	rule := fmt.Sprintf(`<style data-margo-page-geometry>@page { size: %s %s; margin: %smm %smm %smm %smm; }</style>`,
+		config.Size, orientation,
+		formatMillimeters(config.Margins.Top), formatMillimeters(config.Margins.Right),
+		formatMillimeters(config.Margins.Bottom), formatMillimeters(config.Margins.Left),
+	)
+	lower := strings.ToLower(string(document))
+	// Embedded runtimes may contain the literal text "</head>" inside script
+	// source. The generated document's real head terminator is the final
+	// occurrence; inserting at the first occurrence can leave @page inside JS.
+	index := strings.LastIndex(lower, "</head>")
+	if index < 0 {
+		return nil, chromiumError("pdf.page_geometry_failed", "HTML document has no closing head element")
+	}
+	result := make([]byte, 0, len(document)+len(rule))
+	result = append(result, document[:index]...)
+	result = append(result, rule...)
+	result = append(result, document[index:]...)
+	return result, nil
 }
 
-func mmToInches(value pdf.Millimeters) float64 { return float64(value) / 25.4 }
+func formatMillimeters(value pdf.Millimeters) string {
+	return strconv.FormatFloat(float64(value), 'f', -1, 64)
+}
 
 func awaitPromise(parameters *cdpruntime.EvaluateParams) *cdpruntime.EvaluateParams {
 	return parameters.WithAwaitPromise(true)

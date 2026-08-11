@@ -19,6 +19,38 @@ type renderOptions struct {
 	values map[string]any
 }
 
+// RenderTarget selects one explicit artifact projection without changing the
+// target-neutral compiled document.
+type RenderTarget string
+
+const (
+	TargetHTML RenderTarget = "html"
+	TargetSite RenderTarget = "site"
+	TargetPDF  RenderTarget = "pdf"
+	TargetDeck RenderTarget = "deck"
+)
+
+// WithRenderTarget selects iframe and security projection for this render.
+// Omission defaults to HTML for backward-compatible library calls.
+func WithRenderTarget(target RenderTarget) RenderOption {
+	return func(options *renderOptions) error {
+		switch target {
+		case TargetHTML, TargetSite, TargetPDF, TargetDeck:
+			options.values["target"] = target
+			return nil
+		default:
+			return fmt.Errorf("render.target_invalid: unsupported target %q", target)
+		}
+	}
+}
+
+func renderTarget(options renderOptions) RenderTarget {
+	if target, ok := options.values["target"].(RenderTarget); ok {
+		return target
+	}
+	return TargetHTML
+}
+
 func newCompilerConfig() compilerConfig {
 	return compilerConfig{values: map[string]any{"schemaVersion": "margo/compiler-config/v1"}}
 }

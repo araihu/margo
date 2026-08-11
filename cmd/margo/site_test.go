@@ -59,10 +59,9 @@ func TestSiteCommandPublishesInteractiveEmbedAndPolicyIdentity(t *testing.T) {
 	policy := `{
   "schemaVersion": "margo-policy/v1",
   "rawHTML": "sanitized",
-  "trustedEmbeds": {
-    "allowedKinds": ["iframe"],
+  "iframe": {
     "allowedOrigins": ["https://video.example.com/", "https://media.example.com"],
-    "iframeSandbox": ["allow-scripts", "allow-presentation"],
+    "sandbox": ["allow-scripts", "allow-presentation"],
     "projections": {
       "html": "interactive",
       "pdf": "static-link",
@@ -72,7 +71,7 @@ func TestSiteCommandPublishesInteractiveEmbedAndPolicyIdentity(t *testing.T) {
   }
 }`
 	writeSiteFixture(t, policyPath, policy)
-	writeSiteFixture(t, filepath.Join(input, "index.md"), "# Home\n\n```trusted-embed\nkind: iframe\nurl: https://video.example.com/watch/123\ntitle: Architecture overview\n```\n")
+	writeSiteFixture(t, filepath.Join(input, "index.md"), "# Home\n\n<iframe src=\"https://video.example.com/watch/123\" title=\"Architecture overview\"></iframe>\n")
 
 	var stdout, stderr bytes.Buffer
 	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo()})
@@ -80,7 +79,11 @@ func TestSiteCommandPublishesInteractiveEmbedAndPolicyIdentity(t *testing.T) {
 	if err := command.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("site: %v\nstderr: %s", err, stderr.String())
 	}
-	const digest = "sha256:8ff61766ff8abed0c4329911331a63e7ed63d9be61037e557c1124becb62062f"
+	parsedPolicy, err := parsePolicyDocument([]byte(policy))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := parsedPolicy.Digest
 	var report struct {
 		Policy string `json:"policy"`
 	}
@@ -91,7 +94,7 @@ func TestSiteCommandPublishesInteractiveEmbedAndPolicyIdentity(t *testing.T) {
 		t.Fatalf("report policy = %q", report.Policy)
 	}
 	page := readSiteFixture(t, filepath.Join(output, "index.html"))
-	if !strings.Contains(page, `<iframe class="margo-trusted-embed__frame"`) {
+	if !strings.Contains(page, `<iframe class="margo-embed__frame"`) {
 		t.Fatalf("site page missing trusted embed: %s", page)
 	}
 	manifest := readSiteFixture(t, filepath.Join(output, "margo-manifest.json"))

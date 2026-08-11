@@ -44,10 +44,10 @@ func (options standaloneMetadataFlags) standaloneOptions(command *cobra.Command)
 }
 
 func compileStandalone(ctx context.Context, deps Dependencies, input string, options ...margo.StandaloneOption) (compiledStandalone, error) {
-	return compileStandaloneWithCompiler(ctx, deps, input, newCompiler(), options...)
+	return compileStandaloneWithCompiler(ctx, deps, input, newCompiler(), margo.TargetHTML, options...)
 }
 
-func compileStandaloneWithCompiler(ctx context.Context, deps Dependencies, input string, compiler *margo.Compiler, options ...margo.StandaloneOption) (compiledStandalone, error) {
+func compileStandaloneWithCompiler(ctx context.Context, deps Dependencies, input string, compiler *margo.Compiler, target margo.RenderTarget, options ...margo.StandaloneOption) (compiledStandalone, error) {
 	source, err := readInput(ctx, deps.SourceReader, deps.Stdin, input)
 	if err != nil {
 		return compiledStandalone{}, err
@@ -63,7 +63,7 @@ func compileStandaloneWithCompiler(ctx context.Context, deps Dependencies, input
 	if err != nil {
 		return compiledStandalone{}, err
 	}
-	rendered, err := compiler.Render(ctx, document, margo.WithTableSort(margo.TableSortClient))
+	rendered, err := compiler.Render(ctx, document, margo.WithTableSort(margo.TableSortClient), margo.WithRenderTarget(target))
 	if err != nil {
 		return compiledStandalone{}, err
 	}

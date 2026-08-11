@@ -93,6 +93,10 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			if fence == "" {
 				return ast.WalkContinue, nil
 			}
+			if fence == "trusted-embed" {
+				line := lineAtOffset(source.Content, parsed.frontmatter.bodyOffset+segmentAtStart(fenced.Lines()))
+				return ast.WalkStop, diagnosticAt("source.trusted_embed_removed", source.Name, "/embed", "trusted-embed was removed; use a standard HTML <iframe src=\"https://…\" title=\"…\" width=\"640\" height=\"360\"></iframe> authorized by the host policy", line, 1)
+			}
 			registrationIndex, registered := fenceOwners[fence]
 			if !registered {
 				if fence != "goshtosochart" {

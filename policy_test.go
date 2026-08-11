@@ -1,15 +1,24 @@
 package margo
 
 import (
+	"bytes"
 	"context"
 	"testing"
 )
 
-func TestRawHTMLRequirementCannotElevateHost(t *testing.T) {
+func TestDocumentSecurityNamespaceIsRejectedBeforePolicyEvaluation(t *testing.T) {
 	compiler := New(WithHostPolicy(Policy{RawHTML: RawHTMLDeny, OutputBytes: 4096}))
 	_, err := compiler.Compile(context.Background(), Source{Name: "x.md", Content: []byte("---\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n<span>ok</span>")})
-	if got := diagnosticCode(err); got != "policy.raw_html.mismatch" {
+	if got := diagnosticCode(err); got != "frontmatter.goshtoso_removed" {
 		t.Fatalf("diagnostic code = %q, err = %v", got, err)
+	}
+}
+
+func TestInputCeilingRunsBeforeMarkdownParsing(t *testing.T) {
+	compiler := New(WithHostPolicy(Policy{InputBytes: 32, OutputBytes: MaxOutputBytes}))
+	_, err := compiler.Compile(context.Background(), Source{Name: "large.md", Content: bytes.Repeat([]byte{'x'}, 33)})
+	if got := diagnosticCode(err); got != "policy.resource.document_too_large" {
+		t.Fatalf("diagnostic = %q, error = %v", got, err)
 	}
 }
 
@@ -33,10 +42,10 @@ func TestOutputBytesBounds(t *testing.T) {
 	}
 }
 
-func TestUndeclaredRawHTMLFailsClosed(t *testing.T) {
+func TestRawHTMLFailsClosedWithoutHostGrant(t *testing.T) {
 	for _, markup := range []string{"<span>raw</span>", "<script>alert(1)</script>\n"} {
 		_, err := New().Compile(context.Background(), Source{Name: "x.md", Content: []byte(markup)})
-		if got := diagnosticCode(err); got != "policy.raw_html.undeclared" {
+		if got := diagnosticCode(err); got != "policy.raw_html.denied" {
 			t.Fatalf("markup %q diagnostic code = %q, err = %v", markup, got, err)
 		}
 	}

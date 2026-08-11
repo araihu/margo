@@ -8,7 +8,9 @@ require (
 	github.com/araihu/goshtoso-charts v0.0.2-0.20260803224432-297df2f562e8
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327
 	github.com/chromedp/chromedp v0.14.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.9
 	github.com/yuin/goldmark v1.8.2
 	golang.org/x/net v0.57.0
 	golang.org/x/sys v0.47.0
@@ -40,7 +42,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
-	github.com/spf13/pflag v1.0.9 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect

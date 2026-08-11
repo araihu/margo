@@ -71,12 +71,12 @@ func TestPDFCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 	}}
 	root := t.TempDir()
 	policyPath := filepath.Join(root, "policy.json")
-	policy := `{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedKinds":["iframe"],"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"deny","deck":"deny"}}}`
+	policy := `{"schemaVersion":"margo-policy/v1","iframe":{"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"deny","deck":"deny"}}}`
 	if err := os.WriteFile(policyPath, []byte(policy), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	output := filepath.Join(root, "embed.pdf")
-	markdown := "```trusted-embed\nkind: iframe\nurl: https://video.example.com/watch/123\ntitle: Architecture overview\n```\n"
+	markdown := "<iframe src=\"https://video.example.com/watch/123\" title=\"Architecture overview\"></iframe>\n"
 	command := NewRootCommand(Dependencies{
 		Stdin: strings.NewReader(markdown), EngineProbe: probe, Stderr: io.Discard,
 		Build: testBuildInfo(), WorkingDirectory: root,
@@ -89,7 +89,7 @@ func TestPDFCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 	if bytes.Contains(engine.request.HTML, []byte("<iframe")) {
 		t.Fatalf("PDF renderer received interactive iframe")
 	}
-	for _, want := range []string{`class="margo-trusted-embed__link"`, `href="https://video.example.com/watch/123"`} {
+	for _, want := range []string{`class="margo-embed__link"`, `href="https://video.example.com/watch/123"`} {
 		if !bytes.Contains(engine.request.HTML, []byte(want)) {
 			t.Fatalf("PDF renderer input missing %q", want)
 		}

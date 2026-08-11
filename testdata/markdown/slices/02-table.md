@@ -1,8 +1,5 @@
 ---
 title: Table slice
-goshtoso:
-  tables:
-    sort: client
 ---
 
 # Table slice

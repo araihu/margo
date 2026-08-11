@@ -15,63 +15,17 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const standalonePrintPaginationScript = `<script data-margo-print-pagination>
+const standalonePrintPreparationScript = `<script data-margo-print-preparation>
 (() => {
   "use strict";
-  const toc = document.querySelector(".goshtoso-document__toc");
   const mermaidSources = () => [...document.querySelectorAll(".margo-mermaid__source")];
   const article = document.querySelector(".goshtoso-document .margo-document");
-  const protectedBlocks = () => article ? [...article.querySelectorAll(
-    ":scope > :is(ul, ol, blockquote, dl, details, figure, table, img, pre), " +
-    ':scope > [data-table-client-sort="true"], ' +
-    ":scope > [data-code-block], " +
-    ":scope > div:has(> .codeblock), " +
-    ":scope > .margo-mermaid",
-  )] : [];
-  const headingBlockPairs = () => {
-    if (!article) return [];
-    const blocks = new Set(protectedBlocks());
-    return [...article.querySelectorAll(":scope > :is(h1, h2, h3, h4, h5, h6)")]
-      .filter((heading) => !heading.previousElementSibling?.matches(":is(h1, h2, h3, h4, h5, h6)"))
-      .map((heading) => {
-        let block = heading.nextElementSibling;
-        while (block && block.matches(":is(h1, h2, h3, h4, h5, h6)")) block = block.nextElementSibling;
-        return { heading, block };
-      })
-      .filter(({ block }) => block && blocks.has(block));
-  };
-  const breakTargets = () => {
-    const targets = new Set(protectedBlocks());
-    for (const { heading } of headingBlockPairs()) targets.add(heading);
-    return [...targets];
-  };
-  if ((!toc || !toc.querySelector(":scope > ol")) && mermaidSources().length === 0 && protectedBlocks().length === 0) return;
+  if (!article && mermaidSources().length === 0) return;
 
-  const pageMarginBottomMillimeters = 22;
   const originalDetailsState = new WeakMap();
-  const originalBreakMarkers = new WeakMap();
-  const originalBreakBeforeStyles = new WeakMap();
-  const originalOversizedMarkers = new WeakMap();
   const staticPrintReplacements = [];
-  const scaledMermaids = [];
-  const nestedHeadingGroups = [];
-  const millimetersToPixels = () => {
-    const probe = document.createElement("div");
-    probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
-    document.body.appendChild(probe);
-    const pixels = probe.getBoundingClientRect().height;
-    probe.remove();
-    return pixels;
-  };
 
   const restorePrintState = () => {
-    for (let index = nestedHeadingGroups.length - 1; index >= 0; index -= 1) {
-      const { wrapper, elements } = nestedHeadingGroups[index];
-      if (!wrapper.isConnected) continue;
-      for (const element of elements) wrapper.before(element);
-      wrapper.remove();
-    }
-    nestedHeadingGroups.length = 0;
     for (let index = staticPrintReplacements.length - 1; index >= 0; index -= 1) {
       const { original, replacement, preserveChildren } = staticPrintReplacements[index];
       if (!replacement.isConnected) continue;
@@ -86,32 +40,6 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       details.open = originalDetailsState.get(details);
       originalDetailsState.delete(details);
     }
-    for (const block of breakTargets()) {
-      if (!originalBreakMarkers.has(block)) continue;
-      const original = originalBreakMarkers.get(block);
-      if (original === null) block.removeAttribute("data-margo-print-break-before");
-      else block.setAttribute("data-margo-print-break-before", original);
-      originalBreakMarkers.delete(block);
-      const originalStyle = originalBreakBeforeStyles.get(block);
-      if (originalStyle === null) block.style.removeProperty("break-before");
-      else if (originalStyle) block.style.setProperty("break-before", originalStyle.value, originalStyle.priority);
-      originalBreakBeforeStyles.delete(block);
-    }
-    for (const { figure, canvas, scaleMarker, zoom } of scaledMermaids) {
-      if (scaleMarker === null) figure.removeAttribute("data-margo-print-scale");
-      else figure.setAttribute("data-margo-print-scale", scaleMarker);
-      if (zoom === null) canvas.style.removeProperty("zoom");
-      else canvas.style.setProperty("zoom", zoom.value, zoom.priority);
-    }
-    scaledMermaids.length = 0;
-    for (const block of protectedBlocks()) {
-      if (!originalOversizedMarkers.has(block)) continue;
-      const original = originalOversizedMarkers.get(block);
-      if (original === null) block.removeAttribute("data-margo-print-oversized");
-      else block.setAttribute("data-margo-print-oversized", original);
-      originalOversizedMarkers.delete(block);
-    }
-    if (toc) delete toc.dataset.margoTocColumns;
   };
 
   const replaceForStaticPrint = (element, kind, text) => {
@@ -136,7 +64,11 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     element.replaceWith(replacement);
   };
 
-  const prepareStaticPrintStructure = () => {
+  const prepare = () => {
+    for (const details of mermaidSources()) {
+      if (!originalDetailsState.has(details)) originalDetailsState.set(details, details.open);
+      details.open = true;
+    }
     if (!article || staticPrintReplacements.length > 0) return;
     for (const element of [...article.querySelectorAll("strong, b")]) {
       replaceForStaticPrint(element, "strong");
@@ -152,141 +84,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     }
   };
 
-  const rememberAndMarkOversized = (block) => {
-    if (!originalOversizedMarkers.has(block)) {
-      originalOversizedMarkers.set(block, block.getAttribute("data-margo-print-oversized"));
-    }
-    block.setAttribute("data-margo-print-oversized", "true");
-  };
-
-  const scaleOversizedMermaids = (pageHeight) => {
-    for (const figure of article ? article.querySelectorAll(".margo-mermaid") : []) {
-      if (scaledMermaids.some((entry) => entry.figure === figure)) continue;
-      const canvas = figure.querySelector(".margo-mermaid__canvas");
-      if (!canvas) continue;
-      const figureRect = figure.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      if (figureRect.height <= pageHeight + 0.5 || canvasRect.height <= 0) continue;
-      const nonCanvasHeight = Math.max(0, figureRect.height - canvasRect.height);
-      const availableCanvasHeight = Math.max(1, pageHeight - nonCanvasHeight - 1);
-      const scale = Math.min(1, availableCanvasHeight / canvasRect.height);
-      if (scale >= 1) continue;
-      const zoomValue = canvas.style.getPropertyValue("zoom");
-      scaledMermaids.push({
-        figure,
-        canvas,
-        scaleMarker: figure.getAttribute("data-margo-print-scale"),
-        zoom: zoomValue ? { value: zoomValue, priority: canvas.style.getPropertyPriority("zoom") } : null,
-      });
-      figure.setAttribute("data-margo-print-scale", scale.toFixed(6));
-      rememberAndMarkOversized(figure);
-      canvas.style.setProperty("zoom", scale.toFixed(6));
-    }
-  };
-
-  const rememberAndMarkBreakBefore = (element) => {
-    if (!originalBreakMarkers.has(element)) originalBreakMarkers.set(element, element.getAttribute("data-margo-print-break-before"));
-    if (!originalBreakBeforeStyles.has(element)) {
-      const value = element.style.getPropertyValue("break-before");
-      originalBreakBeforeStyles.set(element, value ? { value, priority: element.style.getPropertyPriority("break-before") } : null);
-    }
-    let changed = false;
-    if (element.getAttribute("data-margo-print-break-before") !== "page") {
-      element.setAttribute("data-margo-print-break-before", "page");
-      changed = true;
-    }
-    element.style.setProperty("break-before", "page");
-    return changed;
-  };
-
-  const markOversizedTables = (pageHeight) => {
-    for (const block of protectedBlocks()) {
-      if (!block.matches('[data-table-client-sort="true"]')) continue;
-      if (block.getBoundingClientRect().height <= pageHeight + 0.5) continue;
-      rememberAndMarkOversized(block);
-    }
-  };
-
-  const prepareNestedHeadingGroups = (pageHeight) => {
-    if (!article || nestedHeadingGroups.length > 0) return;
-    const blocks = new Set(protectedBlocks());
-    const headingSelector = ":is(h1, h2, h3, h4, h5, h6)";
-    const candidates = [...article.querySelectorAll(":scope > " + headingSelector)]
-      .filter((heading) => !heading.previousElementSibling?.matches(headingSelector) && heading.nextElementSibling?.matches(headingSelector));
-    for (const heading of candidates) {
-      const elements = [heading];
-      let next = heading.nextElementSibling;
-      while (next && next.matches(headingSelector)) {
-        elements.push(next);
-        next = next.nextElementSibling;
-      }
-      if (!next || !blocks.has(next)) continue;
-      elements.push(next);
-      const top = elements[0].getBoundingClientRect().top;
-      const bottom = elements[elements.length - 1].getBoundingClientRect().bottom;
-      if (bottom - top > pageHeight + 0.5) continue;
-      const wrapper = document.createElement("div");
-      wrapper.dataset.margoPrintHeadingGroup = "true";
-      heading.before(wrapper);
-      for (const element of elements) wrapper.appendChild(element);
-      nestedHeadingGroups.push({ wrapper, elements });
-    }
-  };
-
-  const markCrossPageBlocks = () => {
-    const pageHeight = Math.max(1, window.innerHeight);
-    markOversizedTables(pageHeight);
-    prepareNestedHeadingGroups(pageHeight);
-    for (let pass = 0; pass < protectedBlocks().length; pass += 1) {
-      let changed = false;
-      const pairs = headingBlockPairs();
-      const headingBreaks = new Set();
-      for (const { heading, block } of pairs) {
-        const blockRect = block.getBoundingClientRect();
-        if (blockRect.height > pageHeight + 0.5) continue;
-        const headingRect = heading.getBoundingClientRect();
-        const pairTop = headingRect.top + window.scrollY;
-        const pairBottom = blockRect.bottom + window.scrollY - 0.5;
-        const startsOn = Math.floor(pairTop / pageHeight);
-        const endsOn = Math.floor(pairBottom / pageHeight);
-        if (endsOn <= startsOn || pairTop % pageHeight <= 1) continue;
-        if (rememberAndMarkBreakBefore(heading)) changed = true;
-        headingBreaks.add(heading);
-      }
-      for (const block of protectedBlocks()) {
-        const pair = pairs.find(({ block: pairedBlock }) => pairedBlock === block);
-        if (pair && (headingBreaks.has(pair.heading) || pair.heading.getAttribute("data-margo-print-break-before") === "page")) continue;
-        const rect = block.getBoundingClientRect();
-        if (rect.height > pageHeight + 0.5) continue;
-        const top = rect.top + window.scrollY;
-        const bottom = rect.bottom + window.scrollY - 0.5;
-        const startsOn = Math.floor(top / pageHeight);
-        const endsOn = Math.floor(bottom / pageHeight);
-        if (endsOn <= startsOn || top % pageHeight <= 1) continue;
-        if (rememberAndMarkBreakBefore(block)) changed = true;
-      }
-      if (!changed) break;
-    }
-  };
-
-  const prepare = () => {
-    for (const details of mermaidSources()) {
-      if (!originalDetailsState.has(details)) originalDetailsState.set(details, details.open);
-      details.open = true;
-    }
-    prepareStaticPrintStructure();
-    scaleOversizedMermaids(Math.max(1, window.innerHeight));
-    if (toc && toc.querySelector(":scope > ol")) {
-      toc.dataset.margoTocColumns = "1";
-      const pageBottom = window.innerHeight - pageMarginBottomMillimeters * millimetersToPixels();
-      if (toc.getBoundingClientRect().bottom > pageBottom + 0.5) {
-        toc.dataset.margoTocColumns = "2";
-      }
-    }
-    markCrossPageBlocks();
-  };
-
-  window.margoPreparePrintTOC = prepare;
+  window.margoPreparePrint = prepare;
   window.margoRestorePrintState = restorePrintState;
   window.addEventListener("beforeprint", prepare);
   window.addEventListener("afterprint", restorePrintState);

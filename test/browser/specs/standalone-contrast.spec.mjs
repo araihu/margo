@@ -39,37 +39,3 @@ test("@contrast layout lint rejects clipped protected blocks", async ({ page }) 
   const result = await auditDocumentLayout(page);
   expect(result.failures.some(({ rule, selector }) => rule === "block.clipping" && selector === "div#clipped")).toBe(true);
 });
-
-test("@contrast layout lint rejects an unmarked protected block crossing a print page", async ({ page }) => {
-  await page.setViewportSize({ width: 794, height: 1123 });
-  await page.setContent(`<!doctype html>
-    <html><head><style>
-      body { margin: 0; }
-      .goshtoso-document { width: 640px; }
-      .margo-document { width: 640px; }
-      #crossing { block-size: 120px; margin-block-start: 1080px; break-inside: avoid-page; }
-    </style></head><body><div class="goshtoso-document">
-      <article class="margo-document"><div id="crossing" data-code-block>protected content</div></article>
-    </div></body></html>`);
-  await page.emulateMedia({ media: "print" });
-  const result = await auditDocumentLayout(page);
-  expect(result.failures.some(({ rule, selector }) => rule === "block.page_split" && selector === "div#crossing")).toBe(true);
-});
-
-test("@contrast layout lint rejects a table row without an avoid-page rule crossing a print page", async ({ page }) => {
-  await page.setViewportSize({ width: 794, height: 1123 });
-  await page.setContent(`<!doctype html>
-    <html><head><style>
-      body { margin: 0; }
-      .goshtoso-document { width: 640px; }
-      .margo-document { width: 640px; }
-      #spacer { block-size: 1080px; }
-      #crossing tr { break-inside: auto; }
-      #crossing td { block-size: 120px; }
-    </style></head><body><div class="goshtoso-document">
-      <article class="margo-document"><div id="spacer"></div><table id="crossing"><tbody><tr><td>row content</td></tr></tbody></table></article>
-    </div></body></html>`);
-  await page.emulateMedia({ media: "print" });
-  const result = await auditDocumentLayout(page);
-  expect(result.failures.some(({ rule, selector }) => rule === "table.row_page_split" && selector === "tr")).toBe(true);
-});

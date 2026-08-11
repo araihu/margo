@@ -11,6 +11,8 @@ import (
 	"time"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/pdf"
+	"github.com/araihu/margo/pdf/engines"
 )
 
 func TestDeckDefaultsToHTMLStdout(t *testing.T) {
@@ -31,11 +33,11 @@ func TestDeckDefaultsToHTMLStdout(t *testing.T) {
 func TestDeckCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 	root := t.TempDir()
 	policyPath := filepath.Join(root, "policy.json")
-	policy := `{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedKinds":["iframe"],"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"interactive","deck":"static-link"}}}`
+	policy := `{"schemaVersion":"margo-policy/v1","iframe":{"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"interactive","deck":"static-link"}}}`
 	if err := os.WriteFile(policyPath, []byte(policy), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	markdown := "# Architecture\n\n```trusted-embed\nkind: iframe\nurl: https://video.example.com/watch/123\ntitle: Architecture overview\n```\n"
+	markdown := "# Architecture\n\n<iframe src=\"https://video.example.com/watch/123\" title=\"Architecture overview\"></iframe>\n"
 	var stdout bytes.Buffer
 	command := NewRootCommand(Dependencies{
 		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: io.Discard,
@@ -48,7 +50,7 @@ func TestDeckCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 	if strings.Contains(stdout.String(), "<iframe") {
 		t.Fatalf("deck contains interactive iframe")
 	}
-	for _, want := range []string{`class="margo-trusted-embed__link"`, `href="https://video.example.com/watch/123"`} {
+	for _, want := range []string{`class="margo-embed__link"`, `href="https://video.example.com/watch/123"`} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("deck missing %q", want)
 		}
@@ -94,5 +96,26 @@ func TestDeckPDFRequiresOutput(t *testing.T) {
 	command.SetArgs([]string{"deck", "-", "--format", "pdf"})
 	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "cli.output_required" {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDeckPDFUsesDocumentPagePreferenceUnlessCLIOverridesIt(t *testing.T) {
+	engine := &capturingEngine{name: "native"}
+	probe := engines.Probe{Native: func(context.Context) (pdf.Engine, engines.Candidate) {
+		return engine, engines.Candidate{Name: "native", Version: "test", Compiled: true, Available: true}
+	}}
+	output := filepath.Join(t.TempDir(), "deck.pdf")
+	markdown := "---\ntitle: Deck\nmargo:\n  page:\n    size: Letter\n    orientation: landscape\n---\n# One\n"
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), EngineProbe: probe, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		NextExecutionID: func() margo.ExecutionID { return "cli-deck-page" },
+	})
+	command.SetArgs([]string{"deck", "-", "--format", "pdf", "--output", output, "--engine", "native"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if engine.request.Page.Size != pdf.PageLetter || engine.request.Page.Orientation != pdf.Landscape {
+		t.Fatalf("page config = %+v", engine.request.Page)
 	}
 }

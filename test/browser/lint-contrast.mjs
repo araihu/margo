@@ -150,7 +150,7 @@ export async function lintHTML({ html, executablePath, mode = "both" }) {
       await page.evaluate((source) => {
         if (!source) return;
         (0, eval)(source);
-        if (typeof window.margoPreparePrintTOC === "function") window.margoPreparePrintTOC();
+        if (typeof window.margoPreparePrint === "function") window.margoPreparePrint();
       }, paginationScript);
       // Force one synchronous layout read after preparation; requestAnimationFrame
       // is unavailable when arbitrary document JavaScript is disabled.

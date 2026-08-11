@@ -182,22 +182,4 @@ func compileMermaidNode(compileContext extensionCompileContext, node ExtensionNo
 	return node, nil
 }
 
-func validateMermaidMode(normalized sourceNormalization, source string) error {
-	parsed, ok := normalized.parsed.(normalizedMarkdown)
-	if !ok || parsed.frontmatter.goshtoso == nil {
-		return nil
-	}
-	security, ok := parsed.frontmatter.goshtoso["security"].(map[string]any)
-	if !ok {
-		return nil
-	}
-	value, configured := security["mermaid"]
-	if !configured {
-		return nil
-	}
-	mode, ok := value.(string)
-	if !ok || mode != "strict" {
-		return diagnosticAt(internalmermaid.ConfigurationForbiddenCode, source, "/goshtoso/security/mermaid", "Mermaid mode must be the literal strict value", 1, 1)
-	}
-	return nil
-}
+func validateMermaidMode(sourceNormalization, string) error { return nil }

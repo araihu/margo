@@ -65,7 +65,7 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput) (*
 		if err != nil {
 			return nil, err
 		}
-		renderResult, err := compiler.Render(ctx, compiled)
+		renderResult, err := compiler.Render(ctx, compiled, margo.WithRenderTarget(margo.TargetDeck))
 		if err != nil {
 			return nil, err
 		}

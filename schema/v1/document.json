@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/document.json",
+  "title": "Margo document metadata v1",
+  "description": "Known generic metadata and closed Margo-owned rendering preferences. Consumer-owned root properties remain allowed.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "title": {
+      "description": "Human-readable document title.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "examples": ["Architecture overview"],
+      "x-margo-maxUtf8Bytes": 256,
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
+      "x-margo-precedence": "CLI or API override, then frontmatter, first H1, source filename, built-in fallback"
+    },
+    "description": {
+      "description": "Plain-text summary for page and artifact metadata.",
+      "type": "string",
+      "maxLength": 512,
+      "examples": ["A concise technical proposal."],
+      "x-margo-maxUtf8Bytes": 512,
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
+      "x-margo-precedence": "CLI or API override, then frontmatter, then empty"
+    },
+    "language": {
+      "description": "BCP 47-style document language tag.",
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+      "maxLength": 64,
+      "examples": ["pt-BR"],
+      "x-margo-maxUtf8Bytes": 64,
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
+      "x-margo-precedence": "CLI or API override, then frontmatter, then standalone accessibility fallback en"
+    },
+    "slug": {
+      "description": "Optional lowercase, hyphen-separated consumer slug.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "maxLength": 128,
+      "examples": ["architecture-overview"],
+      "x-margo-maxUtf8Bytes": 128,
+      "x-margo-targets": ["site"],
+      "x-margo-precedence": "frontmatter then consumer routing policy"
+    },
+    "authors": {
+      "description": "Ordered author display names.",
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 256},
+      "examples": [["Ana Silva"]],
+      "x-margo-maxUtf8Bytes": 256,
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
+      "x-margo-precedence": "frontmatter only"
+    },
+    "publishedAt": {
+      "description": "Publication timestamp in RFC 3339 form.",
+      "type": "string",
+      "format": "date-time",
+      "examples": ["2026-08-11T12:00:00Z"],
+      "x-margo-targets": ["html", "site", "pdf"],
+      "x-margo-precedence": "frontmatter only"
+    },
+    "modifiedAt": {
+      "description": "Last-modified timestamp in RFC 3339 form.",
+      "type": "string",
+      "format": "date-time",
+      "examples": ["2026-08-11T13:00:00Z"],
+      "x-margo-targets": ["html", "site", "pdf"],
+      "x-margo-precedence": "frontmatter only",
+      "x-margo-interactions": "Runtime validation may require modifiedAt not to precede publishedAt."
+    },
+    "tags": {
+      "description": "Consumer-visible document tags.",
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 128},
+      "examples": [["architecture", "go"]],
+      "x-margo-maxUtf8Bytes": 128,
+      "x-margo-targets": ["html", "site"],
+      "x-margo-precedence": "frontmatter only"
+    },
+    "margo": {
+      "description": "Closed namespace for non-authoritative Margo document preferences.",
+      "type": "object",
+      "additionalProperties": false,
+      "examples": [{"page": {"size": "A4", "orientation": "portrait"}}],
+      "x-margo-targets": ["pdf", "deck"],
+      "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
+      "x-margo-security": "Non-authoritative preferences only; capabilities are forbidden here.",
+      "x-margo-interactions": "Unknown nested properties fail while unknown consumer-owned root properties remain available.",
+      "properties": {
+        "page": {
+          "description": "Optional PDF page preferences overridden by explicit CLI or API values.",
+          "type": "object",
+          "additionalProperties": false,
+          "examples": [{"size": "A4", "orientation": "portrait"}],
+          "x-margo-targets": ["pdf", "deck"],
+          "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
+          "x-margo-interactions": "Size and orientation combine into one browser-owned PageConfig.",
+          "properties": {
+            "size": {
+              "description": "Preferred physical page size.",
+              "type": "string",
+              "enum": ["A4", "Letter"],
+              "default": "A4",
+              "examples": ["A4"],
+              "x-margo-targets": ["pdf", "deck"],
+              "x-margo-precedence": "explicit CLI or API option, then document preference, then A4"
+            },
+            "orientation": {
+              "description": "Preferred page orientation.",
+              "type": "string",
+              "enum": ["portrait", "landscape"],
+              "default": "portrait",
+              "examples": ["portrait"],
+              "x-margo-targets": ["pdf", "deck"],
+              "x-margo-precedence": "explicit CLI or API option, then document preference, then portrait"
+            }
+          },
+          "default": {}
+        }
+      },
+      "default": {}
+    }
+  },
+  "examples": [
+    {"title": "Architecture overview", "language": "en"},
+    {"title": "Proposta técnica", "language": "pt-BR", "margo": {"page": {"size": "A4", "orientation": "portrait"}}, "consumerOwner": "docs"}
+  ]
+}

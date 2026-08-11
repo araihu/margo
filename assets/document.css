@@ -136,18 +136,18 @@
     border-inline-start: 1px solid var(--color-outline);
     padding-inline-start: calc(var(--spacing) * 5);
   }
-  .margo-document .margo-trusted-embed {
+  .margo-document .margo-embed {
     max-inline-size: 100%;
     margin-block: calc(var(--spacing) * 4);
     overflow: hidden;
   }
-  .margo-document .margo-trusted-embed__frame {
+  .margo-document .margo-embed__frame {
     display: block;
     max-inline-size: 100%;
     block-size: auto;
     border: 0;
   }
-  .margo-document .margo-trusted-embed__link {
+  .margo-document .margo-embed__link {
     overflow-wrap: anywhere;
   }
   .margo-document a {
@@ -282,14 +282,19 @@
     page-break-after: avoid;
     break-after: avoid-page;
   }
-  .margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre) {
-    page-break-inside: avoid;
-    break-inside: avoid-page;
+  .margo-document :where(p, li) {
+    orphans: 3;
+    widows: 3;
   }
+  .margo-document :where(ul, ol, blockquote, dl, details, figure, table, pre),
   .margo-document [data-table-client-sort="true"],
   .margo-document [data-code-block],
   .margo-document div:has(> .codeblock),
   .margo-document .margo-mermaid {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .margo-document img {
     page-break-inside: avoid;
     break-inside: avoid-page;
   }
@@ -314,28 +319,6 @@
     page-break-inside: avoid;
     break-inside: avoid-page;
   }
-  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) {
-    page-break-inside: auto;
-    break-inside: auto;
-  }
-  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) > * {
-    overflow: visible !important;
-    max-block-size: none !important;
-  }
-  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) table,
-  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) tbody {
-    page-break-inside: auto;
-    break-inside: auto;
-  }
-  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) tr {
-    page-break-inside: avoid;
-    break-inside: avoid-page;
-  }
-
-  .margo-document .margo-mermaid[data-margo-print-scale] .margo-mermaid__canvas {
-    margin-inline: auto;
-  }
-
   .margo-document .margo-print-strong {
     font-weight: 700;
   }
@@ -367,17 +350,6 @@
   .margo-document .margo-table-sort-button::after {
     content: none !important;
   }
-  .margo-document [data-margo-print-break-before="page"] {
-    page-break-before: always;
-    break-before: page;
-    /* Leave room below an engine-provided running header. */
-    margin-block-start: var(--margo-print-break-start-inset, 4mm);
-  }
-
-  .margo-document [data-margo-print-heading-group="true"] {
-    page-break-inside: avoid;
-    break-inside: avoid-page;
-  }
   .margo-document [data-code-block-header],
   .margo-document [data-code-block] > :first-child,
   .margo-document div[x-data] > div:first-of-type,
@@ -386,7 +358,7 @@
     display: none !important;
   }
   .margo-document .margo-mermaid__source {
-    break-inside: avoid;
+    break-inside: auto;
   }
   .margo-document .margo-mermaid__source pre {
     font-size: var(--text-sm);

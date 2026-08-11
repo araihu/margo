@@ -84,11 +84,11 @@ func TestHTMLCommandReportsInvalidLanguageAsActionableJSON(t *testing.T) {
 func TestHTMLCommandUsesInteractiveProjectionFromTrustedPolicy(t *testing.T) {
 	root := t.TempDir()
 	policyPath := filepath.Join(root, "policy.json")
-	policy := `{"schemaVersion":"margo-policy/v1","rawHTML":"sanitized","trustedEmbeds":{"allowedKinds":["iframe"],"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"deny","deck":"deny"}}}`
+	policy := `{"schemaVersion":"margo-policy/v1","rawHTML":"sanitized","iframe":{"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"deny","deck":"deny"}}}`
 	if err := os.WriteFile(policyPath, []byte(policy), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	markdown := "---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<span>trusted text</span>\n\n```trusted-embed\nkind: iframe\nurl: https://video.example.com/watch/123\ntitle: Architecture overview\n```\n"
+	markdown := "---\nlanguage: en\n---\n\n<span>trusted text</span>\n\n<iframe src=\"https://video.example.com/watch/123\" title=\"Architecture overview\"></iframe>\n"
 	var stdout, stderr bytes.Buffer
 	command := NewRootCommand(Dependencies{
 		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: &stderr,
@@ -98,7 +98,7 @@ func TestHTMLCommandUsesInteractiveProjectionFromTrustedPolicy(t *testing.T) {
 	if err := command.ExecuteContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`<span>trusted text</span>`, `<iframe class="margo-trusted-embed__frame"`, `src="https://video.example.com/watch/123"`} {
+	for _, want := range []string{`<span>trusted text</span>`, `<iframe class="margo-embed__frame"`, `src="https://video.example.com/watch/123"`} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("HTML missing %q", want)
 		}

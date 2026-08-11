@@ -41,6 +41,7 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 			tableSort:           tableSortMode(renderOptions),
 			runtimeTaskOrdinals: make(map[string]uint32),
 			extensionSlots:      extensionSlots,
+			target:              renderTarget(renderOptions),
 		}
 		return renderer.renderBlock(parsed.root)
 	})
@@ -62,6 +63,7 @@ type markdownRenderer struct {
 	tableSort           TableSortMode
 	runtimeTaskOrdinals map[string]uint32
 	extensionSlots      [][]byte
+	target              RenderTarget
 }
 
 func (r markdownRenderer) renderBlock(node goldast.Node) error {
@@ -182,7 +184,7 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 		_, err := io.WriteString(r.out, `</li>`)
 		return err
 	case *goldast.HTMLBlock:
-		return r.renderRawHTML(value.Lines().Value(r.source))
+		return r.renderRawHTML(value.Text(r.source))
 	default:
 		return r.renderBlock(node)
 	}
@@ -370,13 +372,27 @@ func (r markdownRenderer) renderRuntimeFence(kind string, source []byte) error {
 }
 
 func (r markdownRenderer) renderRawHTML(fragment []byte) error {
+	remaining, err := stripHTMLComments(fragment)
+	if err != nil {
+		return fmt.Errorf("source.html_comment_malformed: %w", err)
+	}
+	if strings.TrimSpace(string(remaining)) == "" {
+		return nil
+	}
+	if embed, recognized, embedErr := parseIframeFragment(remaining); recognized {
+		if embedErr != nil {
+			return fmt.Errorf("source.iframe_invalid: %w", embedErr)
+		}
+		return renderIframe(r.out, embed, r.policy.Iframe, r.target)
+	}
 	if r.policy.RawHTML != RawHTMLSanitized {
 		return fmt.Errorf("policy.raw_html.denied: raw HTML is not allowed during rendering")
 	}
-	if err := ValidateHTML(string(fragment)); err != nil {
+	normalized, err := normalizeHTML(remaining)
+	if err != nil {
 		return err
 	}
-	_, err := r.out.Write(fragment)
+	_, err = r.out.Write(normalized)
 	return err
 }
 

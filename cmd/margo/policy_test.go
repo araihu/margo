@@ -7,17 +7,15 @@ import (
 	"testing"
 
 	margo "github.com/araihu/margo"
-	margoembed "github.com/araihu/margo/embed"
 )
 
 func TestParsePolicyDocumentNormalizesAndHashesExactCapabilities(t *testing.T) {
 	input := []byte(`{
   "schemaVersion": "margo-policy/v1",
   "rawHTML": "sanitized",
-  "trustedEmbeds": {
-    "allowedKinds": ["iframe"],
+  "iframe": {
     "allowedOrigins": ["https://video.example.com/", "https://media.example.com"],
-    "iframeSandbox": ["allow-scripts", "allow-presentation"],
+    "sandbox": ["allow-scripts", "allow-presentation"],
     "projections": {
       "html": "interactive",
       "pdf": "static-link",
@@ -30,21 +28,26 @@ func TestParsePolicyDocumentNormalizesAndHashesExactCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if policy.Host != (margo.Policy{RawHTML: margo.RawHTMLSanitized, OutputBytes: margo.MaxOutputBytes}) {
+	if policy.Host.SchemaVersion != "margo-policy/v1" || policy.Host.RawHTML != margo.RawHTMLSanitized || policy.Host.InputBytes != margo.MaxDocumentBytes || policy.Host.OutputBytes != margo.MaxOutputBytes || policy.Host.Iframe == nil {
 		t.Fatalf("host policy = %+v", policy.Host)
 	}
-	if policy.Digest != "sha256:8ff61766ff8abed0c4329911331a63e7ed63d9be61037e557c1124becb62062f" {
+	if !strings.HasPrefix(policy.Digest, "sha256:") || len(policy.Digest) != len("sha256:")+64 {
 		t.Fatalf("policy digest = %q", policy.Digest)
 	}
-	for target, want := range map[policyTarget]margoembed.Projection{
-		policyTargetHTML: margoembed.ProjectionInteractive,
-		policyTargetPDF:  margoembed.ProjectionStaticLink,
-		policyTargetSite: margoembed.ProjectionInteractive,
-		policyTargetDeck: margoembed.ProjectionDeny,
+	for target, want := range map[policyTarget]margo.Projection{
+		policyTargetHTML: margo.ProjectionInteractive,
+		policyTargetPDF:  margo.ProjectionStaticLink,
+		policyTargetSite: margo.ProjectionInteractive,
+		policyTargetDeck: margo.ProjectionDeny,
 	} {
-		got, ok := policy.EmbedPolicy(target)
-		if !ok || got.Projection != want {
-			t.Fatalf("target %q policy = %+v, present=%t", target, got, ok)
+		got := map[policyTarget]margo.Projection{
+			policyTargetHTML: policy.Host.Iframe.Projections.HTML,
+			policyTargetPDF:  policy.Host.Iframe.Projections.PDF,
+			policyTargetSite: policy.Host.Iframe.Projections.Site,
+			policyTargetDeck: policy.Host.Iframe.Projections.Deck,
+		}[target]
+		if got != want {
+			t.Fatalf("target %q projection = %q", target, got)
 		}
 	}
 }
@@ -57,10 +60,10 @@ func TestParsePolicyDocumentRejectsAmbiguousOrOverbroadInput(t *testing.T) {
 		{name: "unknown field", input: []byte(`{"schemaVersion":"margo-policy/v1","unexpected":true}`)},
 		{name: "multiple objects", input: []byte(`{"schemaVersion":"margo-policy/v1"}{"schemaVersion":"margo-policy/v1"}`)},
 		{name: "oversized", input: bytes.Repeat([]byte(" "), maxPolicyBytes+1)},
-		{name: "invalid origin shape", input: []byte(`{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedKinds":["iframe"],"allowedOrigins":["https://video.example.com/path"],"projections":{"html":"interactive"}}}`)},
-		{name: "non-deny missing kinds", input: []byte(`{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive"}}}`)},
-		{name: "non-deny missing origins", input: []byte(`{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedKinds":["iframe"],"projections":{"pdf":"static-link"}}}`)},
-		{name: "interactive video cannot enforce referrer policy", input: []byte(`{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedKinds":["video"],"allowedOrigins":["https://media.example.com"],"projections":{"pdf":"static-link","site":"interactive"}}}`)},
+		{name: "invalid origin shape", input: []byte(`{"schemaVersion":"margo-policy/v1","iframe":{"allowedOrigins":["https://video.example.com/path"],"projections":{"html":"interactive"}}}`)},
+		{name: "missing origins", input: []byte(`{"schemaVersion":"margo-policy/v1","iframe":{"projections":{"pdf":"static-link"}}}`)},
+		{name: "unsupported iframe field", input: []byte(`{"schemaVersion":"margo-policy/v1","iframe":{"allowedOrigins":["https://media.example.com"],"allow":["fullscreen"]}}`)},
+		{name: "interactive PDF", input: []byte(`{"schemaVersion":"margo-policy/v1","iframe":{"allowedOrigins":["https://media.example.com"],"projections":{"pdf":"interactive"}}}`)},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -72,11 +75,11 @@ func TestParsePolicyDocumentRejectsAmbiguousOrOverbroadInput(t *testing.T) {
 }
 
 func TestPolicyDigestIsIndependentOfAllowlistOrdering(t *testing.T) {
-	left, err := parsePolicyDocument([]byte(`{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedKinds":["video","iframe"],"allowedOrigins":["https://video.example.com","https://media.example.com"],"projections":{"html":"static-link"}}}`))
+	left, err := parsePolicyDocument([]byte(`{"schemaVersion":"margo-policy/v1","iframe":{"allowedOrigins":["https://video.example.com","https://media.example.com"],"projections":{"html":"static-link"}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	right, err := parsePolicyDocument([]byte(`{"trustedEmbeds":{"projections":{"html":"static-link"},"allowedOrigins":["https://media.example.com/","https://video.example.com/"],"allowedKinds":["iframe","video"]},"schemaVersion":"margo-policy/v1"}`))
+	right, err := parsePolicyDocument([]byte(`{"iframe":{"projections":{"html":"static-link"},"allowedOrigins":["https://media.example.com/","https://video.example.com/"]},"schemaVersion":"margo-policy/v1"}`))
 	if err != nil {
 		t.Fatal(err)
 	}

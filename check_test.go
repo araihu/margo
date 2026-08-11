@@ -46,7 +46,7 @@ func TestCheckReportsActionableCompatibilityDiagnostics(t *testing.T) {
 	source := Source{
 		Name:    filepath.Join(root, "guide.md"),
 		BaseURL: root,
-		Content: []byte("---\nlanguage: en_US\n---\n\n<span>raw</span>\n\n![remote](https://cdn.example.com/image.png)\n![missing](missing.png)\n![unsafe](unsafe.svg)\n![](ok.png)\n[Guide](other.md)\n\n```mermaid\n%%{init: {\"theme\": \"dark\"}}%%\ngraph TD; A-->B\n```\n"),
+		Content: []byte("---\nlanguage: en-US\n---\n\n<span>raw</span>\n\n![remote](https://cdn.example.com/image.png)\n![missing](missing.png)\n![unsafe](unsafe.svg)\n![](ok.png)\n[Guide](other.md)\n\n```mermaid\n%%{init: {\"theme\": \"dark\"}}%%\ngraph TD; A-->B\n```\n"),
 	}
 	reader := checkMapReader{
 		filepath.Join(root, "unsafe.svg"): []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`),
@@ -58,7 +58,6 @@ func TestCheckReportsActionableCompatibilityDiagnostics(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantCodes := []string{
-		"source.metadata_invalid",
 		"check.raw_html",
 		"check.asset_remote",
 		"check.asset_missing",
@@ -80,34 +79,30 @@ func TestCheckReportsActionableCompatibilityDiagnostics(t *testing.T) {
 	if !reflect.DeepEqual(gotCodes, wantCodes) {
 		t.Fatalf("codes = %#v, want %#v\ndiagnostics: %+v", gotCodes, wantCodes, diagnostics)
 	}
-	if diagnostics[0].Line != 2 || diagnostics[0].Pointer != "/language" {
-		t.Fatalf("metadata diagnostic = %+v", diagnostics[0])
+	if diagnostics[6].Line != 14 || diagnostics[6].Pointer != "/mermaid/configuration" {
+		t.Fatalf("Mermaid diagnostic = %+v", diagnostics[6])
 	}
-	if diagnostics[7].Line != 14 || diagnostics[7].Pointer != "/mermaid/configuration" {
-		t.Fatalf("Mermaid diagnostic = %+v", diagnostics[7])
-	}
-	if diagnostics[5].Severity != SeverityWarning || diagnostics[6].Severity != SeverityWarning {
-		t.Fatalf("advisory severities = %q, %q", diagnostics[5].Severity, diagnostics[6].Severity)
+	if diagnostics[4].Severity != SeverityWarning || diagnostics[5].Severity != SeverityWarning {
+		t.Fatalf("advisory severities = %q, %q", diagnostics[4].Severity, diagnostics[5].Severity)
 	}
 }
 
-func TestCheckPolicyAllowsOnlyDeclaredSanitizedRawHTML(t *testing.T) {
-	declared := Source{Name: "trusted.md", Content: []byte("---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<span>trusted text</span>\n")}
-	diagnostics, err := Check(context.Background(), declared, WithCheckPolicy(Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes}))
+func TestCheckPolicyUsesHostOwnedRawHTMLAuthority(t *testing.T) {
+	trusted := Source{Name: "trusted.md", Content: []byte("---\nlanguage: en\n---\n\n<span>trusted text</span>\n")}
+	diagnostics, err := Check(context.Background(), trusted, WithCheckPolicy(Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(diagnostics) != 0 {
-		t.Fatalf("declared sanitized diagnostics = %+v", diagnostics)
+		t.Fatalf("host-authorized sanitized diagnostics = %+v", diagnostics)
 	}
 
-	undeclared := Source{Name: "undeclared.md", Content: []byte("---\nlanguage: en\n---\n\n<span>not declared</span>\n")}
-	diagnostics, err = Check(context.Background(), undeclared, WithCheckPolicy(Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes}))
+	diagnostics, err = Check(context.Background(), trusted, WithCheckPolicy(Policy{RawHTML: RawHTMLDeny, OutputBytes: MaxOutputBytes}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diagnostics) != 1 || diagnostics[0].Code != "policy.raw_html.undeclared" {
-		t.Fatalf("undeclared diagnostics = %+v", diagnostics)
+	if len(diagnostics) != 1 || diagnostics[0].Code != "policy.raw_html.denied" {
+		t.Fatalf("host-denied diagnostics = %+v", diagnostics)
 	}
 }
 
@@ -119,22 +114,22 @@ func TestCheckPolicyMatchesCompileAndRenderRawHTMLFailures(t *testing.T) {
 		code   string
 	}{
 		{
-			name:   "sanitized declaration cannot bypass HTML allowlist",
+			name:   "host authorization cannot bypass HTML allowlist",
 			policy: Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes},
-			source: Source{Name: "unsafe.md", Content: []byte("---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<script>alert(1)</script>\n")},
+			source: Source{Name: "unsafe.md", Content: []byte("---\nlanguage: en\n---\n\n<script>alert(1)</script>\n")},
 			code:   "policy.html.invalid",
 		},
 		{
-			name:   "document cannot exceed deny ceiling",
+			name:   "host deny rejects raw HTML",
 			policy: Policy{RawHTML: RawHTMLDeny, OutputBytes: MaxOutputBytes},
-			source: Source{Name: "mismatch.md", Content: []byte("---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\nPlain text.\n")},
-			code:   "policy.raw_html.mismatch",
+			source: Source{Name: "denied.md", Content: []byte("---\nlanguage: en\n---\n\n<span>raw</span>\n")},
+			code:   "policy.raw_html.denied",
 		},
 		{
-			name:   "undeclared HTML block is raw HTML",
+			name:   "unsafe HTML block is rejected",
 			policy: Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes},
 			source: Source{Name: "undeclared-block.md", Content: []byte("---\nlanguage: en\n---\n\n<script>alert(1)</script>\n")},
-			code:   "policy.raw_html.undeclared",
+			code:   "policy.html.invalid",
 		},
 	}
 	for _, test := range tests {
@@ -310,7 +305,7 @@ func TestCheckEnforcesMetadataListLimitsAndSequencePositions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diagnostics) != 2 || diagnostics[0].Code != "check.language_missing" || diagnostics[1].Code != "source.metadata_invalid" || diagnostics[1].Pointer != "/authors" || diagnostics[1].Line != 2 {
+	if len(diagnostics) != 1 || diagnostics[0].Code != "frontmatter.schema_invalid" || diagnostics[0].Pointer != "/authors" || diagnostics[0].Line != 3 {
 		t.Fatalf("list limit diagnostics = %+v", diagnostics)
 	}
 

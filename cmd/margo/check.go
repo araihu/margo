@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	margo "github.com/araihu/margo"
-	margoembed "github.com/araihu/margo/embed"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +20,7 @@ type checkReport struct {
 
 func newCheckCommand(deps Dependencies) *cobra.Command {
 	diagnostics := string(diagnosticText)
+	target := string(margo.TargetHTML)
 	policyOptions := policyFlags{}
 	command := &cobra.Command{
 		Use:   "check INPUT",
@@ -49,12 +49,9 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, fmt.Errorf("cli.input_path_invalid: %w", err))
 			}
-			checkOptions := []margo.CheckOption{margo.WithCheckAssetReader(deps.CheckAssetReader)}
+			checkOptions := []margo.CheckOption{margo.WithCheckAssetReader(deps.CheckAssetReader), margo.WithCheckTarget(margo.RenderTarget(target))}
 			if policy != nil {
 				checkOptions = append(checkOptions, margo.WithCheckPolicy(policy.Host))
-				if embedPolicy, ok := policy.CheckEmbedPolicy(); ok {
-					checkOptions = append(checkOptions, margo.WithCheckExtension(margoembed.Extension(embedPolicy)))
-				}
 			}
 			findings, err := margo.Check(command.Context(), source, checkOptions...)
 			if err != nil {
@@ -74,6 +71,7 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
+	command.Flags().StringVar(&target, "target", string(margo.TargetHTML), "output target: html, site, pdf, or deck")
 	policyOptions.bind(command)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/policy.json",
+  "title": "Margo host policy v1",
+  "description": "Trusted host-owned capabilities and resource ceilings for Margo rendering.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": {
+      "description": "Exact policy contract version.",
+      "const": "margo-policy/v1",
+      "examples": ["margo-policy/v1"],
+      "x-margo-targets": ["check", "html", "site", "pdf", "deck"],
+      "x-margo-precedence": "host policy only",
+      "x-margo-security": "Prevents interpreting policy bytes under another contract."
+    },
+    "rawHTML": {
+      "description": "Whether documents may use the closed, canonical margo-html-v1 profile.",
+      "type": "string",
+      "enum": ["deny", "sanitized"],
+      "default": "deny",
+      "examples": ["deny"],
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
+      "x-margo-precedence": "host policy only",
+      "x-margo-security": "sanitized enables only the versioned closed HTML profile; document metadata cannot change it."
+    },
+    "inputBytes": {
+      "description": "Maximum UTF-8 source bytes accepted for one document.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16777216,
+      "default": 16777216,
+      "examples": [1048576],
+      "x-margo-targets": ["check", "html", "site", "pdf", "deck"],
+      "x-margo-precedence": "host policy then built-in default",
+      "x-margo-security": "Bounds parser and normalization work."
+    },
+    "outputBytes": {
+      "description": "Maximum semantic HTML bytes produced for one document before page or artifact composition.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 67108864,
+      "default": 67108864,
+      "examples": [8388608],
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
+      "x-margo-precedence": "host policy then built-in default",
+      "x-margo-security": "Bounds semantic renderer output; final artifact limits remain sink-specific."
+    },
+    "iframe": {
+      "description": "Optional authorization for canonical standard-HTML iframe embeds.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedOrigins"],
+      "examples": [{"allowedOrigins": ["https://video.example.com"]}],
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
+      "x-margo-precedence": "host policy only",
+      "x-margo-security": "Presence authorizes only the listed exact origins and target projections.",
+      "x-margo-interactions": "Without iframe the natural iframe element is denied for every target.",
+      "properties": {
+        "allowedOrigins": {
+          "description": "Exact canonical HTTPS origins allowed in iframe src URLs; paths, wildcards, credentials, queries, and fragments are invalid.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 4096,
+            "pattern": "^https://"
+          },
+          "examples": [["https://video.example.com"]],
+          "x-margo-maxUtf8Bytes": 4096,
+          "x-margo-targets": ["html", "site", "pdf", "deck"],
+          "x-margo-precedence": "host policy only",
+          "x-margo-security": "Exact-origin allowlist; runtime canonicalization enforces origin-only syntax."
+        },
+        "sandbox": {
+          "description": "Sandbox capabilities Margo places on every interactive iframe.",
+          "type": "array",
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["allow-presentation", "allow-scripts"]
+          },
+          "default": [],
+          "examples": [["allow-presentation"]],
+          "x-margo-targets": ["html", "site", "deck"],
+          "x-margo-precedence": "host policy only",
+          "x-margo-security": "Empty sandbox grants no iframe sandbox capabilities."
+        },
+        "referrerPolicy": {
+          "description": "Referrer policy Margo places on interactive iframes and static links.",
+          "type": "string",
+          "const": "no-referrer",
+          "default": "no-referrer",
+          "examples": ["no-referrer"],
+          "x-margo-targets": ["html", "site", "pdf", "deck"],
+          "x-margo-precedence": "host policy only",
+          "x-margo-security": "Prevents source document URLs from being disclosed to embed origins."
+        },
+        "projections": {
+          "description": "Independent output projection selected for each target.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "html": {"$ref": "#/$defs/interactiveProjection", "default": "deny", "x-margo-targets": ["html"]},
+            "site": {"$ref": "#/$defs/interactiveProjection", "default": "deny", "x-margo-targets": ["site"]},
+            "pdf": {"$ref": "#/$defs/staticProjection", "default": "static-link", "x-margo-targets": ["pdf"]},
+            "deck": {"$ref": "#/$defs/interactiveProjection", "default": "deny", "x-margo-targets": ["deck"]}
+          },
+          "default": {},
+          "examples": [{"html": "interactive", "site": "interactive", "pdf": "static-link", "deck": "deny"}],
+          "x-margo-precedence": "host policy then least-authoritative target default",
+          "x-margo-security": "interactive authorizes a remote subresource only for that target."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "interactiveProjection": {
+      "description": "Embed projection for an interactive-capable target.",
+      "type": "string",
+      "enum": ["deny", "static-link", "interactive"],
+      "examples": ["deny"],
+      "x-margo-security": "interactive loads the authorized iframe origin; static-link does not load a subresource."
+    },
+    "staticProjection": {
+      "description": "Embed projection for a static target.",
+      "type": "string",
+      "enum": ["deny", "static-link"],
+      "examples": ["static-link"],
+      "x-margo-security": "PDF cannot authorize an interactive iframe."
+    }
+  },
+  "examples": [
+    {"schemaVersion": "margo-policy/v1"},
+    {
+      "schemaVersion": "margo-policy/v1",
+      "rawHTML": "sanitized",
+      "iframe": {
+        "allowedOrigins": ["https://video.example.com"],
+        "sandbox": ["allow-presentation"],
+        "projections": {"html": "interactive", "site": "interactive", "pdf": "static-link"}
+      }
+    }
+  ]
+}

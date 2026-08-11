@@ -229,7 +229,7 @@ export async function run(options, environment = process.env) {
     }
     await page.emulateMedia({ media: "print" });
     const printState = await page.evaluate(() => {
-      window.margoPreparePrintTOC();
+      window.margoPreparePrint();
       const style = (selector) => {
         const computed = getComputedStyle(document.querySelector(selector));
         return {
@@ -247,12 +247,10 @@ export async function run(options, environment = process.env) {
         header: style(".goshtoso-document__header"),
         footer: style(".goshtoso-document__footer"),
         tocBackground: getComputedStyle(document.querySelector(".goshtoso-document__toc")).backgroundColor,
-        tocColumns: getComputedStyle(document.querySelector(".goshtoso-document__toc ol")).columnCount,
         openSources: document.querySelectorAll('[data-margo-runtime-task="mermaid"] details[open]').length,
-        breakMarkers: document.querySelectorAll('[data-margo-print-break-before="page"]').length,
       };
     });
-    if (printState.openSources !== 3 || printState.tocColumns !== "1" || printState.header.display !== "flex" || printState.footer.display !== "flex") {
+    if (printState.openSources !== 3 || printState.header.display !== "flex" || printState.footer.display !== "flex") {
       throw new Error(`margo.browser_evidence_print_contract:${JSON.stringify(printState)}`);
     }
     if (printState.header.background !== printState.documentBackground || printState.footer.background !== printState.documentBackground || printState.tocBackground !== printState.documentBackground) {

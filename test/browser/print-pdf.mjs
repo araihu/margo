@@ -103,8 +103,6 @@ async function collectPrintContract(page) {
       rejectionTableIndex: rejectionTable.index,
       rejectionTableRowCount: rejectionTable.rowCount,
       rejectionRows,
-      tocColumns: document.querySelector(".goshtoso-document__toc")?.dataset.margoTocColumns ?? null,
-      breakMarkers: document.querySelectorAll('[data-margo-print-break-before="page"]').length,
     };
   });
 }
@@ -158,8 +156,8 @@ async function main() {
     await page.evaluate((mode) => {
       const dark = document.documentElement.classList.contains("dark");
       if (dark !== (mode === "dark")) throw new Error(`margo.pdf_print_mode_mismatch:${mode}`);
-      if (typeof window.margoPreparePrintTOC !== "function") throw new Error("margo.print_pagination_missing");
-      window.margoPreparePrintTOC();
+      if (typeof window.margoPreparePrint !== "function") throw new Error("margo.print_preparation_missing");
+      window.margoPreparePrint();
     }, options.mode);
     const printContract = await collectPrintContract(page);
     const pdfBytes = await page.pdf({

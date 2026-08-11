@@ -23,7 +23,7 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		"margo.WithExtension(charts.Extension())",
 		"--engine auto|chromium|native", "MARGO_CHROMIUM_PATH", "never downloads",
 		"CGO_ENABLED=0", "--output -", "--force", "stderr", "stdout",
-		"--relative-links strip|error|keep|resolve", "Defaults are `--engine auto`, A4, portrait, and zero margins.",
+		"--relative-links strip|error|keep|resolve", "Defaults are `--engine auto`, zero margins, and A4 portrait unless",
 		"Its defaults are HTML to stdout, `--engine auto`, A4, portrait, and zero", "margins. PDF decks require",
 		"historical submodule tags", "docs/decisions/0001-unified-module-and-cli.md",
 		"docs/testing/pdf-engine-matrix.md",
@@ -34,7 +34,7 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 	}
 	for _, required := range []string{
 		"`github.com/araihu/margo`", "`github.com/araihu/margo/assets`", "`github.com/araihu/margo/charts`",
-		"`github.com/araihu/margo/deck`", "`github.com/araihu/margo/embed`", "`github.com/araihu/margo/pdf`",
+		"`github.com/araihu/margo/deck`", "`github.com/araihu/margo/pdf`",
 		"`github.com/araihu/margo/pdf/chromium`", "`github.com/araihu/margo/pdf/engines`",
 		"`github.com/araihu/margo/pdf/native`", "`github.com/araihu/margo/pdf/platform`",
 		"`github.com/araihu/margo/site`", "`cmd/margo` is the CLI program, not a library API.",
@@ -47,6 +47,11 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 	for _, stale := range []string{"go get github.com/araihu/margo/pdf@", "Released separately", "Optional repository module", "Each Go module is tested independently"} {
 		if strings.Contains(readme, stale) {
 			t.Fatalf("README retains stale release claim %q", stale)
+		}
+	}
+	for _, stale := range []string{"github.com/araihu/margo/embed", "trusted-embed"} {
+		if strings.Contains(readme, stale) {
+			t.Fatalf("README retains removed embed contract %q", stale)
 		}
 	}
 }

@@ -144,7 +144,7 @@ func TestDocumentCSSKeepsExpandedMermaidSourceReadableWhenPrinted(t *testing.T) 
 		t.Fatal(err)
 	}
 	for _, want := range [][]byte{
-		[]byte(".margo-document .margo-mermaid__source {\n    break-inside: avoid;"),
+		[]byte(".margo-document .margo-mermaid__source {\n    break-inside: auto;"),
 		[]byte(".margo-document .margo-mermaid__source pre"),
 		[]byte("font-size: var(--text-sm)"),
 		[]byte("white-space: pre-wrap"),
@@ -162,13 +162,13 @@ func TestDocumentCSSConstrainsTrustedEmbedsToDocumentWidth(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range [][]byte{
-		[]byte(".margo-document .margo-trusted-embed"),
+		[]byte(".margo-document .margo-embed"),
 		[]byte("max-inline-size: 100%"),
 		[]byte("overflow: hidden"),
 		[]byte("overflow-wrap: anywhere"),
 	} {
 		if !bytes.Contains(css, want) {
-			t.Fatalf("document stylesheet missing trusted-embed rule %q", want)
+			t.Fatalf("document stylesheet missing embed rule %q", want)
 		}
 	}
 }

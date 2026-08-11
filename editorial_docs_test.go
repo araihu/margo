@@ -64,13 +64,12 @@ func TestHTMLDocumentationNamesDecoupledPublicContract(t *testing.T) {
 	}
 }
 
-func TestPolicyDocumentationShowsHostOwnedLibraryEmbedPolicy(t *testing.T) {
+func TestPolicyDocumentationShowsHostOwnedNaturalIframePolicy(t *testing.T) {
 	policyDoc := readEditorialRepoFile(t, "docs/policy.md")
 	for _, want := range []string{
-		"## Library API", "embed.Policy", "embed.Extension(policy)",
-		"margo.New(margo.WithExtension(trustedEmbeds))",
-		"margo.Check(ctx, source, margo.WithCheckExtension(trustedEmbeds))",
-		"AllowedKinds", "AllowedOrigins", "cannot add a kind, origin",
+		"## Library API", "margo.Policy", "margo.WithHostPolicy(policy)",
+		"margo.WithCheckPolicy(policy)", "AllowedOrigins", "cannot add an origin",
+		"## Natural iframe embeds", "standard HTML", "original HTML bytes are never passed through",
 	} {
 		if !strings.Contains(policyDoc, want) {
 			t.Fatalf("policy documentation missing %q", want)

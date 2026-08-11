@@ -58,6 +58,9 @@ jobs:
       - name: Build
         run: go build ./...
 
+      - name: Regenerate schema references
+        run: go generate ./...
+
       - name: Check formatting and module drift
         shell: bash
         run: |

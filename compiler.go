@@ -30,6 +30,9 @@ type sourceNormalization struct {
 	diagnostics []Diagnostic
 	parsed      any
 	sourceBytes int64
+	// Check owns its richer asset diagnostics and skips compile-only remote
+	// image rejection when reusing policy evaluation.
+	skipRemoteImages bool
 }
 
 var normalizeSource = func(source Source) (sourceNormalization, error) {
@@ -71,6 +74,13 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 	registry := c.registry.clone()
 	c.mu.RUnlock()
 	snapshot := source.clone()
+	inputLimit, err := configuredInputLimit(config)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(snapshot.Content)) > inputLimit {
+		return nil, policyDiagnostic("policy.resource.document_too_large", "document exceeds the maximum byte limit")
+	}
 	normalized, err := normalizeSource(snapshot)
 	if err != nil {
 		return nil, err
@@ -118,6 +128,10 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 	if fingerprint != document.compilerFingerprint || fingerprint != document.plan.compilerFingerprint {
 		return nil, ErrCompilerDocumentMismatch
 	}
+	renderConfig, err := applyRenderOptions(options)
+	if err != nil {
+		return nil, err
+	}
 	bytes, err := renderDocumentBytes(ctx, document, options)
 	if err != nil {
 		return nil, err
@@ -137,6 +151,7 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 		htmlRequirements:    document.projectedHTMLRequirements(),
 		documentFingerprint: document.documentFingerprint,
 		runtimeTasks:        cloneRuntimeTaskTemplates(runtimeTasks),
+		target:              renderTarget(renderConfig),
 	}, nil
 }
 

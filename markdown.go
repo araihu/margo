@@ -36,10 +36,38 @@ func normalizeMarkdownSource(source Source) (sourceNormalization, error) {
 	if err != nil {
 		return sourceNormalization{}, err
 	}
+	diagnostics := collectIframeWarnings(source, frontmatter, root)
 	return sourceNormalization{
-		metadata: metadata,
-		parsed:   normalizedMarkdown{frontmatter: frontmatter, root: root, headingIDs: headingIDs},
+		metadata: metadata, diagnostics: diagnostics,
+		parsed: normalizedMarkdown{frontmatter: frontmatter, root: root, headingIDs: headingIDs},
 	}, nil
+}
+
+func collectIframeWarnings(source Source, frontmatter frontmatterResult, root ast.Node) []Diagnostic {
+	var diagnostics []Diagnostic
+	_ = ast.Walk(root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		fragment, offset, raw := rawHTMLSource(node, frontmatter.body)
+		if !raw {
+			return ast.WalkContinue, nil
+		}
+		remaining, err := stripHTMLComments(fragment)
+		if err != nil {
+			return ast.WalkContinue, nil
+		}
+		embed, recognized, err := parseIframeFragment(remaining)
+		if recognized && err == nil && embed.Title == "" {
+			diagnostics = append(diagnostics, Diagnostic{
+				Code: "check.iframe_title_missing", Severity: SeverityWarning, Source: source.Name,
+				Line: lineAtOffset(source.Content, frontmatter.bodyOffset+offset), Column: 1, Pointer: "/iframe/title",
+				Message: "iframe has no accessible title", Hint: "Add a concise title attribute.",
+			})
+		}
+		return ast.WalkContinue, nil
+	})
+	return diagnostics
 }
 
 func newMarkdownParser() parser.Parser {
@@ -96,6 +124,30 @@ func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, er
 	}
 	if metadata.ModifiedAt, err = sourceDate(source.Name, values, "modifiedAt"); err != nil {
 		return Metadata{}, err
+	}
+	if margoValues, ok := values["margo"].(map[string]any); ok {
+		if pageValues, ok := margoValues["page"].(map[string]any); ok {
+			metadata.Margo.Page = &PagePreference{}
+			if value, ok := pageValues["size"].(string); ok {
+				metadata.Margo.Page.Size = value
+			}
+			if value, ok := pageValues["orientation"].(string); ok {
+				metadata.Margo.Page.Orientation = value
+			}
+		}
+	}
+	known := map[string]struct{}{
+		"title": {}, "description": {}, "language": {}, "slug": {}, "authors": {},
+		"publishedAt": {}, "modifiedAt": {}, "tags": {}, "margo": {},
+	}
+	for key, value := range values {
+		if _, recognized := known[key]; recognized {
+			continue
+		}
+		if metadata.Additional == nil {
+			metadata.Additional = make(map[string]any)
+		}
+		metadata.Additional[key] = cloneOptionValue(value)
 	}
 	return metadata, nil
 }

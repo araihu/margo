@@ -70,7 +70,12 @@ func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format
 		}
 		baseURL = filepath.Dir(absolute)
 	}
-	result, err := deck.Render(command.Context(), compilerForPolicy(policy, policyTargetDeck), deck.RenderInput{
+	compiler := compilerForPolicy(policy, policyTargetDeck)
+	metadataDocument, err := compiler.Compile(command.Context(), source)
+	if err != nil {
+		return nil, err
+	}
+	result, err := deck.Render(command.Context(), compiler, deck.RenderInput{
 		Name: source.Name, Markdown: source.Content, BaseURL: baseURL,
 	})
 	if err != nil {
@@ -95,7 +100,7 @@ func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format
 	if executionID == "" {
 		return nil, fmt.Errorf("cli.execution_id_invalid: execution ID source returned an empty ID")
 	}
-	pageConfig, err := pageOptions.config()
+	pageConfig, err := pageOptions.config(command, metadataDocument.Metadata())
 	if err != nil {
 		return nil, err
 	}

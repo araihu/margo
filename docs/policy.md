@@ -1,232 +1,172 @@
-# Host policy and trusted embeds
+# Host policy and natural iframe embeds
 
-Margo treats the document and the host as different authorities. Markdown can
-request a capability, but only the application or CLI operator can grant it.
-Without an explicit host policy, raw HTML is denied and `trusted-embed` fences
-remain ordinary code blocks.
+Margo separates author content from host authority. Documents never declare,
+request, grant, or negotiate capabilities. With no policy, ordinary Markdown
+renders deterministically and offline; raw HTML, iframe embeds, and remote
+Markdown images fail closed.
+
+The canonical contract is the shipped
+[`schema/v1/policy.json`](../schema/v1/policy.json). The exhaustive generated
+[policy reference](reference/policy.md) lists every field, default, target,
+limit, precedence rule, and security effect. Print the exact embedded schema
+offline with `margo schema policy`.
 
 ## Library API
 
-Library hosts set the allowed kinds and exact HTTPS origins before compiling.
-The document can request one of those values through a `trusted-embed` fence;
-it cannot add a kind, origin, sandbox capability, or arbitrary HTML.
+The host constructs a `margo.Policy` and supplies it before compilation:
 
 ```go
-import (
-	"context"
-
-	margo "github.com/araihu/margo"
-	"github.com/araihu/margo/embed"
-)
-
-func compileAndCheck(ctx context.Context, source margo.Source) error {
-	policy := embed.Policy{
-		Projection:     embed.ProjectionInteractive,
-		AllowedKinds:   []embed.Kind{embed.KindIframe},
+policy := margo.Policy{
+	SchemaVersion: "margo-policy/v1",
+	RawHTML:       margo.RawHTMLSanitized,
+	InputBytes:    margo.MaxDocumentBytes,
+	OutputBytes:   margo.MaxOutputBytes,
+	Iframe: &margo.IframePolicy{
 		AllowedOrigins: []string{"https://video.example.com"},
-		IframeSandbox:  []embed.SandboxToken{embed.SandboxAllowPresentation},
-		ReferrerPolicy: embed.ReferrerNoReferrer,
-	}
-	trustedEmbeds := embed.Extension(policy)
-	compiler := margo.New(margo.WithExtension(trustedEmbeds))
-
-	document, err := compiler.Compile(ctx, source)
-	if err != nil {
-		return err
-	}
-	if _, err := compiler.Render(ctx, document); err != nil {
-		return err
-	}
-	_, err = margo.Check(ctx, source, margo.WithCheckExtension(trustedEmbeds))
-	return err
+		Sandbox:        []margo.SandboxToken{margo.SandboxAllowPresentation},
+		ReferrerPolicy: margo.ReferrerNoReferrer,
+		Projections: margo.TargetProjections{
+			HTML: margo.ProjectionInteractive,
+			Site: margo.ProjectionInteractive,
+			PDF:  margo.ProjectionStaticLink,
+			Deck: margo.ProjectionDeny,
+		},
+	},
 }
+
+compiler := margo.New(margo.WithHostPolicy(policy))
+document, err := compiler.Compile(ctx, source)
 ```
 
-Use the same registration with `margo.New(margo.WithExtension(...))` and
-`margo.Check(..., margo.WithCheckExtension(...))` so rendering and preflight
-enforce the same host-owned limits.
+Use the same policy with `margo.WithCheckPolicy(policy)` for preflight. The
+document cannot add an origin, sandbox capability, projection, or raw-HTML
+grant.
 
 ## CLI policy file
 
-`margo check`, `html`, `pdf`, `site`, and `deck` accept
-`--policy PATH`. The path must name a JSON file; `-` is rejected so document
-stdin cannot also become policy authority. Unknown fields, duplicate
-capabilities, non-HTTPS origins, origins containing paths, unsupported values,
-multiple JSON documents, and files larger than 64 KiB fail closed.
-
-Select the policy file in deployment or application configuration. Do not
-automatically trust a policy file merely because it is beside untrusted
-Markdown.
+`margo check`, `html`, `pdf`, `site`, and `deck` accept `--policy FILE`.
+Policy input is JSON, capped at 64 KiB, schema-validated before conversion, and
+rejects duplicate keys, unknown properties, non-HTTPS origins, wildcard
+syntax, unsupported values, and multiple JSON documents. The path `-` is
+rejected so document stdin cannot also become policy authority.
 
 ```json
 {
   "schemaVersion": "margo-policy/v1",
-  "rawHTML": "deny",
+  "rawHTML": "sanitized",
+  "inputBytes": 16777216,
   "outputBytes": 67108864,
-  "trustedEmbeds": {
-    "allowedKinds": ["iframe"],
-    "allowedOrigins": [
-      "https://media.example.com",
-      "https://video.example.com"
-    ],
-    "iframeSandbox": ["allow-presentation"],
+  "iframe": {
+    "allowedOrigins": ["https://video.example.com"],
+    "sandbox": ["allow-presentation"],
     "referrerPolicy": "no-referrer",
     "projections": {
       "html": "interactive",
-      "pdf": "static-link",
       "site": "interactive",
+      "pdf": "static-link",
       "deck": "deny"
     }
   }
 }
 ```
 
-Omitted `rawHTML` defaults to `deny`, omitted `outputBytes` defaults to the
-64 MiB maximum, and every omitted target projection defaults to `deny`.
-Non-deny projections require at least one allowed kind and origin.
+Omission selects schema-documented defaults. Explicit `0` is invalid for byte
+ceilings. Unknown properties fail. The normalized policy is hashed; CLI JSON
+reports and site manifests record its `sha256:...` identity.
 
-The complete normalized CLI policy is hashed as a `sha256:...` digest.
-`margo check INPUT --diagnostics json` reports that identity. A site JSON report
-and its `margo-manifest.json` record the same value, binding the published
-output to the operator policy. This whole-policy digest is distinct from a
-library extension's unprefixed
-`ExtensionRegistration.Identity.ConfigurationHash`, which binds that
-extension's normalized configuration into compiler and artifact fingerprints.
+## Raw HTML
 
-## Resource limits
+`rawHTML: sanitized` enables the closed `margo-html-v1` semantic profile. No
+frontmatter declaration is needed or read. Margo parses the fragment, rejects
+unknown elements and attributes, and serializes a fresh canonical fragment;
+original HTML bytes are never passed through.
 
-The CLI bounds each Markdown input read at 16 MiB before parsing or compilation;
-`site` applies that read limit independently to every discovered Markdown
-file. The Go library's `Compiler.Compile` enforces the same ceiling after source
-normalization and Markdown parsing. The library's read-only `margo.Check`
-applies the ceiling after parsing when the caller supplies `WithCheckPolicy`;
-without that option, `Check` does not enforce the 16 MiB policy ceiling.
+The profile includes common semantic text, heading, list, details, table, and
+link elements. It excludes scripts, styles, images, iframes, event handlers,
+classes, IDs, arbitrary `data-*`, arbitrary `aria-*`, namespaces, and unknown
+attributes. Links may be relative or use `http`, `https`, `mailto`, or `tel`;
+network-path URLs and other schemes fail.
 
-In CLI JSON, omitted `outputBytes` and explicit `0` both select the 64 MiB
-default; a nonzero value must be between 1 byte and 64 MiB. The resulting limit
-bounds the semantic document HTML produced by each renderer invocation, before
-a target adds a standalone HTML shell or packages that rendering as PDF or site
-artifacts. A deck compiles and renders each slide separately, so the limit
-applies per slide rather than to their aggregate semantic HTML. It is not a
-limit on the final standalone HTML file, PDF file, deck file, or aggregate site
-size.
+Well-formed HTML comments are not raw HTML capability use. They are discarded
+before policy enforcement and never appear in fragment, standalone, site,
+deck, or PDF-input HTML. A malformed comment receives a positioned diagnostic;
+a comment cannot hide adjacent real HTML.
 
-Each trusted-embed request additionally limits its URL to 4096 UTF-8 bytes,
-its accessible title to 256 UTF-8 bytes, and each dimension to the inclusive
-range 1 through 4096.
+## Natural iframe embeds
 
-## Target projections
+Authors use standard HTML, not a Margo fence:
 
-Each target independently chooses one of three projections:
+```html
+<iframe
+  src="https://video.example.com/watch/123"
+  title="Architecture overview"
+  width="800"
+  height="450">
+</iframe>
+```
 
-| Projection | Result |
+Document attributes are closed to `src`, `title`, `width`, and `height`.
+Unsupported attributes fail rather than pass through. `src` must be absolute
+HTTPS without credentials and its canonical exact origin must appear in
+`allowedOrigins`. Width and height are integers from 1 through 4096 and default
+to 640 by 360. Titles are at most 256 UTF-8 bytes; a missing title produces an
+accessibility warning.
+
+Margo emits a new canonical element. It supplies `sandbox`,
+`referrerpolicy="no-referrer"`, lazy loading, and an empty Permissions Policy
+surface; authors cannot supply or widen them. The only v1 sandbox capabilities
+are `allow-presentation` and `allow-scripts`. The profile never grants
+same-origin, popups, forms, navigation, or downloads.
+
+Each target is independent:
+
+| Projection | Behavior |
 | --- | --- |
-| `interactive` | Emit a sandboxed iframe. |
-| `static-link` | Emit only a no-referrer HTTPS link using the required accessible title. |
-| `deny` | Reject the typed embed for that target. |
+| `interactive` | Canonical sandboxed iframe; allowed for HTML, site, and deck. |
+| `static-link` | HTTPS link only; no iframe or remote subresource. |
+| `deny` | Target rendering fails. |
 
-A typical public-site policy uses `interactive` for `html` and `site`,
-`static-link` for `pdf`, and `deny` or `static-link` for `deck`. Static-link is
-the explicit degradation path; Margo never silently inserts interactive
-content into a target configured otherwise.
+Defaults are `deny` for HTML, site, and deck, and `static-link` for PDF when an
+iframe policy exists. PDF cannot be interactive. A static link uses the title
+or the normalized URL as a deterministic fallback.
 
-`iframe` and `video` are the only kinds in `margo-policy/v1`. Interactive v1
-projections accept only `iframe`: native video elements cannot enforce the
-required no-referrer policy. A policy that allows `video` must therefore use
-only `static-link` or `deny` projections. Origins match exactly after IDNA
-domain conversion, IP-literal normalization, lowercasing the HTTPS host,
-removing the default `:443` port, and normalizing a trailing slash. Wildcards
-and noncanonical numeric IP shorthand are rejected rather than interpreted as
-browser-specific host syntax.
-Paths, wildcards, credentials, queries, and fragments are not valid allowed
-origins. Document URLs may contain a path, query, and fragment, but their exact
-origin must be present in the allowlist. Every request also needs a nonempty
-title. Omitted dimensions default to 640 by 360; the exact request limits are
-listed under [Resource limits](#resource-limits).
+The removed `trusted-embed` fence produces `source.trusted_embed_removed` with
+a standard-iframe migration example. It has no renderer.
 
-The iframe sandbox starts empty. The only v1 tokens a host can add are
-`allow-presentation` and `allow-scripts`. Enabling scripts does not add
-`allow-same-origin`, popups, forms, navigation, or downloads.
+## Origin normalization and privacy
 
-## Document request
+Allowed origins contain only scheme, host, and optional port. Runtime
+normalization applies IDNA lookup, lowercase hostnames, IP-literal
+normalization, removal of default port 443, and trailing-dot normalization.
+Paths, queries, fragments, credentials, wildcards, backslashes, scoped IP
+addresses, and noncanonical numeric-IP shorthand fail.
 
-An authorized document uses a typed fence:
-
-````markdown
-```trusted-embed
-kind: iframe
-url: https://video.example.com/watch/123
-title: Architecture overview
-width: 800
-height: 450
-```
-````
-
-Only `kind`, `url`, `title`, `width`, and `height` are accepted. Unknown YAML
-fields and additional YAML documents are rejected. Values are validated before
-rendering and escaped when written to HTML. There is no arbitrary HTML payload,
-generic `unsafe` mode, or `--allow-unsafe-html` flag.
-
-## Sanitized raw HTML
-
-Raw HTML is a separate, deliberately narrow two-key handshake. The host policy
-must set `"rawHTML": "sanitized"`, and the document must declare:
-
-```yaml
----
-goshtoso:
-  security:
-    rawHTML: sanitized
----
-```
-
-Margo parses the fragment using HTML5 parsing rules, including the parser's
-normal error recovery, and validates the resulting tree against the closed,
-versioned `margo-html-v1` profile. A profile-invalid tree is rejected. On
-success, Margo emits the accepted original source bytes rather than rewriting
-or sanitizing them. The complete v1 profile is:
-
-- Elements: `a`, `abbr`, `b`, `blockquote`, `br`, `cite`, `code`, `dd`, `del`,
-  `details`, `dfn`, `dl`, `dt`, `em`, `h1` through `h6`, `hr`, `i`, `kbd`,
-  `li`, `mark`, `ol`, `p`, `pre`, `q`, `s`, `samp`, `small`, `span`, `strong`,
-  `sub`, `summary`, `sup`, `table`, `tbody`, `td`, `tfoot`, `th`, `thead`,
-  `tr`, `u`, `ul`, and `var`.
-- Global attributes: `title`, `lang`, and `dir`; `dir` is exactly `ltr`, `rtl`,
-  or `auto`.
-- Element attributes: `a[href]`; `details[open]`; `ol[start,reversed,type]`;
-  `li[value]`; and `td`/`th` with `abbr`, `colspan`, `headers`, `rowspan`, or
-  `scope`.
-- `start`, `value`, `colspan`, and `rowspan` are positive integers. Boolean
-  `open` and `reversed` values are empty or repeat the attribute name. Ordered
-  list `type` is one of `1`, `a`, `A`, `i`, or `I`; table-cell `scope` is one
-  of `row`, `col`, `rowgroup`, or `colgroup`; `headers` cannot be blank.
-- `href` may be a relative reference or use `http`, `https`, `mailto`, or
-  `tel`. Network-path references such as `//example.com` and every other URL
-  scheme are rejected.
-- Text is allowed. Comments, namespaces, and namespaced or duplicate attributes
-  are rejected. At the fragment level, Margo rejects NUL, U+0001 through
-  U+0008, U+000B through U+000C, U+000E through U+001F, and U+007F; TAB, LF,
-  and CR may occur in text. Attribute values reject every Unicode control
-  character. Any element or attribute not listed above is rejected; notably
-  this excludes `img`, `class`, `id`, `style`, event handlers, and arbitrary
-  `data-*` or `aria-*` attributes.
-
-This path is for those allowlisted semantic fragments; use `trusted-embed` for
-remote media. Neither mechanism enables scripts, event attributes, or
-arbitrary iframe HTML.
+Interactive remote content changes privacy, availability, and offline
+behavior. Prefer `static-link` or `deny` for self-contained artifacts. Margo
+does not perform oEmbed discovery or any provider network lookup.
 
 ## Consumer security headers
 
-Interactive output is only one layer of the consumer's security boundary. The
-HTTP application serving the page still owns Content Security Policy and
-related headers. For an interactive v1 iframe, its CSP should grant `frame-src`
-only for the exact iframe origins selected in the Margo policy, while retaining
-the application's existing script, style, image, font, media, and connection
-rules. A v1 `video` request can produce only a static link or a denial, so it
-loads no media subresource and requires no `media-src` widening. Do not widen
-`default-src` to make an embed work.
+The serving application still owns Content Security Policy and related HTTP
+headers. For an interactive iframe, add `frame-src` only for the exact policy
+origins while retaining existing script, style, image, font, media, and
+connection rules. Do not widen `default-src`. Static-link and deny projections
+need no `frame-src` widening.
 
-Remote media also changes privacy, availability, and offline behavior. Use
-`static-link` or `deny` for self-contained/offline artifacts, and review the
-remote provider's cookies, tracking, and retention rules before adding its
-origin.
+## Document metadata ownership
+
+Generic metadata stays at the frontmatter root. The only Margo-owned document
+namespace is closed `margo`; it currently contains optional PDF page size and
+orientation preferences. Security, brand, theme, table behavior, and Mermaid
+configuration are not document metadata. See the generated
+[document metadata reference](reference/document-metadata.md) and print the
+matching bytes with `margo schema document`.
+
+The universal preference order is:
+
+```text
+explicit CLI/API option -> document preference -> built-in default
+```
+
+Legacy `goshtoso` frontmatter fails with `frontmatter.goshtoso_removed` and
+targeted migration guidance.

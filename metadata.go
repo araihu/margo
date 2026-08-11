@@ -13,11 +13,29 @@ type Metadata struct {
 	PublishedAt string
 	ModifiedAt  string
 	Tags        []string
+	Margo       DocumentPreferences
+	Additional  map[string]any
+}
+
+type DocumentPreferences struct {
+	Page *PagePreference
+}
+
+type PagePreference struct {
+	Size        string
+	Orientation string
 }
 
 func (m Metadata) clone() Metadata {
 	m.Authors = append([]string(nil), m.Authors...)
 	m.Tags = append([]string(nil), m.Tags...)
+	if m.Margo.Page != nil {
+		page := *m.Margo.Page
+		m.Margo.Page = &page
+	}
+	if len(m.Additional) > 0 {
+		m.Additional = cloneStringAnyMap(m.Additional)
+	}
 	return m
 }
 

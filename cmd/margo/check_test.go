@@ -72,8 +72,7 @@ func TestCheckCommandAppliesTrustedPolicyAndReportsIdentity(t *testing.T) {
 	policy := `{
   "schemaVersion":"margo-policy/v1",
   "rawHTML":"sanitized",
-  "trustedEmbeds":{
-    "allowedKinds":["iframe"],
+  "iframe":{
     "allowedOrigins":["https://video.example.com"],
     "projections":{"html":"interactive","pdf":"static-link","site":"deny","deck":"deny"}
   }
@@ -82,7 +81,7 @@ func TestCheckCommandAppliesTrustedPolicyAndReportsIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	input := filepath.Join(root, "trusted.md")
-	markdown := "---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<span>trusted text</span>\n\n```trusted-embed\nkind: iframe\nurl: https://video.example.com/watch/123\ntitle: Architecture overview\n```\n"
+	markdown := "---\nlanguage: en\n---\n\n<span>trusted text</span>\n\n<iframe src=\"https://video.example.com/watch/123\" title=\"Architecture overview\"></iframe>\n"
 	if err := os.WriteFile(input, []byte(markdown), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +103,7 @@ func TestCheckCommandAppliesTrustedPolicyAndReportsIdentity(t *testing.T) {
 	if len(report.Diagnostics) != 0 || report.Errors != 0 || report.Warnings != 0 {
 		t.Fatalf("report = %+v", report)
 	}
-	if report.Policy != "sha256:49a3bcdab2cd761114678d38d6fecec223d6b0375a97b3c8f15d90321989d810" {
+	if report.Policy != "sha256:b8924e7eb3dfaedfc66bfad18b1b75f96b445c0026f85ac44243a064857f63e7" {
 		t.Fatalf("policy identity = %q", report.Policy)
 	}
 	if stderr.Len() != 0 {
@@ -130,7 +129,7 @@ func TestCheckCommandRejectsRawHTMLOutsideSanitizedAllowlist(t *testing.T) {
 	if err := os.WriteFile(policyPath, []byte(`{"schemaVersion":"margo-policy/v1","rawHTML":"sanitized"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	markdown := "---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<script>alert(1)</script>\n"
+	markdown := "---\nlanguage: en\n---\n\n<script>alert(1)</script>\n"
 	if err := os.WriteFile(input, []byte(markdown), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +148,7 @@ func TestCheckCommandRejectsRawHTMLOutsideSanitizedAllowlist(t *testing.T) {
 	}
 }
 
-func TestCheckCommandRejectsUndeclaredRawHTMLBlockUnderPolicy(t *testing.T) {
+func TestCheckCommandRejectsUnsafeRawHTMLBlockUnderPolicy(t *testing.T) {
 	root := t.TempDir()
 	policyPath := filepath.Join(root, "policy.json")
 	input := filepath.Join(root, "undeclared.md")
@@ -169,7 +168,7 @@ func TestCheckCommandRejectsUndeclaredRawHTMLBlockUnderPolicy(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatalf("report: %v: %s", err, stdout.String())
 	}
-	if report.Errors != 1 || len(report.Diagnostics) != 1 || report.Diagnostics[0].Code != "policy.raw_html.undeclared" {
+	if report.Errors != 1 || len(report.Diagnostics) != 1 || report.Diagnostics[0].Code != "policy.html.invalid" {
 		t.Fatalf("report = %+v", report)
 	}
 }

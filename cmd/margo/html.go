@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	margo "github.com/araihu/margo"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +25,7 @@ func newHTMLCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			compiled, err := compileStandaloneWithCompiler(command.Context(), deps, args[0], compilerForPolicy(policy, policyTargetHTML), metadata.standaloneOptions(command)...)
+			compiled, err := compileStandaloneWithCompiler(command.Context(), deps, args[0], compilerForPolicy(policy, policyTargetHTML), margo.TargetHTML, metadata.standaloneOptions(command)...)
 			if err == nil {
 				_, err = publish(command.Context(), compiled.HTML, options, command.OutOrStdout())
 			}

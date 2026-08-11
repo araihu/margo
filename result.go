@@ -11,6 +11,15 @@ type RenderResult struct {
 	htmlRequirements    HTMLRequirements
 	documentFingerprint DocumentFingerprint
 	runtimeTasks        []runtimeTaskTemplate
+	target              RenderTarget
+}
+
+// Target returns the normalized output target used for this render.
+func (r *RenderResult) Target() RenderTarget {
+	if r == nil {
+		return ""
+	}
+	return r.target
 }
 
 // Content returns the immutable templ component.

@@ -1,19 +1,10 @@
 ---
 title: Margo full feature set
 description: Exhaustive human benchmark for Margo Markdown, HTML, PDF, extensions, and document composition.
-goshtoso:
-  theme: modern
-  security:
-    rawHTML: sanitized
-    mermaid: strict
-  tables:
-    sort: client
+margo:
   page:
     size: A4
     orientation: portrait
-  brand:
-    logo: logo.svg
-    watermark: Margo optimistic benchmark
 ---
 
 # Margo full feature set

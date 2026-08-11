@@ -16,3 +16,11 @@ func ValidateHTML(fragment string) error {
 	}
 	return nil
 }
+
+func normalizeHTML(fragment []byte) ([]byte, error) {
+	normalized, err := htmlpolicy.NormalizeTokens(fragment)
+	if err != nil {
+		return nil, fmt.Errorf("policy.html.invalid: %w", err)
+	}
+	return normalized, nil
+}

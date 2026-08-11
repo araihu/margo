@@ -86,7 +86,7 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 }
 
 func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig, policy *loadedPolicy, standaloneOptions []margo.StandaloneOption) ([]byte, error) {
-	compiled, err := compileStandaloneWithCompiler(command.Context(), deps, input, compilerForPolicy(policy, policyTargetPDF), standaloneOptions...)
+	compiled, err := compileStandaloneWithCompiler(command.Context(), deps, input, compilerForPolicy(policy, policyTargetPDF), margo.TargetPDF, standaloneOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOp
 	if executionID == "" {
 		return nil, fmt.Errorf("cli.execution_id_invalid: execution ID source returned an empty ID")
 	}
-	pageConfig, err := pageOptions.config()
+	pageConfig, err := pageOptions.config(command, compiled.Render.Metadata())
 	if err != nil {
 		return nil, err
 	}
@@ -143,10 +143,20 @@ func (options *pageFlags) bind(command *cobra.Command) {
 	command.Flags().Float64Var(&options.Left, "margin-left", 0, "left margin in millimeters")
 }
 
-func (options pageFlags) config() (pdf.PageConfig, error) {
+func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata) (pdf.PageConfig, error) {
+	size := options.Size
+	orientation := options.Orientation
+	if metadata.Margo.Page != nil {
+		if !command.Flags().Changed("page-size") && metadata.Margo.Page.Size != "" {
+			size = metadata.Margo.Page.Size
+		}
+		if !command.Flags().Changed("orientation") && metadata.Margo.Page.Orientation != "" {
+			orientation = metadata.Margo.Page.Orientation
+		}
+	}
 	config := pdf.PageConfig{
-		Size:        pdf.PageSize(options.Size),
-		Orientation: pdf.Orientation(options.Orientation),
+		Size:        pdf.PageSize(size),
+		Orientation: pdf.Orientation(orientation),
 		Margins: pdf.Margins{
 			Top: pdf.Millimeters(options.Top), Right: pdf.Millimeters(options.Right),
 			Bottom: pdf.Millimeters(options.Bottom), Left: pdf.Millimeters(options.Left),

@@ -218,28 +218,15 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 	}
 }
 
-func TestStandalonePrintPageLeavesReadableBreathingRoom(t *testing.T) {
+func TestStandaloneLeavesPageGeometryToThePDFEngine(t *testing.T) {
 	asset, err := EmbeddedAsset("standalone.css")
 	if err != nil {
 		t.Fatal(err)
 	}
 	css := string(asset.Content)
-	pageStart := strings.Index(css, "@page {")
-	if pageStart < 0 {
-		t.Fatal("standalone stylesheet has no @page rule")
-	}
-	pageEnd := strings.Index(css[pageStart:], "}")
-	if pageEnd < 0 {
-		t.Fatal("standalone @page rule is not closed")
-	}
-	pageCSS := css[pageStart : pageStart+pageEnd+1]
-	for _, want := range []string{
-		"size: A4 portrait;",
-		"margin: 24mm 22mm 26mm;",
-		"background: var(--margo-print-page-background);",
-	} {
-		if !strings.Contains(pageCSS, want) {
-			t.Errorf("print page rule missing %q: %s", want, pageCSS)
+	for _, forbidden := range []string{"size: A4", "margin: 24mm 22mm 26mm"} {
+		if strings.Contains(css, forbidden) {
+			t.Errorf("standalone stylesheet owns page geometry %q", forbidden)
 		}
 	}
 }
@@ -308,7 +295,7 @@ func TestStandalonePrintBackdropUsesPageCenter(t *testing.T) {
 		"window.margoRestorePrintState",
 		"details.open = originalDetailsState.get(details)",
 	} {
-		if !strings.Contains(standalonePrintPaginationScript, want) {
+		if !strings.Contains(standalonePrintPreparationScript, want) {
 			t.Errorf("print disclosure state contract missing %q", want)
 		}
 	}
@@ -397,7 +384,7 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 	}
 }
 
-func TestStandalonePrintBlocksAvoidInternalFragmentation(t *testing.T) {
+func TestStandalonePrintBlocksUseNativeFragmentation(t *testing.T) {
 	asset, err := EmbeddedAsset("document.css")
 	if err != nil {
 		t.Fatal(err)
@@ -412,28 +399,23 @@ func TestStandalonePrintBlocksAvoidInternalFragmentation(t *testing.T) {
 		".margo-document :where(h1, h2, h3, h4, h5, h6)",
 		"page-break-after: avoid;",
 		"break-after: avoid-page;",
-		".margo-document :where(ul, ol, blockquote, dl, details, figure, table, img, pre)",
-		"page-break-inside: avoid;",
-		".margo-document [data-table-client-sort=\"true\"]",
-		".margo-document [data-code-block]",
-		".margo-document div:has(> .codeblock)",
-		".margo-document .margo-mermaid",
-		`[data-margo-print-break-before="page"]`,
-		"break-before: page;",
-		"break-inside: avoid-page;",
+		"widows: 3;",
+		"orphans: 3;",
+		"break-inside: auto;",
+		"display: table-header-group;",
 	} {
 		if !strings.Contains(printCSS, want) {
 			t.Errorf("print block-fragmentation contract missing %q", want)
 		}
 	}
-	for _, want := range []string{
-		"const headingBlockPairs = () =>",
-		"const breakTargets = () =>",
-		"const rememberAndMarkBreakBefore = (element) =>",
-		"const pairs = headingBlockPairs()",
+	for _, forbidden := range []string{
+		"window.innerHeight",
+		"getBoundingClientRect",
+		"data-margo-print-break-before",
+		"data-margo-print-oversized",
 	} {
-		if !strings.Contains(standalonePrintPaginationScript, want) {
-			t.Errorf("print heading/block contract missing %q", want)
+		if strings.Contains(standalonePrintPreparationScript, forbidden) || strings.Contains(printCSS, forbidden) {
+			t.Errorf("predictive pagination contract still contains %q", forbidden)
 		}
 	}
 }
