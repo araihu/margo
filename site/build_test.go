@@ -130,6 +130,11 @@ func TestBuildRejectsReservedAndPathPrefixArtifacts(t *testing.T) {
 	requireSiteCode(t, err, "site.artifact_reserved")
 
 	_, err = Build(context.Background(), Request{Sources: []Source{
+		{Path: "margo-manifest.json/page.md", Content: []byte("# Reserved prefix\n")},
+	}})
+	requireSiteCode(t, err, "site.artifact_reserved")
+
+	_, err = Build(context.Background(), Request{Sources: []Source{
 		{Path: "page.md", Content: []byte("# Page\n")},
 		{Path: "page.html/nested.md", Content: []byte("# Nested\n")},
 	}})

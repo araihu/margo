@@ -407,10 +407,12 @@ func (b *builder) addArtifact(name string, content []byte) error {
 	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
 		return diagnostic("site.artifact_invalid", fmt.Sprintf("invalid artifact path %q", name), "Use a normalized site-relative artifact path.", name)
 	}
-	if strings.EqualFold(cleaned, ManifestPath) {
+	reservedKey := strings.ToLower(ManifestPath)
+	cleanedKey := strings.ToLower(cleaned)
+	if cleanedKey == reservedKey || strings.HasPrefix(cleanedKey, reservedKey+"/") {
 		return diagnostic("site.artifact_reserved", fmt.Sprintf("artifact path %q is reserved for the site manifest", cleaned), "Rename the source asset.", cleaned)
 	}
-	key := strings.ToLower(cleaned)
+	key := cleanedKey
 	canonical, caseExists := b.artifactKeys[key]
 	if caseExists && canonical != cleaned {
 		return diagnostic("site.artifact_collision", fmt.Sprintf("artifacts %q and %q collide on case-insensitive filesystems", canonical, cleaned), "Rename one source asset or page.", cleaned)
