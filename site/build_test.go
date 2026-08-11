@@ -167,7 +167,7 @@ func TestBuildAttachesSourceToCompilerDiagnostics(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 	got := diagnostic.Diagnostics[0]
-	if got.Code != "policy.raw_html.denied" || got.Source != "index.md" || got.Hint == "" {
+	if got.Code != "policy.raw_html.undeclared" || got.Source != "index.md" || got.Hint == "" {
 		t.Fatalf("diagnostic = %+v", got)
 	}
 }

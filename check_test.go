@@ -130,6 +130,12 @@ func TestCheckPolicyMatchesCompileAndRenderRawHTMLFailures(t *testing.T) {
 			source: Source{Name: "mismatch.md", Content: []byte("---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\nPlain text.\n")},
 			code:   "policy.raw_html.mismatch",
 		},
+		{
+			name:   "undeclared HTML block is raw HTML",
+			policy: Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes},
+			source: Source{Name: "undeclared-block.md", Content: []byte("---\nlanguage: en\n---\n\n<script>alert(1)</script>\n")},
+			code:   "policy.raw_html.undeclared",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

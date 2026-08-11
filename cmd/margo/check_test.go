@@ -148,3 +148,28 @@ func TestCheckCommandRejectsRawHTMLOutsideSanitizedAllowlist(t *testing.T) {
 		t.Fatalf("report = %+v", report)
 	}
 }
+
+func TestCheckCommandRejectsUndeclaredRawHTMLBlockUnderPolicy(t *testing.T) {
+	root := t.TempDir()
+	policyPath := filepath.Join(root, "policy.json")
+	input := filepath.Join(root, "undeclared.md")
+	if err := os.WriteFile(policyPath, []byte(`{"schemaVersion":"margo-policy/v1","rawHTML":"sanitized"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(input, []byte("---\nlanguage: en\n---\n\n<script>alert(1)</script>\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &bytes.Buffer{}, Build: testBuildInfo()})
+	command.SetArgs([]string{"check", input, "--policy", policyPath, "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err == nil {
+		t.Fatal("undeclared HTML block passed policy-aware check")
+	}
+	var report checkReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("report: %v: %s", err, stdout.String())
+	}
+	if report.Errors != 1 || len(report.Diagnostics) != 1 || report.Diagnostics[0].Code != "policy.raw_html.undeclared" {
+		t.Fatalf("report = %+v", report)
+	}
+}
