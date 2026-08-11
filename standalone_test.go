@@ -3,7 +3,9 @@ package margo
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/a-h/templ"
@@ -77,6 +79,32 @@ func TestStandaloneAllowsExplicitPageLanguage(t *testing.T) {
 	}
 	if _, err := RenderStandalone(result, WithPageLanguage("pt_BR")); diagnosticCode(err) != "html.metadata_invalid" {
 		t.Fatalf("invalid language error = %v", err)
+	}
+}
+
+func TestPageLanguageOptionIsSafeForConcurrentReuse(t *testing.T) {
+	option := WithPageLanguage(" pt-BR ")
+	const workers = 64
+	var wait sync.WaitGroup
+	errors := make(chan error, workers)
+	for range workers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			config := standaloneConfig{}
+			if err := option(&config); err != nil {
+				errors <- err
+				return
+			}
+			if config.lang != "pt-BR" {
+				errors <- fmt.Errorf("language = %q", config.lang)
+			}
+		}()
+	}
+	wait.Wait()
+	close(errors)
+	for err := range errors {
+		t.Fatal(err)
 	}
 }
 

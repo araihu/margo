@@ -374,16 +374,16 @@ func WithPageTitle(title string) StandaloneOption {
 
 // WithPageLanguage sets the document language using a BCP 47 language tag.
 func WithPageLanguage(language string) StandaloneOption {
+	normalized := strings.TrimSpace(language)
 	return func(config *standaloneConfig) error {
-		language = strings.TrimSpace(language)
-		if !sourceLanguagePattern.MatchString(language) {
+		if !sourceLanguagePattern.MatchString(normalized) {
 			return newDiagnosticError(Diagnostic{
 				Code: "html.metadata_invalid", Severity: SeverityError, Pointer: "/language",
 				Message: "standalone language must be a valid BCP 47 language tag",
 				Hint:    "Use a BCP 47 language tag such as en or pt-BR.",
 			})
 		}
-		config.lang = language
+		config.lang = normalized
 		return nil
 	}
 }
