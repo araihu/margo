@@ -300,22 +300,42 @@
     page-break-inside: avoid;
     break-inside: avoid-page;
   }
-  .margo-document [data-margo-print-oversized="true"] {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) {
     page-break-inside: auto;
     break-inside: auto;
   }
-  .margo-document [data-margo-print-oversized="true"] > * {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) > * {
     overflow: visible !important;
     max-block-size: none !important;
   }
-  .margo-document [data-margo-print-oversized="true"] table,
-  .margo-document [data-margo-print-oversized="true"] tbody {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) table,
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) tbody {
     page-break-inside: auto;
     break-inside: auto;
   }
-  .margo-document [data-margo-print-oversized="true"] tr {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) tr {
     page-break-inside: avoid;
     break-inside: avoid-page;
+  }
+
+  .margo-document .margo-mermaid[data-margo-print-scale] .margo-mermaid__canvas {
+    margin-inline: auto;
+  }
+
+  .margo-document .margo-print-strong {
+    font-weight: 700;
+  }
+
+  .margo-document .margo-print-emphasis {
+    font-style: italic;
+  }
+
+  .margo-document .margo-print-table-label {
+    display: inline;
+  }
+
+  .margo-document .margo-print-checkbox {
+    font-family: sans-serif;
   }
   .margo-document [data-table-client-sort="true"] table {
     inline-size: 100%;

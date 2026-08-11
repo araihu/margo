@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -110,6 +111,37 @@ func TestPDFCommandExportsWithInstalledChromium(t *testing.T) {
 	}
 }
 
+func TestPDFCommandProducesCleanPopplerStructureForStaticPrintProjection(t *testing.T) {
+	browserPath := installedCLITestChromium()
+	pdfinfoPath, err := exec.LookPath("pdfinfo")
+	if browserPath == "" || err != nil {
+		t.Skip("installed Chromium and Poppler pdfinfo are required")
+	}
+	output := filepath.Join(t.TempDir(), "structure.pdf")
+	markdown := "# Structure\n\n**Strong** and *emphasized*.\n\n- [x] Completed task\n\n| Column |\n| --- |\n| value |\n"
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		NextExecutionID: func() margo.ExecutionID { return "cli-pdf-structure" },
+	})
+	command.SetArgs([]string{"pdf", "-", "--output", output, "--engine", "chromium", "--engine-path", browserPath})
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if err := command.ExecuteContext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var stderr bytes.Buffer
+	probe := exec.CommandContext(ctx, pdfinfoPath, "-struct", output)
+	probe.Stdout = io.Discard
+	probe.Stderr = &stderr
+	if err := probe.Run(); err != nil {
+		t.Fatalf("pdfinfo -struct: %v: %s", err, stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("pdfinfo -struct warnings:\n%s", stderr.String())
+	}
+}
+
 func TestPDFRenderFailureDoesNotFallbackToNative(t *testing.T) {
 	directory := t.TempDir()
 	path := testBrowserFile(t, directory, "chromium")
@@ -152,6 +184,23 @@ type countingEngine struct {
 	name      string
 	exportErr error
 	exports   int
+}
+
+func installedCLITestChromium() string {
+	for _, candidate := range []string{
+		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		"/opt/homebrew/bin/chromium",
+	} {
+		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
+			return candidate
+		}
+	}
+	for _, name := range []string{"google-chrome", "chromium", "chromium-browser"} {
+		if path, err := exec.LookPath(name); err == nil {
+			return path
+		}
+	}
+	return ""
 }
 
 func (engine *countingEngine) Name() string { return engine.name }

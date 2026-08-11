@@ -47,6 +47,8 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   const originalBreakMarkers = new WeakMap();
   const originalBreakBeforeStyles = new WeakMap();
   const originalOversizedMarkers = new WeakMap();
+  const staticPrintReplacements = [];
+  const scaledMermaids = [];
   const millimetersToPixels = () => {
     const probe = document.createElement("div");
     probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
@@ -57,6 +59,15 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   };
 
   const restorePrintState = () => {
+    for (let index = staticPrintReplacements.length - 1; index >= 0; index -= 1) {
+      const { original, replacement, preserveChildren } = staticPrintReplacements[index];
+      if (!replacement.isConnected) continue;
+      if (preserveChildren) {
+        while (replacement.firstChild) original.appendChild(replacement.firstChild);
+      }
+      replacement.replaceWith(original);
+    }
+    staticPrintReplacements.length = 0;
     for (const details of mermaidSources()) {
       if (!originalDetailsState.has(details)) continue;
       details.open = originalDetailsState.get(details);
@@ -73,6 +84,13 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       else if (originalStyle) block.style.setProperty("break-before", originalStyle.value, originalStyle.priority);
       originalBreakBeforeStyles.delete(block);
     }
+    for (const { figure, canvas, scaleMarker, zoom } of scaledMermaids) {
+      if (scaleMarker === null) figure.removeAttribute("data-margo-print-scale");
+      else figure.setAttribute("data-margo-print-scale", scaleMarker);
+      if (zoom === null) canvas.style.removeProperty("zoom");
+      else canvas.style.setProperty("zoom", zoom.value, zoom.priority);
+    }
+    scaledMermaids.length = 0;
     for (const block of protectedBlocks()) {
       if (!originalOversizedMarkers.has(block)) continue;
       const original = originalOversizedMarkers.get(block);
@@ -81,6 +99,76 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       originalOversizedMarkers.delete(block);
     }
     if (toc) delete toc.dataset.margoTocColumns;
+  };
+
+  const replaceForStaticPrint = (element, kind, text) => {
+    const replacement = document.createElement("span");
+    replacement.dataset.margoPrintStatic = kind;
+    replacement.className = "margo-print-" + kind;
+    const preserveChildren = text === undefined;
+    if (preserveChildren) {
+      for (const attribute of element.attributes) {
+        const name = attribute.name.toLowerCase();
+        if (name === "id" || name === "class" || name === "style" || name === "title" || name === "lang" || name === "dir" || name.startsWith("data-") || name.startsWith("aria-")) {
+          replacement.setAttribute(attribute.name, attribute.value);
+        }
+      }
+      replacement.classList.add("margo-print-" + kind);
+      replacement.dataset.margoPrintStatic = kind;
+      while (element.firstChild) replacement.appendChild(element.firstChild);
+    } else {
+      replacement.textContent = text;
+    }
+    staticPrintReplacements.push({ original: element, replacement, preserveChildren });
+    element.replaceWith(replacement);
+  };
+
+  const prepareStaticPrintStructure = () => {
+    if (!article || staticPrintReplacements.length > 0) return;
+    for (const element of [...article.querySelectorAll("strong, b")]) {
+      replaceForStaticPrint(element, "strong");
+    }
+    for (const element of [...article.querySelectorAll("em, i")]) {
+      replaceForStaticPrint(element, "emphasis");
+    }
+    for (const button of [...article.querySelectorAll(".margo-table-sort-button")]) {
+      replaceForStaticPrint(button, "table-label", button.textContent);
+    }
+    for (const checkbox of [...article.querySelectorAll('input[type="checkbox"]')]) {
+      replaceForStaticPrint(checkbox, "checkbox", checkbox.checked ? "☑" : "☐");
+    }
+  };
+
+  const rememberAndMarkOversized = (block) => {
+    if (!originalOversizedMarkers.has(block)) {
+      originalOversizedMarkers.set(block, block.getAttribute("data-margo-print-oversized"));
+    }
+    block.setAttribute("data-margo-print-oversized", "true");
+  };
+
+  const scaleOversizedMermaids = (pageHeight) => {
+    for (const figure of article ? article.querySelectorAll(".margo-mermaid") : []) {
+      if (scaledMermaids.some((entry) => entry.figure === figure)) continue;
+      const canvas = figure.querySelector(".margo-mermaid__canvas");
+      if (!canvas) continue;
+      const figureRect = figure.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      if (figureRect.height <= pageHeight + 0.5 || canvasRect.height <= 0) continue;
+      const nonCanvasHeight = Math.max(0, figureRect.height - canvasRect.height);
+      const availableCanvasHeight = Math.max(1, pageHeight - nonCanvasHeight - 1);
+      const scale = Math.min(1, availableCanvasHeight / canvasRect.height);
+      if (scale >= 1) continue;
+      const zoomValue = canvas.style.getPropertyValue("zoom");
+      scaledMermaids.push({
+        figure,
+        canvas,
+        scaleMarker: figure.getAttribute("data-margo-print-scale"),
+        zoom: zoomValue ? { value: zoomValue, priority: canvas.style.getPropertyPriority("zoom") } : null,
+      });
+      figure.setAttribute("data-margo-print-scale", scale.toFixed(6));
+      rememberAndMarkOversized(figure);
+      canvas.style.setProperty("zoom", scale.toFixed(6));
+    }
   };
 
   const rememberAndMarkBreakBefore = (element) => {
@@ -102,10 +190,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     for (const block of protectedBlocks()) {
       if (!block.matches('[data-table-client-sort="true"]')) continue;
       if (block.getBoundingClientRect().height <= pageHeight + 0.5) continue;
-      if (!originalOversizedMarkers.has(block)) {
-        originalOversizedMarkers.set(block, block.getAttribute("data-margo-print-oversized"));
-      }
-      block.setAttribute("data-margo-print-oversized", "true");
+      rememberAndMarkOversized(block);
     }
   };
 
@@ -149,6 +234,8 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       if (!originalDetailsState.has(details)) originalDetailsState.set(details, details.open);
       details.open = true;
     }
+    prepareStaticPrintStructure();
+    scaleOversizedMermaids(Math.max(1, window.innerHeight));
     if (toc && toc.querySelector(":scope > ol")) {
       toc.dataset.margoTocColumns = "1";
       const pageBottom = window.innerHeight - pageMarginBottomMillimeters * millimetersToPixels();

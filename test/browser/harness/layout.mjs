@@ -39,7 +39,7 @@ export async function auditDocumentLayout(page) {
     };
     const pageSplitAllowed = (element, rect) => {
       if (rect.height > pageHeight + tolerance) return true;
-      if (element.matches('[data-margo-print-oversized="true"]')) return true;
+      if (element.matches('[data-margo-print-oversized="true"]:not([data-margo-print-scale])')) return true;
       if (element.matches('.goshtoso-document__toc[data-margo-toc-columns="2"]')) return true;
       if (element.closest('[data-margo-print-break-before="page"]')) return true;
       return hasMarkedPredecessor(element);
