@@ -32,7 +32,12 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     if (!article) return [];
     const blocks = new Set(protectedBlocks());
     return [...article.querySelectorAll(":scope > :is(h1, h2, h3, h4, h5, h6)")]
-      .map((heading) => ({ heading, block: heading.nextElementSibling }))
+      .filter((heading) => !heading.previousElementSibling?.matches(":is(h1, h2, h3, h4, h5, h6)"))
+      .map((heading) => {
+        let block = heading.nextElementSibling;
+        while (block && block.matches(":is(h1, h2, h3, h4, h5, h6)")) block = block.nextElementSibling;
+        return { heading, block };
+      })
       .filter(({ block }) => block && blocks.has(block));
   };
   const breakTargets = () => {
@@ -49,6 +54,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   const originalOversizedMarkers = new WeakMap();
   const staticPrintReplacements = [];
   const scaledMermaids = [];
+  const nestedHeadingGroups = [];
   const millimetersToPixels = () => {
     const probe = document.createElement("div");
     probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
@@ -59,6 +65,13 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   };
 
   const restorePrintState = () => {
+    for (let index = nestedHeadingGroups.length - 1; index >= 0; index -= 1) {
+      const { wrapper, elements } = nestedHeadingGroups[index];
+      if (!wrapper.isConnected) continue;
+      for (const element of elements) wrapper.before(element);
+      wrapper.remove();
+    }
+    nestedHeadingGroups.length = 0;
     for (let index = staticPrintReplacements.length - 1; index >= 0; index -= 1) {
       const { original, replacement, preserveChildren } = staticPrintReplacements[index];
       if (!replacement.isConnected) continue;
@@ -194,9 +207,36 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     }
   };
 
+  const prepareNestedHeadingGroups = (pageHeight) => {
+    if (!article || nestedHeadingGroups.length > 0) return;
+    const blocks = new Set(protectedBlocks());
+    const headingSelector = ":is(h1, h2, h3, h4, h5, h6)";
+    const candidates = [...article.querySelectorAll(":scope > " + headingSelector)]
+      .filter((heading) => !heading.previousElementSibling?.matches(headingSelector) && heading.nextElementSibling?.matches(headingSelector));
+    for (const heading of candidates) {
+      const elements = [heading];
+      let next = heading.nextElementSibling;
+      while (next && next.matches(headingSelector)) {
+        elements.push(next);
+        next = next.nextElementSibling;
+      }
+      if (!next || !blocks.has(next)) continue;
+      elements.push(next);
+      const top = elements[0].getBoundingClientRect().top;
+      const bottom = elements[elements.length - 1].getBoundingClientRect().bottom;
+      if (bottom - top > pageHeight + 0.5) continue;
+      const wrapper = document.createElement("div");
+      wrapper.dataset.margoPrintHeadingGroup = "true";
+      heading.before(wrapper);
+      for (const element of elements) wrapper.appendChild(element);
+      nestedHeadingGroups.push({ wrapper, elements });
+    }
+  };
+
   const markCrossPageBlocks = () => {
     const pageHeight = Math.max(1, window.innerHeight);
     markOversizedTables(pageHeight);
+    prepareNestedHeadingGroups(pageHeight);
     for (let pass = 0; pass < protectedBlocks().length; pass += 1) {
       let changed = false;
       const pairs = headingBlockPairs();

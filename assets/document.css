@@ -359,6 +359,11 @@
     /* Leave room below an engine-provided running header. */
     margin-block-start: var(--margo-print-break-start-inset, 4mm);
   }
+
+  .margo-document [data-margo-print-heading-group="true"] {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
   .margo-document [data-code-block-header],
   .margo-document [data-code-block] > :first-child,
   .margo-document div[x-data] > div:first-of-type,
