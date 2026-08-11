@@ -225,10 +225,11 @@ test("@pagination keeps a heading with a protected block that moves pages", asyn
 });
 
 test("@pagination keeps a nested heading chain with its first protected block", async ({ page }) => {
+  const documentCSS = await stylesheet("document.css");
   const script = await printPaginationScript();
   await page.setViewportSize({ width: 794, height: 1123 });
   await page.setContent(`<!doctype html>
-    <html><head><style>
+    <html><head><style>${documentCSS}</style><style>
       .margo-document { margin: 0; }
       .spacer { block-size: 900px; }
       .margo-document ol { block-size: 300px; margin: 0; padding: 0; }
@@ -242,7 +243,9 @@ test("@pagination keeps a nested heading chain with its first protected block", 
     </div>${script}</body></html>`);
   await page.emulateMedia({ media: "print" });
   await page.evaluate(() => window.margoPreparePrintTOC());
-  await expect(page.locator('[data-margo-print-heading-group="true"]')).toHaveCount(1);
+  const headingGroup = page.locator('[data-margo-print-heading-group="true"]');
+  await expect(headingGroup).toHaveCount(1);
+  await expect(headingGroup).toHaveCSS("break-inside", "avoid-page");
   await expect(page.locator("#section-heading")).not.toHaveAttribute("data-margo-print-break-before", "page");
   await expect(page.locator("#subsection-heading")).not.toHaveAttribute("data-margo-print-break-before", "page");
   await expect(page.locator("#section-content")).not.toHaveAttribute("data-margo-print-break-before", "page");
