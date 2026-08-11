@@ -76,6 +76,27 @@ func TestSiteCommandRefusesExistingOutputWithoutMutation(t *testing.T) {
 	}
 }
 
+func TestRenameSiteDirectoryNoReplacePreservesConcurrentTarget(t *testing.T) {
+	parent := t.TempDir()
+	stage := filepath.Join(parent, "stage")
+	target := filepath.Join(parent, "target")
+	if err := os.Mkdir(stage, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeSiteFixture(t, filepath.Join(stage, "new.txt"), "new")
+	writeSiteFixture(t, filepath.Join(target, "keep.txt"), "keep")
+
+	if err := renameSiteDirectoryNoReplace(stage, target); err == nil {
+		t.Fatal("no-replace directory rename replaced an existing target")
+	}
+	if got := readSiteFixture(t, filepath.Join(target, "keep.txt")); got != "keep" {
+		t.Fatalf("target changed: %q", got)
+	}
+	if got := readSiteFixture(t, filepath.Join(stage, "new.txt")); got != "new" {
+		t.Fatalf("stage changed after refused commit: %q", got)
+	}
+}
+
 func writeSiteFixture(t *testing.T, name, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {

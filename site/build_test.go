@@ -118,6 +118,55 @@ func TestBuildRejectsOutputCollisionAndBrokenMarkdownLink(t *testing.T) {
 	requireSiteCode(t, err, "site.anchor_missing")
 }
 
+func TestBuildRejectsReservedAndPathPrefixArtifacts(t *testing.T) {
+	root := filepath.Clean("/workspace/docs")
+	_, err := Build(context.Background(), Request{
+		SourceRoot: root,
+		Sources:    []Source{{Path: "index.md", Content: []byte("# Home\n\n![bad](margo-manifest.json)\n")}},
+		AssetReader: mapAssetReader{
+			filepath.Join(root, "margo-manifest.json"): []byte("\x89PNG\r\n\x1a\n"),
+		},
+	})
+	requireSiteCode(t, err, "site.artifact_reserved")
+
+	_, err = Build(context.Background(), Request{Sources: []Source{
+		{Path: "page.md", Content: []byte("# Page\n")},
+		{Path: "page.html/nested.md", Content: []byte("# Nested\n")},
+	}})
+	requireSiteCode(t, err, "site.artifact_collision")
+}
+
+func TestBuildLocalSiteUsesPageRelativeDependencyURLs(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		Sources: []Source{{Path: "nested/index.md", Content: []byte("# Nested\n\n| A |\n| - |\n| 1 |\n")}},
+		Assets:  AssetsLocal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "nested/index.html")
+	for _, expected := range []string{`href="../assets/styles.css"`, `href="../margo-assets/document.css"`, `src="../margo-assets/table-sort.js"`} {
+		if !strings.Contains(page, expected) {
+			t.Fatalf("nested page missing relative dependency %q: %s", expected, page)
+		}
+	}
+	if strings.Contains(page, `href="/`) || strings.Contains(page, `src="/margo-assets/`) {
+		t.Fatalf("nested page retains root-absolute dependency: %s", page)
+	}
+}
+
+func TestBuildAttachesSourceToCompilerDiagnostics(t *testing.T) {
+	_, err := Build(context.Background(), Request{Sources: []Source{{Path: "index.md", Content: []byte("# Home\n\n<div>raw</div>\n")}}})
+	var diagnostic *margo.DiagnosticError
+	if !errors.As(err, &diagnostic) || len(diagnostic.Diagnostics) == 0 {
+		t.Fatalf("error = %v", err)
+	}
+	got := diagnostic.Diagnostics[0]
+	if got.Code != "policy.raw_html.denied" || got.Source != "index.md" || got.Hint == "" {
+		t.Fatalf("diagnostic = %+v", got)
+	}
+}
+
 func artifactContent(t *testing.T, result Result, name string) string {
 	t.Helper()
 	return string(artifactBytes(t, result, name))

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -24,6 +25,8 @@ type AssetMode string
 const (
 	AssetsLocal  AssetMode = "local"
 	AssetsInline AssetMode = "inline"
+	// ManifestPath is reserved for the CLI-owned exact-byte manifest.
+	ManifestPath = "margo-manifest.json"
 )
 
 // Source is one site-relative Markdown input.
@@ -67,6 +70,7 @@ type builder struct {
 	artifacts    map[string][]byte
 	artifactKeys map[string]string
 	assets       map[string]cachedAsset
+	dependencies map[string]string
 	pages        []Page
 	references   []siteReference
 	assetBytes   int64
@@ -107,7 +111,7 @@ func Build(ctx context.Context, request Request) (Result, error) {
 	b := &builder{
 		request: request, sources: make(map[string]Source, len(request.Sources)),
 		outputs: make(map[string]string, len(request.Sources)), artifacts: make(map[string][]byte),
-		artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset),
+		artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset), dependencies: make(map[string]string),
 	}
 	ordered, err := b.indexSources()
 	if err != nil {
@@ -146,6 +150,9 @@ func (b *builder) indexSources() ([]Source, error) {
 		if previous, exists := b.outputs[outputKey]; exists {
 			return nil, diagnostic("site.output_collision", fmt.Sprintf("%q and %q map to the same output", previous, normalized), "Rename one source so each page has a unique output path.", normalized)
 		}
+		if previous, exists := pathPrefixCollision(b.outputs, outputKey); exists {
+			return nil, diagnostic("site.artifact_collision", fmt.Sprintf("outputs for %q and %q have a file/directory path collision", previous, normalized), "Rename one source so no page output is another output's parent directory.", normalized)
+		}
 		b.sources[key] = source
 		b.outputs[outputKey] = normalized
 	}
@@ -153,7 +160,8 @@ func (b *builder) indexSources() ([]Source, error) {
 	return ordered, nil
 }
 
-func (b *builder) renderSource(ctx context.Context, source Source) error {
+func (b *builder) renderSource(ctx context.Context, source Source) (failure error) {
+	defer func() { failure = attachSource(failure, source.Path) }()
 	base := filepath.Join(b.request.SourceRoot, filepath.FromSlash(path.Dir(source.Path)))
 	document, err := b.request.Compiler.Compile(ctx, margo.Source{Name: source.Path, Content: source.Content, BaseURL: base})
 	if err != nil {
@@ -193,6 +201,7 @@ func (b *builder) renderSource(ctx context.Context, source Source) error {
 			if err := b.addArtifact(assetPath, requirement.Inline.Content); err != nil {
 				return err
 			}
+			b.dependencies[strings.ToLower(assetPath)] = assetPath
 		}
 	}
 
@@ -208,6 +217,42 @@ func (b *builder) renderSource(ctx context.Context, source Source) error {
 	return nil
 }
 
+func attachSource(failure error, source string) error {
+	if failure == nil {
+		return nil
+	}
+	var diagnosticError *margo.DiagnosticError
+	if errors.As(failure, &diagnosticError) && len(diagnosticError.Diagnostics) > 0 {
+		diagnostics := append([]margo.Diagnostic(nil), diagnosticError.Diagnostics...)
+		for index := range diagnostics {
+			if diagnostics[index].Source == "" {
+				diagnostics[index].Source = source
+			}
+			if diagnostics[index].Hint == "" {
+				diagnostics[index].Hint = "Correct the source document and run margo check before rebuilding the site."
+			}
+		}
+		return &margo.DiagnosticError{Diagnostics: diagnostics}
+	}
+	code, message, found := strings.Cut(failure.Error(), ":")
+	if found && validDiagnosticCode(code) {
+		return diagnostic(code, strings.TrimSpace(message), "Correct the source document and run margo check before rebuilding the site.", source)
+	}
+	return failure
+}
+
+func validDiagnosticCode(value string) bool {
+	if value == "" || !strings.Contains(value, ".") {
+		return false
+	}
+	for _, character := range value {
+		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '.' && character != '_' {
+			return false
+		}
+	}
+	return true
+}
+
 func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byte) ([]byte, error) {
 	root, err := html.Parse(bytes.NewReader(document))
 	if err != nil {
@@ -219,6 +264,9 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 			return err
 		}
 		if node.Type == html.ElementNode {
+			if err := b.rewriteDependency(source, node); err != nil {
+				return err
+			}
 			switch node.Data {
 			case "a":
 				if err := b.rewriteLink(source, node); err != nil {
@@ -245,6 +293,38 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 		return nil, err
 	}
 	return output.Bytes(), nil
+}
+
+func (b *builder) rewriteDependency(source Source, node *html.Node) error {
+	var attribute string
+	switch node.Data {
+	case "link":
+		attribute = "href"
+	case "script":
+		attribute = "src"
+	default:
+		return nil
+	}
+	index := attributeIndex(node, attribute)
+	if index < 0 {
+		return nil
+	}
+	parsed, err := url.Parse(node.Attr[index].Val)
+	if err != nil || !strings.HasPrefix(parsed.Path, "/") {
+		return nil
+	}
+	dependency, exists := b.dependencies[strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))]
+	if !exists {
+		return nil
+	}
+	relative, err := relativeSitePath(path.Dir(outputPath(source.Path)), dependency)
+	if err != nil {
+		return err
+	}
+	parsed.Path = relative
+	parsed.RawPath = ""
+	node.Attr[index].Val = parsed.String()
+	return nil
 }
 
 func (b *builder) rewriteLink(source Source, node *html.Node) error {
@@ -327,10 +407,16 @@ func (b *builder) addArtifact(name string, content []byte) error {
 	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
 		return diagnostic("site.artifact_invalid", fmt.Sprintf("invalid artifact path %q", name), "Use a normalized site-relative artifact path.", name)
 	}
+	if strings.EqualFold(cleaned, ManifestPath) {
+		return diagnostic("site.artifact_reserved", fmt.Sprintf("artifact path %q is reserved for the site manifest", cleaned), "Rename the source asset.", cleaned)
+	}
 	key := strings.ToLower(cleaned)
 	canonical, caseExists := b.artifactKeys[key]
 	if caseExists && canonical != cleaned {
 		return diagnostic("site.artifact_collision", fmt.Sprintf("artifacts %q and %q collide on case-insensitive filesystems", canonical, cleaned), "Rename one source asset or page.", cleaned)
+	}
+	if previous, exists := pathPrefixCollision(b.artifactKeys, key); exists {
+		return diagnostic("site.artifact_collision", fmt.Sprintf("artifacts %q and %q have a file/directory path collision", previous, cleaned), "Rename one source asset or page.", cleaned)
 	}
 	if previous, exists := b.artifacts[cleaned]; exists {
 		if bytes.Equal(previous, content) {
@@ -341,6 +427,15 @@ func (b *builder) addArtifact(name string, content []byte) error {
 	b.artifacts[cleaned] = append([]byte(nil), content...)
 	b.artifactKeys[key] = cleaned
 	return nil
+}
+
+func pathPrefixCollision(paths map[string]string, candidate string) (string, bool) {
+	for existing, original := range paths {
+		if strings.HasPrefix(candidate, existing+"/") || strings.HasPrefix(existing, candidate+"/") {
+			return original, true
+		}
+	}
+	return "", false
 }
 
 func (b *builder) validateReferences() error {

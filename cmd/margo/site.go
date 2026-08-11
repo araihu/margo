@@ -194,17 +194,20 @@ func publishSite(ctx context.Context, target string, result site.Result) error {
 	if err != nil {
 		return err
 	}
-	if err := writeSiteArtifact(ctx, staging, "margo-manifest.json", manifest); err != nil {
+	if err := writeSiteArtifact(ctx, staging, site.ManifestPath, manifest); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := os.Rename(staging, absolute); err != nil {
+	if err := renameSiteDirectoryNoReplace(staging, absolute); err != nil {
 		if _, statErr := os.Lstat(absolute); statErr == nil {
 			return fmt.Errorf("site.output_exists: %s already exists", absolute)
 		}
 		return fmt.Errorf("site.output_commit: %w", err)
+	}
+	if err := syncSiteOutputParent(parent); err != nil {
+		return fmt.Errorf("site.output_durability: output is visible but parent synchronization failed: %w", err)
 	}
 	return nil
 }
