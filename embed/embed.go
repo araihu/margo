@@ -12,16 +12,21 @@ import (
 	"html"
 	"io"
 	"net"
+	"net/netip"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
 
 	margo "github.com/araihu/margo"
+	"golang.org/x/net/idna"
 	"gopkg.in/yaml.v3"
 )
 
-const Fence = "trusted-embed"
+const (
+	Fence              = "trusted-embed"
+	maxRequestURLBytes = 4096
+)
 
 type Projection string
 
@@ -247,6 +252,12 @@ func normalizePolicy(policy Policy) (Policy, error) {
 }
 
 func requestOrigin(value string) (string, error) {
+	if len([]byte(value)) == 0 || len([]byte(value)) > maxRequestURLBytes {
+		return "", fmt.Errorf("embed URL must contain 1 to %d UTF-8 bytes", maxRequestURLBytes)
+	}
+	if strings.Contains(value, `\`) {
+		return "", fmt.Errorf("embed URL must not contain backslashes")
+	}
 	parsed, err := url.Parse(value)
 	if err != nil || strings.ToLower(parsed.Scheme) != "https" || parsed.Host == "" || parsed.User != nil {
 		return "", fmt.Errorf("embed URL must be absolute HTTPS without credentials")
@@ -259,6 +270,12 @@ func requestOrigin(value string) (string, error) {
 }
 
 func policyOrigin(value string) (string, error) {
+	if len([]byte(value)) == 0 || len([]byte(value)) > maxRequestURLBytes {
+		return "", fmt.Errorf("allowed origin must contain 1 to %d UTF-8 bytes", maxRequestURLBytes)
+	}
+	if strings.Contains(value, `\`) {
+		return "", fmt.Errorf("allowed origin %q must not contain backslashes", value)
+	}
 	parsed, err := url.Parse(value)
 	if err != nil || strings.ToLower(parsed.Scheme) != "https" || parsed.Host == "" || parsed.User != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return "", fmt.Errorf("allowed origin %q must be an HTTPS origin without path, query, fragment, or credentials", value)
@@ -271,7 +288,10 @@ func policyOrigin(value string) (string, error) {
 }
 
 func canonicalHTTPSOrigin(parsed *url.URL) (string, error) {
-	hostname := strings.ToLower(parsed.Hostname())
+	hostname, err := canonicalHost(parsed.Hostname())
+	if err != nil {
+		return "", err
+	}
 	if hostname == "" {
 		return "", fmt.Errorf("hostname is empty")
 	}
@@ -292,6 +312,61 @@ func canonicalHTTPSOrigin(parsed *url.URL) (string, error) {
 		host = "[" + hostname + "]"
 	}
 	return "https://" + host, nil
+}
+
+func canonicalHost(value string) (string, error) {
+	if value == "" {
+		return "", fmt.Errorf("hostname is empty")
+	}
+	if strings.ContainsAny(value, `*\`) {
+		return "", fmt.Errorf("hostname contains wildcard or backslash syntax")
+	}
+	if address, err := netip.ParseAddr(value); err == nil {
+		if address.Zone() != "" {
+			return "", fmt.Errorf("scoped IP addresses are not allowed")
+		}
+		return address.String(), nil
+	}
+	if looksLikeNoncanonicalIP(value) {
+		return "", fmt.Errorf("noncanonical IP address syntax is not allowed")
+	}
+	ascii, err := idna.Lookup.ToASCII(value)
+	if err != nil {
+		return "", fmt.Errorf("hostname is not a valid IDNA domain: %w", err)
+	}
+	ascii = strings.ToLower(ascii)
+	if ascii == "" || strings.ContainsAny(ascii, `*\`) {
+		return "", fmt.Errorf("hostname is invalid")
+	}
+	return ascii, nil
+}
+
+func looksLikeNoncanonicalIP(value string) bool {
+	if strings.Contains(value, ":") {
+		return true
+	}
+	parts := strings.Split(strings.ToLower(value), ".")
+	if len(parts) == 0 || len(parts) > 4 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		base := 10
+		digits := part
+		if strings.HasPrefix(part, "0x") {
+			base = 16
+			digits = strings.TrimPrefix(part, "0x")
+		}
+		if digits == "" {
+			return false
+		}
+		if _, err := strconv.ParseUint(digits, base, 32); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func policyHash(policy Policy) (string, error) {

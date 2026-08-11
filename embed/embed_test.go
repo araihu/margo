@@ -315,6 +315,72 @@ func TestPolicyCanonicalizesDefaultHTTPSPortForMatchingAndHashing(t *testing.T) 
 	}
 }
 
+func TestPolicyCanonicalizesBrowserEquivalentHostsAndRejectsWildcards(t *testing.T) {
+	base := margoembed.Policy{
+		Projection:   margoembed.ProjectionStaticLink,
+		AllowedKinds: []margoembed.Kind{margoembed.KindIframe},
+	}
+	for _, origin := range []string{"https://*.example.com", "https://127.1"} {
+		policy := base
+		policy.AllowedOrigins = []string{origin}
+		if _, err := margoembed.NormalizePolicy(policy); err == nil || !strings.Contains(err.Error(), "embed.policy_invalid") {
+			t.Fatalf("noncanonical origin %q error = %v", origin, err)
+		}
+	}
+
+	equivalent := []struct {
+		name  string
+		left  string
+		right string
+	}{
+		{name: "IDN", left: "https://bücher.example", right: "https://xn--bcher-kva.example"},
+		{name: "IPv6", left: "https://[2001:0db8:0:0:0:0:0:1]", right: "https://[2001:db8::1]"},
+	}
+	for _, test := range equivalent {
+		t.Run(test.name, func(t *testing.T) {
+			left := base
+			left.AllowedOrigins = []string{test.left}
+			right := base
+			right.AllowedOrigins = []string{test.right}
+			leftHash, err := left.ConfigurationHash()
+			if err != nil {
+				t.Fatal(err)
+			}
+			rightHash, err := right.ConfigurationHash()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if leftHash != rightHash {
+				t.Fatalf("browser-equivalent origins have different hashes: %q != %q", leftHash, rightHash)
+			}
+		})
+	}
+
+	policy := base
+	policy.AllowedOrigins = []string{"https://bücher.example"}
+	if _, err := render(t, policy, "kind: iframe\nurl: https://xn--bcher-kva.example/watch\ntitle: Video\n"); err != nil {
+		t.Fatalf("IDN request did not match canonical policy origin: %v", err)
+	}
+}
+
+func TestExtensionBoundsRequestURLLength(t *testing.T) {
+	policy := margoembed.Policy{
+		Projection:     margoembed.ProjectionStaticLink,
+		AllowedKinds:   []margoembed.Kind{margoembed.KindIframe},
+		AllowedOrigins: []string{"https://video.example.com"},
+	}
+	const limit = 4096
+	prefix := "https://video.example.com/"
+	accepted := prefix + strings.Repeat("a", limit-len(prefix))
+	if _, err := render(t, policy, "kind: iframe\nurl: "+accepted+"\ntitle: Video\n"); err != nil {
+		t.Fatalf("URL at documented limit rejected: %v", err)
+	}
+	rejected := accepted + "a"
+	if _, err := render(t, policy, "kind: iframe\nurl: "+rejected+"\ntitle: Video\n"); diagnosticCode(err) != "embed.url_invalid" {
+		t.Fatalf("oversized URL error = %v", err)
+	}
+}
+
 func render(t *testing.T, policy margoembed.Policy, payload string) (string, error) {
 	t.Helper()
 	compiler := margo.New(margo.WithExtension(margoembed.Extension(policy)))

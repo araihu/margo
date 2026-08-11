@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -41,5 +43,30 @@ func TestReadInputUsesInjectedStdin(t *testing.T) {
 	}
 	if source.Name != "<stdin>" || string(source.Content) != "# stdin" {
 		t.Fatalf("source = %+v", source)
+	}
+}
+
+func TestOSSourceReaderStopsAfterCallerLimit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "large-policy.json")
+	content := bytes.Repeat([]byte("x"), maxPolicyBytes*2)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data, err := (osSourceReader{}).ReadFile(path, maxPolicyBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) != maxPolicyBytes+1 {
+		t.Fatalf("bounded read returned %d bytes", len(data))
+	}
+}
+
+func TestOSSourceReaderRejectsSpecialFilesBeforeReading(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("portable null device path differs on Windows")
+	}
+	_, err := (osSourceReader{}).ReadFile("/dev/zero", maxPolicyBytes)
+	if err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("special-file error = %v", err)
 	}
 }

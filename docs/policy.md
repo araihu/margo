@@ -68,13 +68,16 @@ content into a target configured otherwise.
 `iframe` and `video` are the only kinds in `margo-policy/v1`. Interactive v1
 projections accept only `iframe`: native video elements cannot enforce the
 required no-referrer policy. A policy that allows `video` must therefore use
-only `static-link` or `deny` projections. Origins match exactly after
-lowercasing the HTTPS host, removing the default `:443` port, and normalizing a
-trailing slash.
+only `static-link` or `deny` projections. Origins match exactly after IDNA
+domain conversion, IP-literal normalization, lowercasing the HTTPS host,
+removing the default `:443` port, and normalizing a trailing slash. Wildcards
+and noncanonical numeric IP shorthand are rejected rather than interpreted as
+browser-specific host syntax.
 Paths, wildcards, credentials, queries, and fragments are not valid allowed
 origins. Document URLs may contain a path, query, and fragment, but their exact
-origin must be present in the allowlist. Every request also needs a nonempty
-title and dimensions between 1 and 4096; defaults are 640 by 360.
+origin must be present in the allowlist. Every request also needs a URL of at
+most 4096 UTF-8 bytes, a nonempty title, and dimensions between 1 and 4096;
+defaults are 640 by 360.
 
 The iframe sandbox starts empty. The only v1 tokens a host can add are
 `allow-presentation` and `allow-scripts`. Enabling scripts does not add

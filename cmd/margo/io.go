@@ -10,12 +10,33 @@ import (
 )
 
 type SourceReader interface {
-	ReadFile(string) ([]byte, error)
+	ReadFile(string, int64) ([]byte, error)
 }
 
 type osSourceReader struct{}
 
-func (osSourceReader) ReadFile(path string) ([]byte, error) { return os.ReadFile(path) }
+func (osSourceReader) ReadFile(path string, limit int64) ([]byte, error) {
+	if limit < 0 {
+		return nil, fmt.Errorf("source read limit must be nonnegative")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("source is not a regular file")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
 
 type outputOptions struct {
 	Path  string
@@ -51,7 +72,7 @@ func readInput(ctx context.Context, reader SourceReader, stdin io.Reader, path s
 	if reader == nil {
 		return margo.Source{}, fmt.Errorf("cli.input_reader_required: file reader is unavailable")
 	}
-	data, err := reader.ReadFile(path)
+	data, err := reader.ReadFile(path, margo.MaxDocumentBytes)
 	if err != nil {
 		return margo.Source{}, fmt.Errorf("cli.input_read: %w", err)
 	}

@@ -164,7 +164,7 @@ func discoverSiteSources(ctx context.Context, reader SourceReader, input string)
 		if err := ctx.Err(); err != nil {
 			return "", nil, err
 		}
-		content, err := reader.ReadFile(name)
+		content, err := reader.ReadFile(name, margo.MaxDocumentBytes)
 		if err != nil {
 			return "", nil, fmt.Errorf("site.input_read: %s: %w", name, err)
 		}

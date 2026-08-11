@@ -76,7 +76,7 @@ func (flags policyFlags) load(ctx context.Context, reader SourceReader) (*loaded
 	if reader == nil {
 		return nil, fmt.Errorf("cli.policy_read: policy reader is unavailable")
 	}
-	content, err := reader.ReadFile(flags.Path)
+	content, err := reader.ReadFile(flags.Path, maxPolicyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("cli.policy_read: %w", err)
 	}
