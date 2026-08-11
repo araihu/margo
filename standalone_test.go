@@ -3,7 +3,9 @@ package margo
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/a-h/templ"
@@ -40,6 +42,69 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 		if strings.Contains(html, forbidden) {
 			t.Fatalf("offline standalone unexpectedly contains %q:\n%s", forbidden, html)
 		}
+	}
+}
+
+func TestStandalonePreservesDerivedMetadataAndMainLandmark(t *testing.T) {
+	result := mustRenderSource(t, "---\nlanguage: pt-BR\ndescription: Resumo para distribuição.\n---\n\n# Relatório operacional\n\nConteúdo.\n")
+	component, err := RenderStandalone(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, component)
+	for _, want := range []string{
+		`<html lang="pt-BR"`,
+		"<title>Relatório operacional</title>",
+		`<meta name="description" content="Resumo para distribuição."`,
+		`<a class="margo-skip-link" href="#margo-document-content"`,
+		`<main id="margo-document-content"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("standalone semantic shell missing %q: %s", want, markup)
+		}
+	}
+	if strings.Count(markup, "<main") != 1 {
+		t.Fatalf("standalone main landmark count = %d", strings.Count(markup, "<main"))
+	}
+}
+
+func TestStandaloneAllowsExplicitPageLanguage(t *testing.T) {
+	result := mustRenderSource(t, "# Guia\n")
+	component, err := RenderStandalone(result, WithPageLanguage("pt-BR"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if markup := renderComponent(t, component); !strings.Contains(markup, `<html lang="pt-BR"`) {
+		t.Fatalf("standalone language override missing: %s", markup)
+	}
+	if _, err := RenderStandalone(result, WithPageLanguage("pt_BR")); diagnosticCode(err) != "html.metadata_invalid" {
+		t.Fatalf("invalid language error = %v", err)
+	}
+}
+
+func TestPageLanguageOptionIsSafeForConcurrentReuse(t *testing.T) {
+	option := WithPageLanguage(" pt-BR ")
+	const workers = 64
+	var wait sync.WaitGroup
+	errors := make(chan error, workers)
+	for range workers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			config := standaloneConfig{}
+			if err := option(&config); err != nil {
+				errors <- err
+				return
+			}
+			if config.lang != "pt-BR" {
+				errors <- fmt.Errorf("language = %q", config.lang)
+			}
+		}()
+	}
+	wait.Wait()
+	close(errors)
+	for err := range errors {
+		t.Fatal(err)
 	}
 }
 

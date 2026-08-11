@@ -47,6 +47,164 @@ func TestOfflineHTMLAllowsLinksButRejectsRenderTimeNetworkAssets(t *testing.T) {
 	}
 }
 
+func TestRewriteDocumentLinksUsesSafeDeterministicPolicies(t *testing.T) {
+	document := []byte(`<html><body>
+<a id="relative" href="guides/start.md?mode=full#install">Guide</a>
+<a id="root" href="/reference/index.md">Reference</a>
+<a id="fragment" href="#local">Local</a>
+<a id="external" href="https://example.com/docs">External</a>
+<a id="mail" href="mailto:docs@example.com">Mail</a>
+<a id="phone" href="tel:+15551234567">Phone</a>
+</body></html>`)
+
+	tests := []struct {
+		name    string
+		policy  pdf.RelativeLinkPolicy
+		baseURL string
+		want    []string
+		absent  []string
+	}{
+		{
+			name:   "safe default strips relative targets",
+			policy: "",
+			want: []string{
+				`id="relative"`, `id="root"`, `href="#local"`,
+				`href="https://example.com/docs"`, `href="mailto:docs@example.com"`, `href="tel:+15551234567"`,
+			},
+			absent: []string{`href="guides/start.md?mode=full#install"`, `href="/reference/index.md"`},
+		},
+		{
+			name:   "explicit keep preserves relative targets",
+			policy: pdf.RelativeLinksKeep,
+			want:   []string{`href="guides/start.md?mode=full#install"`, `href="/reference/index.md"`},
+		},
+		{
+			name:    "resolve uses public base URL",
+			policy:  pdf.RelativeLinksResolve,
+			baseURL: "https://docs.example.com/manual/",
+			want: []string{
+				`href="https://docs.example.com/manual/guides/start.md?mode=full#install"`,
+				`href="https://docs.example.com/reference/index.md"`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := rewriteDocumentLinks(document, test.policy, test.baseURL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			markup := string(got)
+			for _, want := range test.want {
+				if !strings.Contains(markup, want) {
+					t.Errorf("rewritten document missing %q: %s", want, markup)
+				}
+			}
+			for _, absent := range test.absent {
+				if strings.Contains(markup, absent) {
+					t.Errorf("rewritten document retained %q: %s", absent, markup)
+				}
+			}
+		})
+	}
+}
+
+func TestRewriteDocumentLinksRejectsUnsafePolicyConfiguration(t *testing.T) {
+	tests := []struct {
+		name     string
+		document string
+		policy   pdf.RelativeLinkPolicy
+		baseURL  string
+		code     string
+	}{
+		{name: "error policy finds relative link", policy: pdf.RelativeLinksError, code: "pdf.relative_link_forbidden"},
+		{name: "resolve requires base URL", policy: pdf.RelativeLinksResolve, code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects local base URL", policy: pdf.RelativeLinksResolve, baseURL: "http://127.0.0.1:9000/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects shortened loopback base", policy: pdf.RelativeLinksResolve, baseURL: "http://127.1/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects empty hexadecimal loopback part", policy: pdf.RelativeLinksResolve, baseURL: "http://127.0x/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects split hexadecimal loopback base", policy: pdf.RelativeLinksResolve, baseURL: "http://0x7f.0x/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects octal loopback with empty hexadecimal part", policy: pdf.RelativeLinksResolve, baseURL: "http://0177.0x/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects integer loopback base", policy: pdf.RelativeLinksResolve, baseURL: "http://2130706433/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects hexadecimal loopback base", policy: pdf.RelativeLinksResolve, baseURL: "http://0x7f000001/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects invalid octal numeric base", policy: pdf.RelativeLinksResolve, baseURL: "http://09/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects too many IPv4 parts", policy: pdf.RelativeLinksResolve, baseURL: "http://1.2.3.4.5/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects mixed domain ending in number", policy: pdf.RelativeLinksResolve, baseURL: "http://example.255/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects unspecified IPv4 base", policy: pdf.RelativeLinksResolve, baseURL: "http://0/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects unspecified IPv6 base", policy: pdf.RelativeLinksResolve, baseURL: "http://[::]/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects trailing-dot localhost base", policy: pdf.RelativeLinksResolve, baseURL: "http://localhost./docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects trailing-dot localhost subdomain", policy: pdf.RelativeLinksResolve, baseURL: "http://x.localhost./docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects ideographic-dot localhost", policy: pdf.RelativeLinksResolve, baseURL: "http://localhost。/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects fullwidth-dot localhost subdomain", policy: pdf.RelativeLinksResolve, baseURL: "http://x.localhost．/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects halfwidth-dot loopback", policy: pdf.RelativeLinksResolve, baseURL: "http://127｡1/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects empty base hostname", policy: pdf.RelativeLinksResolve, baseURL: "https://:443/manual/", code: "pdf.relative_link_base_invalid"},
+		{name: "unknown policy", policy: pdf.RelativeLinkPolicy("surprise"), code: "pdf.relative_link_policy_invalid"},
+		{name: "active link scheme", document: `<a href="javascript:alert(1)">Run</a>`, code: "pdf.link_scheme_forbidden"},
+		{name: "network-path link", document: `<a href="//example.com/docs">Docs</a>`, code: "pdf.relative_link_invalid"},
+		{name: "backslash network-path link", document: `<a href="\\evil.example/docs">Docs</a>`, policy: pdf.RelativeLinksKeep, code: "pdf.relative_link_invalid"},
+		{name: "hostless HTTP link", document: `<a href="http:guides/start.md">Docs</a>`, code: "pdf.link_absolute_invalid"},
+		{name: "single-slash HTTP link", document: `<a href="http:/guides/start.md">Docs</a>`, code: "pdf.link_absolute_invalid"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			document := test.document
+			if document == "" {
+				document = `<a href="guide.md">Guide</a>`
+			}
+			_, err := rewriteDocumentLinks([]byte(document), test.policy, test.baseURL)
+			if code(err) != test.code {
+				t.Fatalf("error = %v, want %s", err, test.code)
+			}
+		})
+	}
+}
+
+func TestRewriteDocumentLinksCanonicalizesNonLoopbackNumericBase(t *testing.T) {
+	got, err := rewriteDocumentLinks(
+		[]byte(`<a href="guide.md">Guide</a>`),
+		pdf.RelativeLinksResolve,
+		"http://0x08080808:8080/manual/",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `href="http://8.8.8.8:8080/manual/guide.md"`) {
+		t.Fatalf("rewritten document did not canonicalize numeric base: %s", got)
+	}
+}
+
+func TestBrowserIPv4AddressMatchesURLStandardNumericForms(t *testing.T) {
+	tests := []struct {
+		hostname    string
+		wantAddress string
+		wantNumeric bool
+		wantValid   bool
+	}{
+		{hostname: "0", wantAddress: "0.0.0.0", wantNumeric: true, wantValid: true},
+		{hostname: "0x", wantAddress: "0.0.0.0", wantNumeric: true, wantValid: true},
+		{hostname: "0xffffffff", wantAddress: "255.255.255.255", wantNumeric: true, wantValid: true},
+		{hostname: "127.0x", wantAddress: "127.0.0.0", wantNumeric: true, wantValid: true},
+		{hostname: "09", wantNumeric: true, wantValid: false},
+		{hostname: "example.255", wantNumeric: true, wantValid: false},
+		{hostname: "1.2.3.4.5", wantNumeric: true, wantValid: false},
+		{hostname: "example.com", wantNumeric: false, wantValid: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.hostname, func(t *testing.T) {
+			address, numeric, valid := browserIPv4Address(test.hostname)
+			gotAddress := ""
+			if address != nil {
+				gotAddress = address.String()
+			}
+			if gotAddress != test.wantAddress || numeric != test.wantNumeric || valid != test.wantValid {
+				t.Fatalf("browserIPv4Address(%q) = (%q, %t, %t), want (%q, %t, %t)", test.hostname, gotAddress, numeric, valid, test.wantAddress, test.wantNumeric, test.wantValid)
+			}
+		})
+	}
+}
+
 func TestExportWithInstalledChromium(t *testing.T) {
 	path := installedChromium()
 	if path == "" {

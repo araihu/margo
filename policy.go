@@ -130,7 +130,7 @@ func hasRawHTML(normalized sourceNormalization) bool {
 	}
 	found := false
 	_ = ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering && node.Kind() == ast.KindRawHTML {
+		if entering && (node.Kind() == ast.KindRawHTML || node.Kind() == ast.KindHTMLBlock) {
 			found = true
 			return ast.WalkStop, nil
 		}

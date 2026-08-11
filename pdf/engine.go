@@ -17,12 +17,26 @@ type Engine interface {
 	Export(context.Context, Request) (Result, error)
 }
 
+// RelativeLinkPolicy controls how document-relative anchors are projected into
+// a PDF. The zero value is the safe strip policy because a renderer's temporary
+// document origin must never leak into a distributed artifact by default.
+type RelativeLinkPolicy string
+
+const (
+	RelativeLinksStrip   RelativeLinkPolicy = "strip"
+	RelativeLinksError   RelativeLinkPolicy = "error"
+	RelativeLinksKeep    RelativeLinkPolicy = "keep"
+	RelativeLinksResolve RelativeLinkPolicy = "resolve"
+)
+
 // Request is the renderer-neutral input shared by every PDF engine.
 type Request struct {
-	HTML        []byte                  `json:"html"`
-	Runtime     margo.RuntimeDescriptor `json:"runtime"`
-	ExecutionID margo.ExecutionID       `json:"executionID"`
-	Page        PageConfig              `json:"page"`
+	HTML          []byte                  `json:"html"`
+	Runtime       margo.RuntimeDescriptor `json:"runtime"`
+	ExecutionID   margo.ExecutionID       `json:"executionID"`
+	Page          PageConfig              `json:"page"`
+	RelativeLinks RelativeLinkPolicy      `json:"relativeLinks,omitempty"`
+	BaseURL       string                  `json:"baseURL,omitempty"`
 }
 
 // Clone returns a request whose mutable slices do not alias the receiver.

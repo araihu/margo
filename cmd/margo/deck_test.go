@@ -28,6 +28,33 @@ func TestDeckDefaultsToHTMLStdout(t *testing.T) {
 	}
 }
 
+func TestDeckCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
+	root := t.TempDir()
+	policyPath := filepath.Join(root, "policy.json")
+	policy := `{"schemaVersion":"margo-policy/v1","trustedEmbeds":{"allowedKinds":["iframe"],"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"interactive","deck":"static-link"}}}`
+	if err := os.WriteFile(policyPath, []byte(policy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	markdown := "# Architecture\n\n```trusted-embed\nkind: iframe\nurl: https://video.example.com/watch/123\ntitle: Architecture overview\n```\n"
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: root,
+	})
+	command.SetArgs([]string{"deck", "-", "--policy", policyPath})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stdout.String(), "<iframe") {
+		t.Fatalf("deck contains interactive iframe")
+	}
+	for _, want := range []string{`class="margo-trusted-embed__link"`, `href="https://video.example.com/watch/123"`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("deck missing %q", want)
+		}
+	}
+}
+
 func TestDeckPDFExecutesMermaidAndKeepsStaticChart(t *testing.T) {
 	browser := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 	if _, err := os.Stat(browser); err != nil {

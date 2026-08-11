@@ -34,8 +34,10 @@ func TestOutputBytesBounds(t *testing.T) {
 }
 
 func TestUndeclaredRawHTMLFailsClosed(t *testing.T) {
-	_, err := New().Compile(context.Background(), Source{Name: "x.md", Content: []byte("<span>raw</span>")})
-	if got := diagnosticCode(err); got != "policy.raw_html.undeclared" {
-		t.Fatalf("diagnostic code = %q, err = %v", got, err)
+	for _, markup := range []string{"<span>raw</span>", "<script>alert(1)</script>\n"} {
+		_, err := New().Compile(context.Background(), Source{Name: "x.md", Content: []byte(markup)})
+		if got := diagnosticCode(err); got != "policy.raw_html.undeclared" {
+			t.Fatalf("markup %q diagnostic code = %q, err = %v", markup, got, err)
+		}
 	}
 }

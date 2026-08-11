@@ -136,6 +136,20 @@
     border-inline-start: 1px solid var(--color-outline);
     padding-inline-start: calc(var(--spacing) * 5);
   }
+  .margo-document .margo-trusted-embed {
+    max-inline-size: 100%;
+    margin-block: calc(var(--spacing) * 4);
+    overflow: hidden;
+  }
+  .margo-document .margo-trusted-embed__frame {
+    display: block;
+    max-inline-size: 100%;
+    block-size: auto;
+    border: 0;
+  }
+  .margo-document .margo-trusted-embed__link {
+    overflow-wrap: anywhere;
+  }
   .margo-document a {
     color: var(--color-primary);
     font-weight: var(--font-weight-medium);
@@ -300,22 +314,42 @@
     page-break-inside: avoid;
     break-inside: avoid-page;
   }
-  .margo-document [data-margo-print-oversized="true"] {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) {
     page-break-inside: auto;
     break-inside: auto;
   }
-  .margo-document [data-margo-print-oversized="true"] > * {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) > * {
     overflow: visible !important;
     max-block-size: none !important;
   }
-  .margo-document [data-margo-print-oversized="true"] table,
-  .margo-document [data-margo-print-oversized="true"] tbody {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) table,
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) tbody {
     page-break-inside: auto;
     break-inside: auto;
   }
-  .margo-document [data-margo-print-oversized="true"] tr {
+  .margo-document [data-margo-print-oversized="true"]:not(.margo-mermaid) tr {
     page-break-inside: avoid;
     break-inside: avoid-page;
+  }
+
+  .margo-document .margo-mermaid[data-margo-print-scale] .margo-mermaid__canvas {
+    margin-inline: auto;
+  }
+
+  .margo-document .margo-print-strong {
+    font-weight: 700;
+  }
+
+  .margo-document .margo-print-emphasis {
+    font-style: italic;
+  }
+
+  .margo-document .margo-print-table-label {
+    display: inline;
+  }
+
+  .margo-document .margo-print-checkbox {
+    font-family: sans-serif;
   }
   .margo-document [data-table-client-sort="true"] table {
     inline-size: 100%;
@@ -338,6 +372,11 @@
     break-before: page;
     /* Leave room below an engine-provided running header. */
     margin-block-start: var(--margo-print-break-start-inset, 4mm);
+  }
+
+  .margo-document [data-margo-print-heading-group="true"] {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
   }
   .margo-document [data-code-block-header],
   .margo-document [data-code-block] > :first-child,

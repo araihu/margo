@@ -19,6 +19,7 @@ type Dependencies struct {
 	Stdout           io.Writer
 	Stderr           io.Writer
 	SourceReader     SourceReader
+	CheckAssetReader margo.CheckAssetReader
 	WorkingDirectory string
 	EngineProbe      engines.Probe
 	NextExecutionID  func() margo.ExecutionID
@@ -27,17 +28,28 @@ type Dependencies struct {
 
 func NewRootCommand(deps Dependencies) *cobra.Command {
 	deps = normalizeDependencies(deps)
+	version := false
 	cmd := &cobra.Command{
 		Use:           "margo",
 		Short:         "Render Markdown as HTML, PDF, or presentation decks",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Args:          cobra.NoArgs,
+		RunE: func(command *cobra.Command, _ []string) error {
+			if version {
+				return writeVersion(command.OutOrStdout(), deps.Build)
+			}
+			return command.Help()
+		},
 	}
 	cmd.SetIn(deps.Stdin)
 	cmd.SetOut(deps.Stdout)
 	cmd.SetErr(deps.Stderr)
+	cmd.Flags().BoolVar(&version, "version", false, "print version and compiled engine capabilities")
 	cmd.AddCommand(
+		newCheckCommand(deps),
 		newHTMLCommand(deps),
+		newSiteCommand(deps),
 		newPDFCommand(deps),
 		newDeckCommand(deps),
 		newDoctorCommand(deps),
@@ -62,6 +74,9 @@ func normalizeDependencies(deps Dependencies) Dependencies {
 	}
 	if deps.SourceReader == nil {
 		deps.SourceReader = osSourceReader{}
+	}
+	if deps.CheckAssetReader == nil {
+		deps.CheckAssetReader = margo.FilesystemCheckAssetReader{}
 	}
 	if deps.WorkingDirectory == "" {
 		deps.WorkingDirectory, _ = os.Getwd()

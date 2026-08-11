@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"runtime"
 	"runtime/debug"
 	"sort"
@@ -77,23 +78,26 @@ func newVersionCommand(deps Dependencies) *cobra.Command {
 		Short: "Print version and compiled engine capabilities",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			build := deps.Build
-			engines := append([]string(nil), build.Engines...)
-			sort.Strings(engines)
-			engineList := strings.Join(engines, ",")
-			if engineList == "" {
-				engineList = "none"
-			}
-			_, err := fmt.Fprintf(cmd.OutOrStdout(), "margo %s\nmodule %s\ncommit %s\ngo %s\nplatform %s/%s\nengines %s\n",
-				build.Version,
-				build.Module,
-				build.Commit,
-				build.GoVersion,
-				build.GOOS,
-				build.GOARCH,
-				engineList,
-			)
-			return err
+			return writeVersion(cmd.OutOrStdout(), deps.Build)
 		},
 	}
+}
+
+func writeVersion(output io.Writer, build BuildInfo) error {
+	engines := append([]string(nil), build.Engines...)
+	sort.Strings(engines)
+	engineList := strings.Join(engines, ",")
+	if engineList == "" {
+		engineList = "none"
+	}
+	_, err := fmt.Fprintf(output, "margo %s\nmodule %s\ncommit %s\ngo %s\nplatform %s/%s\ncompiled engines %s\nexternal engine discovery run \"margo doctor\"\n",
+		build.Version,
+		build.Module,
+		build.Commit,
+		build.GoVersion,
+		build.GOOS,
+		build.GOARCH,
+		engineList,
+	)
+	return err
 }

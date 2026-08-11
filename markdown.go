@@ -30,16 +30,7 @@ func normalizeMarkdownSource(source Source) (sourceNormalization, error) {
 	if err != nil {
 		return sourceNormalization{}, err
 	}
-	root := goldmark.New(
-		goldmark.WithExtensions(
-			extension.Table,
-			extension.Strikethrough,
-			extension.TaskList,
-			extension.Footnote,
-			extension.Linkify,
-		),
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-	).Parser().Parse(text.NewReader(frontmatter.body))
+	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
 	headingIDs := collectHeadingIDs(root)
 	metadata, err := normalizeSourceMetadata(source, frontmatter.values)
 	if err != nil {
@@ -49,6 +40,19 @@ func normalizeMarkdownSource(source Source) (sourceNormalization, error) {
 		metadata: metadata,
 		parsed:   normalizedMarkdown{frontmatter: frontmatter, root: root, headingIDs: headingIDs},
 	}, nil
+}
+
+func newMarkdownParser() parser.Parser {
+	return goldmark.New(
+		goldmark.WithExtensions(
+			extension.Table,
+			extension.Strikethrough,
+			extension.TaskList,
+			extension.Footnote,
+			extension.Linkify,
+		),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+	).Parser()
 }
 
 func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, error) {

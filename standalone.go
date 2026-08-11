@@ -20,7 +20,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   "use strict";
   const toc = document.querySelector(".goshtoso-document__toc");
   const mermaidSources = () => [...document.querySelectorAll(".margo-mermaid__source")];
-  const article = document.querySelector(".goshtoso-document > .margo-document");
+  const article = document.querySelector(".goshtoso-document .margo-document");
   const protectedBlocks = () => article ? [...article.querySelectorAll(
     ":scope > :is(ul, ol, blockquote, dl, details, figure, table, img, pre), " +
     ':scope > [data-table-client-sort="true"], ' +
@@ -32,7 +32,12 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     if (!article) return [];
     const blocks = new Set(protectedBlocks());
     return [...article.querySelectorAll(":scope > :is(h1, h2, h3, h4, h5, h6)")]
-      .map((heading) => ({ heading, block: heading.nextElementSibling }))
+      .filter((heading) => !heading.previousElementSibling?.matches(":is(h1, h2, h3, h4, h5, h6)"))
+      .map((heading) => {
+        let block = heading.nextElementSibling;
+        while (block && block.matches(":is(h1, h2, h3, h4, h5, h6)")) block = block.nextElementSibling;
+        return { heading, block };
+      })
       .filter(({ block }) => block && blocks.has(block));
   };
   const breakTargets = () => {
@@ -47,6 +52,9 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   const originalBreakMarkers = new WeakMap();
   const originalBreakBeforeStyles = new WeakMap();
   const originalOversizedMarkers = new WeakMap();
+  const staticPrintReplacements = [];
+  const scaledMermaids = [];
+  const nestedHeadingGroups = [];
   const millimetersToPixels = () => {
     const probe = document.createElement("div");
     probe.style.cssText = "position:absolute;inline-size:1px;block-size:1mm;visibility:hidden;pointer-events:none";
@@ -57,6 +65,22 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   };
 
   const restorePrintState = () => {
+    for (let index = nestedHeadingGroups.length - 1; index >= 0; index -= 1) {
+      const { wrapper, elements } = nestedHeadingGroups[index];
+      if (!wrapper.isConnected) continue;
+      for (const element of elements) wrapper.before(element);
+      wrapper.remove();
+    }
+    nestedHeadingGroups.length = 0;
+    for (let index = staticPrintReplacements.length - 1; index >= 0; index -= 1) {
+      const { original, replacement, preserveChildren } = staticPrintReplacements[index];
+      if (!replacement.isConnected) continue;
+      if (preserveChildren) {
+        while (replacement.firstChild) original.appendChild(replacement.firstChild);
+      }
+      replacement.replaceWith(original);
+    }
+    staticPrintReplacements.length = 0;
     for (const details of mermaidSources()) {
       if (!originalDetailsState.has(details)) continue;
       details.open = originalDetailsState.get(details);
@@ -73,6 +97,13 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       else if (originalStyle) block.style.setProperty("break-before", originalStyle.value, originalStyle.priority);
       originalBreakBeforeStyles.delete(block);
     }
+    for (const { figure, canvas, scaleMarker, zoom } of scaledMermaids) {
+      if (scaleMarker === null) figure.removeAttribute("data-margo-print-scale");
+      else figure.setAttribute("data-margo-print-scale", scaleMarker);
+      if (zoom === null) canvas.style.removeProperty("zoom");
+      else canvas.style.setProperty("zoom", zoom.value, zoom.priority);
+    }
+    scaledMermaids.length = 0;
     for (const block of protectedBlocks()) {
       if (!originalOversizedMarkers.has(block)) continue;
       const original = originalOversizedMarkers.get(block);
@@ -81,6 +112,76 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       originalOversizedMarkers.delete(block);
     }
     if (toc) delete toc.dataset.margoTocColumns;
+  };
+
+  const replaceForStaticPrint = (element, kind, text) => {
+    const replacement = document.createElement("span");
+    replacement.dataset.margoPrintStatic = kind;
+    replacement.className = "margo-print-" + kind;
+    const preserveChildren = text === undefined;
+    if (preserveChildren) {
+      for (const attribute of element.attributes) {
+        const name = attribute.name.toLowerCase();
+        if (name === "id" || name === "class" || name === "style" || name === "title" || name === "lang" || name === "dir" || name.startsWith("data-") || name.startsWith("aria-")) {
+          replacement.setAttribute(attribute.name, attribute.value);
+        }
+      }
+      replacement.classList.add("margo-print-" + kind);
+      replacement.dataset.margoPrintStatic = kind;
+      while (element.firstChild) replacement.appendChild(element.firstChild);
+    } else {
+      replacement.textContent = text;
+    }
+    staticPrintReplacements.push({ original: element, replacement, preserveChildren });
+    element.replaceWith(replacement);
+  };
+
+  const prepareStaticPrintStructure = () => {
+    if (!article || staticPrintReplacements.length > 0) return;
+    for (const element of [...article.querySelectorAll("strong, b")]) {
+      replaceForStaticPrint(element, "strong");
+    }
+    for (const element of [...article.querySelectorAll("em, i")]) {
+      replaceForStaticPrint(element, "emphasis");
+    }
+    for (const button of [...article.querySelectorAll(".margo-table-sort-button")]) {
+      replaceForStaticPrint(button, "table-label", button.textContent);
+    }
+    for (const checkbox of [...article.querySelectorAll('input[type="checkbox"]')]) {
+      replaceForStaticPrint(checkbox, "checkbox", checkbox.checked ? "☑" : "☐");
+    }
+  };
+
+  const rememberAndMarkOversized = (block) => {
+    if (!originalOversizedMarkers.has(block)) {
+      originalOversizedMarkers.set(block, block.getAttribute("data-margo-print-oversized"));
+    }
+    block.setAttribute("data-margo-print-oversized", "true");
+  };
+
+  const scaleOversizedMermaids = (pageHeight) => {
+    for (const figure of article ? article.querySelectorAll(".margo-mermaid") : []) {
+      if (scaledMermaids.some((entry) => entry.figure === figure)) continue;
+      const canvas = figure.querySelector(".margo-mermaid__canvas");
+      if (!canvas) continue;
+      const figureRect = figure.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      if (figureRect.height <= pageHeight + 0.5 || canvasRect.height <= 0) continue;
+      const nonCanvasHeight = Math.max(0, figureRect.height - canvasRect.height);
+      const availableCanvasHeight = Math.max(1, pageHeight - nonCanvasHeight - 1);
+      const scale = Math.min(1, availableCanvasHeight / canvasRect.height);
+      if (scale >= 1) continue;
+      const zoomValue = canvas.style.getPropertyValue("zoom");
+      scaledMermaids.push({
+        figure,
+        canvas,
+        scaleMarker: figure.getAttribute("data-margo-print-scale"),
+        zoom: zoomValue ? { value: zoomValue, priority: canvas.style.getPropertyPriority("zoom") } : null,
+      });
+      figure.setAttribute("data-margo-print-scale", scale.toFixed(6));
+      rememberAndMarkOversized(figure);
+      canvas.style.setProperty("zoom", scale.toFixed(6));
+    }
   };
 
   const rememberAndMarkBreakBefore = (element) => {
@@ -102,16 +203,40 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
     for (const block of protectedBlocks()) {
       if (!block.matches('[data-table-client-sort="true"]')) continue;
       if (block.getBoundingClientRect().height <= pageHeight + 0.5) continue;
-      if (!originalOversizedMarkers.has(block)) {
-        originalOversizedMarkers.set(block, block.getAttribute("data-margo-print-oversized"));
+      rememberAndMarkOversized(block);
+    }
+  };
+
+  const prepareNestedHeadingGroups = (pageHeight) => {
+    if (!article || nestedHeadingGroups.length > 0) return;
+    const blocks = new Set(protectedBlocks());
+    const headingSelector = ":is(h1, h2, h3, h4, h5, h6)";
+    const candidates = [...article.querySelectorAll(":scope > " + headingSelector)]
+      .filter((heading) => !heading.previousElementSibling?.matches(headingSelector) && heading.nextElementSibling?.matches(headingSelector));
+    for (const heading of candidates) {
+      const elements = [heading];
+      let next = heading.nextElementSibling;
+      while (next && next.matches(headingSelector)) {
+        elements.push(next);
+        next = next.nextElementSibling;
       }
-      block.setAttribute("data-margo-print-oversized", "true");
+      if (!next || !blocks.has(next)) continue;
+      elements.push(next);
+      const top = elements[0].getBoundingClientRect().top;
+      const bottom = elements[elements.length - 1].getBoundingClientRect().bottom;
+      if (bottom - top > pageHeight + 0.5) continue;
+      const wrapper = document.createElement("div");
+      wrapper.dataset.margoPrintHeadingGroup = "true";
+      heading.before(wrapper);
+      for (const element of elements) wrapper.appendChild(element);
+      nestedHeadingGroups.push({ wrapper, elements });
     }
   };
 
   const markCrossPageBlocks = () => {
     const pageHeight = Math.max(1, window.innerHeight);
     markOversizedTables(pageHeight);
+    prepareNestedHeadingGroups(pageHeight);
     for (let pass = 0; pass < protectedBlocks().length; pass += 1) {
       let changed = false;
       const pairs = headingBlockPairs();
@@ -149,6 +274,8 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
       if (!originalDetailsState.has(details)) originalDetailsState.set(details, details.open);
       details.open = true;
     }
+    prepareStaticPrintStructure();
+    scaleOversizedMermaids(Math.max(1, window.innerHeight));
     if (toc && toc.querySelector(":scope > ol")) {
       toc.dataset.margoTocColumns = "1";
       const pageBottom = window.innerHeight - pageMarginBottomMillimeters * millimetersToPixels();
@@ -186,17 +313,22 @@ type standaloneConfig struct {
 // StandaloneOption configures the self-contained HTML shell.
 type StandaloneOption func(*standaloneConfig) error
 
-func defaultStandaloneConfig(result *RenderResult) (standaloneConfig, error) {
+func defaultStandaloneConfig(metadata HTMLMetadata) (standaloneConfig, error) {
 	tokens, err := defaultThemeTokens(ThemeModern)
 	if err != nil {
 		return standaloneConfig{}, err
 	}
-	title := "Margo document"
-	if result != nil && result.Metadata().Title != "" {
-		title = result.Metadata().Title
+	title := metadata.Title
+	if title == "" {
+		title = "Margo document"
+	}
+	lang := metadata.Language
+	if lang == "" {
+		lang = "en"
 	}
 	return standaloneConfig{
-		lang: "en", title: title, theme: ThemeModern, colorMode: ColorModeLight, tokens: tokens,
+		lang: lang, title: title, description: metadata.Description,
+		theme: ThemeModern, colorMode: ColorModeLight, tokens: tokens,
 		assetOverrides: make(map[string]AssetRef),
 	}, nil
 }
@@ -229,9 +361,29 @@ func WithStandaloneTheme(theme ThemeName) StandaloneOption {
 func WithPageTitle(title string) StandaloneOption {
 	return func(config *standaloneConfig) error {
 		if strings.TrimSpace(title) == "" || len([]byte(title)) > 256 {
-			return fmt.Errorf("margo: invalid standalone title")
+			return newDiagnosticError(Diagnostic{
+				Code: "html.metadata_invalid", Severity: SeverityError, Pointer: "/title",
+				Message: "standalone title must contain text and be at most 256 UTF-8 bytes",
+				Hint:    "Use a non-empty title of at most 256 UTF-8 bytes.",
+			})
 		}
 		config.title = title
+		return nil
+	}
+}
+
+// WithPageLanguage sets the document language using a BCP 47 language tag.
+func WithPageLanguage(language string) StandaloneOption {
+	normalized := strings.TrimSpace(language)
+	return func(config *standaloneConfig) error {
+		if !sourceLanguagePattern.MatchString(normalized) {
+			return newDiagnosticError(Diagnostic{
+				Code: "html.metadata_invalid", Severity: SeverityError, Pointer: "/language",
+				Message: "standalone language must be a valid BCP 47 language tag",
+				Hint:    "Use a BCP 47 language tag such as en or pt-BR.",
+			})
+		}
+		config.lang = normalized
 		return nil
 	}
 }
@@ -303,7 +455,11 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	if result == nil || result.Content() == nil {
 		return nil, fmt.Errorf("margo: standalone render requires a result")
 	}
-	config, err := defaultStandaloneConfig(result)
+	editorial, err := RenderHTML(result)
+	if err != nil {
+		return nil, err
+	}
+	config, err := defaultStandaloneConfig(editorial.Metadata())
 	if err != nil {
 		return nil, err
 	}
@@ -335,10 +491,6 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 		}
 	}
 	if err := config.brand.Validate(); err != nil {
-		return nil, err
-	}
-	editorial, err := RenderHTML(result)
-	if err != nil {
 		return nil, err
 	}
 	asset, ok := config.assetOverrides["document.css"]

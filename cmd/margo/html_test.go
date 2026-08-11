@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -42,5 +44,66 @@ func TestHTMLCommandRefusesExistingOutput(t *testing.T) {
 	cmd.SetArgs([]string{"html", "-", "--output", output})
 	if err := cmd.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "margo.atomic.destination_exists" {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestHTMLCommandOverridesTitleAndLanguage(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("# Original\n"), Stdout: &stdout,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"html", "-", "--title", "Published guide", "--lang", "pt-BR"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<title>Published guide</title>`, `<html lang="pt-BR"`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("HTML override missing %q", want)
+		}
+	}
+}
+
+func TestHTMLCommandReportsInvalidLanguageAsActionableJSON(t *testing.T) {
+	var stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("# Original\n"), Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"html", "-", "--lang", "pt_BR", "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "html.metadata_invalid" {
+		t.Fatalf("error = %v", err)
+	}
+	for _, want := range []string{`"code":"html.metadata_invalid"`, `"pointer":"/language"`, `"hint":"Use a BCP 47 language tag`} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("diagnostic missing %q: %s", want, stderr.String())
+		}
+	}
+}
+
+func TestHTMLCommandUsesInteractiveProjectionFromTrustedPolicy(t *testing.T) {
+	root := t.TempDir()
+	policyPath := filepath.Join(root, "policy.json")
+	policy := `{"schemaVersion":"margo-policy/v1","rawHTML":"sanitized","trustedEmbeds":{"allowedKinds":["iframe"],"allowedOrigins":["https://video.example.com"],"projections":{"html":"interactive","pdf":"static-link","site":"deny","deck":"deny"}}}`
+	if err := os.WriteFile(policyPath, []byte(policy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	markdown := "---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<span>trusted text</span>\n\n```trusted-embed\nkind: iframe\nurl: https://video.example.com/watch/123\ntitle: Architecture overview\n```\n"
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: root,
+	})
+	command.SetArgs([]string{"html", "-", "--policy", policyPath})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<span>trusted text</span>`, `<iframe class="margo-trusted-embed__frame"`, `src="https://video.example.com/watch/123"`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("HTML missing %q", want)
+		}
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
 	}
 }

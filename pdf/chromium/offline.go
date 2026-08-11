@@ -3,13 +3,18 @@ package chromium
 import (
 	"bytes"
 	"fmt"
+	"net"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/araihu/margo/pdf"
 	"golang.org/x/net/html"
 )
 
 var cssURLPattern = regexp.MustCompile(`(?i)url\(\s*['\"]?([^'\"\)]+)`)
+var browserDotReplacer = strings.NewReplacer("\u3002", ".", "\uff0e", ".", "\uff61", ".")
 
 var subresourceAttributes = map[string]map[string]struct{}{
 	"audio":  {"src": {}},
@@ -76,4 +81,199 @@ func validateOfflineCSS(value string) error {
 func embeddedURL(value string) bool {
 	value = strings.TrimSpace(value)
 	return value == "" || strings.HasPrefix(value, "#") || strings.HasPrefix(strings.ToLower(value), "data:")
+}
+
+func rewriteDocumentLinks(document []byte, policy pdf.RelativeLinkPolicy, baseURL string) ([]byte, error) {
+	if policy == "" {
+		policy = pdf.RelativeLinksStrip
+	}
+	switch policy {
+	case pdf.RelativeLinksStrip, pdf.RelativeLinksError, pdf.RelativeLinksKeep, pdf.RelativeLinksResolve:
+	default:
+		return nil, chromiumError("pdf.relative_link_policy_invalid", "relative link policy must be strip, error, keep, or resolve")
+	}
+
+	var base *url.URL
+	if policy == pdf.RelativeLinksResolve {
+		parsed, err := publicDocumentBaseURL(baseURL)
+		if err != nil {
+			return nil, err
+		}
+		base = parsed
+	}
+
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, chromiumError("pdf.request_invalid", "HTML cannot be parsed")
+	}
+	var walk func(*html.Node) error
+	walk = func(node *html.Node) error {
+		if node.Type == html.ElementNode && strings.EqualFold(node.Data, "a") {
+			for index := range node.Attr {
+				attribute := &node.Attr[index]
+				if !strings.EqualFold(attribute.Key, "href") {
+					continue
+				}
+				href := strings.TrimSpace(attribute.Val)
+				if strings.Contains(href, `\`) {
+					return chromiumError("pdf.relative_link_invalid", "anchor href must not contain backslashes")
+				}
+				parsed, parseErr := url.Parse(href)
+				if parseErr != nil {
+					return chromiumError("pdf.relative_link_invalid", "anchor href cannot be parsed")
+				}
+				if href == "" || strings.HasPrefix(href, "#") {
+					break
+				}
+				if parsed.Scheme != "" {
+					switch strings.ToLower(parsed.Scheme) {
+					case "http", "https":
+						if parsed.Host == "" || parsed.Hostname() == "" {
+							return chromiumError("pdf.link_absolute_invalid", "http(s) anchor must include an absolute host")
+						}
+					case "mailto", "tel":
+						break
+					default:
+						return chromiumError("pdf.link_scheme_forbidden", "anchor scheme "+parsed.Scheme+" is not allowed")
+					}
+					break
+				}
+				if parsed.Host != "" || strings.HasPrefix(href, "//") {
+					return chromiumError("pdf.relative_link_invalid", "network-path anchor is not allowed")
+				}
+				switch policy {
+				case pdf.RelativeLinksKeep:
+				case pdf.RelativeLinksError:
+					return chromiumError("pdf.relative_link_forbidden", "relative anchor "+href+" requires an explicit PDF link policy")
+				case pdf.RelativeLinksResolve:
+					attribute.Val = base.ResolveReference(parsed).String()
+				case pdf.RelativeLinksStrip:
+					node.Attr = append(node.Attr[:index], node.Attr[index+1:]...)
+				}
+				break
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			if err := walk(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := walk(root); err != nil {
+		return nil, err
+	}
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, chromiumError("pdf.request_invalid", "HTML cannot be serialized")
+	}
+	return output.Bytes(), nil
+}
+
+func publicDocumentBaseURL(value string) (*url.URL, error) {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || (strings.ToLower(parsed.Scheme) != "http" && strings.ToLower(parsed.Scheme) != "https") {
+		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must be an absolute http or https URL")
+	}
+	rawHostname := parsed.Hostname()
+	hostname := strings.TrimRight(strings.ToLower(browserDotReplacer.Replace(rawHostname)), ".")
+	address := net.ParseIP(hostname)
+	numeric, validNumeric := address != nil, true
+	if address == nil {
+		address, numeric, validNumeric = browserIPv4Address(hostname)
+	}
+	if numeric && !validNumeric {
+		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL contains an invalid browser-numeric host")
+	}
+	if hostname == "localhost" || strings.HasSuffix(hostname, ".localhost") || (address != nil && (address.IsLoopback() || address.IsUnspecified())) {
+		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must not use a loopback or unspecified host")
+	}
+	if address != nil {
+		canonicalHost := address.String()
+		if port := parsed.Port(); port != "" {
+			canonicalHost = net.JoinHostPort(canonicalHost, port)
+		} else if strings.Contains(canonicalHost, ":") {
+			canonicalHost = "[" + canonicalHost + "]"
+		}
+		parsed.Host = canonicalHost
+	} else if port := parsed.Port(); port != "" {
+		parsed.Host = net.JoinHostPort(hostname, port)
+	} else {
+		parsed.Host = hostname
+	}
+	return parsed, nil
+}
+
+// browserIPv4Address recognizes the legacy numeric forms that Chromium's URL
+// parser canonicalizes as IPv4, including 127.1 and a single 32-bit integer.
+// The second result reports that the host ends in a number and therefore must
+// be parsed as IPv4; the third reports whether that required parse succeeded.
+func browserIPv4Address(hostname string) (net.IP, bool, bool) {
+	parts := strings.Split(hostname, ".")
+	if len(parts) == 0 {
+		return nil, false, true
+	}
+	last := parts[len(parts)-1]
+	_, lastParses := browserIPv4Number(last)
+	if !asciiDigits(last) && !lastParses {
+		return nil, false, true
+	}
+	if len(parts) > 4 {
+		return nil, true, false
+	}
+	numbers := make([]uint64, len(parts))
+	for index, part := range parts {
+		value, ok := browserIPv4Number(part)
+		if !ok {
+			return nil, true, false
+		}
+		numbers[index] = value
+	}
+	for _, value := range numbers[:len(numbers)-1] {
+		if value > 255 {
+			return nil, true, false
+		}
+	}
+	remainingBytes := 5 - len(numbers)
+	lastLimit := (uint64(1) << (8 * remainingBytes)) - 1
+	if numbers[len(numbers)-1] > lastLimit {
+		return nil, true, false
+	}
+	var value uint64
+	for _, part := range numbers[:len(numbers)-1] {
+		value = value*256 + part
+	}
+	value = value*(uint64(1)<<(8*remainingBytes)) + numbers[len(numbers)-1]
+	return net.IPv4(byte(value>>24), byte(value>>16), byte(value>>8), byte(value)), true, true
+}
+
+func browserIPv4Number(input string) (uint64, bool) {
+	if input == "" {
+		return 0, false
+	}
+	base := 10
+	digits := input
+	lower := strings.ToLower(input)
+	if strings.HasPrefix(lower, "0x") {
+		base, digits = 16, input[2:]
+	} else if len(input) > 1 && input[0] == '0' {
+		base, digits = 8, input[1:]
+	}
+	if digits == "" {
+		return 0, true
+	}
+	value, err := strconv.ParseUint(digits, base, 32)
+	return value, err == nil
+}
+
+func asciiDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, character := range []byte(value) {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
 }
