@@ -6,6 +6,7 @@ import (
 	"fmt"
 	stdhtml "html"
 	"io"
+	"path"
 	"strings"
 	"time"
 	"unicode"
@@ -68,7 +69,8 @@ func RenderHTML(result *RenderResult, options ...HTMLOption) (*HTMLResult, error
 		}
 	}
 
-	metadata, err := normalizeHTMLResultMetadata(result.Metadata())
+	sourceMetadata := result.Metadata()
+	metadata, err := normalizeHTMLResultMetadata(sourceMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +84,9 @@ func RenderHTML(result *RenderResult, options ...HTMLOption) (*HTMLResult, error
 	}
 	if metadata.Title == "" {
 		metadata.Title = inspection.firstH1
+	}
+	if metadata.Title == "" {
+		metadata.Title = sourceFilenameTitle(sourceMetadata.Name)
 	}
 	diagnostics := result.Diagnostics()
 	if metadata.Title != "" && inspection.firstH1 != "" && metadata.Title != inspection.firstH1 {
@@ -113,6 +118,21 @@ func RenderHTML(result *RenderResult, options ...HTMLOption) (*HTMLResult, error
 		diagnostics:   cloneDiagnostics(diagnostics),
 		fingerprint:   fingerprint,
 	}, nil
+}
+
+func sourceFilenameTitle(name string) string {
+	if name == "" || name == "<stdin>" {
+		return ""
+	}
+	base := path.Base(strings.ReplaceAll(name, "\\", "/"))
+	if base == "." || base == "/" || base == "" {
+		return ""
+	}
+	title := normalizeHTMLText(strings.TrimSuffix(base, path.Ext(base)))
+	if len([]byte(title)) > 256 {
+		return ""
+	}
+	return title
 }
 
 func (r *HTMLResult) Fragment() templ.Component {

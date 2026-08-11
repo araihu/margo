@@ -1,6 +1,7 @@
 package margo
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -75,6 +76,25 @@ func TestRenderHTMLTitlePolicy(t *testing.T) {
 	diagnostics := conflict.Diagnostics()
 	if len(diagnostics) != 1 || diagnostics[0].Code != "html.title_conflict" || diagnostics[0].Severity != SeverityInfo {
 		t.Fatalf("conflict diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestRenderHTMLFallsBackToSourceFilename(t *testing.T) {
+	compiler := New()
+	document, err := compiler.Compile(context.Background(), Source{Name: "guides/operations-runbook.md", Content: []byte("Body without a heading.\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := compiler.Render(context.Background(), document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := RenderHTML(rendered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := result.Metadata().Title; got != "operations-runbook" {
+		t.Fatalf("filename title fallback = %q", got)
 	}
 }
 

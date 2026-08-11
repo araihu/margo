@@ -1,0 +1,96 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
+	input := t.TempDir()
+	output := filepath.Join(t.TempDir(), "published")
+	writeSiteFixture(t, filepath.Join(input, "index.md"), "# Home\n\n[Guide](guide/readme.md)\n\n![Logo](assets/logo.png)\n")
+	writeSiteFixture(t, filepath.Join(input, "guide", "readme.md"), "# Guide\n\n[Home](../index.md#home)\n")
+	writeSiteFixture(t, filepath.Join(input, "assets", "logo.png"), "\x89PNG\r\n\x1a\n")
+
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo()})
+	command.SetArgs([]string{"site", input, "--output-dir", output, "--assets", "local", "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("site: %v\nstderr: %s", err, stderr.String())
+	}
+	var report struct {
+		SchemaVersion string `json:"schemaVersion"`
+		Artifacts     int    `json:"artifacts"`
+		Manifest      string `json:"manifest"`
+		Pages         []struct {
+			Source string `json:"source"`
+			Output string `json:"output"`
+		} `json:"pages"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("report: %v: %s", err, stdout.String())
+	}
+	if report.SchemaVersion != "margo-site-report/v1" || report.Artifacts < 5 || report.Manifest == "" || len(report.Pages) != 2 {
+		t.Fatalf("report = %+v", report)
+	}
+	index := readSiteFixture(t, filepath.Join(output, "index.html"))
+	guide := readSiteFixture(t, filepath.Join(output, "guide", "readme.html"))
+	if !strings.Contains(index, `href="guide/readme.html"`) || !strings.Contains(guide, `href="../index.html#home"`) {
+		t.Fatalf("links not rewritten:\nindex=%s\nguide=%s", index, guide)
+	}
+	if got := readSiteFixture(t, filepath.Join(output, "assets", "logo.png")); got != "\x89PNG\r\n\x1a\n" {
+		t.Fatalf("logo = %x", got)
+	}
+	manifest := readSiteFixture(t, filepath.Join(output, "margo-manifest.json"))
+	if !strings.Contains(manifest, `"schemaVersion":"margo-site-manifest/v1"`) || !strings.Contains(manifest, `"index.html"`) {
+		t.Fatalf("manifest = %s", manifest)
+	}
+}
+
+func TestSiteCommandRefusesExistingOutputWithoutMutation(t *testing.T) {
+	input := t.TempDir()
+	output := filepath.Join(t.TempDir(), "published")
+	writeSiteFixture(t, filepath.Join(input, "index.md"), "# Home\n")
+	writeSiteFixture(t, filepath.Join(output, "keep.txt"), "untouched")
+
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo()})
+	command.SetArgs([]string{"site", input, "--output-dir", output, "--diagnostics", "json"})
+	err := command.ExecuteContext(context.Background())
+	if cliDiagnosticCode(err) != "site.output_exists" {
+		t.Fatalf("error = %v stderr = %s", err, stderr.String())
+	}
+	if got := readSiteFixture(t, filepath.Join(output, "keep.txt")); got != "untouched" {
+		t.Fatalf("existing output mutated: %q", got)
+	}
+	if _, statErr := os.Stat(filepath.Join(output, "index.html")); !os.IsNotExist(statErr) {
+		t.Fatalf("unexpected published file: %v", statErr)
+	}
+	if !strings.Contains(stderr.String(), `"code":"site.output_exists"`) {
+		t.Fatalf("stderr = %s", stderr.String())
+	}
+}
+
+func writeSiteFixture(t *testing.T, name, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(name, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readSiteFixture(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}

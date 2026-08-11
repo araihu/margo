@@ -4,12 +4,13 @@
   <img src="assets/margo-mascot.png" alt="Margo, a pink Go gopher holding a rendered document in a publishing atelier." width="480">
 </p>
 
-Margo turns Markdown into standalone HTML, PDF documents, and presentation decks.
+Margo turns Markdown into standalone HTML, linked static sites, PDF documents,
+and presentation decks.
 
 It is both a consumer-neutral Go document engine and one `margo` command. Margo
-owns compilation, semantic rendering, embedded runtime assets, PDF engine
-discovery, and artifact safety. Your application still owns routes, URLs,
-navigation, publication metadata, storage, and deployment.
+owns compilation, semantic rendering, embedded runtime assets, deterministic
+site path mapping, PDF engine discovery, and artifact safety. Your application
+still owns public URLs, navigation design, storage, and deployment.
 
 ## Install the command
 
@@ -40,6 +41,7 @@ The one binary contains the full command surface:
 ```sh
 margo check article.md
 margo html article.md --output article.html
+margo site docs/ --output-dir public/ --assets local
 margo pdf article.md --output article.pdf
 margo deck talk.md --output talk.html
 margo deck talk.md --format pdf --output talk.pdf
@@ -47,8 +49,8 @@ margo doctor
 margo version
 ```
 
-`INPUT` is exactly one file path or `-` for stdin. `html` and HTML decks
-default to artifact stdout. PDF output requires an explicit path; `--output -`
+Single-document `INPUT` is exactly one file path or `-` for stdin. `html` and
+HTML decks default to artifact stdout. PDF output requires an explicit path; `--output -`
 allows binary stdout. An existing file is refused unless `--force` is present.
 Conversion failures go to stderr and artifacts go to stdout or their
 destination. `check` reports findings on stdout. Choose deterministic text or
@@ -60,6 +62,42 @@ legacy Mermaid configuration, empty image alternatives, and relative links.
 Every finding includes the source, line, field pointer, and a remediation
 hint. Errors make the command exit nonzero; accessibility and link-policy
 warnings remain visible without blocking the check.
+
+## Build a static site
+
+`margo site INPUT_DIR --output-dir OUTPUT_DIR` discovers `.md` and `.markdown`
+files recursively, preserves their subdirectories, and maps each extension to
+`.html`. Relative Markdown links are rewritten to the mapped pages, including
+queries and fragments. Missing pages or heading fragments fail with an
+actionable diagnostic instead of publishing a broken site.
+
+The output directory must not already exist. Margo builds a sibling staging
+directory and publishes it with one rename, so a failed build cannot leave a
+partial destination. Every successful build contains `margo-manifest.json`
+with sorted paths and exact-byte SHA-256 digests. Text and JSON command output
+list every source-to-page mapping and the aggregate manifest identity.
+
+Use `--assets local` (the default) to share Margo runtimes and copy validated
+source images once. Use `--assets inline` for self-contained pages with no
+separate asset artifacts:
+
+```sh
+margo site docs/ --output-dir public/ --assets local
+margo site docs/ --output-dir offline/ --assets inline --diagnostics json
+```
+
+Source symlinks are not followed. Output and asset collisions fail even when
+they differ only by letter case, keeping the result portable across common
+filesystems.
+
+## Markdown metadata
+
+Margo accepts YAML frontmatter fields `title`, `description`, `language`,
+`slug`, `authors`, `publishedAt`, `modifiedAt`, and `tags`. Dates use RFC 3339;
+`authors` and `tags` are lists of strings; `language` uses a BCP 47-style tag.
+The HTML title precedence is frontmatter `title`, the first H1, then the source
+filename without its Markdown extension. Standalone output defaults the
+document language to `en` when `language` is absent.
 
 ## PDF engines
 

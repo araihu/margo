@@ -13,10 +13,10 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 	}
 	readme := string(data)
 	for _, required := range []string{
-		"Margo turns Markdown into standalone HTML, PDF documents, and presentation decks.",
+		"Margo turns Markdown into standalone HTML, linked static sites, PDF documents,",
 		"go install github.com/araihu/margo/cmd/margo@vX.Y.Z",
 		"Starting with `v0.0.3`", "GitHub Release", "checksums.txt", "margo_VERSION_OS_ARCH",
-		"margo check", "margo html", "margo pdf", "margo deck", "margo doctor", "margo version",
+		"margo check", "margo html", "margo site", "margo pdf", "margo deck", "margo doctor", "margo version",
 		"margo.Check",
 		"margo.WithExtension(charts.Extension())",
 		"--engine auto|chromium|native", "MARGO_CHROMIUM_PATH", "never downloads",

@@ -40,6 +40,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	cmd.AddCommand(
 		newCheckCommand(deps),
 		newHTMLCommand(deps),
+		newSiteCommand(deps),
 		newPDFCommand(deps),
 		newDeckCommand(deps),
 		newDoctorCommand(deps),
