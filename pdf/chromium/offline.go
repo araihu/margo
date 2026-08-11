@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/araihu/margo/pdf"
@@ -125,7 +126,11 @@ func rewriteDocumentLinks(document []byte, policy pdf.RelativeLinkPolicy, baseUR
 				}
 				if parsed.Scheme != "" {
 					switch strings.ToLower(parsed.Scheme) {
-					case "http", "https", "mailto", "tel":
+					case "http", "https":
+						if parsed.Host == "" || parsed.Hostname() == "" {
+							return chromiumError("pdf.link_absolute_invalid", "http(s) anchor must include an absolute host")
+						}
+					case "mailto", "tel":
 						break
 					default:
 						return chromiumError("pdf.link_scheme_forbidden", "anchor scheme "+parsed.Scheme+" is not allowed")
@@ -169,10 +174,60 @@ func publicDocumentBaseURL(value string) (*url.URL, error) {
 	if err != nil || parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || (strings.ToLower(parsed.Scheme) != "http" && strings.ToLower(parsed.Scheme) != "https") {
 		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must be an absolute http or https URL")
 	}
-	hostname := strings.ToLower(parsed.Hostname())
+	hostname := strings.TrimRight(strings.ToLower(parsed.Hostname()), ".")
 	address := net.ParseIP(hostname)
+	if address == nil {
+		address, _ = browserIPv4Address(hostname)
+	}
 	if hostname == "localhost" || strings.HasSuffix(hostname, ".localhost") || (address != nil && address.IsLoopback()) {
 		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must not use a loopback host")
 	}
 	return parsed, nil
+}
+
+// browserIPv4Address recognizes the legacy numeric forms that Chromium's URL
+// parser canonicalizes as IPv4, including 127.1 and a single 32-bit integer.
+func browserIPv4Address(hostname string) (net.IP, bool) {
+	parts := strings.Split(hostname, ".")
+	if len(parts) == 0 || len(parts) > 4 {
+		return nil, false
+	}
+	numbers := make([]uint64, len(parts))
+	for index, part := range parts {
+		if part == "" {
+			return nil, false
+		}
+		base := 10
+		digits := part
+		lower := strings.ToLower(part)
+		if strings.HasPrefix(lower, "0x") {
+			base, digits = 16, part[2:]
+		} else if len(part) > 1 && part[0] == '0' {
+			base = 8
+		}
+		if digits == "" {
+			return nil, false
+		}
+		value, err := strconv.ParseUint(digits, base, 32)
+		if err != nil {
+			return nil, false
+		}
+		numbers[index] = value
+	}
+	for _, value := range numbers[:len(numbers)-1] {
+		if value > 255 {
+			return nil, false
+		}
+	}
+	remainingBytes := 5 - len(numbers)
+	lastLimit := (uint64(1) << (8 * remainingBytes)) - 1
+	if numbers[len(numbers)-1] > lastLimit {
+		return nil, false
+	}
+	var value uint64
+	for _, part := range numbers[:len(numbers)-1] {
+		value = value*256 + part
+	}
+	value = value*(uint64(1)<<(8*remainingBytes)) + numbers[len(numbers)-1]
+	return net.IPv4(byte(value>>24), byte(value>>16), byte(value>>8), byte(value)), true
 }
