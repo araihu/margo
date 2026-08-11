@@ -87,6 +87,11 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 			return pdf.Result{}, chromiumError("pdf.runtime_unsupported", "runtime task kind "+task.Kind+" is not implemented")
 		}
 	}
+	var err error
+	request.HTML, err = rewriteDocumentLinks(request.HTML, request.RelativeLinks, request.BaseURL)
+	if err != nil {
+		return pdf.Result{}, err
+	}
 
 	exportCtx, cancelExport := context.WithTimeout(ctx, engine.timeout)
 	defer cancelExport()

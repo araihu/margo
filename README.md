@@ -84,6 +84,28 @@ The [PDF engine matrix](docs/testing/pdf-engine-matrix.md) records versions
 actually tested. Those observations are evidence, not a policy that rejects
 other Chromium versions.
 
+### PDF link policy
+
+PDF rendering strips relative anchor targets by default. This preserves the
+visible link text without publishing the renderer's temporary localhost origin
+as a dead annotation. Fragment links, `http(s)`, `mailto`, and `tel` targets are
+preserved.
+
+Use a public base URL to resolve relative targets before printing:
+
+```sh
+margo pdf guide.md --output guide.pdf --base-url https://docs.example.com/manual/
+```
+
+`--relative-links strip|error|keep|resolve` makes the policy explicit.
+`resolve` requires `--base-url`; supplying `--base-url` alone selects it.
+`error` rejects the first relative target. `keep` is an explicit escape hatch
+and can expose an engine-local URL in the resulting PDF, so it is unsuitable
+for distributed artifacts.
+
+Library consumers set `pdf.Request.RelativeLinks` and `pdf.Request.BaseURL`.
+The zero-value policy is also `strip`.
+
 ## Use the Go engine
 
 All packages share the same module version and root release:

@@ -47,6 +47,99 @@ func TestOfflineHTMLAllowsLinksButRejectsRenderTimeNetworkAssets(t *testing.T) {
 	}
 }
 
+func TestRewriteDocumentLinksUsesSafeDeterministicPolicies(t *testing.T) {
+	document := []byte(`<html><body>
+<a id="relative" href="guides/start.md?mode=full#install">Guide</a>
+<a id="root" href="/reference/index.md">Reference</a>
+<a id="fragment" href="#local">Local</a>
+<a id="external" href="https://example.com/docs">External</a>
+<a id="mail" href="mailto:docs@example.com">Mail</a>
+<a id="phone" href="tel:+15551234567">Phone</a>
+</body></html>`)
+
+	tests := []struct {
+		name    string
+		policy  pdf.RelativeLinkPolicy
+		baseURL string
+		want    []string
+		absent  []string
+	}{
+		{
+			name:   "safe default strips relative targets",
+			policy: "",
+			want: []string{
+				`id="relative"`, `id="root"`, `href="#local"`,
+				`href="https://example.com/docs"`, `href="mailto:docs@example.com"`, `href="tel:+15551234567"`,
+			},
+			absent: []string{`href="guides/start.md?mode=full#install"`, `href="/reference/index.md"`},
+		},
+		{
+			name:   "explicit keep preserves relative targets",
+			policy: pdf.RelativeLinksKeep,
+			want:   []string{`href="guides/start.md?mode=full#install"`, `href="/reference/index.md"`},
+		},
+		{
+			name:    "resolve uses public base URL",
+			policy:  pdf.RelativeLinksResolve,
+			baseURL: "https://docs.example.com/manual/",
+			want: []string{
+				`href="https://docs.example.com/manual/guides/start.md?mode=full#install"`,
+				`href="https://docs.example.com/reference/index.md"`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := rewriteDocumentLinks(document, test.policy, test.baseURL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			markup := string(got)
+			for _, want := range test.want {
+				if !strings.Contains(markup, want) {
+					t.Errorf("rewritten document missing %q: %s", want, markup)
+				}
+			}
+			for _, absent := range test.absent {
+				if strings.Contains(markup, absent) {
+					t.Errorf("rewritten document retained %q: %s", absent, markup)
+				}
+			}
+		})
+	}
+}
+
+func TestRewriteDocumentLinksRejectsUnsafePolicyConfiguration(t *testing.T) {
+	tests := []struct {
+		name     string
+		document string
+		policy   pdf.RelativeLinkPolicy
+		baseURL  string
+		code     string
+	}{
+		{name: "error policy finds relative link", policy: pdf.RelativeLinksError, code: "pdf.relative_link_forbidden"},
+		{name: "resolve requires base URL", policy: pdf.RelativeLinksResolve, code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects local base URL", policy: pdf.RelativeLinksResolve, baseURL: "http://127.0.0.1:9000/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "unknown policy", policy: pdf.RelativeLinkPolicy("surprise"), code: "pdf.relative_link_policy_invalid"},
+		{name: "active link scheme", document: `<a href="javascript:alert(1)">Run</a>`, code: "pdf.link_scheme_forbidden"},
+		{name: "network-path link", document: `<a href="//example.com/docs">Docs</a>`, code: "pdf.relative_link_invalid"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			document := test.document
+			if document == "" {
+				document = `<a href="guide.md">Guide</a>`
+			}
+			_, err := rewriteDocumentLinks([]byte(document), test.policy, test.baseURL)
+			if code(err) != test.code {
+				t.Fatalf("error = %v, want %s", err, test.code)
+			}
+		})
+	}
+}
+
 func TestExportWithInstalledChromium(t *testing.T) {
 	path := installedChromium()
 	if path == "" {

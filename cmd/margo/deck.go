@@ -6,6 +6,7 @@ import (
 
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/deck"
+	"github.com/araihu/margo/pdf"
 	"github.com/spf13/cobra"
 )
 
@@ -91,5 +92,5 @@ func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format
 	if err != nil {
 		return nil, err
 	}
-	return exportPDFArtifact(command.Context(), deps, html, descriptor, executionID, pageConfig, engineOptions)
+	return exportPDFArtifact(command.Context(), deps, html, descriptor, executionID, pageConfig, engineOptions, pdfLinkConfig{Policy: pdf.RelativeLinksStrip})
 }

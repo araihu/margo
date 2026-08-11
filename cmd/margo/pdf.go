@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/pdf"
@@ -19,10 +20,21 @@ type pageFlags struct {
 	Left        float64
 }
 
+type pdfLinkFlags struct {
+	Policy  string
+	BaseURL string
+}
+
+type pdfLinkConfig struct {
+	Policy  pdf.RelativeLinkPolicy
+	BaseURL string
+}
+
 func newPDFCommand(deps Dependencies) *cobra.Command {
 	output := outputOptions{}
 	engineOptions := engineFlags{Mode: "auto"}
 	pageOptions := pageFlags{Size: string(pdf.PageA4), Orientation: string(pdf.Portrait)}
+	linkOptions := pdfLinkFlags{Policy: string(pdf.RelativeLinksStrip)}
 	diagnostics := string(diagnosticText)
 	command := &cobra.Command{
 		Use:   "pdf INPUT",
@@ -36,7 +48,11 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 			if output.Path == "" {
 				return reportCommandError(command, format, fmt.Errorf("cli.output_required: PDF requires --output PATH or --output -"))
 			}
-			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions)
+			linkConfig, err := linkOptions.config(command.Flags().Changed("relative-links"))
+			if err != nil {
+				return reportCommandError(command, format, err)
+			}
+			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions, linkConfig)
 			if err == nil {
 				_, err = publish(command.Context(), artifact, output, command.OutOrStdout())
 			}
@@ -51,10 +67,11 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
 	engineOptions.bind(command)
 	pageOptions.bind(command)
+	linkOptions.bind(command)
 	return command
 }
 
-func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags) ([]byte, error) {
+func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig) ([]byte, error) {
 	compiled, err := compileStandalone(command.Context(), deps, input)
 	if err != nil {
 		return nil, err
@@ -75,7 +92,32 @@ func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOp
 	if err != nil {
 		return nil, err
 	}
-	return exportPDFArtifact(command.Context(), deps, compiled.HTML, descriptor, executionID, pageConfig, engineOptions)
+	return exportPDFArtifact(command.Context(), deps, compiled.HTML, descriptor, executionID, pageConfig, engineOptions, linkConfig)
+}
+
+func (options *pdfLinkFlags) bind(command *cobra.Command) {
+	command.Flags().StringVar(&options.Policy, "relative-links", string(pdf.RelativeLinksStrip), "relative PDF links: strip, error, keep, or resolve")
+	command.Flags().StringVar(&options.BaseURL, "base-url", "", "absolute public http(s) base URL used to resolve relative PDF links")
+}
+
+func (options pdfLinkFlags) config(policyExplicit bool) (pdfLinkConfig, error) {
+	policy := pdf.RelativeLinkPolicy(options.Policy)
+	switch policy {
+	case pdf.RelativeLinksStrip, pdf.RelativeLinksError, pdf.RelativeLinksKeep, pdf.RelativeLinksResolve:
+	default:
+		return pdfLinkConfig{}, fmt.Errorf("cli.relative_link_policy_invalid: --relative-links must be strip, error, keep, or resolve")
+	}
+	baseURL := strings.TrimSpace(options.BaseURL)
+	if baseURL != "" && !policyExplicit {
+		policy = pdf.RelativeLinksResolve
+	}
+	if policy == pdf.RelativeLinksResolve && baseURL == "" {
+		return pdfLinkConfig{}, fmt.Errorf("cli.relative_link_base_required: --relative-links resolve requires --base-url URL")
+	}
+	if policy != pdf.RelativeLinksResolve && baseURL != "" {
+		return pdfLinkConfig{}, fmt.Errorf("cli.relative_link_options_invalid: --base-url requires --relative-links resolve")
+	}
+	return pdfLinkConfig{Policy: policy, BaseURL: baseURL}, nil
 }
 
 func (options *pageFlags) bind(command *cobra.Command) {
@@ -102,13 +144,14 @@ func (options pageFlags) config() (pdf.PageConfig, error) {
 	return config, nil
 }
 
-func exportPDFArtifact(ctx context.Context, deps Dependencies, html []byte, descriptor margo.RuntimeDescriptor, executionID margo.ExecutionID, pageConfig pdf.PageConfig, engineOptions engineFlags) ([]byte, error) {
+func exportPDFArtifact(ctx context.Context, deps Dependencies, html []byte, descriptor margo.RuntimeDescriptor, executionID margo.ExecutionID, pageConfig pdf.PageConfig, engineOptions engineFlags, linkConfig pdfLinkConfig) ([]byte, error) {
 	engine, _, err := selectEngine(ctx, deps.EngineProbe, engineOptions)
 	if err != nil {
 		return nil, err
 	}
 	result, err := engine.Export(ctx, pdf.Request{
 		HTML: html, Runtime: descriptor, ExecutionID: executionID, Page: pageConfig,
+		RelativeLinks: linkConfig.Policy, BaseURL: linkConfig.BaseURL,
 	})
 	if err != nil {
 		return nil, err

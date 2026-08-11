@@ -27,6 +27,62 @@ func TestPDFRequiresExplicitOutput(t *testing.T) {
 	}
 }
 
+func TestPDFLinkFlagsUseSafeDefaultsAndExplicitResolution(t *testing.T) {
+	tests := []struct {
+		name           string
+		flags          pdfLinkFlags
+		policyExplicit bool
+		wantPolicy     pdf.RelativeLinkPolicy
+		wantBase       string
+		wantCode       string
+	}{
+		{name: "default strips", flags: pdfLinkFlags{Policy: "strip"}, wantPolicy: pdf.RelativeLinksStrip},
+		{
+			name:       "base URL implies resolution",
+			flags:      pdfLinkFlags{Policy: "strip", BaseURL: "https://docs.example.com/manual/"},
+			wantPolicy: pdf.RelativeLinksResolve, wantBase: "https://docs.example.com/manual/",
+		},
+		{
+			name:  "explicit resolution",
+			flags: pdfLinkFlags{Policy: "resolve", BaseURL: "https://docs.example.com/manual/"}, policyExplicit: true,
+			wantPolicy: pdf.RelativeLinksResolve, wantBase: "https://docs.example.com/manual/",
+		},
+		{
+			name:  "resolution requires base",
+			flags: pdfLinkFlags{Policy: "resolve"}, policyExplicit: true,
+			wantCode: "cli.relative_link_base_required",
+		},
+		{
+			name:  "explicit non-resolution rejects unused base",
+			flags: pdfLinkFlags{Policy: "strip", BaseURL: "https://docs.example.com/manual/"}, policyExplicit: true,
+			wantCode: "cli.relative_link_options_invalid",
+		},
+		{
+			name:  "unknown policy",
+			flags: pdfLinkFlags{Policy: "surprise"}, policyExplicit: true,
+			wantCode: "cli.relative_link_policy_invalid",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := test.flags.config(test.policyExplicit)
+			if test.wantCode != "" {
+				if cliDiagnosticCode(err) != test.wantCode {
+					t.Fatalf("error = %v, want %s", err, test.wantCode)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Policy != test.wantPolicy || got.BaseURL != test.wantBase {
+				t.Fatalf("link config = %+v, want policy=%q base=%q", got, test.wantPolicy, test.wantBase)
+			}
+		})
+	}
+}
+
 func TestPDFCommandExportsWithInstalledChromium(t *testing.T) {
 	path := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 	if _, err := os.Stat(path); err != nil {
