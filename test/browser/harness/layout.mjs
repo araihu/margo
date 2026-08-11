@@ -68,12 +68,12 @@ export async function auditDocumentLayout(page) {
 
     for (const selector of [
       ".goshtoso-document__toc",
-      ".goshtoso-document > .margo-document figure",
-      ".goshtoso-document > .margo-document blockquote",
-      ".goshtoso-document > .margo-document pre",
-      ".goshtoso-document > .margo-document [data-code-block]",
-      ".goshtoso-document > .margo-document [data-table-client-sort=\"true\"]",
-      ".goshtoso-document > .margo-document .margo-mermaid",
+      ".goshtoso-document .margo-document figure",
+      ".goshtoso-document .margo-document blockquote",
+      ".goshtoso-document .margo-document pre",
+      ".goshtoso-document .margo-document [data-code-block]",
+      ".goshtoso-document .margo-document [data-table-client-sort=\"true\"]",
+      ".goshtoso-document .margo-document .margo-mermaid",
     ]) {
       for (const element of root.querySelectorAll(selector)) inspect(element, "block");
     }

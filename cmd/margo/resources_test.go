@@ -27,6 +27,52 @@ func TestMaterializeLocalImagesEmbedsPNGAndSVG(t *testing.T) {
 	}
 }
 
+func TestMaterializeLocalImagesAcceptsSVGWithXMLDeclaration(t *testing.T) {
+	root := t.TempDir()
+	declaredSVG := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="20"><rect width="32" height="20"/></svg>`)
+	if err := os.WriteFile(filepath.Join(root, "declared.svg"), declaredSVG, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output, err := materializeLocalImages(
+		[]byte(`<html><body><img src="declared.svg"></body></html>`),
+		"<stdin>",
+		root,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "data:image/svg+xml;base64,") {
+		t.Fatalf("output does not embed declared SVG: %s", output)
+	}
+}
+
+func TestImageMediaTypeRejectsUnsafeOrNonSVGXML(t *testing.T) {
+	tests := []struct {
+		name string
+		data string
+		code string
+	}{
+		{
+			name: "active SVG after declaration",
+			data: `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
+			code: "cli.resource_svg_active",
+		},
+		{
+			name: "non-SVG XML",
+			data: `<?xml version="1.0"?><document>not an image</document>`,
+			code: "cli.resource_format_unsupported",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := imageMediaType([]byte(test.data)); cliDiagnosticCode(err) != test.code {
+				t.Fatalf("error = %v, want %s", err, test.code)
+			}
+		})
+	}
+}
+
 func TestMaterializeLocalImagesRejectsRemoteAndTraversal(t *testing.T) {
 	root := t.TempDir()
 	for _, source := range []string{"https://example.com/image.png", "../outside.png", "file:///tmp/image.png"} {

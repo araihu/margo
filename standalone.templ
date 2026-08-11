@@ -1,6 +1,7 @@
 package margo
 
 templ standalonePublicationBody(fingerprint, htmlFingerprint string, brand Brand, logoURL, backdropURL string, toc templ.Component, content templ.Component) {
+	<a class="margo-skip-link" href="#margo-document-content" lang="en">Skip to main content</a>
 	<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint } data-margo-html-fingerprint={ htmlFingerprint }>
 		if backdropURL != "" {
 			<img class="goshtoso-document__backdrop" src={ backdropURL } alt="" aria-hidden="true"/>
@@ -22,10 +23,12 @@ templ standalonePublicationBody(fingerprint, htmlFingerprint string, brand Brand
 				}
 			</aside>
 		}
-		if toc != nil {
-			@toc
-		}
-		@content
+		<main id="margo-document-content">
+			if toc != nil {
+				@toc
+			}
+			@content
+		</main>
 		if brand.Watermark != "" {
 			<span class="goshtoso-document__watermark" aria-hidden="true">{ brand.Watermark }</span>
 		}

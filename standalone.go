@@ -20,7 +20,7 @@ const standalonePrintPaginationScript = `<script data-margo-print-pagination>
   "use strict";
   const toc = document.querySelector(".goshtoso-document__toc");
   const mermaidSources = () => [...document.querySelectorAll(".margo-mermaid__source")];
-  const article = document.querySelector(".goshtoso-document > .margo-document");
+  const article = document.querySelector(".goshtoso-document .margo-document");
   const protectedBlocks = () => article ? [...article.querySelectorAll(
     ":scope > :is(ul, ol, blockquote, dl, details, figure, table, img, pre), " +
     ':scope > [data-table-client-sort="true"], ' +
@@ -186,17 +186,22 @@ type standaloneConfig struct {
 // StandaloneOption configures the self-contained HTML shell.
 type StandaloneOption func(*standaloneConfig) error
 
-func defaultStandaloneConfig(result *RenderResult) (standaloneConfig, error) {
+func defaultStandaloneConfig(metadata HTMLMetadata) (standaloneConfig, error) {
 	tokens, err := defaultThemeTokens(ThemeModern)
 	if err != nil {
 		return standaloneConfig{}, err
 	}
-	title := "Margo document"
-	if result != nil && result.Metadata().Title != "" {
-		title = result.Metadata().Title
+	title := metadata.Title
+	if title == "" {
+		title = "Margo document"
+	}
+	lang := metadata.Language
+	if lang == "" {
+		lang = "en"
 	}
 	return standaloneConfig{
-		lang: "en", title: title, theme: ThemeModern, colorMode: ColorModeLight, tokens: tokens,
+		lang: lang, title: title, description: metadata.Description,
+		theme: ThemeModern, colorMode: ColorModeLight, tokens: tokens,
 		assetOverrides: make(map[string]AssetRef),
 	}, nil
 }
@@ -303,7 +308,11 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	if result == nil || result.Content() == nil {
 		return nil, fmt.Errorf("margo: standalone render requires a result")
 	}
-	config, err := defaultStandaloneConfig(result)
+	editorial, err := RenderHTML(result)
+	if err != nil {
+		return nil, err
+	}
+	config, err := defaultStandaloneConfig(editorial.Metadata())
 	if err != nil {
 		return nil, err
 	}
@@ -335,10 +344,6 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 		}
 	}
 	if err := config.brand.Validate(); err != nil {
-		return nil, err
-	}
-	editorial, err := RenderHTML(result)
-	if err != nil {
 		return nil, err
 	}
 	asset, ok := config.assetOverrides["document.css"]

@@ -43,6 +43,29 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 	}
 }
 
+func TestStandalonePreservesDerivedMetadataAndMainLandmark(t *testing.T) {
+	result := mustRenderSource(t, "---\nlanguage: pt-BR\ndescription: Resumo para distribuição.\n---\n\n# Relatório operacional\n\nConteúdo.\n")
+	component, err := RenderStandalone(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, component)
+	for _, want := range []string{
+		`<html lang="pt-BR"`,
+		"<title>Relatório operacional</title>",
+		`<meta name="description" content="Resumo para distribuição."`,
+		`<a class="margo-skip-link" href="#margo-document-content"`,
+		`<main id="margo-document-content"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("standalone semantic shell missing %q: %s", want, markup)
+		}
+	}
+	if strings.Count(markup, "<main") != 1 {
+		t.Fatalf("standalone main landmark count = %d", strings.Count(markup, "<main"))
+	}
+}
+
 func TestStandaloneMermaidEmbedsOfflineBrowserRuntime(t *testing.T) {
 	if _, err := mermaidBrowserCapabilities(); err != nil {
 		if diagnostic, ok := err.(*DiagnosticError); ok {

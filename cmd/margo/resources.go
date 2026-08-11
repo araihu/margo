@@ -155,7 +155,7 @@ func imageMediaType(data []byte) (string, error) {
 	case "image/png", "image/jpeg", "image/gif", "image/webp":
 		return mediaType, nil
 	}
-	if bytes.HasPrefix(bytes.TrimSpace(data), []byte("<svg")) {
+	if mediaType == "text/xml" || bytes.HasPrefix(bytes.TrimSpace(data), []byte("<svg")) {
 		if err := validateStaticSVG(data); err != nil {
 			return "", err
 		}
@@ -166,10 +166,14 @@ func imageMediaType(data []byte) (string, error) {
 
 func validateStaticSVG(data []byte) error {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
+	rootSeen := false
 	for {
 		token, err := decoder.Token()
 		if err != nil {
 			if err == io.EOF {
+				if !rootSeen {
+					return fmt.Errorf("cli.resource_svg_invalid: SVG root element is missing")
+				}
 				return nil
 			}
 			return fmt.Errorf("cli.resource_svg_invalid: %w", err)
@@ -179,6 +183,12 @@ func validateStaticSVG(data []byte) error {
 			continue
 		}
 		name := strings.ToLower(start.Name.Local)
+		if !rootSeen {
+			rootSeen = true
+			if name != "svg" {
+				return fmt.Errorf("cli.resource_format_unsupported: XML root element %s is not svg", name)
+			}
+		}
 		switch name {
 		case "script", "foreignobject", "iframe", "object", "embed":
 			return fmt.Errorf("cli.resource_svg_active: element %s is forbidden", name)
