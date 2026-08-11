@@ -113,6 +113,9 @@ func rewriteDocumentLinks(document []byte, policy pdf.RelativeLinkPolicy, baseUR
 					continue
 				}
 				href := strings.TrimSpace(attribute.Val)
+				if strings.Contains(href, `\`) {
+					return chromiumError("pdf.relative_link_invalid", "anchor href must not contain backslashes")
+				}
 				parsed, parseErr := url.Parse(href)
 				if parseErr != nil {
 					return chromiumError("pdf.relative_link_invalid", "anchor href cannot be parsed")
@@ -163,7 +166,7 @@ func rewriteDocumentLinks(document []byte, policy pdf.RelativeLinkPolicy, baseUR
 
 func publicDocumentBaseURL(value string) (*url.URL, error) {
 	parsed, err := url.Parse(strings.TrimSpace(value))
-	if err != nil || parsed == nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if err != nil || parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || (strings.ToLower(parsed.Scheme) != "http" && strings.ToLower(parsed.Scheme) != "https") {
 		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must be an absolute http or https URL")
 	}
 	hostname := strings.ToLower(parsed.Hostname())

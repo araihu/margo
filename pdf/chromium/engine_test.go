@@ -121,9 +121,11 @@ func TestRewriteDocumentLinksRejectsUnsafePolicyConfiguration(t *testing.T) {
 		{name: "error policy finds relative link", policy: pdf.RelativeLinksError, code: "pdf.relative_link_forbidden"},
 		{name: "resolve requires base URL", policy: pdf.RelativeLinksResolve, code: "pdf.relative_link_base_invalid"},
 		{name: "resolve rejects local base URL", policy: pdf.RelativeLinksResolve, baseURL: "http://127.0.0.1:9000/docs/", code: "pdf.relative_link_base_invalid"},
+		{name: "resolve rejects empty base hostname", policy: pdf.RelativeLinksResolve, baseURL: "https://:443/manual/", code: "pdf.relative_link_base_invalid"},
 		{name: "unknown policy", policy: pdf.RelativeLinkPolicy("surprise"), code: "pdf.relative_link_policy_invalid"},
 		{name: "active link scheme", document: `<a href="javascript:alert(1)">Run</a>`, code: "pdf.link_scheme_forbidden"},
 		{name: "network-path link", document: `<a href="//example.com/docs">Docs</a>`, code: "pdf.relative_link_invalid"},
+		{name: "backslash network-path link", document: `<a href="\\evil.example/docs">Docs</a>`, policy: pdf.RelativeLinksKeep, code: "pdf.relative_link_invalid"},
 	}
 
 	for _, test := range tests {
