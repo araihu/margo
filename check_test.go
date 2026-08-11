@@ -195,6 +195,18 @@ func TestCheckValidatesAssetContentAndDataSVG(t *testing.T) {
 	}
 }
 
+func TestCheckRejectsMislabeledDataImage(t *testing.T) {
+	png := []byte("\x89PNG\r\n\x1a\n")
+	mislabeled := "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(png)
+	diagnostics, err := Check(context.Background(), Source{Name: "guide.md", Content: []byte("![image](" + mislabeled + ")\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Code != "check.asset_incompatible" {
+		t.Fatalf("diagnostics = %+v", diagnostics)
+	}
+}
+
 func TestCheckRejectsWindowsAbsoluteLink(t *testing.T) {
 	diagnostics, err := Check(context.Background(), Source{Name: "guide.md", Content: []byte("[local](C:/docs/x.md)\n")})
 	if err != nil {

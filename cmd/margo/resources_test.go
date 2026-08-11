@@ -97,6 +97,11 @@ func TestMaterializeLocalImagesValidatesContentAndDataURLs(t *testing.T) {
 			t.Fatalf("source %q error = %v", source, err)
 		}
 	}
+	png := []byte("\x89PNG\r\n\x1a\n")
+	mislabeled := "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(png)
+	if _, err := materializeLocalImages([]byte(`<html><body><img src="`+mislabeled+`"></body></html>`), "<stdin>", root); cliDiagnosticCode(err) != "cli.resource_format_unsupported" {
+		t.Fatalf("mislabeled data image error = %v", err)
+	}
 }
 
 func TestMaterializeLocalImagesSupportsPopularRasterFormats(t *testing.T) {

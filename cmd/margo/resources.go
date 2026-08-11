@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -91,12 +92,12 @@ func materializeImageURL(value, root string) (string, int64, error) {
 	parsed, err := url.Parse(strings.TrimSpace(value))
 	if err != nil || parsed.Scheme != "" || parsed.Host != "" || strings.HasPrefix(value, "//") || filepath.IsAbs(parsed.Path) {
 		if err == nil && strings.EqualFold(parsed.Scheme, "data") {
-			data, decodeErr := staticimage.DecodeDataURL(value, margo.MaxDocumentBytes)
+			data, _, decodeErr := staticimage.ValidateDataURL(context.Background(), value, margo.MaxDocumentBytes)
 			if decodeErr != nil {
 				if errors.Is(decodeErr, staticimage.ErrDataTooLarge) {
 					return "", 0, fmt.Errorf("cli.resource_too_large: %w", decodeErr)
 				}
-				return "", 0, fmt.Errorf("cli.resource_format_unsupported: %w", decodeErr)
+				return "", 0, cliStaticImageError(decodeErr)
 			}
 			if _, detectErr := imageMediaType(data); detectErr != nil {
 				return "", 0, detectErr
@@ -171,14 +172,18 @@ func imageMediaType(data []byte) (string, error) {
 	if err == nil {
 		return mediaType, nil
 	}
+	return "", cliStaticImageError(err)
+}
+
+func cliStaticImageError(err error) error {
 	var imageErr *staticimage.Error
 	if errors.As(err, &imageErr) {
 		switch imageErr.Kind {
 		case staticimage.SVGInvalid:
-			return "", fmt.Errorf("cli.resource_svg_invalid: %s", imageErr.Message)
+			return fmt.Errorf("cli.resource_svg_invalid: %s", imageErr.Message)
 		case staticimage.SVGActive:
-			return "", fmt.Errorf("cli.resource_svg_active: %s", imageErr.Message)
+			return fmt.Errorf("cli.resource_svg_active: %s", imageErr.Message)
 		}
 	}
-	return "", fmt.Errorf("cli.resource_format_unsupported: %v", err)
+	return fmt.Errorf("cli.resource_format_unsupported: %v", err)
 }

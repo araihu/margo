@@ -291,15 +291,16 @@ func checkImage(ctx context.Context, source Source, config *checkConfig, body []
 	}
 	parsed, err := url.Parse(destination)
 	if err == nil && strings.EqualFold(parsed.Scheme, "data") {
-		data, decodeErr := staticimage.DecodeDataURL(destination, MaxDocumentBytes-config.assetBytes)
+		data, _, decodeErr := staticimage.ValidateDataURL(ctx, destination, MaxDocumentBytes-config.assetBytes)
 		if decodeErr != nil {
 			if errors.Is(decodeErr, staticimage.ErrDataTooLarge) {
 				return append(result, checkDiagnostic(source, "check.asset_too_large", SeverityError, "/image/destination", "data image exceeds the remaining document asset limit", "Reduce or remove the embedded image.", offset)), nil
 			}
-			return append(result, checkDiagnostic(source, "check.asset_incompatible", SeverityError, "/image/destination", fmt.Sprintf("data image is incompatible: %v", decodeErr), "Use a supported PNG, JPEG, GIF, WebP, or static SVG image.", offset)), nil
+			return append(result, checkImageValidationDiagnostic(source, "data image", decodeErr, offset)), nil
 		}
 		config.assetBytes += int64(len(data))
-		return append(result, checkImageContent(source, destination, data, offset)...), nil
+		contentDiagnostics, contentErr := checkImageContent(ctx, source, destination, data, offset)
+		return append(result, contentDiagnostics...), contentErr
 	}
 	if err != nil || parsed.Scheme != "" || parsed.Host != "" || strings.HasPrefix(destination, "//") || filepath.IsAbs(parsed.Path) {
 		return append(result, checkDiagnostic(source, "check.asset_remote", SeverityError, "/image/destination", fmt.Sprintf("image source %q is not a local relative asset", destination), "Download the image and reference a local path relative to this Markdown file.", offset)), nil
@@ -321,19 +322,31 @@ func checkImage(ctx context.Context, source Source, config *checkConfig, body []
 		return append(result, checkDiagnostic(source, code, SeverityError, "/image/destination", message, hint, offset)), nil
 	}
 	config.assetBytes += int64(len(data))
-	return append(result, checkImageContent(source, destination, data, offset)...), nil
+	contentDiagnostics, contentErr := checkImageContent(ctx, source, destination, data, offset)
+	return append(result, contentDiagnostics...), contentErr
 }
 
-func checkImageContent(source Source, destination string, data []byte, offset int) []Diagnostic {
-	_, err := staticimage.Detect(data)
+func checkImageContent(ctx context.Context, source Source, destination string, data []byte, offset int) ([]Diagnostic, error) {
+	_, err := staticimage.DetectContext(ctx, data)
 	if err == nil {
-		return nil
+		return nil, nil
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return nil, err
 	}
 	var imageErr *staticimage.Error
 	if errors.As(err, &imageErr) && (imageErr.Kind == staticimage.SVGInvalid || imageErr.Kind == staticimage.SVGActive) {
-		return []Diagnostic{checkDiagnostic(source, "check.svg_incompatible", SeverityError, "/image/destination", fmt.Sprintf("SVG %q is incompatible: %v", destination, err), "Use a well-formed static SVG without scripts, active elements, event handlers, or external references.", offset)}
+		return []Diagnostic{checkImageValidationDiagnostic(source, fmt.Sprintf("SVG %q", destination), err, offset)}, nil
 	}
-	return []Diagnostic{checkDiagnostic(source, "check.asset_incompatible", SeverityError, "/image/destination", fmt.Sprintf("image %q is incompatible: %v", destination, err), "Use a supported PNG, JPEG, GIF, WebP, or static SVG image.", offset)}
+	return []Diagnostic{checkDiagnostic(source, "check.asset_incompatible", SeverityError, "/image/destination", fmt.Sprintf("image %q is incompatible: %v", destination, err), "Use a supported PNG, JPEG, GIF, WebP, or static SVG image.", offset)}, nil
+}
+
+func checkImageValidationDiagnostic(source Source, subject string, failure error, offset int) Diagnostic {
+	var imageErr *staticimage.Error
+	if errors.As(failure, &imageErr) && (imageErr.Kind == staticimage.SVGInvalid || imageErr.Kind == staticimage.SVGActive) {
+		return checkDiagnostic(source, "check.svg_incompatible", SeverityError, "/image/destination", fmt.Sprintf("%s is incompatible: %v", subject, failure), "Use a well-formed static SVG without scripts, active elements, event handlers, or external references.", offset)
+	}
+	return checkDiagnostic(source, "check.asset_incompatible", SeverityError, "/image/destination", fmt.Sprintf("%s is incompatible: %v", subject, failure), "Use a supported PNG, JPEG, GIF, WebP, or static SVG image.", offset)
 }
 
 func checkLinkReference(value string) (string, Severity, string, string) {
