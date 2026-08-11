@@ -3,16 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/xml"
+	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/internal/staticimage"
 	nethtml "golang.org/x/net/html"
 )
 
@@ -40,9 +39,6 @@ func materializeLocalImages(document []byte, inputName, workingDirectory string)
 					attribute.Val = materialized
 					total += size
 				case "srcset":
-					if strings.HasPrefix(strings.ToLower(strings.TrimSpace(attribute.Val)), "data:") {
-						continue
-					}
 					materialized, size, err := materializeSourceSet(attribute.Val, root)
 					if err != nil {
 						return err
@@ -95,7 +91,17 @@ func materializeImageURL(value, root string) (string, int64, error) {
 	parsed, err := url.Parse(strings.TrimSpace(value))
 	if err != nil || parsed.Scheme != "" || parsed.Host != "" || strings.HasPrefix(value, "//") || filepath.IsAbs(parsed.Path) {
 		if err == nil && strings.EqualFold(parsed.Scheme, "data") {
-			return value, 0, nil
+			data, decodeErr := staticimage.DecodeDataURL(value, margo.MaxDocumentBytes)
+			if decodeErr != nil {
+				if errors.Is(decodeErr, staticimage.ErrDataTooLarge) {
+					return "", 0, fmt.Errorf("cli.resource_too_large: %w", decodeErr)
+				}
+				return "", 0, fmt.Errorf("cli.resource_format_unsupported: %w", decodeErr)
+			}
+			if _, detectErr := imageMediaType(data); detectErr != nil {
+				return "", 0, detectErr
+			}
+			return value, int64(len(data)), nil
 		}
 		return "", 0, fmt.Errorf("cli.resource_external: image source %q is not a local relative path", value)
 	}
@@ -131,6 +137,17 @@ func materializeImageURL(value, root string) (string, int64, error) {
 }
 
 func materializeSourceSet(value, root string) (string, int64, error) {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(value)), "data:") {
+		fields := strings.Fields(strings.TrimSpace(value))
+		if len(fields) == 0 || len(fields) > 2 {
+			return "", 0, fmt.Errorf("cli.resource_external: srcset is malformed")
+		}
+		_, size, err := materializeImageURL(fields[0], root)
+		if err != nil {
+			return "", 0, err
+		}
+		return value, size, nil
+	}
 	parts := strings.Split(value, ",")
 	var total int64
 	for index, part := range parts {
@@ -150,59 +167,18 @@ func materializeSourceSet(value, root string) (string, int64, error) {
 }
 
 func imageMediaType(data []byte) (string, error) {
-	mediaType := strings.Split(http.DetectContentType(data), ";")[0]
-	switch mediaType {
-	case "image/png", "image/jpeg", "image/gif", "image/webp":
+	mediaType, err := staticimage.Detect(data)
+	if err == nil {
 		return mediaType, nil
 	}
-	if mediaType == "text/xml" || bytes.HasPrefix(bytes.TrimSpace(data), []byte("<svg")) {
-		if err := validateStaticSVG(data); err != nil {
-			return "", err
-		}
-		return "image/svg+xml", nil
-	}
-	return "", fmt.Errorf("cli.resource_format_unsupported: detected %s", mediaType)
-}
-
-func validateStaticSVG(data []byte) error {
-	decoder := xml.NewDecoder(bytes.NewReader(data))
-	rootSeen := false
-	for {
-		token, err := decoder.Token()
-		if err != nil {
-			if err == io.EOF {
-				if !rootSeen {
-					return fmt.Errorf("cli.resource_svg_invalid: SVG root element is missing")
-				}
-				return nil
-			}
-			return fmt.Errorf("cli.resource_svg_invalid: %w", err)
-		}
-		start, ok := token.(xml.StartElement)
-		if !ok {
-			continue
-		}
-		name := strings.ToLower(start.Name.Local)
-		if !rootSeen {
-			rootSeen = true
-			if name != "svg" {
-				return fmt.Errorf("cli.resource_format_unsupported: XML root element %s is not svg", name)
-			}
-		}
-		switch name {
-		case "script", "foreignobject", "iframe", "object", "embed":
-			return fmt.Errorf("cli.resource_svg_active: element %s is forbidden", name)
-		}
-		for _, attribute := range start.Attr {
-			attributeName := strings.ToLower(attribute.Name.Local)
-			value := strings.TrimSpace(attribute.Value)
-			if strings.HasPrefix(attributeName, "on") || ((attributeName == "href" || attributeName == "src") && value != "" && !strings.HasPrefix(value, "#") && !strings.HasPrefix(strings.ToLower(value), "data:")) {
-				return fmt.Errorf("cli.resource_svg_active: active attribute %s is forbidden", attributeName)
-			}
-			lowerValue := strings.ToLower(value)
-			if attributeName == "style" && (strings.Contains(lowerValue, "url(http:") || strings.Contains(lowerValue, "url(https:")) {
-				return fmt.Errorf("cli.resource_svg_active: external style URL is forbidden")
-			}
+	var imageErr *staticimage.Error
+	if errors.As(err, &imageErr) {
+		switch imageErr.Kind {
+		case staticimage.SVGInvalid:
+			return "", fmt.Errorf("cli.resource_svg_invalid: %s", imageErr.Message)
+		case staticimage.SVGActive:
+			return "", fmt.Errorf("cli.resource_svg_active: %s", imageErr.Message)
 		}
 	}
+	return "", fmt.Errorf("cli.resource_format_unsupported: %v", err)
 }

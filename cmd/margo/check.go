@@ -42,7 +42,7 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, fmt.Errorf("cli.input_path_invalid: %w", err))
 			}
-			findings, err := margo.Check(command.Context(), source, margo.WithCheckAssetReader(deps.SourceReader))
+			findings, err := margo.Check(command.Context(), source, margo.WithCheckAssetReader(deps.CheckAssetReader))
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}

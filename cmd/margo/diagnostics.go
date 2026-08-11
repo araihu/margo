@@ -9,6 +9,7 @@ import (
 
 	margo "github.com/araihu/margo"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type diagnosticFormat string
@@ -144,10 +145,46 @@ func diagnosticNoArgs(formatValue *string) cobra.PositionalArgs {
 }
 
 func bindDiagnosticFlagErrors(command *cobra.Command, formatValue *string) {
+	const hiddenUnknownFlag = "__margo_unknown_flag"
+	unknownValue := ignoredUnknownFlagValue{}
+	command.Flags().Var(&unknownValue, hiddenUnknownFlag, "")
+	_ = command.Flags().MarkHidden(hiddenUnknownFlag)
+	if flag := command.Flags().Lookup(hiddenUnknownFlag); flag != nil {
+		flag.NoOptDefVal = "true"
+	}
+	command.InitDefaultHelpFlag()
+	allowed := make(map[string]struct{})
+	command.Flags().VisitAll(func(flag *pflag.Flag) { allowed[flag.Name] = struct{}{} })
+	unknown := make([]string, 0)
+	command.Flags().SetNormalizeFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
+		if _, exists := allowed[name]; exists {
+			return pflag.NormalizedName(name)
+		}
+		if len(unknown) == 0 || unknown[len(unknown)-1] != name {
+			unknown = append(unknown, name)
+		}
+		return pflag.NormalizedName(hiddenUnknownFlag)
+	})
+	originalArgs := command.Args
+	command.Args = func(command *cobra.Command, args []string) error {
+		if len(unknown) > 0 {
+			return reportCommandError(command, reportingDiagnosticFormat(formatValue), fmt.Errorf("cli.flag_invalid: unknown flag: --%s", unknown[0]))
+		}
+		if originalArgs != nil {
+			return originalArgs(command, args)
+		}
+		return nil
+	}
 	command.SetFlagErrorFunc(func(command *cobra.Command, failure error) error {
 		return reportCommandError(command, reportingDiagnosticFormat(formatValue), fmt.Errorf("cli.flag_invalid: %s", failure))
 	})
 }
+
+type ignoredUnknownFlagValue struct{}
+
+func (*ignoredUnknownFlagValue) String() string   { return "" }
+func (*ignoredUnknownFlagValue) Set(string) error { return nil }
+func (*ignoredUnknownFlagValue) Type() string     { return "unknown" }
 
 func reportingDiagnosticFormat(value *string) diagnosticFormat {
 	if value != nil && diagnosticFormat(*value) == diagnosticJSON {

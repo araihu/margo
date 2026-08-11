@@ -19,6 +19,7 @@ type Dependencies struct {
 	Stdout           io.Writer
 	Stderr           io.Writer
 	SourceReader     SourceReader
+	CheckAssetReader margo.CheckAssetReader
 	WorkingDirectory string
 	EngineProbe      engines.Probe
 	NextExecutionID  func() margo.ExecutionID
@@ -63,6 +64,9 @@ func normalizeDependencies(deps Dependencies) Dependencies {
 	}
 	if deps.SourceReader == nil {
 		deps.SourceReader = osSourceReader{}
+	}
+	if deps.CheckAssetReader == nil {
+		deps.CheckAssetReader = margo.FilesystemCheckAssetReader{}
 	}
 	if deps.WorkingDirectory == "" {
 		deps.WorkingDirectory, _ = os.Getwd()

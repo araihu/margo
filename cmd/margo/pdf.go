@@ -65,10 +65,10 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVarP(&output.Path, "output", "o", "", "required output path, or - for binary stdout")
 	command.Flags().BoolVarP(&output.Force, "force", "f", false, "replace an existing output file")
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
-	bindDiagnosticFlagErrors(command, &diagnostics)
 	engineOptions.bind(command)
 	pageOptions.bind(command)
 	linkOptions.bind(command)
+	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
 

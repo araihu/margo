@@ -71,6 +71,7 @@ func TestArgumentAndFlagFailuresHonorJSONDiagnostics(t *testing.T) {
 	for _, args := range [][]string{
 		{"html", "--diagnostics", "json"},
 		{"html", "--diagnostics", "json", "--unknown"},
+		{"html", "--unknown", "--diagnostics", "json"},
 	} {
 		var stdout, stderr bytes.Buffer
 		command := NewRootCommand(Dependencies{Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo()})

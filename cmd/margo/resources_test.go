@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,6 +79,21 @@ func TestMaterializeLocalImagesRejectsRemoteAndTraversal(t *testing.T) {
 	for _, source := range []string{"https://example.com/image.png", "../outside.png", "file:///tmp/image.png"} {
 		document := []byte(`<html><body><img src="` + source + `"></body></html>`)
 		if _, err := materializeLocalImages(document, "<stdin>", root); cliDiagnosticCode(err) != "cli.resource_external" {
+			t.Fatalf("source %q error = %v", source, err)
+		}
+	}
+}
+
+func TestMaterializeLocalImagesValidatesContentAndDataURLs(t *testing.T) {
+	root := t.TempDir()
+	unsafeSVG := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)
+	if err := os.WriteFile(filepath.Join(root, "unsafe.png"), unsafeSVG, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dataSVG := "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(unsafeSVG)
+	for _, source := range []string{"unsafe.png", dataSVG} {
+		document := []byte(`<html><body><img src="` + source + `"></body></html>`)
+		if _, err := materializeLocalImages(document, "<stdin>", root); cliDiagnosticCode(err) != "cli.resource_svg_active" {
 			t.Fatalf("source %q error = %v", source, err)
 		}
 	}

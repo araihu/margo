@@ -3,16 +3,18 @@ package margo
 import (
 	"bytes"
 	"context"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	internalmermaid "github.com/araihu/margo/internal/mermaid"
+	"github.com/araihu/margo/internal/staticimage"
 	goldast "github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 	"gopkg.in/yaml.v3"
@@ -21,11 +23,85 @@ import (
 // CheckAssetReader supplies local assets to Check without coupling library
 // users to the host filesystem.
 type CheckAssetReader interface {
-	ReadFile(string) ([]byte, error)
+	ReadAsset(context.Context, string, string, int64) ([]byte, error)
+}
+
+var (
+	ErrCheckAssetOutsideRoot = errors.New("check asset is outside its source root")
+	ErrCheckAssetTooLarge    = errors.New("check asset exceeds its byte limit")
+	ErrCheckAssetNotRegular  = errors.New("check asset is not a regular file")
+)
+
+// FilesystemCheckAssetReader reads bounded regular files after resolving
+// symlinks and proving that the real target remains below the real root.
+type FilesystemCheckAssetReader struct{}
+
+func (FilesystemCheckAssetReader) ReadAsset(ctx context.Context, root, name string, limit int64) ([]byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	target, safe := checkAssetPath(root, name)
+	if !safe {
+		return nil, ErrCheckAssetOutsideRoot
+	}
+	realRoot, err := filepath.EvalSymlinks(filepath.Clean(root))
+	if err != nil {
+		return nil, err
+	}
+	realTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		return nil, err
+	}
+	relative, err := filepath.Rel(realRoot, realTarget)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return nil, ErrCheckAssetOutsideRoot
+	}
+	file, err := os.Open(realTarget)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, ErrCheckAssetNotRegular
+	}
+	if limit < 0 || info.Size() > limit {
+		return nil, ErrCheckAssetTooLarge
+	}
+	data := make([]byte, 0, info.Size())
+	buffer := make([]byte, 32*1024)
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		read, readErr := file.Read(buffer)
+		if read > 0 {
+			if int64(len(data)+read) > limit {
+				return nil, ErrCheckAssetTooLarge
+			}
+			data = append(data, buffer[:read]...)
+		}
+		if readErr != nil {
+			if errors.Is(readErr, os.ErrClosed) {
+				return nil, readErr
+			}
+			if errors.Is(readErr, io.EOF) {
+				return data, nil
+			}
+			return nil, readErr
+		}
+	}
 }
 
 type checkConfig struct {
 	assetReader CheckAssetReader
+	assetBytes  int64
 }
 
 // CheckOption configures compatibility analysis.
@@ -58,6 +134,9 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 		}
 	}
 	snapshot := source.clone()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	frontmatter, err := parseFrontmatter(snapshot)
 	if err != nil {
 		return actionableCheckFailure(snapshot, err), nil
@@ -65,6 +144,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
 	diagnostics := checkMetadata(snapshot, frontmatter)
 	locator := checkLocator{source: frontmatter.body}
+	rawContainers := make(map[goldast.Node]struct{})
 	walkErr := goldast.Walk(root, func(node goldast.Node, entering bool) (goldast.WalkStatus, error) {
 		if !entering {
 			return goldast.WalkContinue, nil
@@ -77,15 +157,24 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 			diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.raw_html", SeverityError, "/rawHTML", "raw HTML is not accepted by the default CLI policy", "Replace the fragment with Markdown before rendering.", offset))
 		case *goldast.RawHTML:
+			container := value.Parent()
+			if _, exists := rawContainers[container]; exists {
+				break
+			}
+			rawContainers[container] = struct{}{}
 			offset := frontmatter.bodyOffset + segmentAtStart(value.Segments)
 			diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.raw_html", SeverityError, "/rawHTML", "raw HTML is not accepted by the default CLI policy", "Replace the fragment with Markdown before rendering.", offset))
 		case *goldast.Image:
 			offset := frontmatter.bodyOffset + locator.find(value.Destination)
-			diagnostics = append(diagnostics, checkImage(snapshot, config, frontmatter.body, value, offset)...)
+			imageDiagnostics, imageErr := checkImage(ctx, snapshot, &config, frontmatter.body, value, offset)
+			if imageErr != nil {
+				return goldast.WalkStop, imageErr
+			}
+			diagnostics = append(diagnostics, imageDiagnostics...)
 		case *goldast.Link:
 			offset := frontmatter.bodyOffset + locator.find(value.Destination)
-			if checkRelativeReference(string(value.Destination)) {
-				diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.link_relative", SeverityWarning, "/link/destination", fmt.Sprintf("relative link %q requires an output policy", value.Destination), "Choose a base URL or an explicit strip, error, or keep policy for the target format.", offset))
+			if code, severity, message, hint := checkLinkReference(string(value.Destination)); code != "" {
+				diagnostics = append(diagnostics, checkDiagnostic(snapshot, code, severity, "/link/destination", message, hint, offset))
 			}
 		case *goldast.FencedCodeBlock:
 			if string(value.Language(frontmatter.body)) != "mermaid" {
@@ -115,21 +204,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 		}
 		return diagnostics[left].Code < diagnostics[right].Code
 	})
-	return dedupeCheckDiagnostics(diagnostics), nil
-}
-
-func dedupeCheckDiagnostics(diagnostics []Diagnostic) []Diagnostic {
-	result := make([]Diagnostic, 0, len(diagnostics))
-	seen := make(map[string]struct{}, len(diagnostics))
-	for _, diagnostic := range diagnostics {
-		key := fmt.Sprintf("%s\x00%s\x00%d\x00%s", diagnostic.Source, diagnostic.Code, diagnostic.Line, diagnostic.Pointer)
-		if _, exists := seen[key]; exists {
-			continue
-		}
-		seen[key] = struct{}{}
-		result = append(result, diagnostic)
-	}
-	return result
+	return diagnostics, nil
 }
 
 func actionableCheckFailure(source Source, failure error) []Diagnostic {
@@ -174,56 +249,111 @@ func checkMetadata(source Source, frontmatter frontmatterResult) []Diagnostic {
 		{pointer: "/language", value: metadata.Language, limit: 64},
 		{pointer: "/slug", value: metadata.Slug, limit: 128},
 	}
+	diagnostics := make([]Diagnostic, 0)
 	for _, field := range fields {
 		if len([]byte(normalizeHTMLText(field.value))) <= field.limit {
 			continue
 		}
 		line, column := frontmatterPointerPosition(source.Content, field.pointer)
-		diagnostics := Diagnostic{Code: "source.metadata_invalid", Severity: SeverityError, Source: source.Name, Line: line, Column: column, Pointer: field.pointer, Message: fmt.Sprintf("%s exceeds its %d-byte HTML limit", strings.TrimPrefix(field.pointer, "/"), field.limit), Hint: fmt.Sprintf("Shorten %s to at most %d UTF-8 bytes.", field.pointer, field.limit)}
-		return []Diagnostic{diagnostics}
+		diagnostics = append(diagnostics, Diagnostic{Code: "source.metadata_invalid", Severity: SeverityError, Source: source.Name, Line: line, Column: column, Pointer: field.pointer, Message: fmt.Sprintf("%s exceeds its %d-byte HTML limit", strings.TrimPrefix(field.pointer, "/"), field.limit), Hint: fmt.Sprintf("Shorten %s to at most %d UTF-8 bytes.", field.pointer, field.limit)})
 	}
-	return nil
+	lists := []struct {
+		pointer string
+		values  []string
+	}{
+		{pointer: "/authors", values: metadata.Authors},
+		{pointer: "/tags", values: metadata.Tags},
+	}
+	for _, list := range lists {
+		if len(list.values) > 64 {
+			line, column := frontmatterPointerPosition(source.Content, list.pointer)
+			diagnostics = append(diagnostics, Diagnostic{Code: "source.metadata_invalid", Severity: SeverityError, Source: source.Name, Line: line, Column: column, Pointer: list.pointer, Message: fmt.Sprintf("%s exceeds its 64-item HTML limit", strings.TrimPrefix(list.pointer, "/")), Hint: "Reduce this metadata list to at most 64 entries."})
+			continue
+		}
+		for index, value := range list.values {
+			normalized := normalizeHTMLText(value)
+			if normalized != "" && len([]byte(normalized)) <= 128 {
+				continue
+			}
+			pointer := fmt.Sprintf("%s/%d", list.pointer, index)
+			line, column := frontmatterPointerPosition(source.Content, pointer)
+			diagnostics = append(diagnostics, Diagnostic{Code: "source.metadata_invalid", Severity: SeverityError, Source: source.Name, Line: line, Column: column, Pointer: pointer, Message: fmt.Sprintf("%s entry is empty or exceeds its 128-byte HTML limit", strings.TrimPrefix(list.pointer, "/")), Hint: "Use a non-empty value of at most 128 UTF-8 bytes."})
+		}
+	}
+	return diagnostics
 }
 
-func checkImage(source Source, config checkConfig, body []byte, image *goldast.Image, offset int) []Diagnostic {
+func checkImage(ctx context.Context, source Source, config *checkConfig, body []byte, image *goldast.Image, offset int) ([]Diagnostic, error) {
 	destination := strings.TrimSpace(string(image.Destination))
 	result := make([]Diagnostic, 0, 2)
 	if strings.TrimSpace(plainInlineText(image, body)) == "" {
 		result = append(result, checkDiagnostic(source, "check.image_alt_empty", SeverityWarning, "/image/alt", "image alternative text is empty", "Add concise alternative text between the image brackets.", offset))
 	}
 	parsed, err := url.Parse(destination)
-	if err != nil || parsed.Scheme != "" || parsed.Host != "" || strings.HasPrefix(destination, "//") || filepath.IsAbs(parsed.Path) {
-		if err == nil && strings.EqualFold(parsed.Scheme, "data") {
-			return result
+	if err == nil && strings.EqualFold(parsed.Scheme, "data") {
+		data, decodeErr := staticimage.DecodeDataURL(destination, MaxDocumentBytes-config.assetBytes)
+		if decodeErr != nil {
+			if errors.Is(decodeErr, staticimage.ErrDataTooLarge) {
+				return append(result, checkDiagnostic(source, "check.asset_too_large", SeverityError, "/image/destination", "data image exceeds the remaining document asset limit", "Reduce or remove the embedded image.", offset)), nil
+			}
+			return append(result, checkDiagnostic(source, "check.asset_incompatible", SeverityError, "/image/destination", fmt.Sprintf("data image is incompatible: %v", decodeErr), "Use a supported PNG, JPEG, GIF, WebP, or static SVG image.", offset)), nil
 		}
-		return append(result, checkDiagnostic(source, "check.asset_remote", SeverityError, "/image/destination", fmt.Sprintf("image source %q is not a local relative asset", destination), "Download the image and reference a local path relative to this Markdown file.", offset))
+		config.assetBytes += int64(len(data))
+		return append(result, checkImageContent(source, destination, data, offset)...), nil
+	}
+	if err != nil || parsed.Scheme != "" || parsed.Host != "" || strings.HasPrefix(destination, "//") || filepath.IsAbs(parsed.Path) {
+		return append(result, checkDiagnostic(source, "check.asset_remote", SeverityError, "/image/destination", fmt.Sprintf("image source %q is not a local relative asset", destination), "Download the image and reference a local path relative to this Markdown file.", offset)), nil
 	}
 	if parsed.Path == "" || config.assetReader == nil {
-		return result
+		return result, nil
 	}
-	target, safe := checkAssetPath(source.BaseURL, parsed.Path)
-	if !safe {
-		return append(result, checkDiagnostic(source, "check.asset_missing", SeverityError, "/image/destination", fmt.Sprintf("image source %q escapes or lacks an input root", destination), "Move the asset under the Markdown file directory and use a contained relative path.", offset))
-	}
-	data, readErr := config.assetReader.ReadFile(target)
+	data, readErr := config.assetReader.ReadAsset(ctx, source.BaseURL, parsed.Path, MaxDocumentBytes-config.assetBytes)
 	if readErr != nil {
-		return append(result, checkDiagnostic(source, "check.asset_missing", SeverityError, "/image/destination", fmt.Sprintf("local image %q cannot be read", destination), "Add the asset at the referenced path or correct the image destination.", offset))
-	}
-	if strings.EqualFold(filepath.Ext(parsed.Path), ".svg") {
-		if svgErr := validateCheckStaticSVG(data); svgErr != nil {
-			return append(result, checkDiagnostic(source, "check.svg_incompatible", SeverityError, "/image/destination", fmt.Sprintf("SVG %q is incompatible: %v", destination, svgErr), "Use a well-formed static SVG without scripts, active elements, event handlers, or external references.", offset))
+		if errors.Is(readErr, context.Canceled) || errors.Is(readErr, context.DeadlineExceeded) {
+			return nil, readErr
 		}
+		code, message, hint := "check.asset_missing", fmt.Sprintf("local image %q cannot be read", destination), "Add the asset at the referenced path or correct the image destination."
+		if errors.Is(readErr, ErrCheckAssetOutsideRoot) {
+			code, message, hint = "check.asset_outside_root", fmt.Sprintf("local image %q resolves outside its source root", destination), "Move the asset under the Markdown file directory and use a contained relative path."
+		} else if errors.Is(readErr, ErrCheckAssetTooLarge) {
+			code, message, hint = "check.asset_too_large", fmt.Sprintf("local image %q exceeds the remaining document asset limit", destination), "Reduce the image size or remove other embedded images."
+		}
+		return append(result, checkDiagnostic(source, code, SeverityError, "/image/destination", message, hint, offset)), nil
 	}
-	return result
+	config.assetBytes += int64(len(data))
+	return append(result, checkImageContent(source, destination, data, offset)...), nil
 }
 
-func checkRelativeReference(value string) bool {
+func checkImageContent(source Source, destination string, data []byte, offset int) []Diagnostic {
+	_, err := staticimage.Detect(data)
+	if err == nil {
+		return nil
+	}
+	var imageErr *staticimage.Error
+	if errors.As(err, &imageErr) && (imageErr.Kind == staticimage.SVGInvalid || imageErr.Kind == staticimage.SVGActive) {
+		return []Diagnostic{checkDiagnostic(source, "check.svg_incompatible", SeverityError, "/image/destination", fmt.Sprintf("SVG %q is incompatible: %v", destination, err), "Use a well-formed static SVG without scripts, active elements, event handlers, or external references.", offset)}
+	}
+	return []Diagnostic{checkDiagnostic(source, "check.asset_incompatible", SeverityError, "/image/destination", fmt.Sprintf("image %q is incompatible: %v", destination, err), "Use a supported PNG, JPEG, GIF, WebP, or static SVG image.", offset)}
+}
+
+func checkLinkReference(value string) (string, Severity, string, string) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-		return false
+		return "", "", "", ""
 	}
 	parsed, err := url.Parse(trimmed)
-	return err == nil && parsed.Scheme == "" && parsed.Host == "" && !strings.HasPrefix(trimmed, "//")
+	if err != nil || strings.HasPrefix(trimmed, "//") || parsed.Host != "" && parsed.Scheme == "" {
+		return "check.link_unsupported", SeverityError, fmt.Sprintf("link %q is not a supported URL", value), "Use a relative path, fragment, or an http, https, mailto, or tel URL."
+	}
+	if parsed.Scheme == "" {
+		return "check.link_relative", SeverityWarning, fmt.Sprintf("relative link %q requires an output policy", value), "Choose a base URL or an explicit strip, error, or keep policy for the target format."
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "http", "https", "mailto", "tel":
+		return "", "", "", ""
+	default:
+		return "check.link_unsupported", SeverityError, fmt.Sprintf("link %q uses unsupported scheme %q", value, parsed.Scheme), "Use a relative path, fragment, or an http, https, mailto, or tel URL."
+	}
 }
 
 func checkAssetPath(root, name string) (string, bool) {
@@ -262,6 +392,13 @@ func (locator *checkLocator) find(value []byte) int {
 	if len(value) == 0 {
 		return locator.next
 	}
+	for _, prefix := range [][]byte{append([]byte("]("), value...), append([]byte("](<"), value...)} {
+		if index := bytes.Index(locator.source[locator.next:], prefix); index >= 0 {
+			offset := locator.next + index + len(prefix) - len(value)
+			locator.next = offset + len(value)
+			return offset
+		}
+	}
 	if index := bytes.Index(locator.source[locator.next:], value); index >= 0 {
 		offset := locator.next + index
 		locator.next = offset + len(value)
@@ -295,12 +432,15 @@ func frontmatterPointerPosition(source []byte, pointer string) (int, int) {
 	}
 	node := document.Content[0]
 	segments := strings.Split(strings.TrimPrefix(pointer, "/"), "/")
-	for _, segment := range segments {
+	for segmentIndex, segment := range segments {
 		if node.Kind == yaml.MappingNode {
 			found := false
 			for index := 0; index+1 < len(node.Content); index += 2 {
 				if node.Content[index].Value == segment {
-					node = node.Content[index]
+					if segmentIndex == len(segments)-1 {
+						return node.Content[index].Line + 1, node.Content[index].Column
+					}
+					node = node.Content[index+1]
 					found = true
 					break
 				}
@@ -310,50 +450,18 @@ func frontmatterPointerPosition(source []byte, pointer string) (int, int) {
 			}
 			continue
 		}
+		if node.Kind == yaml.SequenceNode {
+			index, err := strconv.Atoi(segment)
+			if err != nil || index < 0 || index >= len(node.Content) {
+				return 1, 1
+			}
+			node = node.Content[index]
+			if segmentIndex == len(segments)-1 {
+				return node.Line + 1, node.Column
+			}
+			continue
+		}
 		return node.Line + 1, node.Column
 	}
 	return node.Line + 1, node.Column
-}
-
-func validateCheckStaticSVG(data []byte) error {
-	decoder := xml.NewDecoder(bytes.NewReader(data))
-	rootSeen := false
-	for {
-		token, err := decoder.Token()
-		if err != nil {
-			if err == io.EOF && rootSeen {
-				return nil
-			}
-			if err == io.EOF {
-				return errors.New("SVG root element is missing")
-			}
-			return err
-		}
-		start, ok := token.(xml.StartElement)
-		if !ok {
-			continue
-		}
-		name := strings.ToLower(start.Name.Local)
-		if !rootSeen {
-			rootSeen = true
-			if name != "svg" {
-				return fmt.Errorf("XML root element %s is not svg", name)
-			}
-		}
-		switch name {
-		case "script", "foreignobject", "iframe", "object", "embed":
-			return fmt.Errorf("element %s is forbidden", name)
-		}
-		for _, attribute := range start.Attr {
-			attributeName := strings.ToLower(attribute.Name.Local)
-			value := strings.TrimSpace(attribute.Value)
-			lowerValue := strings.ToLower(value)
-			if strings.HasPrefix(attributeName, "on") || ((attributeName == "href" || attributeName == "src") && value != "" && !strings.HasPrefix(value, "#") && !strings.HasPrefix(lowerValue, "data:")) {
-				return fmt.Errorf("active attribute %s is forbidden", attributeName)
-			}
-			if attributeName == "style" && (strings.Contains(lowerValue, "url(http:") || strings.Contains(lowerValue, "url(https:")) {
-				return errors.New("external style URL is forbidden")
-			}
-		}
-	}
 }
