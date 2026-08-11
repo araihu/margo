@@ -176,58 +176,98 @@ func publicDocumentBaseURL(value string) (*url.URL, error) {
 	}
 	hostname := strings.TrimRight(strings.ToLower(parsed.Hostname()), ".")
 	address := net.ParseIP(hostname)
+	numeric, validNumeric := address != nil, true
 	if address == nil {
-		address, _ = browserIPv4Address(hostname)
+		address, numeric, validNumeric = browserIPv4Address(hostname)
 	}
-	if hostname == "localhost" || strings.HasSuffix(hostname, ".localhost") || (address != nil && address.IsLoopback()) {
-		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must not use a loopback host")
+	if numeric && !validNumeric {
+		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL contains an invalid browser-numeric host")
+	}
+	if hostname == "localhost" || strings.HasSuffix(hostname, ".localhost") || (address != nil && (address.IsLoopback() || address.IsUnspecified())) {
+		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must not use a loopback or unspecified host")
+	}
+	if address != nil {
+		canonicalHost := address.String()
+		if port := parsed.Port(); port != "" {
+			canonicalHost = net.JoinHostPort(canonicalHost, port)
+		} else if strings.Contains(canonicalHost, ":") {
+			canonicalHost = "[" + canonicalHost + "]"
+		}
+		parsed.Host = canonicalHost
 	}
 	return parsed, nil
 }
 
 // browserIPv4Address recognizes the legacy numeric forms that Chromium's URL
 // parser canonicalizes as IPv4, including 127.1 and a single 32-bit integer.
-func browserIPv4Address(hostname string) (net.IP, bool) {
+// The second result reports that the host ends in a number and therefore must
+// be parsed as IPv4; the third reports whether that required parse succeeded.
+func browserIPv4Address(hostname string) (net.IP, bool, bool) {
 	parts := strings.Split(hostname, ".")
-	if len(parts) == 0 || len(parts) > 4 {
-		return nil, false
+	if len(parts) == 0 {
+		return nil, false, true
+	}
+	last := parts[len(parts)-1]
+	_, lastParses := browserIPv4Number(last)
+	if !asciiDigits(last) && !lastParses {
+		return nil, false, true
+	}
+	if len(parts) > 4 {
+		return nil, true, false
 	}
 	numbers := make([]uint64, len(parts))
 	for index, part := range parts {
-		if part == "" {
-			return nil, false
-		}
-		base := 10
-		digits := part
-		lower := strings.ToLower(part)
-		if strings.HasPrefix(lower, "0x") {
-			base, digits = 16, part[2:]
-		} else if len(part) > 1 && part[0] == '0' {
-			base = 8
-		}
-		if digits == "" {
-			return nil, false
-		}
-		value, err := strconv.ParseUint(digits, base, 32)
-		if err != nil {
-			return nil, false
+		value, ok := browserIPv4Number(part)
+		if !ok {
+			return nil, true, false
 		}
 		numbers[index] = value
 	}
 	for _, value := range numbers[:len(numbers)-1] {
 		if value > 255 {
-			return nil, false
+			return nil, true, false
 		}
 	}
 	remainingBytes := 5 - len(numbers)
 	lastLimit := (uint64(1) << (8 * remainingBytes)) - 1
 	if numbers[len(numbers)-1] > lastLimit {
-		return nil, false
+		return nil, true, false
 	}
 	var value uint64
 	for _, part := range numbers[:len(numbers)-1] {
 		value = value*256 + part
 	}
 	value = value*(uint64(1)<<(8*remainingBytes)) + numbers[len(numbers)-1]
-	return net.IPv4(byte(value>>24), byte(value>>16), byte(value>>8), byte(value)), true
+	return net.IPv4(byte(value>>24), byte(value>>16), byte(value>>8), byte(value)), true, true
+}
+
+func browserIPv4Number(input string) (uint64, bool) {
+	if input == "" {
+		return 0, false
+	}
+	base := 10
+	digits := input
+	lower := strings.ToLower(input)
+	if strings.HasPrefix(lower, "0x") {
+		base, digits = 16, input[2:]
+	} else if len(input) > 1 && input[0] == '0' {
+		base, digits = 8, input[1:]
+	}
+	if digits == "" {
+		return 0, true
+	}
+	value, err := strconv.ParseUint(digits, base, 32)
+	return value, err == nil
+}
+
+func asciiDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, character := range []byte(value) {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
 }
