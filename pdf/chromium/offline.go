@@ -14,6 +14,7 @@ import (
 )
 
 var cssURLPattern = regexp.MustCompile(`(?i)url\(\s*['\"]?([^'\"\)]+)`)
+var browserDotReplacer = strings.NewReplacer("\u3002", ".", "\uff0e", ".", "\uff61", ".")
 
 var subresourceAttributes = map[string]map[string]struct{}{
 	"audio":  {"src": {}},
@@ -174,7 +175,8 @@ func publicDocumentBaseURL(value string) (*url.URL, error) {
 	if err != nil || parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || (strings.ToLower(parsed.Scheme) != "http" && strings.ToLower(parsed.Scheme) != "https") {
 		return nil, chromiumError("pdf.relative_link_base_invalid", "base URL must be an absolute http or https URL")
 	}
-	hostname := strings.TrimRight(strings.ToLower(parsed.Hostname()), ".")
+	rawHostname := parsed.Hostname()
+	hostname := strings.TrimRight(strings.ToLower(browserDotReplacer.Replace(rawHostname)), ".")
 	address := net.ParseIP(hostname)
 	numeric, validNumeric := address != nil, true
 	if address == nil {
@@ -194,6 +196,10 @@ func publicDocumentBaseURL(value string) (*url.URL, error) {
 			canonicalHost = "[" + canonicalHost + "]"
 		}
 		parsed.Host = canonicalHost
+	} else if port := parsed.Port(); port != "" {
+		parsed.Host = net.JoinHostPort(hostname, port)
+	} else {
+		parsed.Host = hostname
 	}
 	return parsed, nil
 }
