@@ -44,11 +44,26 @@ Omitted `rawHTML` defaults to `deny`, omitted `outputBytes` defaults to the
 64 MiB maximum, and every omitted target projection defaults to `deny`.
 Non-deny projections require at least one allowed kind and origin.
 
-The policy is normalized and hashed as `sha256:...`. `check --diagnostics json`
-reports that identity. A site JSON report and its `margo-manifest.json` record
-the same value, binding the published output to the operator policy. Library
-compiler and artifact fingerprints bind the normalized extension
-configuration directly.
+The complete normalized CLI policy is hashed as a `sha256:...` digest.
+`check --diagnostics json` reports that identity. A site JSON report and its
+`margo-manifest.json` record the same value, binding the published output to
+the operator policy. This whole-policy digest is distinct from a library
+extension's unprefixed `ExtensionRegistration.Identity.ConfigurationHash`,
+which binds that extension's normalized configuration into compiler and
+artifact fingerprints.
+
+## Resource limits
+
+Each Markdown source is limited to 16 MiB before compilation; a site applies
+that limit independently to every discovered Markdown file. The policy
+`outputBytes` value must be between 1 byte and 64 MiB. It bounds the semantic
+document HTML produced by Margo's renderer, before a target adds a standalone
+HTML shell or packages that rendering as PDF or site artifacts. It is not a
+limit on the final standalone HTML file, PDF file, or aggregate site size.
+
+Each trusted-embed request additionally limits its URL to 4096 UTF-8 bytes,
+its accessible title to 256 UTF-8 bytes, and each dimension to the inclusive
+range 1 through 4096.
 
 ## Target projections
 
@@ -75,9 +90,9 @@ and noncanonical numeric IP shorthand are rejected rather than interpreted as
 browser-specific host syntax.
 Paths, wildcards, credentials, queries, and fragments are not valid allowed
 origins. Document URLs may contain a path, query, and fragment, but their exact
-origin must be present in the allowlist. Every request also needs a URL of at
-most 4096 UTF-8 bytes, a nonempty title, and dimensions between 1 and 4096;
-defaults are 640 by 360.
+origin must be present in the allowlist. Every request also needs a nonempty
+title. Omitted dimensions default to 640 by 360; the exact request limits are
+listed under [Resource limits](#resource-limits).
 
 The iframe sandbox starts empty. The only v1 tokens a host can add are
 `allow-presentation` and `allow-scripts`. Enabling scripts does not add
@@ -115,19 +130,46 @@ goshtoso:
 ---
 ```
 
-Margo then validates the fragment against the versioned `margo-html-v1`
-allowlist. It rejects invalid markup instead of rewriting it. This path is for
-allowlisted semantic fragments; use `trusted-embed` for remote media. Neither
-mechanism enables scripts, event attributes, or arbitrary iframe HTML.
+Margo then validates the fragment against the closed, versioned
+`margo-html-v1` profile. It rejects invalid markup instead of rewriting it.
+The complete v1 profile is:
+
+- Elements: `a`, `abbr`, `b`, `blockquote`, `br`, `cite`, `code`, `dd`, `del`,
+  `details`, `dfn`, `dl`, `dt`, `em`, `h1` through `h6`, `hr`, `i`, `kbd`,
+  `li`, `mark`, `ol`, `p`, `pre`, `q`, `s`, `samp`, `small`, `span`, `strong`,
+  `sub`, `summary`, `sup`, `table`, `tbody`, `td`, `tfoot`, `th`, `thead`,
+  `tr`, `u`, `ul`, and `var`.
+- Global attributes: `title`, `lang`, and `dir`; `dir` is exactly `ltr`, `rtl`,
+  or `auto`.
+- Element attributes: `a[href]`; `details[open]`; `ol[start,reversed,type]`;
+  `li[value]`; and `td`/`th` with `abbr`, `colspan`, `headers`, `rowspan`, or
+  `scope`.
+- `start`, `value`, `colspan`, and `rowspan` are positive integers. Boolean
+  `open` and `reversed` values are empty or repeat the attribute name. Ordered
+  list `type` is one of `1`, `a`, `A`, `i`, or `I`; table-cell `scope` is one
+  of `row`, `col`, `rowgroup`, or `colgroup`; `headers` cannot be blank.
+- `href` may be a relative reference or use `http`, `https`, `mailto`, or
+  `tel`. Network-path references such as `//example.com` and every other URL
+  scheme are rejected.
+- Text is allowed. Comments, namespaces, namespaced or duplicate attributes,
+  and control characters are rejected. Any element or attribute not listed
+  above is rejected; notably this excludes `img`, `class`, `id`, `style`,
+  event handlers, and arbitrary `data-*` or `aria-*` attributes.
+
+This path is for those allowlisted semantic fragments; use `trusted-embed` for
+remote media. Neither mechanism enables scripts, event attributes, or
+arbitrary iframe HTML.
 
 ## Consumer security headers
 
 Interactive output is only one layer of the consumer's security boundary. The
 HTTP application serving the page still owns Content Security Policy and
-related headers. Its CSP should grant `frame-src` only for iframe origins and
-`media-src` only for video origins selected in the Margo policy, while retaining
-the application's existing script, style, image, font, and connection rules.
-Do not widen `default-src` to make an embed work.
+related headers. For an interactive v1 iframe, its CSP should grant `frame-src`
+only for the exact iframe origins selected in the Margo policy, while retaining
+the application's existing script, style, image, font, media, and connection
+rules. A v1 `video` request can produce only a static link or a denial, so it
+loads no media subresource and requires no `media-src` widening. Do not widen
+`default-src` to make an embed work.
 
 Remote media also changes privacy, availability, and offline behavior. Use
 `static-link` or `deny` for self-contained/offline artifacts, and review the

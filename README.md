@@ -241,13 +241,15 @@ checks, err := margo.Check(ctx, source, margo.WithCheckExtension(trustedEmbeds))
 
 The matching Markdown fence contains typed data, not markup:
 
-```yaml
+````markdown
+```trusted-embed
 kind: iframe
 url: https://video.example.com/watch/123
 title: Architecture overview
 width: 800
 height: 450
 ```
+````
 
 The command uses the same model through a trusted operator-selected JSON file:
 
