@@ -37,6 +37,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	cmd.SetOut(deps.Stdout)
 	cmd.SetErr(deps.Stderr)
 	cmd.AddCommand(
+		newCheckCommand(deps),
 		newHTMLCommand(deps),
 		newPDFCommand(deps),
 		newDeckCommand(deps),

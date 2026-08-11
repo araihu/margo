@@ -19,7 +19,7 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "deck INPUT",
 		Short: "Render an HTML or PDF presentation deck",
-		Args:  cobra.ExactArgs(1),
+		Args:  diagnosticExactArgs(1, &diagnostics),
 		RunE: func(command *cobra.Command, args []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {
@@ -45,6 +45,7 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVarP(&output.Path, "output", "o", "-", "output path, or - for stdout")
 	command.Flags().BoolVarP(&output.Force, "force", "f", false, "replace an existing output file")
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
+	bindDiagnosticFlagErrors(command, &diagnostics)
 	engineOptions.bind(command)
 	pageOptions.bind(command)
 	return command

@@ -38,6 +38,7 @@ browser or load native WebKit libraries.
 The one binary contains the full command surface:
 
 ```sh
+margo check article.md
 margo html article.md --output article.html
 margo pdf article.md --output article.pdf
 margo deck talk.md --output talk.html
@@ -49,8 +50,16 @@ margo version
 `INPUT` is exactly one file path or `-` for stdin. `html` and HTML decks
 default to artifact stdout. PDF output requires an explicit path; `--output -`
 allows binary stdout. An existing file is refused unless `--force` is present.
-Diagnostics go to stderr and artifacts go to stdout or their destination;
-choose deterministic text or JSON with `--diagnostics text|json`.
+Conversion failures go to stderr and artifacts go to stdout or their
+destination. `check` reports findings on stdout. Choose deterministic text or
+JSON with `--diagnostics text|json`.
+
+Run `margo check INPUT` before rendering an unfamiliar document. It reports
+raw HTML, missing or remote images, incompatible SVG, invalid frontmatter,
+legacy Mermaid configuration, empty image alternatives, and relative links.
+Every finding includes the source, line, field pointer, and a remediation
+hint. Errors make the command exit nonzero; accessibility and link-policy
+warnings remain visible without blocking the check.
 
 ## PDF engines
 
@@ -154,6 +163,11 @@ func main() {
 	}
 }
 ```
+
+Library consumers can run the same read-only preflight with `margo.Check`.
+Supply `margo.WithCheckAssetReader` when local asset existence and SVG
+compatibility should be checked; without a reader, source-only checks still
+run.
 
 ### Opt into charts
 

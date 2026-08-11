@@ -34,8 +34,9 @@ func (a AssetSet) clone() AssetSet {
 type Severity string
 
 const (
-	SeverityInfo  Severity = "info"
-	SeverityError Severity = "error"
+	SeverityInfo    Severity = "info"
+	SeverityWarning Severity = "warning"
+	SeverityError   Severity = "error"
 )
 
 // Diagnostic is a stable, serializable problem projection.

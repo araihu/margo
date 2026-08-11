@@ -26,7 +26,7 @@ func newDoctorCommand(deps Dependencies) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "doctor",
 		Short: "Report available rendering engines",
-		Args:  cobra.NoArgs,
+		Args:  diagnosticNoArgs(&diagnostics),
 		RunE: func(command *cobra.Command, _ []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {
@@ -56,5 +56,6 @@ func newDoctorCommand(deps Dependencies) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "output format: text or json")
+	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }

@@ -12,7 +12,7 @@ func newHTMLCommand(deps Dependencies) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "html INPUT",
 		Short: "Render standalone HTML",
-		Args:  cobra.ExactArgs(1),
+		Args:  diagnosticExactArgs(1, &diagnostics),
 		RunE: func(command *cobra.Command, args []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {
@@ -31,6 +31,7 @@ func newHTMLCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVarP(&options.Path, "output", "o", "-", "output path, or - for stdout")
 	command.Flags().BoolVarP(&options.Force, "force", "f", false, "replace an existing output file")
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
+	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
 
