@@ -151,9 +151,12 @@ func normalizePolicyEmbeds(document policyEmbedDocument) (policyEmbedDocument, e
 	for _, projection := range []margoembed.Projection{
 		document.Projections.HTML, document.Projections.PDF, document.Projections.Site, document.Projections.Deck,
 	} {
-		if projection != margoembed.ProjectionDeny {
+		if projection == margoembed.ProjectionInteractive {
 			capabilityProjection = projection
 			break
+		}
+		if projection == margoembed.ProjectionStaticLink {
+			capabilityProjection = projection
 		}
 	}
 	base := margoembed.Policy{

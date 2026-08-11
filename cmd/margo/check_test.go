@@ -122,3 +122,29 @@ func TestWriteCheckReportIncludesPolicyIdentityInText(t *testing.T) {
 		t.Fatalf("text report = %q", output.String())
 	}
 }
+
+func TestCheckCommandRejectsRawHTMLOutsideSanitizedAllowlist(t *testing.T) {
+	root := t.TempDir()
+	policyPath := filepath.Join(root, "policy.json")
+	input := filepath.Join(root, "unsafe.md")
+	if err := os.WriteFile(policyPath, []byte(`{"schemaVersion":"margo-policy/v1","rawHTML":"sanitized"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	markdown := "---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<script>alert(1)</script>\n"
+	if err := os.WriteFile(input, []byte(markdown), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &bytes.Buffer{}, Build: testBuildInfo()})
+	command.SetArgs([]string{"check", input, "--policy", policyPath, "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err == nil {
+		t.Fatal("unsafe raw HTML passed policy-aware check")
+	}
+	var report checkReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("report: %v: %s", err, stdout.String())
+	}
+	if report.Errors != 1 || len(report.Diagnostics) != 1 || report.Diagnostics[0].Code != "policy.html.invalid" {
+		t.Fatalf("report = %+v", report)
+	}
+}

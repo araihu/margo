@@ -23,7 +23,7 @@ Markdown.
   "rawHTML": "deny",
   "outputBytes": 67108864,
   "trustedEmbeds": {
-    "allowedKinds": ["iframe", "video"],
+    "allowedKinds": ["iframe"],
     "allowedOrigins": [
       "https://media.example.com",
       "https://video.example.com"
@@ -56,8 +56,8 @@ Each target independently chooses one of three projections:
 
 | Projection | Result |
 | --- | --- |
-| `interactive` | Emit a sandboxed iframe or a native video element. |
-| `static-link` | Emit only an ordinary HTTPS link using the required accessible title. |
+| `interactive` | Emit a sandboxed iframe. |
+| `static-link` | Emit only a no-referrer HTTPS link using the required accessible title. |
 | `deny` | Reject the typed embed for that target. |
 
 A typical public-site policy uses `interactive` for `html` and `site`,
@@ -65,8 +65,12 @@ A typical public-site policy uses `interactive` for `html` and `site`,
 the explicit degradation path; Margo never silently inserts interactive
 content into a target configured otherwise.
 
-`iframe` and `video` are the only kinds in `margo-policy/v1`. Origins match
-exactly after lowercasing the HTTPS host and normalizing a trailing slash.
+`iframe` and `video` are the only kinds in `margo-policy/v1`. Interactive v1
+projections accept only `iframe`: native video elements cannot enforce the
+required no-referrer policy. A policy that allows `video` must therefore use
+only `static-link` or `deny` projections. Origins match exactly after
+lowercasing the HTTPS host, removing the default `:443` port, and normalizing a
+trailing slash.
 Paths, wildcards, credentials, queries, and fragments are not valid allowed
 origins. Document URLs may contain a path, query, and fragment, but their exact
 origin must be present in the allowlist. Every request also needs a nonempty

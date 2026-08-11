@@ -60,7 +60,7 @@ func TestSiteCommandPublishesInteractiveEmbedAndPolicyIdentity(t *testing.T) {
   "schemaVersion": "margo-policy/v1",
   "rawHTML": "sanitized",
   "trustedEmbeds": {
-    "allowedKinds": ["video", "iframe"],
+    "allowedKinds": ["iframe"],
     "allowedOrigins": ["https://video.example.com/", "https://media.example.com"],
     "iframeSandbox": ["allow-scripts", "allow-presentation"],
     "projections": {
@@ -80,7 +80,7 @@ func TestSiteCommandPublishesInteractiveEmbedAndPolicyIdentity(t *testing.T) {
 	if err := command.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("site: %v\nstderr: %s", err, stderr.String())
 	}
-	const digest = "sha256:3614aded7db067ed69d87ee913f5250400d54d4f12e17883648a138fec8ef93d"
+	const digest = "sha256:8ff61766ff8abed0c4329911331a63e7ed63d9be61037e557c1124becb62062f"
 	var report struct {
 		Policy string `json:"policy"`
 	}

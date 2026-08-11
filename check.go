@@ -125,17 +125,18 @@ func WithCheckAssetReader(reader CheckAssetReader) CheckOption {
 // ceiling used for compilation. Document metadata can request capabilities but
 // cannot elevate this policy.
 func WithCheckPolicy(policy Policy) CheckOption {
+	if policy.RawHTML == "" {
+		policy.RawHTML = RawHTMLDeny
+	}
+	frozen := policy
 	return func(config *checkConfig) error {
-		if policy.RawHTML == "" {
-			policy.RawHTML = RawHTMLDeny
-		}
-		if err := validateRawHTMLMode(policy.RawHTML); err != nil {
+		if err := validateRawHTMLMode(frozen.RawHTML); err != nil {
 			return err
 		}
-		if policy.OutputBytes < MinOutputBytes || policy.OutputBytes > MaxOutputBytes {
+		if frozen.OutputBytes < MinOutputBytes || frozen.OutputBytes > MaxOutputBytes {
 			return policyDiagnostic("policy.output_bytes_invalid", "output byte limit must be between 1 and 67108864")
 		}
-		config.policy = policy
+		config.policy = frozen
 		config.policySet = true
 		return nil
 	}
@@ -144,16 +145,17 @@ func WithCheckPolicy(policy Policy) CheckOption {
 // WithCheckExtension enables an extension's read-only fence validation during
 // compatibility analysis.
 func WithCheckExtension(registration ExtensionRegistration) CheckOption {
+	frozen := cloneRegistration(registration)
 	return func(config *checkConfig) error {
-		if registration.Check == nil {
-			return fmt.Errorf("check.extension_invalid: extension %q has no checker", registration.Identity.Name)
+		candidate := cloneRegistration(frozen)
+		if candidate.Check == nil {
+			return fmt.Errorf("check.extension_invalid: extension %q has no checker", candidate.Identity.Name)
 		}
-		if registration.Identity.Name == "" || registration.Identity.Version == "" || len(registration.Fences) == 0 {
+		if candidate.Identity.Name == "" || candidate.Identity.Version == "" || len(candidate.Fences) == 0 {
 			return fmt.Errorf("check.extension_invalid: extension identity and fences are required")
 		}
-		registration = cloneRegistration(registration)
-		localFences := make(map[string]struct{}, len(registration.Fences))
-		for _, fence := range registration.Fences {
+		localFences := make(map[string]struct{}, len(candidate.Fences))
+		for _, fence := range candidate.Fences {
 			if fence == "" {
 				return fmt.Errorf("check.extension_invalid: extension fence is empty")
 			}
@@ -163,18 +165,18 @@ func WithCheckExtension(registration ExtensionRegistration) CheckOption {
 			localFences[fence] = struct{}{}
 		}
 		for _, existing := range config.extensions {
-			if existing.Identity.Name == registration.Identity.Name {
-				return fmt.Errorf("check.extension_invalid: duplicate extension name %q", registration.Identity.Name)
+			if existing.Identity.Name == candidate.Identity.Name {
+				return fmt.Errorf("check.extension_invalid: duplicate extension name %q", candidate.Identity.Name)
 			}
 			for _, left := range existing.Fences {
-				for _, right := range registration.Fences {
+				for _, right := range candidate.Fences {
 					if left == right {
 						return fmt.Errorf("check.extension_invalid: duplicate fence %q", left)
 					}
 				}
 			}
 		}
-		config.extensions = append(config.extensions, registration)
+		config.extensions = append(config.extensions, candidate)
 		return nil
 	}
 }
@@ -203,14 +205,15 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 		return actionableCheckFailure(snapshot, err), nil
 	}
 	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
-	allowRawHTML := checkAllowsRawHTML(config, frontmatter)
+	effectivePolicy, policyDiagnostics := checkPolicyCompatibility(config, snapshot, frontmatter, root)
+	allowRawHTML := config.policySet && len(policyDiagnostics) == 0 && effectivePolicy.RawHTML == RawHTMLSanitized
 	extensionChecks := make(map[string]ExtensionCheck)
 	for _, registration := range config.extensions {
 		for _, fence := range registration.Fences {
 			extensionChecks[fence] = registration.Check
 		}
 	}
-	diagnostics := checkMetadata(snapshot, frontmatter)
+	diagnostics := append(checkMetadata(snapshot, frontmatter), policyDiagnostics...)
 	locator := checkLocator{source: frontmatter.body}
 	lastHeadingLevel := 0
 	rawContainers := make(map[goldast.Node]struct{})
@@ -230,12 +233,28 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			lastHeadingLevel = value.Level
 		case *goldast.HTMLBlock:
 			if allowRawHTML {
+				fragment := value.Lines().Value(frontmatter.body)
+				if validationErr := ValidateHTML(string(fragment)); validationErr != nil {
+					offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
+					diagnostics = append(diagnostics, checkDiagnostic(snapshot, "policy.html.invalid", SeverityError, "/rawHTML", validationErr.Error(), "Use only elements and attributes accepted by the margo-html-v1 allowlist.", offset))
+				}
+				break
+			}
+			if config.policySet {
 				break
 			}
 			offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 			diagnostics = append(diagnostics, checkDiagnostic(snapshot, "check.raw_html", SeverityError, "/rawHTML", "raw HTML is not accepted by the default CLI policy", "Replace the fragment with Markdown before rendering.", offset))
 		case *goldast.RawHTML:
 			if allowRawHTML {
+				fragment := value.Segments.Value(frontmatter.body)
+				if validationErr := ValidateHTML(string(fragment)); validationErr != nil {
+					offset := frontmatter.bodyOffset + segmentAtStart(value.Segments)
+					diagnostics = append(diagnostics, checkDiagnostic(snapshot, "policy.html.invalid", SeverityError, "/rawHTML", validationErr.Error(), "Use only elements and attributes accepted by the margo-html-v1 allowlist.", offset))
+				}
+				break
+			}
+			if config.policySet {
 				break
 			}
 			container := value.Parent()
@@ -327,16 +346,34 @@ func extensionCheckDiagnostics(source Source, node ExtensionNode, failure error)
 	}}
 }
 
-func checkAllowsRawHTML(config checkConfig, frontmatter frontmatterResult) bool {
-	if !config.policySet || config.policy.RawHTML != RawHTMLSanitized || frontmatter.goshtoso == nil {
-		return false
+func checkPolicyCompatibility(config checkConfig, source Source, frontmatter frontmatterResult, root goldast.Node) (EffectivePolicy, []Diagnostic) {
+	if !config.policySet {
+		return EffectivePolicy{}, nil
 	}
-	security, ok := frontmatter.goshtoso["security"].(map[string]any)
-	if !ok {
-		return false
+	compilerConfig := newCompilerConfig()
+	compilerConfig.values["hostPolicy"] = config.policy
+	normalized := sourceNormalization{
+		parsed: normalizedMarkdown{frontmatter: frontmatter, root: root}, sourceBytes: int64(len(source.Content)),
 	}
-	mode, ok := security["rawHTML"].(string)
-	return ok && RawHTMLMode(mode) == RawHTMLSanitized
+	effective, err := defaultEvaluatePolicy(compilerConfig, normalized)
+	if err == nil {
+		return effective, nil
+	}
+	var diagnosticFailure *DiagnosticError
+	if !errors.As(err, &diagnosticFailure) || len(diagnosticFailure.Diagnostics) == 0 {
+		return EffectivePolicy{}, []Diagnostic{checkDiagnostic(source, "check.policy_invalid", SeverityError, "/goshtoso/security/rawHTML", err.Error(), "Align the document declaration with the trusted host policy.", 0)}
+	}
+	diagnostics := cloneDiagnostics(diagnosticFailure.Diagnostics)
+	for index := range diagnostics {
+		diagnostics[index].Source = source.Name
+		diagnostics[index].Line = 1
+		diagnostics[index].Column = 1
+		if diagnostics[index].Pointer == "" {
+			diagnostics[index].Pointer = "/goshtoso/security/rawHTML"
+		}
+		diagnostics[index].Hint = "Align the document raw-HTML declaration with the trusted host policy."
+	}
+	return EffectivePolicy{}, diagnostics
 }
 
 func actionableCheckFailure(source Source, failure error) []Diagnostic {

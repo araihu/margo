@@ -67,6 +67,8 @@ func TestExtensionProjectsAuthorizedEmbedAsStaticLink(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<a class="margo-trusted-embed__link" href="https://video.example.com/watch/123"`,
+		`rel="noreferrer"`,
+		`referrerpolicy="no-referrer"`,
 		`>Architecture overview</a>`,
 	} {
 		if !strings.Contains(markup, want) {
@@ -86,24 +88,29 @@ func TestExtensionFailsClosedWhenProjectionDeniesEmbeds(t *testing.T) {
 	}
 }
 
-func TestExtensionRendersTypedInteractiveVideoWithFallback(t *testing.T) {
-	markup, err := render(t, margoembed.Policy{
+func TestNormalizePolicyRejectsInteractiveVideoWithoutEnforceableReferrer(t *testing.T) {
+	_, err := margoembed.NormalizePolicy(margoembed.Policy{
 		Projection:     margoembed.ProjectionInteractive,
 		AllowedKinds:   []margoembed.Kind{margoembed.KindVideo},
 		AllowedOrigins: []string{"https://media.example.com"},
-	}, "kind: video\nurl: https://media.example.com/demo.mp4\ntitle: Product demonstration\nwidth: 960\nheight: 540\n")
+	})
+	if err == nil || !strings.Contains(err.Error(), "embed.policy_invalid") || !strings.Contains(err.Error(), "video") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestExtensionProjectsAuthorizedVideoAsNoreferrerStaticLink(t *testing.T) {
+	markup, err := render(t, margoembed.Policy{
+		Projection:     margoembed.ProjectionStaticLink,
+		AllowedKinds:   []margoembed.Kind{margoembed.KindVideo},
+		AllowedOrigins: []string{"https://media.example.com"},
+	}, "kind: video\nurl: https://media.example.com/demo.mp4\ntitle: Product demonstration\n")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{
-		`<video class="margo-trusted-embed__media"`,
-		`src="https://media.example.com/demo.mp4"`,
-		`aria-label="Product demonstration"`,
-		`controls`, `preload="metadata"`,
-		`<a href="https://media.example.com/demo.mp4">Product demonstration</a>`,
-	} {
+	for _, want := range []string{`href="https://media.example.com/demo.mp4"`, `rel="noreferrer"`, `referrerpolicy="no-referrer"`} {
 		if !strings.Contains(markup, want) {
-			t.Fatalf("interactive video missing %q: %s", want, markup)
+			t.Fatalf("static video link missing %q: %s", want, markup)
 		}
 	}
 }
@@ -268,6 +275,43 @@ func TestPolicyConfigurationHashBindsProjectionAndOrigin(t *testing.T) {
 	}
 	if first == second || first == third || second == third {
 		t.Fatalf("distinct capabilities share a hash: %q %q %q", first, second, third)
+	}
+}
+
+func TestPolicyCanonicalizesDefaultHTTPSPortForMatchingAndHashing(t *testing.T) {
+	withoutPort := margoembed.Policy{
+		Projection:     margoembed.ProjectionStaticLink,
+		AllowedKinds:   []margoembed.Kind{margoembed.KindIframe},
+		AllowedOrigins: []string{"https://video.example.com"},
+	}
+	withPort := withoutPort
+	withPort.AllowedOrigins = []string{"https://video.example.com:443"}
+	first, err := withoutPort.ConfigurationHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := withPort.ConfigurationHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Fatalf("browser-equivalent origins have different hashes: %q != %q", first, second)
+	}
+
+	for _, test := range []struct {
+		name   string
+		policy margoembed.Policy
+		url    string
+	}{
+		{name: "policy has port", policy: withPort, url: "https://video.example.com/watch"},
+		{name: "request has port", policy: withoutPort, url: "https://video.example.com:443/watch"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := render(t, test.policy, "kind: iframe\nurl: "+test.url+"\ntitle: Video\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 

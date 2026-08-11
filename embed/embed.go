@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"net"
 	"net/url"
 	"sort"
 	"strconv"
@@ -136,17 +137,11 @@ func (s session) Render(ctx context.Context, node margo.ExtensionNode, output io
 		return err
 	}
 	if s.policy.Projection == ProjectionStaticLink {
-		_, err = fmt.Fprintf(output, `<figure class="margo-trusted-embed margo-trusted-embed--static"><a class="margo-trusted-embed__link" href="%s">%s</a></figure>`, html.EscapeString(parsed.URL), html.EscapeString(parsed.Title))
+		_, err = fmt.Fprintf(output, `<figure class="margo-trusted-embed margo-trusted-embed--static"><a class="margo-trusted-embed__link" href="%s" rel="noreferrer" referrerpolicy="%s">%s</a></figure>`, html.EscapeString(parsed.URL), html.EscapeString(string(s.policy.ReferrerPolicy)), html.EscapeString(parsed.Title))
 		return err
 	}
 	if s.policy.Projection != ProjectionInteractive {
 		return diagnostic(node, "embed.policy_denied", "/embed", "trusted embeds are denied for this output target", "Remove the embed or choose an explicitly authorized output target.")
-	}
-	if parsed.Kind == KindVideo {
-		_, err = fmt.Fprintf(output, `<figure class="margo-trusted-embed margo-trusted-embed--video"><video class="margo-trusted-embed__media" src="%s" aria-label="%s" width="%d" height="%d" controls preload="metadata"><a href="%s">%s</a></video></figure>`,
-			html.EscapeString(parsed.URL), html.EscapeString(parsed.Title), parsed.Width, parsed.Height,
-			html.EscapeString(parsed.URL), html.EscapeString(parsed.Title))
-		return err
 	}
 	sandbox := make([]string, len(s.policy.IframeSandbox))
 	for index, token := range s.policy.IframeSandbox {
@@ -226,6 +221,9 @@ func normalizePolicy(policy Policy) (Policy, error) {
 		if kind != KindIframe && kind != KindVideo {
 			return Policy{}, fmt.Errorf("embed.policy_invalid: unsupported kind %q", kind)
 		}
+		if policy.Projection == ProjectionInteractive && kind == KindVideo {
+			return Policy{}, fmt.Errorf("embed.policy_invalid: interactive video cannot enforce the required no-referrer policy; use static-link")
+		}
 	}
 	for index, origin := range policy.AllowedOrigins {
 		normalized, err := policyOrigin(origin)
@@ -253,7 +251,11 @@ func requestOrigin(value string) (string, error) {
 	if err != nil || strings.ToLower(parsed.Scheme) != "https" || parsed.Host == "" || parsed.User != nil {
 		return "", fmt.Errorf("embed URL must be absolute HTTPS without credentials")
 	}
-	return "https://" + strings.ToLower(parsed.Host), nil
+	origin, err := canonicalHTTPSOrigin(parsed)
+	if err != nil {
+		return "", fmt.Errorf("embed URL has an invalid origin: %w", err)
+	}
+	return origin, nil
 }
 
 func policyOrigin(value string) (string, error) {
@@ -261,12 +263,35 @@ func policyOrigin(value string) (string, error) {
 	if err != nil || strings.ToLower(parsed.Scheme) != "https" || parsed.Host == "" || parsed.User != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return "", fmt.Errorf("allowed origin %q must be an HTTPS origin without path, query, fragment, or credentials", value)
 	}
-	if port := parsed.Port(); port != "" {
-		if number, err := strconv.Atoi(port); err != nil || number < 1 || number > 65535 {
-			return "", fmt.Errorf("allowed origin %q has an invalid port", value)
+	origin, err := canonicalHTTPSOrigin(parsed)
+	if err != nil {
+		return "", fmt.Errorf("allowed origin %q has an invalid origin: %w", value, err)
+	}
+	return origin, nil
+}
+
+func canonicalHTTPSOrigin(parsed *url.URL) (string, error) {
+	hostname := strings.ToLower(parsed.Hostname())
+	if hostname == "" {
+		return "", fmt.Errorf("hostname is empty")
+	}
+	port := parsed.Port()
+	if port != "" {
+		number, err := strconv.Atoi(port)
+		if err != nil || number < 1 || number > 65535 {
+			return "", fmt.Errorf("port is outside 1 through 65535")
+		}
+		if number == 443 {
+			port = ""
 		}
 	}
-	return "https://" + strings.ToLower(parsed.Host), nil
+	host := hostname
+	if port != "" {
+		host = net.JoinHostPort(hostname, port)
+	} else if strings.Contains(hostname, ":") {
+		host = "[" + hostname + "]"
+	}
+	return "https://" + host, nil
 }
 
 func policyHash(policy Policy) (string, error) {

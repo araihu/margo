@@ -8,11 +8,24 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 type checkMapReader map[string][]byte
+
+func firstDiagnosticCode(err error) string {
+	diagnostic := unwrapDiagnostic(err)
+	if diagnostic != nil && len(diagnostic.Diagnostics) > 0 {
+		return diagnostic.Diagnostics[0].Code
+	}
+	if err == nil {
+		return ""
+	}
+	code, _, _ := strings.Cut(err.Error(), ":")
+	return code
+}
 
 func (reader checkMapReader) ReadAsset(ctx context.Context, root, name string, limit int64) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
@@ -93,8 +106,92 @@ func TestCheckPolicyAllowsOnlyDeclaredSanitizedRawHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diagnostics) != 1 || diagnostics[0].Code != "check.raw_html" {
+	if len(diagnostics) != 1 || diagnostics[0].Code != "policy.raw_html.undeclared" {
 		t.Fatalf("undeclared diagnostics = %+v", diagnostics)
+	}
+}
+
+func TestCheckPolicyMatchesCompileAndRenderRawHTMLFailures(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy Policy
+		source Source
+		code   string
+	}{
+		{
+			name:   "sanitized declaration cannot bypass HTML allowlist",
+			policy: Policy{RawHTML: RawHTMLSanitized, OutputBytes: MaxOutputBytes},
+			source: Source{Name: "unsafe.md", Content: []byte("---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\n<script>alert(1)</script>\n")},
+			code:   "policy.html.invalid",
+		},
+		{
+			name:   "document cannot exceed deny ceiling",
+			policy: Policy{RawHTML: RawHTMLDeny, OutputBytes: MaxOutputBytes},
+			source: Source{Name: "mismatch.md", Content: []byte("---\nlanguage: en\ngoshtoso:\n  security:\n    rawHTML: sanitized\n---\n\nPlain text.\n")},
+			code:   "policy.raw_html.mismatch",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			diagnostics, err := Check(context.Background(), test.source, WithCheckPolicy(test.policy))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(diagnostics) != 1 || diagnostics[0].Code != test.code {
+				t.Fatalf("check diagnostics = %+v", diagnostics)
+			}
+
+			compiler := New(WithHostPolicy(test.policy))
+			document, compileErr := compiler.Compile(context.Background(), test.source)
+			var renderErr error
+			if compileErr == nil {
+				result, err := compiler.Render(context.Background(), document)
+				if err == nil {
+					var output strings.Builder
+					renderErr = result.Content().Render(context.Background(), &output)
+				} else {
+					renderErr = err
+				}
+			}
+			failure := compileErr
+			if failure == nil {
+				failure = renderErr
+			}
+			if got := firstDiagnosticCode(failure); got != test.code {
+				t.Fatalf("compile/render diagnostic = %q, want %q, error = %v", got, test.code, failure)
+			}
+		})
+	}
+}
+
+func TestCheckOptionsAreSafeForConcurrentReuse(t *testing.T) {
+	policyOption := WithCheckPolicy(Policy{OutputBytes: MaxOutputBytes})
+	extensionOption := WithCheckExtension(ExtensionRegistration{
+		Identity: ExtensionIdentity{Name: "demo-check", Version: "v1"}, Fences: []string{"demo-check"},
+		Check: func(context.Context, ExtensionNode) error { return nil },
+	})
+	source := Source{Name: "safe.md", Content: []byte("---\nlanguage: en\n---\n\n```demo-check\nsafe\n```\n")}
+	const workers = 64
+	failures := make(chan error, workers)
+	var group sync.WaitGroup
+	for index := 0; index < workers; index++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			diagnostics, err := Check(context.Background(), source, policyOption, extensionOption)
+			if err != nil {
+				failures <- err
+				return
+			}
+			if len(diagnostics) != 0 {
+				failures <- errors.New("concurrent check returned diagnostics")
+			}
+		}()
+	}
+	group.Wait()
+	close(failures)
+	for err := range failures {
+		t.Fatal(err)
 	}
 }
 

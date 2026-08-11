@@ -141,7 +141,7 @@
     margin-block: calc(var(--spacing) * 4);
     overflow: hidden;
   }
-  .margo-document :where(.margo-trusted-embed__frame, .margo-trusted-embed__media) {
+  .margo-document .margo-trusted-embed__frame {
     display: block;
     max-inline-size: 100%;
     block-size: auto;
