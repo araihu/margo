@@ -74,6 +74,38 @@ func TestDaggerModuleKeepsPublishEffectsAtProviderBoundary(t *testing.T) {
 	}
 }
 
+func TestDaggerModuleUsesGeneratedSDKBindingsConsistently(t *testing.T) {
+	data, err := os.ReadFile("dagger/main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	if !strings.Contains(source, `"dagger/margo/internal/dagger"`) {
+		t.Fatal("Dagger module does not use generated internal SDK bindings")
+	}
+	for _, forbidden := range []string{
+		`"dagger.io/dagger"`,
+		`"dagger.io/dagger/dag"`,
+	} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("Dagger module imports incompatible external SDK binding %s", forbidden)
+		}
+	}
+	for _, signature := range []string{
+		`Source *dagger.Directory`,
+		`source *dagger.Directory`,
+		`ciContext *dagger.File`,
+		`gitBundle *dagger.File`,
+	} {
+		if !strings.Contains(source, signature) {
+			t.Fatalf("Dagger module misses generated SDK type contract %q", signature)
+		}
+	}
+	if !strings.Contains(source, "dag.Container()") || !strings.Contains(source, "dag.CacheVolume(") {
+		t.Fatal("Dagger module does not use generated global client")
+	}
+}
+
 func TestDaggerInstallerPinsOfficialLinuxArchive(t *testing.T) {
 	data, err := os.ReadFile("scripts/install-dagger.sh")
 	if err != nil {

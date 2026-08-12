@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"dagger.io/dagger"
-	"dagger.io/dagger/dag"
+	"dagger/margo/internal/dagger"
 )
 
 const (
