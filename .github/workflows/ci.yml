@@ -28,62 +28,68 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - name: Prepare isolated cache context
+        shell: bash
+        env:
+          MARGO_CACHE_DOMAIN: ${{ github.event_name == 'pull_request' && format('untrusted-pr-{0}', github.event.pull_request.number) || 'trusted-main' }}
+          MARGO_RUN_ID: ${{ github.run_id }}
+          MARGO_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: scripts/write-dagger-context.sh
+
+      - name: Install exact Dagger CLI
+        shell: bash
+        env:
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+        run: |
+          scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
+          printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
+
+      - name: Run required CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          dagger call required --ci-context=.dagger-ci-context.json
+
+  portable-linux:
+    name: Release shape (portable-linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version: ${{ env.GO_VERSION }}
-          check-latest: false
-          cache: false
+          persist-credentials: false
 
-      - name: Verify module layout
+      - name: Prepare isolated cache context
+        shell: bash
+        env:
+          MARGO_CACHE_DOMAIN: ${{ github.event_name == 'pull_request' && format('untrusted-pr-{0}', github.event.pull_request.number) || 'trusted-main' }}
+          MARGO_RUN_ID: ${{ github.run_id }}
+          MARGO_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: scripts/write-dagger-context.sh
+
+      - name: Install exact Dagger CLI
+        shell: bash
+        env:
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+        run: |
+          scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
+          printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
+
+      - name: Build and verify release shape
         shell: bash
         run: |
           set -euo pipefail
-          module_files="$(find . -name go.mod -not -path './.git/*' -not -path '*/vendor/*' -print | sort)"
-          if [[ "$module_files" != './go.mod' ]]; then
-            echo "::error::expected exactly ./go.mod, found:"
-            echo "$module_files"
-            exit 1
-          fi
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          dagger call portable-release-shape --ci-context=.dagger-ci-context.json
 
-      - name: Verify dependencies
-        run: go mod verify
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test
-        run: go test ./... -count=1
-
-      - name: Build
-        run: go build ./...
-
-      - name: Regenerate schema references
-        run: go generate ./...
-
-      - name: Check formatting and module drift
-        shell: bash
-        run: |
-          set -euo pipefail
-          unformatted="$(gofmt -l .)"
-          if [[ -n "$unformatted" ]]; then
-            echo "::error::gofmt drift in:"
-            echo "$unformatted"
-            exit 1
-          fi
-          git diff --exit-code
-
-  release-shape:
+  native-release-shape:
     name: Release shape (${{ matrix.label }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - label: portable-linux
-            runner: ubuntu-24.04
-            cgo: '0'
-            artifact: margo
           - label: macos
             runner: macos-15
             cgo: '1'
@@ -98,7 +104,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Go
+      - name: Set up native Go toolchain
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -127,38 +133,32 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          check-latest: false
-          cache: false
+      - name: Prepare isolated cache context
+        shell: bash
+        env:
+          MARGO_CACHE_DOMAIN: ${{ github.event_name == 'pull_request' && format('untrusted-pr-{0}', github.event.pull_request.number) || 'trusted-main' }}
+          MARGO_RUN_ID: ${{ github.run_id }}
+          MARGO_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: scripts/write-dagger-context.sh
 
-      - name: Build release snapshot
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
-        with:
-          distribution: goreleaser
-          version: v2.17.1
-          args: release --snapshot --clean --skip=publish
+      - name: Materialize self-contained Git metadata
+        shell: bash
+        run: scripts/prepare-dagger-git.sh
 
-      - name: Verify archives and checksums
+      - name: Install exact Dagger CLI
+        shell: bash
+        env:
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+        run: |
+          scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
+          printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
+
+      - name: Build and verify release snapshot
         shell: bash
         run: |
           set -euo pipefail
-          cd dist
-          shasum -a 256 -c checksums.txt
-          archive_count="$(find . -maxdepth 1 -type f \( -name 'margo_*.tar.gz' -o -name 'margo_*.zip' \) | wc -l | tr -d ' ')"
-          test "$archive_count" -eq 6
-          for archive in margo_*.tar.gz; do
-            tar -tzf "$archive" | grep -qx 'margo'
-            tar -tzf "$archive" | grep -qx 'LICENSE'
-            tar -tzf "$archive" | grep -qx 'README.md'
-          done
-          for archive in margo_*.zip; do
-            unzip -Z1 "$archive" | grep -qx 'margo.exe'
-            unzip -Z1 "$archive" | grep -qx 'LICENSE'
-            unzip -Z1 "$archive" | grep -qx 'README.md'
-          done
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          dagger call snapshot --git-bundle=.dagger-git.bundle --ci-context=.dagger-ci-context.json sync
 
   musl:
     name: Portable musl and no-browser behavior
@@ -169,24 +169,25 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Execute in Alpine Linux
+      - name: Prepare isolated cache context
+        shell: bash
+        env:
+          MARGO_CACHE_DOMAIN: ${{ github.event_name == 'pull_request' && format('untrusted-pr-{0}', github.event.pull_request.number) || 'trusted-main' }}
+          MARGO_RUN_ID: ${{ github.run_id }}
+          MARGO_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: scripts/write-dagger-context.sh
+
+      - name: Install exact Dagger CLI
+        shell: bash
+        env:
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+        run: |
+          scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
+          printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
+
+      - name: Run Alpine contract
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm \
-            --volume "$PWD:/src:ro" \
-            --workdir /src \
-            --env GOWORK=off \
-            --env GOFLAGS=-mod=readonly \
-            "golang:${GO_VERSION}-alpine" \
-            sh -euxc '
-              export CGO_ENABLED=0
-              go test ./pdf/native -count=1
-              go build -trimpath -o /tmp/margo ./cmd/margo
-              /tmp/margo doctor --diagnostics json | grep -q pdf.native.compiled_out
-              if printf "# no browser\n" | /tmp/margo pdf - --output /tmp/should-not-exist.pdf; then
-                echo "PDF unexpectedly succeeded without an engine" >&2
-                exit 1
-              fi
-              test ! -e /tmp/should-not-exist.pdf
-            '
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          dagger call musl --ci-context=.dagger-ci-context.json

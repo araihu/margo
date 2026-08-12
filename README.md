@@ -9,6 +9,30 @@ and presentation decks. It ships as one Go module and one `margo`
 command. Applications keep ownership of URLs, navigation, storage, and
 deployment.
 
+## Local CI with Dagger
+
+Margo's portable CI logic is exposed by the Dagger module and uses Dagger
+v0.21.8. The same functions back the GitHub Actions adapters:
+
+```sh
+dagger call required
+dagger call portable-release-shape
+scripts/prepare-dagger-git.sh
+dagger call snapshot --git-bundle=.dagger-git.bundle export --path=dist
+dagger call musl
+dagger call pages-site export --path=_site
+```
+
+Go modules and compiler outputs use separate Dagger cache volumes. Published
+Pages and GitHub Releases remain explicit provider-side effects; the local
+functions only validate or produce their input artifacts.
+
+Local calls generate an isolated `local` execution nonce. CI adapters instead
+write a validated `.dagger-ci-context.json`: pull requests receive per-PR
+untrusted caches, while main and releases use distinct trusted domains. Test
+and verification functions always execute; only dependency and compiler cache
+volumes persist.
+
 ## Install
 
 Margo requires Go 1.26.5 or newer. Install a root release with Go:

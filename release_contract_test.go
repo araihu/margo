@@ -79,19 +79,32 @@ func TestGoReleaserBuildsOnePortableMargoMatrix(t *testing.T) {
 }
 
 func TestRequiredCIValidatesGoReleaserSnapshot(t *testing.T) {
-	data, err := os.ReadFile(".github/workflows/ci.yml")
+	workflowData, err := os.ReadFile(".github/workflows/ci.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	workflow := string(data)
+	daggerData, err := os.ReadFile("dagger/main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := string(workflowData)
 	for _, required := range []string{
 		"GoReleaser snapshot", "fetch-depth: 0",
-		"goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94",
-		"version: v2.17.1", "args: release --snapshot --clean --skip=publish",
-		"shasum -a 256 -c checksums.txt", "archive_count", "margo_*.tar.gz", "margo_*.zip",
+		"scripts/install-dagger.sh", "scripts/prepare-dagger-git.sh",
+		"dagger call snapshot --git-bundle=.dagger-git.bundle --ci-context=.dagger-ci-context.json sync",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("required CI missing %q", required)
+		}
+	}
+	module := string(daggerData)
+	for _, required := range []string{
+		"goreleaser/goreleaser:v2.17.1@sha256:",
+		"goreleaser release --snapshot --clean --skip=publish",
+		"sha256sum -c checksums.txt", "archive_count", "margo_*.tar.gz", "margo_*.zip",
+	} {
+		if !strings.Contains(module, required) {
+			t.Fatalf("Dagger snapshot function missing %q", required)
 		}
 	}
 }
@@ -104,6 +117,8 @@ func TestReleaseWorkflowUsesPinnedGoReleaserForRootSemverTags(t *testing.T) {
 	workflow := string(data)
 	for _, required := range []string{
 		"tags:", "v[0-9]*.[0-9]*.[0-9]*", "contents: write", "fetch-depth: 0",
+		"actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+		"dagger call release-verify --git-bundle=.dagger-git.bundle --ci-context=.dagger-ci-context.json",
 		"goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94",
 		"version: v2.17.1", "args: release --clean",
 	} {

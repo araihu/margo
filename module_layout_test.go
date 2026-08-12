@@ -3,12 +3,13 @@ package margo
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-func TestRepositoryHasOneGoModule(t *testing.T) {
-	var nested []string
+func TestRepositoryHasRootAndDaggerGoModules(t *testing.T) {
+	var modules []string
 	err := filepath.WalkDir(".", func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -16,16 +17,17 @@ func TestRepositoryHasOneGoModule(t *testing.T) {
 		if entry.IsDir() && (entry.Name() == ".git" || entry.Name() == "vendor") {
 			return filepath.SkipDir
 		}
-		if path != "go.mod" && entry.Name() == "go.mod" {
-			nested = append(nested, filepath.ToSlash(path))
+		if entry.Name() == "go.mod" {
+			modules = append(modules, filepath.ToSlash(path))
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(nested) != 0 {
-		t.Fatalf("nested modules: %v", nested)
+	want := []string{"dagger/go.mod", "go.mod"}
+	if !reflect.DeepEqual(modules, want) {
+		t.Fatalf("Go modules = %v, want %v", modules, want)
 	}
 }
 
