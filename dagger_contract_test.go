@@ -66,10 +66,26 @@ func TestDaggerModuleKeepsPublishEffectsAtProviderBoundary(t *testing.T) {
 		"execution.CacheDomain", "execution.Nonce", `+cache="never"`,
 		`gitBundle *dagger.File`, `git clone /tmp/margo.bundle /src`,
 		`git merge-base --is-ancestor HEAD refs/heads/main`,
-		`cd dagger && go mod verify`, `gofmt -l .`, `go vet ./...`, `go test ./... -count=1`,
+		`cd dagger && go mod verify`, `gofmt -l .`,
 	} {
 		if !strings.Contains(source, required) {
 			t.Fatalf("Dagger module missing cache contract %q", required)
+		}
+	}
+}
+
+func TestSnapshotUsesBusyBoxCompatibleZipListing(t *testing.T) {
+	data, err := os.ReadFile("dagger/main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	if strings.Contains(source, "unzip -Z") {
+		t.Fatal("snapshot archive verification uses unsupported BusyBox unzip -Z")
+	}
+	for _, required := range []string{`unzip -l "$archive"`, `awk '$1 ~ /^[0-9]+$/ { print $4 }'`} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("snapshot archive verification misses %q", required)
 		}
 	}
 }

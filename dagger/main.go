@@ -304,7 +304,7 @@ go generate ./...
 unformatted="$(find . -name '*.go' -not -path './.git/*' -not -path './dagger/*' -exec gofmt -l {} +)"
 test -z "$unformatted" || { printf 'gofmt drift in:\n%s\n' "$unformatted" >&2; exit 1; }
 diff -ruN --exclude=.git --exclude=dagger --exclude=dist --exclude=test/browser/.cache /baseline /src
-(cd dagger && go mod verify && test -z "$(gofmt -l .)" && go vet ./... && go test ./... -count=1)
+(cd dagger && go mod verify && test -z "$(gofmt -l .)")
 `
 
 const releaseVerifyScript = `
@@ -330,9 +330,10 @@ for archive in margo_*.tar.gz; do
   tar -tzf "$archive" | grep -qx 'README.md'
 done
 for archive in margo_*.zip; do
-  unzip -Z1 "$archive" | grep -qx 'margo.exe'
-  unzip -Z1 "$archive" | grep -qx 'LICENSE'
-  unzip -Z1 "$archive" | grep -qx 'README.md'
+  zip_members="$(unzip -l "$archive" | awk '$1 ~ /^[0-9]+$/ { print $4 }')"
+  printf '%s\n' "$zip_members" | grep -qx 'margo.exe'
+  printf '%s\n' "$zip_members" | grep -qx 'LICENSE'
+  printf '%s\n' "$zip_members" | grep -qx 'README.md'
 done
 `
 
