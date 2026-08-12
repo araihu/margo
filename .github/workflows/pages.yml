@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/pages.yml'
+      - 'dagger.json'
+      - 'dagger/**'
       - 'schema/**'
   workflow_dispatch:
 
@@ -32,15 +34,20 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Stage schema-only site
+      - name: Install exact Dagger CLI
+        shell: bash
+        env:
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+        run: |
+          scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
+          printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
+
+      - name: Stage schema-only site with Dagger
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/schema
-          cp -R schema/v1 _site/schema/v1
-          test "$(find _site -type f | LC_ALL=C sort)" = $'_site/schema/v1/document.json\n_site/schema/v1/policy.json'
-          cmp schema/v1/document.json _site/schema/v1/document.json
-          cmp schema/v1/policy.json _site/schema/v1/policy.json
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          dagger call pages-site export --path=_site
 
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

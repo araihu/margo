@@ -1,6 +1,11 @@
 # Go build and test outputs
 /bin/
 /dist/
+/.dagger/
+/.dagger-ci-context.json
+/.dagger-git.bundle
+/dagger/internal/dagger/
+/dagger/dagger.gen.go
 /cmd/margo/margo
 *.test
 *.out

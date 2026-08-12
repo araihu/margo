@@ -28,30 +28,33 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate root semantic-version tag on main
+      - name: Prepare trusted release context
+        shell: bash
+        env:
+          MARGO_CACHE_DOMAIN: trusted-release
+          MARGO_RUN_ID: ${{ github.run_id }}
+          MARGO_RUN_ATTEMPT: ${{ github.run_attempt }}
+          MARGO_RELEASE_TAG: ${{ github.ref_name }}
+        run: scripts/write-dagger-context.sh
+
+      - name: Materialize self-contained Git metadata
+        shell: bash
+        run: scripts/prepare-dagger-git.sh
+
+      - name: Install exact Dagger CLI
+        shell: bash
+        env:
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+        run: |
+          scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
+          printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
+
+      - name: Verify tag and source with Dagger
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "invalid root Margo release tag: $GITHUB_REF_NAME" >&2
-            exit 1
-          fi
-          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          check-latest: false
-          cache: false
-
-      - name: Verify source and tests
-        run: |
-          go mod verify
-          go vet ./...
-          go test ./... -count=1
-          test -z "$(gofmt -l .)"
-          git diff --exit-code
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          dagger call release-verify --git-bundle=.dagger-git.bundle --ci-context=.dagger-ci-context.json
 
   release:
     name: Publish release binaries
