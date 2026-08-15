@@ -7,13 +7,16 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	"github.com/araihu/goshtoso-charts/components/pie"
+	sharedchart "github.com/araihu/goshtoso-charts/components/chart"
+	interactivepie "github.com/araihu/goshtoso-charts/components/interactive/pie"
+	staticpie "github.com/araihu/goshtoso-charts/components/pie"
 	margo "github.com/araihu/margo"
 )
 
 type pieModel struct {
 	SchemaVersion int             `yaml:"schemaVersion"`
 	Type          string          `yaml:"type"`
+	Renderer      string          `yaml:"renderer"`
 	Title         string          `yaml:"title"`
 	Style         chartStyleModel `yaml:"style"`
 	Slices        []pieSliceModel `yaml:"slices"`
@@ -32,6 +35,9 @@ func validatePieModel(model pieModel) error {
 	if model.SchemaVersion != 1 || (model.Type != "pie" && model.Type != "doughnut") {
 		return chartDiagnostic("chart.schema_invalid", "pie model envelope is invalid")
 	}
+	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
+		return chartDiagnostic("chart.renderer_invalid", "pie renderer must be static or interactive")
+	}
 	if strings.TrimSpace(model.Title) == "" {
 		return chartDiagnostic("chart.semantic_title_invalid", "pie title is required")
 	}
@@ -42,6 +48,9 @@ func validatePieModel(model pieModel) error {
 	for _, slice := range model.Slices {
 		if err := validateChartPaint(slice.chartPaintModel, fmt.Sprintf("pie slice %q", slice.Name)); err != nil {
 			return err
+		}
+		if model.Renderer == "interactive" && strings.TrimSpace(slice.Class) != "" {
+			return chartDiagnostic("chart.renderer_style_unsupported", "interactive pie slices do not support class")
 		}
 		if strings.TrimSpace(slice.Name) == "" {
 			return chartDiagnostic("chart.semantic_slice_invalid", "pie slice name is required")
@@ -68,27 +77,50 @@ func renderPieWithOptions(rc margo.RenderContext, model pieModel, options chartR
 	if err := validatePieModel(model); err != nil {
 		return nil, err
 	}
-	variant := pie.VariantPie
-	if model.Type == "doughnut" {
-		variant = pie.VariantDoughnut
+	if model.Renderer == "interactive" && !options.controlWrapper {
+		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper")
 	}
-	slices := make([]pie.Slice, len(model.Slices))
+	variant := staticpie.VariantPie
+	if model.Type == "doughnut" {
+		variant = staticpie.VariantDoughnut
+	}
+	slices := make([]staticpie.Slice, len(model.Slices))
 	paints := make([]chartPaintModel, len(model.Slices))
 	rows := make([]AccessibleRow, 0, len(model.Slices))
 	for index, source := range model.Slices {
 		paint := source.chartPaintModel.normalized()
 		paints[index] = paint
-		slices[index] = pie.Slice{Name: source.Name, Value: source.Value, Color: paint.Color, Class: paint.Class}
+		slices[index] = staticpie.Slice{Name: source.Name, Value: source.Value, Color: paint.Color, Class: paint.Class}
 		rows = append(rows, AccessibleRow{Category: source.Name, Value: strconv.FormatFloat(source.Value, 'f', -1, 64)})
 	}
 	controlOptions, exportOptions := chartControlConfig(options)
-	component := pie.Pie(pie.Config{
+	style := chartThemeForSeries(model.Style, paints)
+	if model.Renderer == "interactive" {
+		data := make([]interactivepie.Data, len(model.Slices))
+		for index, source := range model.Slices {
+			data[index] = interactivepie.Data{Name: source.Name, Value: source.Value}
+		}
+		innerRadius := 0.0
+		if model.Type == "doughnut" {
+			innerRadius = 40
+		}
+		component := interactivepie.Pie(interactivepie.Config{
+			Label: model.Title, Caption: Caption(model.Title), Style: style,
+			Series: []interactivepie.Series{{Name: model.Title, InnerRadius: innerRadius, Data: data}},
+			Options: sharedchart.ChartOptions{
+				Title: &sharedchart.TitleOptions{Text: model.Title}, Animation: sharedchart.Bool(false), Controls: controlOptions, Export: exportOptions,
+			},
+		})
+		chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+		return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
+	}
+	component := staticpie.Pie(staticpie.Config{
 		Label:    model.Title,
 		Slices:   slices,
 		Variant:  variant,
 		Controls: controlOptions,
 		Export:   exportOptions,
-		Style:    chartThemeForSeries(model.Style, paints),
+		Style:    style,
 	})
 	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil

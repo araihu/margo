@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	"github.com/araihu/goshtoso-charts/components/scatter"
+	sharedchart "github.com/araihu/goshtoso-charts/components/chart"
+	interactivescatter "github.com/araihu/goshtoso-charts/components/interactive/scatter"
+	staticscatter "github.com/araihu/goshtoso-charts/components/scatter"
 	margo "github.com/araihu/margo"
 )
 
@@ -20,6 +22,7 @@ const (
 type scatterModel struct {
 	SchemaVersion int                  `yaml:"schemaVersion"`
 	Type          string               `yaml:"type"`
+	Renderer      string               `yaml:"renderer"`
 	Title         string               `yaml:"title"`
 	Style         chartStyleModel      `yaml:"style"`
 	Categories    []string             `yaml:"categories"`
@@ -46,6 +49,9 @@ func validateScatterModel(model scatterModel) error {
 	if model.SchemaVersion != 1 || model.Type != "scatter" {
 		return chartDiagnostic("chart.schema_invalid", "scatter model envelope is invalid")
 	}
+	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
+		return chartDiagnostic("chart.renderer_invalid", "scatter renderer must be static or interactive")
+	}
 	if strings.TrimSpace(model.Title) == "" {
 		return chartDiagnostic("chart.semantic_title_invalid", "scatter title is required")
 	}
@@ -70,6 +76,9 @@ func validateScatterModel(model scatterModel) error {
 	for _, series := range model.Series {
 		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("scatter series %q", series.Name)); err != nil {
 			return err
+		}
+		if model.Renderer == "interactive" && strings.TrimSpace(series.Class) != "" {
+			return chartDiagnostic("chart.renderer_style_unsupported", "interactive scatter series do not support class")
 		}
 		if strings.TrimSpace(series.Name) == "" {
 			return chartDiagnostic("chart.semantic_series_invalid", "scatter series name is required")
@@ -144,6 +153,27 @@ func validateScatterModel(model scatterModel) error {
 		}
 		totalSamples += seriesSamples
 	}
+	if model.Renderer == "interactive" {
+		for _, series := range model.Series {
+			if series.Points != nil {
+				counts := make(map[string]int, len(model.Categories))
+				for _, point := range series.Points {
+					counts[point.Category]++
+				}
+				for _, category := range model.Categories {
+					if counts[category] != 1 {
+						return chartDiagnostic("chart.renderer_data_unsupported", "interactive scatter requires exactly one point per category")
+					}
+				}
+				continue
+			}
+			for _, values := range series.Values {
+				if len(values) != 1 {
+					return chartDiagnostic("chart.renderer_data_unsupported", "interactive scatter requires exactly one value per category")
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -155,18 +185,32 @@ func renderScatterWithOptions(rc margo.RenderContext, model scatterModel, option
 	if err := validateScatterModel(model); err != nil {
 		return nil, err
 	}
-	series := make([]scatter.Series, len(model.Series))
+	if model.Renderer == "interactive" && !options.controlWrapper {
+		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper")
+	}
+	series := make([]staticscatter.Series, len(model.Series))
 	paints := make([]chartPaintModel, len(model.Series))
 	rows := make([]AccessibleRow, 0)
 	for seriesIndex, source := range model.Series {
 		paint := source.chartPaintModel.normalized()
 		paints[seriesIndex] = paint
-		series[seriesIndex] = scatter.Series{Name: source.Name, Color: paint.Color, Class: paint.Class}
+		series[seriesIndex] = staticscatter.Series{Name: source.Name, Color: paint.Color, Class: paint.Class}
 		if source.Points != nil {
-			series[seriesIndex].Points = make([]scatter.Point, len(source.Points))
+			series[seriesIndex].Points = make([]staticscatter.Point, len(source.Points))
 			for pointIndex, point := range source.Points {
-				series[seriesIndex].Points[pointIndex] = scatter.Point{Category: point.Category, Value: point.Value}
-				rows = append(rows, AccessibleRow{Series: source.Name, Category: point.Category, Value: formatScatterNumber(point.Value)})
+				series[seriesIndex].Points[pointIndex] = staticscatter.Point{Category: point.Category, Value: point.Value}
+				if model.Renderer != "interactive" {
+					rows = append(rows, AccessibleRow{Series: source.Name, Category: point.Category, Value: formatScatterNumber(point.Value)})
+				}
+			}
+			if model.Renderer == "interactive" {
+				valuesByCategory := make(map[string]float64, len(source.Points))
+				for _, point := range source.Points {
+					valuesByCategory[point.Category] = point.Value
+				}
+				for _, category := range model.Categories {
+					rows = append(rows, AccessibleRow{Series: source.Name, Category: category, Value: formatScatterNumber(valuesByCategory[category])})
+				}
 			}
 			continue
 		}
@@ -185,15 +229,45 @@ func renderScatterWithOptions(rc margo.RenderContext, model scatterModel, option
 		}
 	}
 	controlOptions, exportOptions := chartControlConfig(options)
-	component := scatter.Scatter(scatter.Config{
+	style := chartThemeForSeries(model.Style, paints)
+	if model.Renderer == "interactive" {
+		interactiveSeries := make([]interactivescatter.Series, len(model.Series))
+		for seriesIndex, source := range model.Series {
+			data := make([]interactivescatter.Data, len(model.Categories))
+			if source.Points != nil {
+				valuesByCategory := make(map[string]float64, len(source.Points))
+				for _, point := range source.Points {
+					valuesByCategory[point.Category] = point.Value
+				}
+				for categoryIndex, category := range model.Categories {
+					data[categoryIndex] = interactivescatter.Data{Name: category, Value: valuesByCategory[category]}
+				}
+			} else {
+				for categoryIndex, category := range model.Categories {
+					data[categoryIndex] = interactivescatter.Data{Name: category, Value: source.Values[categoryIndex][0]}
+				}
+			}
+			interactiveSeries[seriesIndex] = interactivescatter.Series{Name: source.Name, Data: data}
+		}
+		component := interactivescatter.Scatter(interactivescatter.Config{
+			Label: model.Title, Caption: Caption(model.Title), XAxis: append([]string(nil), model.Categories...),
+			XAxisType: interactivescatter.AxisCategory, Series: interactiveSeries, Style: style,
+			Options: sharedchart.ChartOptions{
+				Title: &sharedchart.TitleOptions{Text: model.Title}, Animation: sharedchart.Bool(false), Controls: controlOptions, Export: exportOptions,
+			},
+		})
+		chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+		return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
+	}
+	component := staticscatter.Scatter(staticscatter.Config{
 		Label:      model.Title,
 		Caption:    Caption(model.Title),
 		Categories: append([]string(nil), model.Categories...),
 		Series:     series,
-		Options:    scatter.Options{TopNLabels: scatter.TopNLabels{Count: 0}},
+		Options:    staticscatter.Options{TopNLabels: staticscatter.TopNLabels{Count: 0}},
 		Controls:   controlOptions,
 		Export:     exportOptions,
-		Style:      chartThemeForSeries(model.Style, paints),
+		Style:      style,
 	})
 	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil

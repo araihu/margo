@@ -101,7 +101,7 @@ func renderLineWithOptions(rc margo.RenderContext, model lineModel, options char
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {
-		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper in this proof of concept")
+		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper")
 	}
 	series := make([]line.Series, len(model.Series))
 	paints := make([]chartPaintModel, len(model.Series))

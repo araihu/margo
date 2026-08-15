@@ -25,9 +25,10 @@ Chart styles use Goshtoso tokens by default. A payload can choose a palette,
 caller class, or explicit hex colors. `class` and `color` are mutually
 exclusive on one series or slice.
 
-## Printable interactive proof of concept
+## Interactive renderers
 
-Bar and Line payloads can select Goshtoso Charts' interactive implementation:
+Every v1 family (`bar`, `line`, `pie`, `doughnut`, and `scatter`) can select
+Goshtoso Charts' interactive implementation:
 
 ```yaml
 schemaVersion: 1
@@ -42,17 +43,18 @@ series:
 
 Omit `renderer`, or set it to `static`, for the existing server-rendered SVG.
 Interactive output keeps the accessible exact-data table and exposes PNG
-export. The POC disables initial chart animation so export and print capture a
+export. Margo disables initial chart animation so export and print capture a
 complete deterministic frame. Standalone HTML relocates provenance-marked chart
 initialization into the reviewed requirement graph, preserving Margo's
 script-free fragment contract. Chromium PDF export waits for initialization,
 requests the chart's PNG export, substitutes that image for print, then prints
 the document.
 
-POC limits: only Bar and Line accept `renderer: interactive`; the default
-control wrapper is required; per-series `class` is rejected because the
-interactive public API cannot preserve it. Palettes, root class, and explicit
-series colors remain supported. Pie, doughnut, and scatter remain static.
+Interactive limits: the default control wrapper is required. Per-series and
+per-slice `class` is rejected because the interactive public APIs cannot
+preserve it; palettes, root class, and explicit colors remain supported.
+Interactive scatter requires exactly one point or value for every declared
+category. Use the static renderer when a category contains multiple samples.
 
 ## Developer renderer
 

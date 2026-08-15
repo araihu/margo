@@ -261,6 +261,11 @@ follows each chart in HTML; redundant chart-owned disclosures are suppressed.
 Exact-data tables are omitted from PDF by default. `--print-chart-data` adds
 them to PDF output.
 
+All v1 chart families (`bar`, `line`, `pie`, `doughnut`, and `scatter`) accept
+`renderer: interactive`; omitting it preserves static SVG. Interactive scatter
+accepts exactly one point or value per declared category. Multi-sample scatter
+data remains available through the static renderer.
+
 Current releases use installed Chromium. `auto` tries an explicit
 `--engine-path`, `MARGO_CHROMIUM_PATH`, discovered Chromium-family executables,
 then a native slot. Native backends are currently compiled out, so selecting

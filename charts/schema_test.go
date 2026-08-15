@@ -94,8 +94,8 @@ func TestSchemasExposeThemeClassAndHexOverrides(t *testing.T) {
 	}
 }
 
-func TestCartesianSchemasExposeRendererChoice(t *testing.T) {
-	for _, chartType := range []string{"bar", "line"} {
+func TestEveryChartSchemaExposesRendererChoice(t *testing.T) {
+	for _, chartType := range []string{"bar", "line", "pie", "doughnut", "scatter"} {
 		t.Run(chartType, func(t *testing.T) {
 			body, err := Schema(chartType)
 			if err != nil {

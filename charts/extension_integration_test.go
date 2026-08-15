@@ -136,6 +136,170 @@ series:
 	}
 }
 
+func TestRootSupportsRemainingInteractiveChartFamilies(t *testing.T) {
+	cases := []struct {
+		name     string
+		body     string
+		wantRows string
+		want     string
+	}{
+		{
+			name: "pie",
+			body: `schemaVersion: 1
+type: pie
+renderer: interactive
+title: Device share
+slices:
+  - {name: Desktop, value: 40}
+  - {name: Mobile, value: 60}`,
+			wantRows: "Desktop|40\x00Mobile|60",
+			want:     `"radius":["0%","75%"]`,
+		},
+		{
+			name: "doughnut",
+			body: `schemaVersion: 1
+type: doughnut
+renderer: interactive
+title: Device share
+slices:
+  - {name: Desktop, value: 40}
+  - {name: Mobile, value: 60}`,
+			wantRows: "Desktop|40\x00Mobile|60",
+			want:     `"radius":["40%","75%"]`,
+		},
+		{
+			name: "scatter",
+			body: `schemaVersion: 1
+type: scatter
+renderer: interactive
+title: Latency
+categories: [p50, p95]
+series:
+  - name: Latency
+    points:
+      - {category: p95, value: 18}
+      - {category: p50, value: 12}
+  - name: Throughput
+    values: [[30], [42]]`,
+			wantRows: "Latency|p50|12\x00Latency|p95|18\x00Throughput|p50|30\x00Throughput|p95|42",
+			want:     `"data":[{"name":"p50","value":12},{"name":"p95","value":18}]`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, observed, err := renderThroughRoot(t, tc.body, 1<<20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			markup := string(out)
+			for _, marker := range []string{
+				`class="goshtoso-charts-interactive`,
+				`data-goshtoso-chart-capability="interactive-raster"`,
+				`data-goshtoso-charts-explicit-animation="false"`,
+				`exportFromMenu($el, &#34;png&#34;)`,
+				`data-margo-chart-data="v1"`,
+				tc.want,
+			} {
+				if !strings.Contains(markup, marker) {
+					t.Fatalf("interactive %s output missing %q: %s", tc.name, marker, markup)
+				}
+			}
+			if got := strings.Join(extractAccessibleRows(markup), "\x00"); got != tc.wantRows {
+				t.Fatalf("interactive %s rows = %q, want %q", tc.name, got, tc.wantRows)
+			}
+			if observed != 1<<20 {
+				t.Fatalf("observed policy = %d", observed)
+			}
+		})
+	}
+}
+
+func TestRemainingInteractiveChartsRejectUnknownRenderer(t *testing.T) {
+	cases := map[string]string{
+		"pie":      "schemaVersion: 1\ntype: pie\nrenderer: holographic\ntitle: Share\nslices: [{name: A, value: 1}]",
+		"doughnut": "schemaVersion: 1\ntype: doughnut\nrenderer: holographic\ntitle: Share\nslices: [{name: A, value: 1}]",
+		"scatter":  "schemaVersion: 1\ntype: scatter\nrenderer: holographic\ntitle: Latency\ncategories: [p50]\nseries: [{name: S, points: [{category: p50, value: 1}]}]",
+	}
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := renderThroughRoot(t, body, 1<<20)
+			if err == nil || !strings.Contains(err.Error(), "chart.renderer_invalid") {
+				t.Fatalf("error = %v, want chart.renderer_invalid", err)
+			}
+		})
+	}
+}
+
+func TestRemainingInteractiveChartsRejectElementClasses(t *testing.T) {
+	cases := map[string]string{
+		"pie":     "schemaVersion: 1\ntype: pie\nrenderer: interactive\ntitle: Share\nslices: [{name: A, class: slice-a, value: 1}]",
+		"scatter": "schemaVersion: 1\ntype: scatter\nrenderer: interactive\ntitle: Latency\ncategories: [p50]\nseries: [{name: S, class: series-s, points: [{category: p50, value: 1}]}]",
+	}
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := renderThroughRoot(t, body, 1<<20)
+			if err == nil || !strings.Contains(err.Error(), "chart.renderer_style_unsupported") {
+				t.Fatalf("error = %v, want chart.renderer_style_unsupported", err)
+			}
+		})
+	}
+}
+
+func TestInteractiveScatterRequiresExactlyOneSamplePerCategory(t *testing.T) {
+	cases := map[string]string{
+		"multiple aligned values": `schemaVersion: 1
+type: scatter
+renderer: interactive
+title: Latency
+categories: [Development, Production]
+series:
+  - name: Latency
+    values: [[12, 14], [18]]
+    samples: [[p50, p75], [p95]]`,
+		"duplicate point category": `schemaVersion: 1
+type: scatter
+renderer: interactive
+title: Latency
+categories: [p50]
+series:
+  - name: Latency
+    points:
+      - {category: p50, value: 12}
+      - {category: p50, value: 14}`,
+		"missing point category": `schemaVersion: 1
+type: scatter
+renderer: interactive
+title: Latency
+categories: [p50, p95]
+series:
+  - name: Latency
+    points: [{category: p50, value: 12}]`,
+	}
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := renderThroughRoot(t, body, 1<<20)
+			if err == nil || !strings.Contains(err.Error(), "chart.renderer_data_unsupported") {
+				t.Fatalf("error = %v, want chart.renderer_data_unsupported", err)
+			}
+		})
+	}
+}
+
+func TestRemainingInteractiveRenderersRequireControlWrapper(t *testing.T) {
+	cases := map[string]string{
+		"pie":     "schemaVersion: 1\ntype: pie\nrenderer: interactive\ntitle: Share\nslices: [{name: A, value: 1}]",
+		"scatter": "schemaVersion: 1\ntype: scatter\nrenderer: interactive\ntitle: Latency\ncategories: [p50]\nseries: [{name: S, points: [{category: p50, value: 1}]}]",
+	}
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := renderThroughRootWithExtension(t, body, 1<<20, Extension(WithControlWrapper(false)))
+			if err == nil || !strings.Contains(err.Error(), "chart.renderer_controls_required") {
+				t.Fatalf("error = %v, want chart.renderer_controls_required", err)
+			}
+		})
+	}
+}
+
 func TestCartesianChartsRejectUnknownRenderer(t *testing.T) {
 	for _, chartType := range []string{"bar", "line"} {
 		t.Run(chartType, func(t *testing.T) {

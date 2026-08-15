@@ -104,7 +104,7 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {
-		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper in this proof of concept")
+		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper")
 	}
 	orientation := bar.OrientationVertical
 	if model.Orientation == "horizontal" {
