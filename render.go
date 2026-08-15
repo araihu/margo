@@ -40,6 +40,7 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 			policy:              document.effectivePolicy,
 			tableSort:           tableSortMode(renderOptions),
 			runtimeTaskOrdinals: make(map[string]uint32),
+			contextLabels:       make(map[string]string),
 			extensionSlots:      extensionSlots,
 			target:              renderTarget(renderOptions),
 		}
@@ -62,6 +63,7 @@ type markdownRenderer struct {
 	policy              EffectivePolicy
 	tableSort           TableSortMode
 	runtimeTaskOrdinals map[string]uint32
+	contextLabels       map[string]string
 	extensionSlots      [][]byte
 	target              RenderTarget
 }
@@ -76,8 +78,21 @@ func (r markdownRenderer) renderBlock(node goldast.Node) error {
 }
 
 func (r markdownRenderer) renderNode(node goldast.Node) error {
+	if _, paragraph := node.(*goldast.Paragraph); !paragraph && r.contextLabels["lead-pending"] == "true" {
+		delete(r.contextLabels, "lead-pending")
+	}
 	switch value := node.(type) {
 	case *goldast.Heading:
+		r.contextLabels["heading"] = plainInlineText(value, r.source)
+		renderLevel := value.Level
+		if value.Level == 1 {
+			if r.contextLabels["document-title-rendered"] == "true" {
+				renderLevel = 2
+			} else {
+				r.contextLabels["document-title-rendered"] = "true"
+				r.contextLabels["lead-pending"] = "true"
+			}
+		}
 		id := ""
 		if attr, ok := value.AttributeString("id"); ok {
 			switch typed := attr.(type) {
@@ -87,7 +102,7 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 				id = typed
 			}
 		}
-		if _, err := fmt.Fprintf(r.out, `<h%d`, value.Level); err != nil {
+		if _, err := fmt.Fprintf(r.out, `<h%d`, renderLevel); err != nil {
 			return err
 		}
 		if id != "" {
@@ -101,10 +116,26 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 		if err := r.renderInlineChildren(value); err != nil {
 			return err
 		}
-		_, err := fmt.Fprintf(r.out, `</h%d>`, value.Level)
+		_, err := fmt.Fprintf(r.out, `</h%d>`, renderLevel)
 		return err
 	case *goldast.Paragraph:
-		if _, err := io.WriteString(r.out, `<p>`); err != nil {
+		if image, ok := value.FirstChild().(*goldast.Image); ok && image.NextSibling() == nil && len(image.Title) > 0 {
+			delete(r.contextLabels, "lead-pending")
+			if _, err := io.WriteString(r.out, `<figure class="margo-figure">`); err != nil {
+				return err
+			}
+			if err := r.renderImage(image); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintf(r.out, `<figcaption class="margo-figure-caption">%s</figcaption></figure>`, html.EscapeString(string(image.Title)))
+			return err
+		}
+		opening := `<p>`
+		if r.contextLabels["lead-pending"] == "true" {
+			opening = `<p class="margo-document__lead">`
+			delete(r.contextLabels, "lead-pending")
+		}
+		if _, err := io.WriteString(r.out, opening); err != nil {
 			return err
 		}
 		if err := r.renderInlineChildren(value); err != nil {
@@ -164,7 +195,9 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 	case *goldast.CodeBlock:
 		return renderCodeBlock(r.ctx, r.out, "", value.Lines().Value(r.source))
 	case *tableast.Table:
-		return renderMarkdownTable(r.ctx, r.out, value, r.source, r.tableSort)
+		ordinal := r.runtimeTaskOrdinals["table"]
+		r.runtimeTaskOrdinals["table"] = ordinal + 1
+		return renderMarkdownTable(r.ctx, r.out, value, r.source, r.tableSort, fmt.Sprintf("margo-table-%d", ordinal))
 	case *tableast.FootnoteList:
 		if _, err := io.WriteString(r.out, `<section class="footnotes" aria-label="Footnotes" role="doc-endnotes"><hr><ol>`); err != nil {
 			return err
@@ -361,14 +394,133 @@ func (r markdownRenderer) renderImage(image *goldast.Image) error {
 func (r markdownRenderer) renderRuntimeFence(kind string, source []byte) error {
 	ordinal := r.runtimeTaskOrdinals[kind]
 	r.runtimeTaskOrdinals[kind] = ordinal + 1
-	if _, err := fmt.Fprintf(r.out, `<figure class="margo-runtime-task margo-mermaid" data-margo-runtime-task="%s" data-margo-runtime-task-ordinal="%d"><div class="margo-mermaid__canvas" role="img" aria-label="Mermaid diagram"></div><details class="margo-mermaid__source"><summary>Mermaid source</summary><pre><code>`, html.EscapeString(kind), ordinal); err != nil {
+	captionID := fmt.Sprintf("margo-mermaid-caption-%d", ordinal)
+	sourceID := fmt.Sprintf("margo-mermaid-source-%d", ordinal)
+	contextLabel := strings.TrimSpace(r.contextLabels["heading"])
+	if contextLabel == "" {
+		contextLabel = fmt.Sprintf("diagram %d", ordinal+1)
+	}
+	caption, printLayout := mermaidFigureDescription(source, contextLabel)
+	printLayoutAttribute := ""
+	if printLayout != "" {
+		printLayoutAttribute = fmt.Sprintf(` data-margo-print-layout="%s"`, html.EscapeString(printLayout))
+	}
+	if _, err := fmt.Fprintf(r.out, `<figure class="margo-runtime-task margo-mermaid" data-margo-runtime-task="%s" data-margo-runtime-task-ordinal="%d"%s><div class="margo-mermaid__canvas" role="img" aria-labelledby="%s" aria-describedby="%s"></div><span id="%s" class="margo-mermaid__accessible-source">Complete Mermaid source: %s</span><span class="margo-mermaid__overflow-cue">Scroll diagram horizontally to inspect all labels.</span><details class="margo-mermaid__source"><summary>Mermaid source for %s</summary><pre><code>`, html.EscapeString(kind), ordinal, printLayoutAttribute, captionID, sourceID, sourceID, html.EscapeString(strings.TrimSpace(string(source))), html.EscapeString(contextLabel)); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(r.out, html.EscapeString(string(source))); err != nil {
 		return err
 	}
-	_, err := io.WriteString(r.out, `</code></pre></details></figure>`)
+	_, err := fmt.Fprintf(r.out, `</code></pre></details><figcaption id="%s" class="margo-figure-caption">%s</figcaption></figure>`, captionID, html.EscapeString(caption))
 	return err
+}
+
+func mermaidFigureDescription(source []byte, contextLabel string) (string, string) {
+	lines := strings.Split(string(source), "\n")
+	first := ""
+	for _, line := range lines {
+		if first = strings.TrimSpace(line); first != "" {
+			break
+		}
+	}
+	fields := strings.Fields(first)
+	if len(fields) > 0 && (strings.EqualFold(fields[0], "flowchart") || strings.EqualFold(fields[0], "graph")) {
+		layout := ""
+		if len(fields) > 1 && (strings.EqualFold(fields[1], "LR") || strings.EqualFold(fields[1], "RL")) {
+			layout = "landscape"
+		}
+		labels := mermaidDelimitedLabels(lines)
+		if len(labels) > 0 {
+			return "Flowchart connecting " + naturalLanguageList(labels) + ".", layout
+		}
+		return "Flowchart for " + contextLabel + ", with its Mermaid source available as a text fallback.", layout
+	}
+	if len(fields) > 0 && strings.EqualFold(fields[0], "sequenceDiagram") {
+		participants := mermaidParticipants(lines)
+		if len(participants) > 0 {
+			connector := " among "
+			if len(participants) == 2 {
+				connector = " between "
+			}
+			return "Sequence diagram showing interactions" + connector + naturalLanguageList(participants) + ".", ""
+		}
+		return "Sequence diagram for " + contextLabel + ", with its Mermaid source available as a text fallback.", ""
+	}
+	return "Mermaid diagram for " + contextLabel + ", with its source available as a text fallback.", ""
+}
+
+func mermaidDelimitedLabels(lines []string) []string {
+	labels := make([]string, 0, 6)
+	seen := make(map[string]struct{})
+	for _, line := range lines[1:] {
+		for index := 0; index < len(line); index++ {
+			opening := line[index]
+			closing := byte(0)
+			switch opening {
+			case '[':
+				closing = ']'
+			case '{':
+				closing = '}'
+			default:
+				continue
+			}
+			end := strings.IndexByte(line[index+1:], closing)
+			if end < 0 {
+				continue
+			}
+			label := strings.TrimSpace(line[index+1 : index+1+end])
+			index += end + 1
+			if label == "" {
+				continue
+			}
+			if _, duplicate := seen[label]; duplicate {
+				continue
+			}
+			seen[label] = struct{}{}
+			labels = append(labels, label)
+		}
+	}
+	return labels
+}
+
+func mermaidParticipants(lines []string) []string {
+	participants := make([]string, 0, 4)
+	seen := make(map[string]struct{})
+	for _, line := range lines[1:] {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) < 2 || (!strings.EqualFold(fields[0], "participant") && !strings.EqualFold(fields[0], "actor")) {
+			continue
+		}
+		label := fields[1]
+		for index := 2; index+1 < len(fields); index++ {
+			if strings.EqualFold(fields[index], "as") {
+				label = strings.Join(fields[index+1:], " ")
+				break
+			}
+		}
+		if _, duplicate := seen[label]; duplicate {
+			continue
+		}
+		seen[label] = struct{}{}
+		participants = append(participants, label)
+	}
+	return participants
+}
+
+func naturalLanguageList(values []string) string {
+	if len(values) > 5 {
+		return strings.Join(values[:4], ", ") + fmt.Sprintf(", and %d more nodes", len(values)-4)
+	}
+	switch len(values) {
+	case 0:
+		return ""
+	case 1:
+		return values[0]
+	case 2:
+		return values[0] + " and " + values[1]
+	default:
+		return strings.Join(values[:len(values)-1], ", ") + ", and " + values[len(values)-1]
+	}
 }
 
 func (r markdownRenderer) renderRawHTML(fragment []byte) error {

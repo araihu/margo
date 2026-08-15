@@ -278,10 +278,12 @@ func injectPageGeometry(document []byte, config pdf.PageConfig) ([]byte, error) 
 	if orientation == "" {
 		orientation = pdf.Portrait
 	}
-	rule := fmt.Sprintf(`<style data-margo-page-geometry>@page { size: %s %s; margin: %smm %smm %smm %smm; }</style>`,
-		config.Size, orientation,
+	margins := fmt.Sprintf("%smm %smm %smm %smm",
 		formatMillimeters(config.Margins.Top), formatMillimeters(config.Margins.Right),
 		formatMillimeters(config.Margins.Bottom), formatMillimeters(config.Margins.Left),
+	)
+	rule := fmt.Sprintf(`<style data-margo-page-geometry>@page { size: %s %s; margin: %s; } @page margo-diagram-landscape { size: %s landscape; margin: %s; }</style>`,
+		config.Size, orientation, margins, config.Size, margins,
 	)
 	lower := strings.ToLower(string(document))
 	// Embedded runtimes may contain the literal text "</head>" inside script

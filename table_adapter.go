@@ -40,7 +40,7 @@ func tableSortMode(options renderOptions) TableSortMode {
 	return TableSortClient
 }
 
-func renderMarkdownTable(ctx context.Context, out io.Writer, node *tableast.Table, source []byte, mode TableSortMode) error {
+func renderMarkdownTable(ctx context.Context, out io.Writer, node *tableast.Table, source []byte, mode TableSortMode, id string) error {
 	if mode != TableSortClient {
 		return fmt.Errorf("table.sort_mode_invalid: only client sorting is supported")
 	}
@@ -93,7 +93,7 @@ func renderMarkdownTable(ctx context.Context, out io.Writer, node *tableast.Tabl
 		rowNumber++
 	}
 	cfg := goshtosotable.Config{
-		ID:        "margo-table",
+		ID:        id,
 		Caption:   "Markdown table",
 		Columns:   columns,
 		Rows:      rows,

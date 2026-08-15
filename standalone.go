@@ -20,10 +20,12 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
 (() => {
   "use strict";
   const mermaidSources = () => [...document.querySelectorAll(".margo-mermaid__source")];
+  const tocDisclosures = () => [...document.querySelectorAll(".goshtoso-document__toc details")];
   const article = document.querySelector(".goshtoso-document .margo-document");
   if (!article && mermaidSources().length === 0) return;
 
   const originalDetailsState = new WeakMap();
+  const originalTOCState = new WeakMap();
   const staticPrintReplacements = [];
   const chartPrintReplacements = [];
 
@@ -46,6 +48,11 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
       if (!originalDetailsState.has(details)) continue;
       details.open = originalDetailsState.get(details);
       originalDetailsState.delete(details);
+    }
+    for (const details of tocDisclosures()) {
+      if (!originalTOCState.has(details)) continue;
+      details.open = originalTOCState.get(details);
+      originalTOCState.delete(details);
     }
   };
 
@@ -94,6 +101,10 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
 	};
 
   const prepare = async () => {
+    for (const details of tocDisclosures()) {
+      if (!originalTOCState.has(details)) originalTOCState.set(details, details.open);
+      details.open = true;
+    }
     for (const details of mermaidSources()) {
       if (!originalDetailsState.has(details)) originalDetailsState.set(details, details.open);
       details.open = true;
@@ -123,6 +134,30 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
 	printMedia.addEventListener("change", (event) => event.matches ? void prepare() : restorePrintState());
   }
 	if (printMedia.matches) void prepare();
+})();
+</script>`
+
+const standaloneScreenPreparationScript = `<script data-margo-screen-preparation>
+(() => {
+  "use strict";
+  const narrow = window.matchMedia("(max-width: 42rem)");
+  const disclosures = () => [...document.querySelectorAll(".goshtoso-document__toc-disclosure")];
+  const sectionDisclosures = () => [...document.querySelectorAll(".goshtoso-document__toc-section-disclosure")];
+  const tocLinks = () => [...document.querySelectorAll(".goshtoso-document__toc a[href^='#']")];
+  const synchronize = () => {
+    for (const disclosure of disclosures()) disclosure.open = true;
+    for (const disclosure of sectionDisclosures()) disclosure.open = !narrow.matches;
+  };
+  synchronize();
+  const synchronizeCurrentLocation = () => {
+    for (const link of tocLinks()) {
+      if (location.hash && link.hash === location.hash) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    }
+  };
+  synchronizeCurrentLocation();
+  if (typeof narrow.addEventListener === "function") narrow.addEventListener("change", synchronize);
+  window.addEventListener("hashchange", synchronizeCurrentLocation);
 })();
 </script>`
 
@@ -347,9 +382,9 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	fingerprint := hex.EncodeToString(hash[:])
 	asset = materializedStandaloneAsset(asset, []byte(applyThemeTokens(string(asset.Content), config.tokens)))
 	shellAsset = materializedStandaloneAsset(shellAsset, []byte(applyThemeTokens(string(shellAsset.Content), config.tokens)))
-	toc := templ.Component(nil)
+	standaloneContent := content
 	if config.tableOfContents {
-		toc, err = tableOfContentsComponent(content)
+		standaloneContent, err = insertTableOfContents(content)
 		if err != nil {
 			return nil, err
 		}
@@ -371,8 +406,8 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	standaloneHTML.metadata.Description = config.description
 	standaloneHTML.metadata.Language = config.lang
 	standaloneHTML.requirements = merged
-	standaloneHTML.fragmentBytes = append([]byte(nil), content...)
-	body := standalonePublicationBody(fingerprint, editorial.Fingerprint().String(), config.brand, logoURL, backdropURL, toc, standaloneHTML.Fragment())
+	standaloneHTML.fragmentBytes = append([]byte(nil), standaloneContent...)
+	body := standalonePublicationBody(fingerprint, editorial.Fingerprint().String(), config.brand, logoURL, backdropURL, standaloneHTML.Fragment())
 	return RenderHTMLPage(&standaloneHTML, HTMLPageInput{
 		Theme: config.theme, ColorMode: config.colorMode,
 		DependencyMode: HTMLDependenciesInline, ThemeStylesheet: shellAsset,
@@ -548,12 +583,99 @@ func tableOfContentsComponent(content []byte) (templ.Component, error) {
 		walk(node)
 	}
 	var markup strings.Builder
-	markup.WriteString(`<nav class="goshtoso-document__toc" aria-label="Table of contents"><p class="goshtoso-document__toc-title">Contents</p><ol>`)
-	for _, entry := range entries {
-		fmt.Fprintf(&markup, `<li data-level="%d"><a href="#%s">%s</a></li>`, entry.level, html.EscapeString(entry.id), html.EscapeString(entry.label))
+	markup.WriteString(`<nav id="margo-table-of-contents" class="goshtoso-document__toc" aria-label="Table of contents"><details class="goshtoso-document__toc-disclosure" open><summary class="goshtoso-document__toc-title">Contents</summary><ol>`)
+	for index := 0; index < len(entries); {
+		entry := entries[index]
+		if entry.level != 2 {
+			fmt.Fprintf(&markup, `<li data-level="%d"><a href="#%s">%s</a></li>`, entry.level, html.EscapeString(entry.id), html.EscapeString(entry.label))
+			index++
+			continue
+		}
+		fmt.Fprintf(&markup, `<li data-level="2"><a href="#%s">%s</a>`, html.EscapeString(entry.id), html.EscapeString(entry.label))
+		next := index + 1
+		for next < len(entries) && entries[next].level != 2 {
+			next++
+		}
+		if next > index+1 {
+			fmt.Fprintf(&markup, `<details class="goshtoso-document__toc-section-disclosure" open><summary>More in %s</summary><ol>`, html.EscapeString(entry.label))
+			for _, child := range entries[index+1 : next] {
+				fmt.Fprintf(&markup, `<li data-level="%d"><a href="#%s">%s</a></li>`, child.level, html.EscapeString(child.id), html.EscapeString(child.label))
+			}
+			markup.WriteString(`</ol></details>`)
+		}
+		markup.WriteString(`</li>`)
+		index = next
 	}
-	markup.WriteString(`</ol></nav>`)
+	markup.WriteString(`</ol></details></nav>`)
 	return templ.Raw(markup.String()), nil
+}
+
+func insertTableOfContents(content []byte) ([]byte, error) {
+	toc, err := tableOfContentsComponent(content)
+	if err != nil {
+		return nil, err
+	}
+	tocBytes, err := renderComponentBytes(toc)
+	if err != nil {
+		return nil, fmt.Errorf("margo: render standalone table of contents: %w", err)
+	}
+	contextNode := &nethtml.Node{Type: nethtml.ElementNode, DataAtom: atom.Div, Data: "div"}
+	nodes, err := nethtml.ParseFragment(bytes.NewReader(content), contextNode)
+	if err != nil {
+		return nil, fmt.Errorf("margo: parse standalone content for table of contents insertion: %w", err)
+	}
+	var article *nethtml.Node
+	for _, node := range nodes {
+		if node.Type == nethtml.ElementNode && node.Data == "article" && htmlAttributeEquals(node, "class", "margo-document") {
+			article = node
+			break
+		}
+	}
+	if article == nil {
+		return nil, htmlError("html.metadata_invalid", "standalone content has no Margo document article")
+	}
+	tocNodes, err := nethtml.ParseFragment(bytes.NewReader(tocBytes), article)
+	if err != nil || len(tocNodes) != 1 {
+		return nil, htmlError("html.metadata_invalid", "standalone table of contents is malformed")
+	}
+	insertionPoint := article.FirstChild
+	for node := article.FirstChild; node != nil; node = node.NextSibling {
+		if node.Type == nethtml.ElementNode && node.Data == "h1" {
+			insertionPoint = node
+			continue
+		}
+		if insertionPoint != nil && node.Type == nethtml.ElementNode && node.Data == "p" {
+			insertionPoint = node
+			break
+		}
+		if node.Type == nethtml.ElementNode && node.Data == "h2" {
+			break
+		}
+	}
+	if insertionPoint == nil {
+		article.InsertBefore(tocNodes[0], article.FirstChild)
+	} else if insertionPoint.NextSibling == nil {
+		article.AppendChild(tocNodes[0])
+	} else {
+		article.InsertBefore(tocNodes[0], insertionPoint.NextSibling)
+	}
+	backLink := &nethtml.Node{
+		Type: nethtml.ElementNode,
+		Data: "a",
+		Attr: []nethtml.Attribute{
+			{Key: "class", Val: "goshtoso-document__back-to-contents"},
+			{Key: "href", Val: "#margo-table-of-contents"},
+		},
+	}
+	backLink.AppendChild(&nethtml.Node{Type: nethtml.TextNode, Data: "Back to contents"})
+	article.AppendChild(backLink)
+	var transformed bytes.Buffer
+	for _, node := range nodes {
+		if err := nethtml.Render(&transformed, node); err != nil {
+			return nil, htmlError("html.metadata_invalid", fmt.Sprintf("serialize standalone table of contents: %v", err))
+		}
+	}
+	return transformed.Bytes(), nil
 }
 
 func nodeText(node *nethtml.Node) string {

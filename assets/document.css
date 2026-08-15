@@ -46,6 +46,13 @@
     line-height: var(--text-4xl--line-height);
     margin-block-end: calc(var(--spacing) * 6);
   }
+  .margo-document .margo-document__lead {
+    max-width: 68ch;
+    color: var(--color-on-surface-strong);
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    margin-block-end: calc(var(--spacing) * 6);
+  }
   .margo-document h2 {
     max-width: 32ch;
     font-size: var(--text-2xl);
@@ -66,9 +73,17 @@
     margin-block-start: calc(var(--spacing) * 6);
     margin-block-end: calc(var(--spacing) * 2);
   }
-  .margo-document :where(h5, h6) {
+  .margo-document h5 {
     font-size: var(--text-base);
     line-height: var(--text-base--line-height);
+    margin-block-start: calc(var(--spacing) * 5);
+    margin-block-end: calc(var(--spacing) * 2);
+  }
+  .margo-document h6 {
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     margin-block-start: calc(var(--spacing) * 5);
     margin-block-end: calc(var(--spacing) * 2);
   }
@@ -157,6 +172,10 @@
     text-decoration-thickness: 1px;
     text-underline-offset: calc(var(--spacing) / 2);
   }
+  .margo-document :where(a, summary, button, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: calc(var(--spacing) / 2);
+  }
   .margo-document :not(pre) > code {
     color: var(--color-on-surface-strong);
     background: color-mix(in oklch, var(--color-surface-alt) 50%, var(--color-outline) 50%);
@@ -179,6 +198,13 @@
     height: auto;
     margin-block: calc(var(--spacing) * 6);
     border-radius: var(--radius-radius);
+  }
+  .margo-document .margo-figure {
+    max-inline-size: 100%;
+    margin-block: calc(var(--spacing) * 6);
+  }
+  .margo-document .margo-figure > img {
+    margin-block: 0;
   }
   .margo-document li > input[type="checkbox"] {
     inline-size: 1rem;
@@ -225,8 +251,36 @@
     color: var(--color-on-surface);
     font-size: var(--text-sm);
   }
+  .margo-document .margo-mermaid__canvas {
+    max-inline-size: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+  .margo-document .margo-mermaid__overflow-cue {
+    display: none;
+    margin-block-start: calc(var(--spacing) * 2);
+    color: var(--color-on-surface);
+    font-size: var(--text-sm);
+  }
+  .margo-document .margo-mermaid__accessible-source {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: pre-wrap;
+    border: 0;
+  }
   .margo-document .margo-mermaid__source {
     margin-block: calc(var(--spacing) * 3) 0;
+  }
+  .margo-document .margo-figure-caption {
+    margin-block-start: calc(var(--spacing) * 3);
+    color: var(--color-on-surface);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
   }
   .margo-document > :first-child {
     margin-block-start: 0;
@@ -239,6 +293,9 @@
     background: var(--color-surface-dark);
   }
   .margo-document:is(.dark *) :where(h1, h2, h3, h4, h5, h6) {
+    color: var(--color-on-surface-dark-strong);
+  }
+  .margo-document:is(.dark *) .margo-document__lead {
     color: var(--color-on-surface-dark-strong);
   }
   .margo-document:is(.dark *) blockquote {
@@ -270,6 +327,22 @@
   }
   .margo-document:is(.dark *) .margo-mermaid__source summary {
     color: var(--color-on-surface-dark-strong);
+  }
+  .margo-document:is(.dark *) .margo-figure-caption {
+    color: var(--color-on-surface-dark);
+  }
+}
+
+@media (max-width: 42rem) {
+  @layer document {
+    .margo-document .margo-mermaid__canvas > svg {
+      min-inline-size: 40rem;
+      max-inline-size: none;
+    }
+
+    .margo-document .margo-mermaid__overflow-cue {
+      display: block;
+    }
   }
 }
 
@@ -360,6 +433,39 @@
   .margo-document .margo-mermaid__source {
     break-inside: auto;
   }
+  .margo-document .margo-mermaid__overflow-cue {
+    display: none;
+  }
+  .margo-document .margo-mermaid__canvas > svg {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+	.margo-document .margo-mermaid:not([data-margo-print-layout="landscape"]) {
+		page-break-inside: avoid;
+		break-inside: avoid-page;
+	}
+	.margo-document .margo-mermaid:not([data-margo-print-layout="landscape"]) .margo-mermaid__canvas > svg {
+		max-block-size: 155mm;
+		block-size: auto;
+	}
+	.margo-document pre {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		word-break: break-word;
+	}
+	.margo-document .margo-mermaid[data-margo-print-layout="landscape"] {
+		page: margo-diagram-landscape;
+		break-after: page;
+		inline-size: 100%;
+		max-inline-size: none;
+	}
+	.margo-document :where(h2, h3, h4, h5, h6):has(+ .margo-mermaid[data-margo-print-layout="landscape"]) {
+		page: margo-diagram-landscape;
+	}
+	.margo-document :where(h2, h3, h4, h5, h6):has(+ :where(h2, h3, h4, h5, h6) + .margo-mermaid[data-margo-print-layout="landscape"]) {
+		page: margo-diagram-landscape;
+		break-before: page;
+	}
   .margo-document .margo-mermaid__source pre {
     font-size: var(--text-sm);
     white-space: pre-wrap;

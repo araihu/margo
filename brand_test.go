@@ -28,4 +28,15 @@ func TestBrandValidationMatrix(t *testing.T) {
 	if err := bad.Validate(); err == nil {
 		t.Fatal("unsafe stamp unexpectedly accepted")
 	}
+	bad = good
+	bad.Stamps = []string{"human review"}
+	if err := bad.Validate(); err == nil {
+		t.Fatal("ambiguous review status unexpectedly accepted")
+	}
+	for _, status := range []string{"review pending", "review completed", "review required"} {
+		good.Stamps = []string{status}
+		if err := good.Validate(); err != nil {
+			t.Fatalf("explicit review status %q rejected: %v", status, err)
+		}
+	}
 }

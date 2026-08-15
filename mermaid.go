@@ -137,6 +137,11 @@ const mermaidBrowserExecutor = `(() => {
       const rendered = await engine.render("margo-html-" + index, sourceNode.textContent);
       if (!rendered || typeof rendered.svg !== "string" || rendered.svg.length === 0) throw new Error("Mermaid returned no SVG");
       target.innerHTML = rendered.svg;
+      const svg = target.querySelector("svg");
+      if (svg) {
+        svg.setAttribute("aria-hidden", "true");
+        svg.setAttribute("focusable", "false");
+      }
       const fallback = node.querySelector(".margo-mermaid__source");
       if (fallback) fallback.hidden = true;
       node.dataset.margoRuntimeStatus = "succeeded";

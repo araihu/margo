@@ -249,6 +249,36 @@ func TestStandaloneDarkColorModeIsExplicitAndPrintSafe(t *testing.T) {
 	}
 }
 
+func TestPrintWatermarkUsesReservedFlowSpaceInsteadOfOverlay(t *testing.T) {
+	asset, err := EmbeddedAsset("standalone.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(asset.Content)
+	printIndex := strings.Index(css, "@media print")
+	if printIndex < 0 {
+		t.Fatal("standalone stylesheet has no print projection")
+	}
+	printCSS := css[printIndex:]
+	start := strings.Index(printCSS, ".goshtoso-document__watermark {")
+	if start < 0 {
+		t.Fatal("print projection has no watermark rule")
+	}
+	end := strings.Index(printCSS[start:], "}")
+	if end < 0 {
+		t.Fatal("print watermark rule is malformed")
+	}
+	rule := printCSS[start : start+end]
+	for _, want := range []string{"display: block", "position: static", "margin-block-start:"} {
+		if !strings.Contains(rule, want) {
+			t.Fatalf("print watermark does not reserve flow space with %q: %s", want, rule)
+		}
+	}
+	if strings.Contains(rule, "position: fixed") {
+		t.Fatalf("print watermark can overlap paginated content: %s", rule)
+	}
+}
+
 func TestStandaloneLeavesPageGeometryToThePDFEngine(t *testing.T) {
 	asset, err := EmbeddedAsset("standalone.css")
 	if err != nil {
@@ -382,7 +412,7 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 		t.Fatal("standalone stylesheet has no print media block")
 	}
 	printCSS := css[printStart:]
-	printTOCStart := strings.Index(printCSS, ".goshtoso-document__toc ol {")
+	printTOCStart := strings.Index(printCSS, ".goshtoso-document__toc-disclosure > ol {")
 	if printTOCStart < 0 {
 		t.Fatal("print stylesheet has no table-of-contents list block")
 	}
@@ -401,13 +431,16 @@ func TestStandaloneTOCPrintLayoutIsAdaptiveAndFragmentable(t *testing.T) {
 	for _, want := range []string{
 		"columns: 1;",
 		"column-fill: auto;",
+		"list-style: none;",
 		"columns: auto 12rem;",
 		"column-fill: balance;",
 		"page-break-after: page;",
 		"break-after: page;",
 		"page-break-inside: avoid;",
 		"break-inside: avoid-page;",
-		`.goshtoso-document__toc[data-margo-toc-columns="2"] ol`,
+		`.goshtoso-document__toc[data-margo-toc-columns="2"] .goshtoso-document__toc-disclosure > ol`,
+		`.goshtoso-document__toc details`,
+		"background: transparent;",
 	} {
 		if !strings.Contains(printCSS, want) {
 			t.Errorf("adaptive print table-of-contents flow missing %q", want)
@@ -467,7 +500,7 @@ func TestStandaloneThemeOverrideChangesDocumentAttribute(t *testing.T) {
 }
 
 func TestStandaloneComposesTOCAndCompleteBrandFurniture(t *testing.T) {
-	result := mustRenderSource(t, "# Benchmark\n\n## First section\n\n### Detail\n\n## Second section\n")
+	result := mustRenderSource(t, "# Benchmark\n\nPurpose before navigation.\n\n## First section\n\n### Detail\n\n## Second section\n")
 	logo, err := EmbeddedAsset("logo.svg")
 	if err != nil {
 		t.Fatal(err)
@@ -482,7 +515,7 @@ func TestStandaloneComposesTOCAndCompleteBrandFurniture(t *testing.T) {
 			LogoAlt:   "Margo",
 			Backdrop:  logo,
 			Watermark: "OPTIMISTIC",
-			Stamps:    []string{"v0.0.1", "human review"},
+			Stamps:    []string{"v0.0.1", "review required"},
 		}),
 	)
 	if err != nil {
@@ -490,7 +523,7 @@ func TestStandaloneComposesTOCAndCompleteBrandFurniture(t *testing.T) {
 	}
 	markup := renderComponent(t, component)
 	for _, want := range []string{
-		`<nav class="goshtoso-document__toc" aria-label="Table of contents">`,
+		`<nav id="margo-table-of-contents" class="goshtoso-document__toc" aria-label="Table of contents">`,
 		`href="#first-section"`,
 		`href="#detail"`,
 		`href="#second-section"`,
@@ -502,16 +535,48 @@ func TestStandaloneComposesTOCAndCompleteBrandFurniture(t *testing.T) {
 		`aria-hidden="true"`,
 		`class="goshtoso-document__stamps"`,
 		`<span class="goshtoso-document__stamp">v0.0.1</span>`,
-		`<span class="goshtoso-document__stamp">human review</span>`,
+		`<span class="goshtoso-document__stamp">review required</span>`,
 		`class="goshtoso-document__watermark"`,
 		`class="goshtoso-document__footer"`,
 		`data-margo-stylesheet="shell"`,
+		`<a class="goshtoso-document__back-to-contents" href="#margo-table-of-contents">Back to contents</a>`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("standalone furniture missing %q", want)
 		}
 	}
-	if strings.Index(markup, `class="goshtoso-document__toc"`) > strings.Index(markup, `<article class="margo-document">`) {
-		t.Error("table of contents must precede article content")
+	titleIndex := strings.Index(markup, `<h1 id="benchmark">Benchmark</h1>`)
+	leadIndex := strings.Index(markup, `<p class="margo-document__lead">Purpose before navigation.</p>`)
+	tocIndex := strings.Index(markup, `class="goshtoso-document__toc"`)
+	sectionIndex := strings.Index(markup, `<h2 id="first-section">First section</h2>`)
+	if titleIndex < 0 || leadIndex < 0 || tocIndex < 0 || sectionIndex < 0 {
+		t.Fatalf("standalone entry markers missing: title=%d lead=%d toc=%d section=%d", titleIndex, leadIndex, tocIndex, sectionIndex)
+	}
+	if !(titleIndex < leadIndex && leadIndex < tocIndex && tocIndex < sectionIndex) {
+		t.Fatalf("standalone entry order = title:%d lead:%d toc:%d section:%d; want title, lead, contents, section", titleIndex, leadIndex, tocIndex, sectionIndex)
+	}
+	if backIndex := strings.Index(markup, `class="goshtoso-document__back-to-contents"`); backIndex <= sectionIndex {
+		t.Fatalf("return-to-contents path does not follow document sections: back=%d section=%d", backIndex, sectionIndex)
+	}
+}
+
+func TestStandaloneTOCStagesTopLevelSectionsBeforeDeeperHeadings(t *testing.T) {
+	result := mustRenderSource(t, "# Benchmark\n\nPurpose.\n\n## First section\n\n### First detail\n\n#### First depth\n\n## Second section\n")
+	component, err := RenderStandalone(result, WithTableOfContents())
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, component)
+	for _, want := range []string{
+		`<details class="goshtoso-document__toc-disclosure" open="">`,
+		`<li data-level="2"><a href="#first-section">First section</a><details class="goshtoso-document__toc-section-disclosure" open="">`,
+		`<summary>More in First section</summary>`,
+		`<li data-level="3"><a href="#first-detail">First detail</a></li>`,
+		`<li data-level="4"><a href="#first-depth">First depth</a></li>`,
+		`<li data-level="2"><a href="#second-section">Second section</a></li>`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("staged contents missing %q:\n%s", want, markup)
+		}
 	}
 }

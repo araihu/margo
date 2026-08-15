@@ -13,13 +13,19 @@ import (
 const chartScreenDataStyle = `.goshtoso-charts-bar > figcaption,
   .goshtoso-charts-line > figcaption,
   .goshtoso-charts-interactive > figcaption {
-    color: #525252;
-    font-size: 0.75rem;
+    color: var(--color-on-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
     font-style: italic;
-    line-height: 1.4;
+    line-height: var(--text-sm--line-height);
     margin: 0.5rem auto 0;
     max-width: 80%;
     text-align: center;
+  }
+  .dark .goshtoso-charts-bar > figcaption,
+  .dark .goshtoso-charts-line > figcaption,
+  .dark .goshtoso-charts-interactive > figcaption {
+    color: var(--color-on-surface-dark);
   }
   [data-margo-chart-with-data="v1"] > details,
   [data-margo-chart-with-data="v1"] [data-goshtoso-chart-content] > details {
@@ -103,7 +109,7 @@ const chartPrintVisibleDataStyle = `<style data-margo-extension-style="charts" d
   }
   .margo-chart-data th,
   .margo-chart-data td {
-    border: 1px solid #a3a3a3;
+    border: 1px solid var(--color-outline);
     padding: 0.35rem 0.5rem;
     text-align: left;
   }

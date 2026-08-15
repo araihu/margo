@@ -76,6 +76,9 @@ func (b Brand) Validate() error {
 		if strings.TrimSpace(stamp) == "" || len([]byte(stamp)) > maxBrandStampBytes || strings.ContainsAny(stamp, "<>\x00\n\r") {
 			return fmt.Errorf("margo: invalid brand stamp")
 		}
+		if strings.EqualFold(strings.TrimSpace(stamp), "human review") {
+			return fmt.Errorf("margo: brand review stamp must state pending, completed, or required")
+		}
 	}
 	return validateThemeTokens(b.Tokens)
 }

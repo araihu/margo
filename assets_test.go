@@ -112,6 +112,44 @@ func TestDocumentCSSSpacesGoshtosoTableFromFollowingProse(t *testing.T) {
 	}
 }
 
+func TestDocumentPrintCSSWrapsLongCodeAndUsesLandscapeForWideDiagrams(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".margo-document pre {"),
+		[]byte("white-space: pre-wrap"),
+		[]byte("overflow-wrap: anywhere"),
+		[]byte(`.margo-document .margo-mermaid[data-margo-print-layout="landscape"]`),
+		[]byte("page: margo-diagram-landscape"),
+		[]byte("max-inline-size: none"),
+		[]byte(`:has(+ .margo-mermaid[data-margo-print-layout="landscape"])`),
+		[]byte(`:has(+ :where(h2, h3, h4, h5, h6) + .margo-mermaid[data-margo-print-layout="landscape"])`),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("print stylesheet missing containment rule %q", want)
+		}
+	}
+}
+
+func TestDocumentPrintCSSKeepsPortraitMermaidFigureWithItsCaption(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".margo-document .margo-mermaid:not([data-margo-print-layout=\"landscape\"])"),
+		[]byte("break-inside: avoid-page"),
+		[]byte("max-block-size: 155mm"),
+		[]byte("block-size: auto"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("print stylesheet missing portrait Mermaid fitting rule %q", want)
+		}
+	}
+}
+
 func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 	css, err := os.ReadFile("assets/document.css")
 	if err != nil {
@@ -170,6 +208,43 @@ func TestDocumentCSSConstrainsTrustedEmbedsToDocumentWidth(t *testing.T) {
 		if !bytes.Contains(css, want) {
 			t.Fatalf("document stylesheet missing embed rule %q", want)
 		}
+	}
+}
+
+func TestDocumentStylesKeepNarrowMermaidLabelsReadableWithLocalOverflow(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".margo-document .margo-mermaid__canvas"),
+		[]byte("overflow-x: auto"),
+		[]byte(".margo-document .margo-mermaid__canvas > svg"),
+		[]byte("min-inline-size: 40rem"),
+		[]byte(".margo-document .margo-mermaid__overflow-cue"),
+		[]byte("@media (max-width: 42rem)"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document CSS has no narrow Mermaid behavior %q", want)
+		}
+	}
+}
+
+func TestDocumentStylesKeepDeepHeadingLevelsVisuallyDistinct(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h5 := regexp.MustCompile(`(?s)\.margo-document h5 \{([^}]*)\}`).FindSubmatch(css)
+	h6 := regexp.MustCompile(`(?s)\.margo-document h6 \{([^}]*)\}`).FindSubmatch(css)
+	if len(h5) != 2 || len(h6) != 2 {
+		t.Fatal("H5 and H6 do not have independent visual roles")
+	}
+	if bytes.Equal(bytes.TrimSpace(h5[1]), bytes.TrimSpace(h6[1])) {
+		t.Fatal("H5 and H6 visual roles are identical")
+	}
+	if !bytes.Contains(h6[1], []byte("text-transform: uppercase")) {
+		t.Fatal("H6 lacks the label treatment that distinguishes it from body text")
 	}
 }
 

@@ -3,6 +3,7 @@ package margo
 import (
 	"bytes"
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -18,6 +19,21 @@ func TestMarkdownTableUsesClientOnlyGoshtosoTable(t *testing.T) {
 	}
 	if bytes.Contains([]byte(markup), []byte(`hx-get`)) {
 		t.Fatalf("table unexpectedly enabled server interaction:\n%s", markup)
+	}
+}
+
+func TestMultipleMarkdownTablesUseUniqueDocumentIDs(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, tableMarkdown()+"\n"+tableMarkdown()).Content())
+	matches := regexp.MustCompile(`\sid="([^"]+)"`).FindAllStringSubmatch(markup, -1)
+	seen := make(map[string]struct{}, len(matches))
+	for _, match := range matches {
+		if _, duplicate := seen[match[1]]; duplicate {
+			t.Fatalf("duplicate document id %q in markup:\n%s", match[1], markup)
+		}
+		seen[match[1]] = struct{}{}
+	}
+	if len(seen) == 0 {
+		t.Fatalf("rendered tables have no addressable IDs:\n%s", markup)
 	}
 }
 

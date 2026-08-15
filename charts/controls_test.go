@@ -81,10 +81,9 @@ func TestChartPrintPolicyStylesGoshtosoFigcaptionAsCaption(t *testing.T) {
 			`.goshtoso-charts-bar > figcaption`,
 			`.goshtoso-charts-line > figcaption`,
 			`.goshtoso-charts-interactive > figcaption`,
-			`color: #525252`,
-			`font-size: 0.75rem`,
-			`font-style: italic`,
-			`line-height: 1.4`,
+			`color: var(--color-on-surface)`,
+			`font-size: var(--text-sm)`,
+			`line-height: var(--text-sm--line-height)`,
 			`margin: 0.5rem auto 0`,
 			`max-width: 80%`,
 			`text-align: center`,
@@ -107,10 +106,9 @@ func TestChartHTMLPolicyStylesGoshtosoFigcaptionAsCaption(t *testing.T) {
 			`.goshtoso-charts-bar > figcaption`,
 			`.goshtoso-charts-line > figcaption`,
 			`.goshtoso-charts-interactive > figcaption`,
-			`color: #525252`,
-			`font-size: 0.75rem`,
-			`font-style: italic`,
-			`line-height: 1.4`,
+			`color: var(--color-on-surface)`,
+			`font-size: var(--text-sm)`,
+			`line-height: var(--text-sm--line-height)`,
 			`margin: 0.5rem auto 0`,
 			`max-width: 80%`,
 			`text-align: center`,
@@ -142,6 +140,9 @@ func TestChartScreenPolicyShowsOnlyStyledMargoTable(t *testing.T) {
 			if !strings.Contains(style, want) {
 				t.Fatalf("screen chart policy missing %q: %s", want, style)
 			}
+		}
+		if strings.Contains(style, `#525252`) || strings.Contains(style, `#a3a3a3`) {
+			t.Fatalf("chart style bypasses semantic Goshtoso color tokens: %s", style)
 		}
 	}
 }

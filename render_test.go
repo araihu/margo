@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/a-h/templ"
@@ -38,12 +39,49 @@ func TestSemanticRender(t *testing.T) {
 	markup := renderComponent(t, result.Content())
 	for _, want := range []string{
 		`<h1 id="hello">Hello</h1>`,
-		`<p>A <a href="https://example.com">safe link</a>.</p>`,
+		`<p class="margo-document__lead">A <a href="https://example.com">safe link</a>.</p>`,
 		`<ul><li>one</li><li>two</li></ul>`,
 		`<blockquote><p>quoted</p></blockquote>`,
 	} {
 		if !bytes.Contains([]byte(markup), []byte(want)) {
 			t.Fatalf("rendered markup missing %q:\n%s", want, markup)
+		}
+	}
+}
+
+func TestFirstParagraphAfterDocumentTitleIsTheLead(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "# Visual foundation\n\nPurpose and scope.\n\n## Evidence\n\nOrdinary body copy.\n").Content())
+	if !strings.Contains(markup, `<h1 id="visual-foundation">Visual foundation</h1><p class="margo-document__lead">Purpose and scope.</p>`) {
+		t.Fatalf("document purpose is not identified as the lead:\n%s", markup)
+	}
+	if strings.Contains(markup, `<p class="margo-document__lead">Ordinary body copy.</p>`) {
+		t.Fatalf("ordinary body copy was promoted to lead:\n%s", markup)
+	}
+}
+
+func TestSemanticRenderKeepsOneDocumentTitleAndOneLead(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "# Primary title\n\nDocument purpose.\n\nSecondary setext title\n======================\n\nSection body.\n").Content())
+	if strings.Count(markup, "<h1 ") != 1 {
+		t.Fatalf("document title count = %d, want 1:\n%s", strings.Count(markup, "<h1 "), markup)
+	}
+	if strings.Count(markup, `class="margo-document__lead"`) != 1 {
+		t.Fatalf("document lead count = %d, want 1:\n%s", strings.Count(markup, `class="margo-document__lead"`), markup)
+	}
+	if !strings.Contains(markup, `<h2 id="secondary-setext-title">Secondary setext title</h2><p>Section body.</p>`) {
+		t.Fatalf("later level-one heading was not demoted into the section hierarchy:\n%s", markup)
+	}
+}
+
+func TestTitledMarkdownImageUsesSemanticFigureAndSharedCaptionRole(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, `![Deployment topology](/topology.png "Services and trust boundaries")`).Content())
+	for _, want := range []string{
+		`<figure class="margo-figure">`,
+		`<img src="/topology.png" alt="Deployment topology"`,
+		`<figcaption class="margo-figure-caption">Services and trust boundaries</figcaption>`,
+		`</figure>`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("titled image is missing semantic figure content %q:\n%s", want, markup)
 		}
 	}
 }
@@ -59,12 +97,39 @@ func TestSemanticRenderUsesFrontmatterBodyForFenceLanguage(t *testing.T) {
 func TestMermaidSourceStartsCollapsedButRemainsDisclosure(t *testing.T) {
 	result := mustRenderSource(t, "```mermaid\nflowchart TD\n  A --> B\n```\n")
 	markup := renderComponent(t, result.Content())
-	want := `<details class="margo-mermaid__source"><summary>Mermaid source</summary>`
+	want := `<details class="margo-mermaid__source"><summary>Mermaid source`
 	if !bytes.Contains([]byte(markup), []byte(want)) {
 		t.Fatalf("Mermaid source disclosure is not collapsed by default:\n%s", markup)
 	}
 	if bytes.Contains([]byte(markup), []byte(`<details open class="margo-mermaid__source">`)) {
 		t.Fatalf("Mermaid source disclosure is expanded by default:\n%s", markup)
+	}
+}
+
+func TestMermaidFiguresUseUniqueContextualAccessibleNames(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "## Request flow\n\n```mermaid\nflowchart LR\n  source[Markdown source] --> ready{Runtime ready?}\n  ready --> pdf[PDF artifact]\n```\n\n## Handoff\n\n```mermaid\nsequenceDiagram\n  participant Author\n  participant Margo\n  Author->>Margo: Compile source\n```\n").Content())
+	for _, want := range []string{
+		`id="margo-mermaid-caption-0"`,
+		`aria-labelledby="margo-mermaid-caption-0"`,
+		`aria-describedby="margo-mermaid-source-0"`,
+		`<span id="margo-mermaid-source-0" class="margo-mermaid__accessible-source">Complete Mermaid source: flowchart LR`,
+		`ready --&gt; pdf[PDF artifact]</span>`,
+		`data-margo-print-layout="landscape"`,
+		`<figcaption id="margo-mermaid-caption-0" class="margo-figure-caption">Flowchart connecting Markdown source, Runtime ready?, and PDF artifact.</figcaption>`,
+		`id="margo-mermaid-caption-1"`,
+		`aria-labelledby="margo-mermaid-caption-1"`,
+		`aria-describedby="margo-mermaid-source-1"`,
+		`<figcaption id="margo-mermaid-caption-1" class="margo-figure-caption">Sequence diagram showing interactions between Author and Margo.</figcaption>`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("Mermaid figure is missing %q:\n%s", want, markup)
+		}
+	}
+	if strings.Contains(markup, `aria-label="Mermaid diagram"`) {
+		t.Fatalf("Mermaid figures still share a generic accessible name:\n%s", markup)
+	}
+	if !strings.Contains(markup, `<span class="margo-mermaid__overflow-cue">Scroll diagram horizontally to inspect all labels.</span>`) {
+		t.Fatalf("Mermaid figure has no narrow-layout overflow cue:\n%s", markup)
 	}
 }
 
@@ -74,7 +139,8 @@ func TestSemanticRenderMatchesGolden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != string(wantBytes) {
+	want := strings.TrimSuffix(string(wantBytes), "\n")
+	if got != want {
 		t.Fatalf("semantic golden mismatch:\nwant %s\n got %s", wantBytes, got)
 	}
 }

@@ -137,7 +137,7 @@ func generateHTML(ctx context.Context, config generatorConfig) error {
 			LogoAlt:   "Margo mark used as a compact vector figure",
 			Backdrop:  logo,
 			Watermark: "Optimistic benchmark",
-			Stamps:    []string{"v0.0.1", "optimistic", "charts", "human review"},
+			Stamps:    []string{"v0.0.1", "optimistic", "charts", "review required"},
 		}),
 	)
 	if err != nil {
