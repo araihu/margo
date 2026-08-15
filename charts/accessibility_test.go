@@ -26,6 +26,14 @@ func TestAccessibleTextIsBoundedAndContainsEveryRow(t *testing.T) {
 	if strings.Contains(out, "data-chart-runtime") || len(out) > 4096 {
 		t.Fatalf("unexpected runtime marker or output size: %d", len(out))
 	}
+	for _, want := range []string{
+		`<thead><tr><th scope="col">Series</th><th scope="col">Category</th><th scope="col">Sample</th><th scope="col">Value</th></tr></thead>`,
+		`<td data-field="canonical" hidden>Revenue|Development|12</td>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("accessible table missing %q: %s", want, out)
+		}
+	}
 }
 
 func TestAccessiblePolicyBoundariesAndOneByteOverflow(t *testing.T) {
@@ -97,5 +105,28 @@ func TestAccessibleDataLimitFailsBeforeFirstByte(t *testing.T) {
 	}
 	if dst.Len() != 0 {
 		t.Fatalf("caller received %d bytes on overflow", dst.Len())
+	}
+}
+
+func TestAccessibleDataScopesChartAndSemanticTableTogether(t *testing.T) {
+	chart := templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
+		_, err := io.WriteString(out, `<figure role="img"></figure><details><summary>Exact category values</summary></details>`)
+		return err
+	})
+	var out bytes.Buffer
+	err := WithAccessibleData(chart, AccessibleData{Title: "Revenue", Rows: []AccessibleRow{{Category: "Q1", Value: "12"}}}, AccessibleRenderPolicy{MaxOutputBytes: 4096}).Render(context.Background(), &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := out.String()
+	for _, want := range []string{
+		`<div data-margo-chart-with-data="v1">`,
+		`<figure role="img"></figure><details><summary>Exact category values</summary></details>`,
+		`<div class="margo-chart-data" data-margo-chart-data="v1"><table><caption>Revenue</caption>`,
+		`</table></div></div>`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("scoped accessible chart missing %q: %s", want, markup)
+		}
 	}
 }

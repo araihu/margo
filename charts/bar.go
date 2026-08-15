@@ -8,12 +8,15 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/araihu/goshtoso-charts/components/bar"
+	sharedchart "github.com/araihu/goshtoso-charts/components/chart"
+	interactivebar "github.com/araihu/goshtoso-charts/components/interactive/bar"
 	margo "github.com/araihu/margo"
 )
 
 type barModel struct {
 	SchemaVersion int              `yaml:"schemaVersion"`
 	Type          string           `yaml:"type"`
+	Renderer      string           `yaml:"renderer"`
 	Title         string           `yaml:"title"`
 	Style         chartStyleModel  `yaml:"style"`
 	Categories    []string         `yaml:"categories"`
@@ -33,6 +36,9 @@ func validateBarModel(model barModel) error {
 	}
 	if model.SchemaVersion != 1 || model.Type != "bar" {
 		return chartDiagnostic("chart.schema_invalid", "bar model envelope is invalid")
+	}
+	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
+		return chartDiagnostic("chart.renderer_invalid", "bar renderer must be static or interactive")
 	}
 	if strings.TrimSpace(model.Title) == "" {
 		return chartDiagnostic("chart.semantic_title_invalid", "bar title is required")
@@ -67,6 +73,9 @@ func validateBarModel(model barModel) error {
 		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("bar series %q", series.Name)); err != nil {
 			return err
 		}
+		if model.Renderer == "interactive" && strings.TrimSpace(series.Class) != "" {
+			return chartDiagnostic("chart.renderer_style_unsupported", "interactive bar series do not support class")
+		}
 		if strings.TrimSpace(series.Name) == "" {
 			return chartDiagnostic("chart.semantic_series_invalid", "bar series name is required")
 		}
@@ -94,6 +103,9 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 	if err := validateBarModel(model); err != nil {
 		return nil, err
 	}
+	if model.Renderer == "interactive" && !options.controlWrapper {
+		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper in this proof of concept")
+	}
 	orientation := bar.OrientationVertical
 	if model.Orientation == "horizontal" {
 		orientation = bar.OrientationHorizontal
@@ -111,6 +123,30 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 		}
 	}
 	controlOptions, exportOptions := chartControlConfig(options)
+	style := chartThemeForSeries(model.Style, paints)
+	if model.Renderer == "interactive" {
+		interactiveSeries := make([]interactivebar.Series, len(model.Series))
+		for seriesIndex, source := range model.Series {
+			data := make([]interactivebar.Data, len(source.Values))
+			for valueIndex, value := range source.Values {
+				data[valueIndex] = interactivebar.Data{Name: model.Categories[valueIndex], Value: value}
+			}
+			interactiveSeries[seriesIndex] = interactivebar.Series{Name: source.Name, Data: data}
+		}
+		interactiveOrientation := interactivebar.OrientationVertical
+		if model.Orientation == "horizontal" {
+			interactiveOrientation = interactivebar.OrientationHorizontal
+		}
+		component := interactivebar.Bar(interactivebar.Config{
+			Label: model.Title, Caption: Caption(model.Title), XAxis: append([]string(nil), model.Categories...),
+			Series: interactiveSeries, Orientation: interactiveOrientation, Style: style,
+			Options: sharedchart.ChartOptions{
+				Title: &sharedchart.TitleOptions{Text: model.Title}, Animation: sharedchart.Bool(false), Controls: controlOptions, Export: exportOptions,
+			},
+		})
+		chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+		return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
+	}
 	component := bar.Bar(bar.Config{
 		Label:       model.Title,
 		Caption:     Caption(model.Title),
@@ -120,9 +156,9 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 		Orientation: orientation,
 		Controls:    controlOptions,
 		Export:      exportOptions,
-		Style:       chartThemeForSeries(model.Style, paints),
+		Style:       style,
 	})
-	chartComponent := decorateBarSeriesClasses(templ.Component(component), chartThemeForSeries(model.Style, paints), paints)
+	chartComponent := decorateBarSeriesClasses(templ.Component(component), style, paints)
 	chartComponent = applyChartPrintPolicy(chartComponent, options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 }

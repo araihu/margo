@@ -238,6 +238,94 @@ func TestPDFCommandExportsWithInstalledChromium(t *testing.T) {
 	}
 }
 
+func TestPDFCommandExportsMixedStaticAndInteractiveCharts(t *testing.T) {
+	path := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	if _, err := os.Stat(path); err != nil {
+		t.Skip("installed Chromium unavailable")
+	}
+	output := filepath.Join(t.TempDir(), "charts.pdf")
+	markdown := `# Printable charts
+
+` + "```goshtosochart" + `
+schemaVersion: 1
+type: bar
+title: Static revenue
+categories: [Q1, Q2]
+series: [{name: Revenue, values: [12, 18]}]
+` + "```" + `
+
+` + "```goshtosochart" + `
+schemaVersion: 1
+type: line
+renderer: interactive
+title: Interactive revenue
+categories: [Q1, Q2]
+series: [{name: Revenue, values: [12, 18]}]
+` + "```" + `
+`
+	var stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		NextExecutionID: func() margo.ExecutionID { return "cli-pdf-mixed-charts" },
+	})
+	command.SetArgs([]string{"pdf", "-", "--output", output, "--engine", "chromium", "--engine-path", path})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := command.ExecuteContext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(data, []byte("%PDF-")) || len(data) < 1000 || stderr.Len() != 0 {
+		t.Fatalf("PDF bytes = %d stderr = %q", len(data), stderr.String())
+	}
+}
+
+func TestPDFChartDataPrintGateDefaultsOffAndCanBeEnabled(t *testing.T) {
+	markdown := `# Printable chart
+
+` + "```goshtosochart" + `
+schemaVersion: 1
+type: bar
+title: Revenue
+categories: [Q1, Q2]
+series: [{name: Revenue, values: [12, 18]}]
+` + "```" + `
+`
+	for _, test := range []struct {
+		name       string
+		extraArgs  []string
+		wantMarker string
+	}{
+		{name: "default off", wantMarker: `data-margo-chart-print-data="disabled"`},
+		{name: "explicit on", extraArgs: []string{"--print-chart-data"}, wantMarker: `data-margo-chart-print-data="enabled"`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			engine := &capturingEngine{name: "native"}
+			probe := engines.Probe{Native: func(context.Context) (pdf.Engine, engines.Candidate) {
+				return engine, engines.Candidate{Name: "native", Version: "test", Compiled: true, Available: true}
+			}}
+			output := filepath.Join(t.TempDir(), "chart.pdf")
+			command := NewRootCommand(Dependencies{
+				Stdin: strings.NewReader(markdown), EngineProbe: probe, Stderr: io.Discard,
+				Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+				NextExecutionID: func() margo.ExecutionID { return "cli-pdf-chart-data" },
+			})
+			args := []string{"pdf", "-", "--output", output, "--engine", "native"}
+			command.SetArgs(append(args, test.extraArgs...))
+			if err := command.ExecuteContext(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(engine.request.HTML, []byte(test.wantMarker)) {
+				t.Fatalf("PDF HTML missing %q", test.wantMarker)
+			}
+		})
+	}
+}
+
 func TestPDFCommandProducesCleanPopplerStructureForStaticPrintProjection(t *testing.T) {
 	browserPath := installedCLITestChromium()
 	pdfinfoPath, err := exec.LookPath("pdfinfo")

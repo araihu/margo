@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"github.com/araihu/margo/pdf"
 	"github.com/spf13/cobra"
 )
@@ -56,6 +57,7 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	metadata := standaloneMetadataFlags{}
 	policyOptions := policyFlags{}
 	diagnostics := string(diagnosticText)
+	printChartData := false
 	command := &cobra.Command{
 		Use:   "pdf INPUT",
 		Short: "Render a PDF document",
@@ -81,7 +83,7 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions, linkConfig, policy, metadata.standaloneOptions(command))
+			artifact, err := renderPDF(command, deps, args[0], engineOptions, pageOptions, linkConfig, policy, printChartData, metadata.standaloneOptions(command))
 			if err == nil {
 				_, err = publish(command.Context(), artifact, output, command.OutOrStdout())
 			}
@@ -93,6 +95,7 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	}
 	command.Flags().StringVarP(&output.Path, "output", "o", "", "required output path, or - for binary stdout")
 	command.Flags().BoolVarP(&output.Force, "force", "f", false, "replace an existing output file")
+	command.Flags().BoolVar(&printChartData, "print-chart-data", false, "print accessible exact-data tables after charts")
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
 	engineOptions.bind(command)
 	pageOptions.bind(command)
@@ -103,8 +106,9 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	return command
 }
 
-func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig, policy *loadedPolicy, standaloneOptions []margo.StandaloneOption) ([]byte, error) {
-	compiled, err := compileStandaloneWithCompiler(command.Context(), deps, input, compilerForPolicy(policy, policyTargetPDF), margo.TargetPDF, standaloneOptions...)
+func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOptions engineFlags, pageOptions pageFlags, linkConfig pdfLinkConfig, policy *loadedPolicy, printChartData bool, standaloneOptions []margo.StandaloneOption) ([]byte, error) {
+	compiler := compilerForPolicy(policy, policyTargetPDF, charts.WithPrintableAccessibleData(printChartData))
+	compiled, err := compileStandaloneWithCompiler(command.Context(), deps, input, compiler, margo.TargetPDF, standaloneOptions...)
 	if err != nil {
 		return nil, err
 	}

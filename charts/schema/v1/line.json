@@ -6,6 +6,7 @@
   "properties": {
     "schemaVersion": {"const": 1},
     "type": {"const": "line"},
+    "renderer": {"enum": ["static", "interactive"]},
     "title": {"type": "string", "minLength": 1},
     "style": {
       "type": "object",

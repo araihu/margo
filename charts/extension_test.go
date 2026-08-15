@@ -82,9 +82,15 @@ func TestExtensionDeclaresEnabledControlRequirements(t *testing.T) {
 	capabilities := decodeRequirementCapabilities(t, registration.Identity.Capabilities)
 	requireCapabilityIDs(t, capabilities,
 		"goshtoso.runtime.alpine-focus", "goshtoso.runtime.first-party",
-		"goshtoso.runtime.alpine", "goshtoso-charts.controls",
+		"goshtoso.runtime.alpine", "goshtoso-charts.runtime", "goshtoso-charts.controls",
 	)
-	loadAfter := [][]string{{"margo.document.styles"}, {"goshtoso.runtime.alpine-focus"}, {"goshtoso.runtime.first-party"}, {"goshtoso.runtime.alpine"}}
+	loadAfter := [][]string{
+		{"margo.document.styles"},
+		{"goshtoso.runtime.alpine-focus"},
+		{"goshtoso.runtime.first-party"},
+		{"margo.document.styles"},
+		{"goshtoso-charts.runtime", "goshtoso.runtime.alpine"},
+	}
 	for index, capability := range capabilities {
 		if capability.Kind != "script" || capability.LocalURL == "" || capability.Inline == nil || len(capability.Inline.Content) == 0 || capability.Inline.MediaType != "application/javascript" {
 			t.Fatalf("capability %d = %#v", index, capability)
@@ -97,6 +103,18 @@ func TestExtensionDeclaresEnabledControlRequirements(t *testing.T) {
 			t.Fatalf("capability %s loadAfter = %v, want %v", capability.ID, capability.LoadAfter, loadAfter[index])
 		}
 	}
+}
+
+func TestExternalizedRuntimeRegistrationIsAcceptedByRoot(t *testing.T) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			if diagnostic, ok := recovered.(*margo.DiagnosticError); ok {
+				t.Fatalf("registration panic: %+v", diagnostic.Diagnostics)
+			}
+			t.Fatalf("registration panic: %#v", recovered)
+		}
+	}()
+	_ = margo.New(margo.WithExtension(Extension(WithExternalizedControlRuntime(true))))
 }
 
 func TestExtensionDeclaresNoControlRequirementsWhenDisabled(t *testing.T) {

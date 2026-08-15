@@ -55,14 +55,101 @@ func TestStaticChartDoesNotGainInteractiveAlpineScope(t *testing.T) {
 	if err := applyChartPrintPolicy(chart, chartRenderOptions{controlWrapper: false}).Render(context.Background(), &out); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(out.String(), `x-data`) || strings.Contains(out.String(), `data-margo-chart-print`) {
-		t.Fatalf("static chart unexpectedly contains interactive policy: %s", out.String())
+	markup := out.String()
+	if strings.Contains(markup, `x-data`) {
+		t.Fatalf("static chart unexpectedly contains Alpine scope: %s", markup)
+	}
+	for _, want := range []string{
+		`data-margo-chart-print`,
+		`.margo-chart-data`,
+		`[data-goshtoso-chart-content] > details`,
+		`display: none !important`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("static chart default print policy missing %q: %s", want, markup)
+		}
+	}
+}
+
+func TestChartPrintPolicyStylesGoshtosoFigcaptionAsCaption(t *testing.T) {
+	for _, options := range []chartRenderOptions{
+		{printAccessibleData: false},
+		{printAccessibleData: true},
+	} {
+		style := chartPrintStyle(options)
+		for _, want := range []string{
+			`.goshtoso-charts-bar > figcaption`,
+			`.goshtoso-charts-line > figcaption`,
+			`.goshtoso-charts-interactive > figcaption`,
+			`color: #525252`,
+			`font-size: 0.75rem`,
+			`font-style: italic`,
+			`line-height: 1.4`,
+			`margin: 0.5rem auto 0`,
+			`max-width: 80%`,
+			`text-align: center`,
+		} {
+			if !strings.Contains(style, want) {
+				t.Fatalf("print style missing caption treatment %q: %s", want, style)
+			}
+		}
+	}
+}
+
+func TestChartHTMLPolicyStylesGoshtosoFigcaptionAsCaption(t *testing.T) {
+	for _, options := range []chartRenderOptions{
+		{printAccessibleData: false},
+		{printAccessibleData: true},
+	} {
+		style := chartPrintStyle(options)
+		screenStyle := strings.SplitN(style, `@media print`, 2)[0]
+		for _, want := range []string{
+			`.goshtoso-charts-bar > figcaption`,
+			`.goshtoso-charts-line > figcaption`,
+			`.goshtoso-charts-interactive > figcaption`,
+			`color: #525252`,
+			`font-size: 0.75rem`,
+			`font-style: italic`,
+			`line-height: 1.4`,
+			`margin: 0.5rem auto 0`,
+			`max-width: 80%`,
+			`text-align: center`,
+		} {
+			if !strings.Contains(screenStyle, want) {
+				t.Fatalf("screen style missing caption treatment %q: %s", want, screenStyle)
+			}
+		}
+	}
+}
+
+func TestChartScreenPolicyShowsOnlyStyledMargoTable(t *testing.T) {
+	for _, options := range []chartRenderOptions{
+		{printAccessibleData: false},
+		{printAccessibleData: true},
+	} {
+		style := chartPrintStyle(options)
+		for _, want := range []string{
+			`[data-margo-chart-with-data="v1"] > details`,
+			`[data-margo-chart-with-data="v1"] [data-goshtoso-chart-content] > details`,
+			`display: none !important`,
+			`.margo-chart-data table`,
+			`border: 1px solid var(--color-outline)`,
+			`background: var(--color-surface-alt)`,
+			`.margo-chart-data caption`,
+			`color: var(--color-on-surface-strong)`,
+			`width: 100%`,
+		} {
+			if !strings.Contains(style, want) {
+				t.Fatalf("screen chart policy missing %q: %s", want, style)
+			}
+		}
 	}
 }
 
 func TestChartControlLoaderIsSuppressedOnlyWhenExternalized(t *testing.T) {
 	exactLoader := `<script src="` + chartassets.ControlRuntimeURL + `" defer></script>`
 	changedLoader := `<script defer src="` + chartassets.ControlRuntimeURL + `"></script>`
+	markedChangedLoader := `<script ` + chartExtensionScriptAttribute + ` defer src="` + chartassets.ControlRuntimeURL + `"></script>`
 	chart := templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
 		_, err := io.WriteString(out, `<div class="goshtoso-charts-control-wrapper" data-goshtoso-chart-wrapper><svg aria-label="Chart"></svg><table><tr><td>Data</td></tr></table>`+exactLoader+changedLoader+`</div>`)
 		return err
@@ -76,12 +163,12 @@ func TestChartControlLoaderIsSuppressedOnlyWhenExternalized(t *testing.T) {
 	if strings.Contains(markup, exactLoader) {
 		t.Fatalf("exact loader remained: %s", markup)
 	}
-	for _, want := range []string{changedLoader, `<svg aria-label="Chart">`, `<table>`, `<div x-data class="goshtoso-charts-control-wrapper"`} {
+	for _, want := range []string{markedChangedLoader, `<svg aria-label="Chart">`, `<table>`, `<div x-data class="goshtoso-charts-control-wrapper"`} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("externalized chart missing %q: %s", want, markup)
 		}
 	}
-	if !strings.Contains(markup, `<style data-margo-extension-style="charts" data-margo-chart-print>`) {
+	if !strings.Contains(markup, `<style data-margo-extension-style="charts" data-margo-chart-print data-margo-chart-print-data="disabled">`) {
 		t.Fatalf("chart print style is not provenance-marked: %s", markup)
 	}
 }

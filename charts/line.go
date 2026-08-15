@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	sharedchart "github.com/araihu/goshtoso-charts/components/chart"
+	interactiveline "github.com/araihu/goshtoso-charts/components/interactive/line"
 	"github.com/araihu/goshtoso-charts/components/line"
 	margo "github.com/araihu/margo"
 )
@@ -14,6 +16,7 @@ import (
 type lineModel struct {
 	SchemaVersion int               `yaml:"schemaVersion"`
 	Type          string            `yaml:"type"`
+	Renderer      string            `yaml:"renderer"`
 	Title         string            `yaml:"title"`
 	Style         chartStyleModel   `yaml:"style"`
 	Categories    []string          `yaml:"categories"`
@@ -33,6 +36,9 @@ func validateLineModel(model lineModel) error {
 	if model.SchemaVersion != 1 || model.Type != "line" {
 		return chartDiagnostic("chart.schema_invalid", "line model envelope is invalid")
 	}
+	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
+		return chartDiagnostic("chart.renderer_invalid", "line renderer must be static or interactive")
+	}
 	if strings.TrimSpace(model.Title) == "" {
 		return chartDiagnostic("chart.semantic_title_invalid", "line title is required")
 	}
@@ -46,6 +52,9 @@ func validateLineModel(model lineModel) error {
 	for _, series := range model.Series {
 		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("line series %q", series.Name)); err != nil {
 			return err
+		}
+		if model.Renderer == "interactive" && strings.TrimSpace(series.Class) != "" {
+			return chartDiagnostic("chart.renderer_style_unsupported", "interactive line series do not support class")
 		}
 		if strings.TrimSpace(series.Name) == "" {
 			return chartDiagnostic("chart.semantic_series_invalid", "line series name is required")
@@ -91,6 +100,9 @@ func renderLineWithOptions(rc margo.RenderContext, model lineModel, options char
 	if err := validateLineModel(model); err != nil {
 		return nil, err
 	}
+	if model.Renderer == "interactive" && !options.controlWrapper {
+		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper in this proof of concept")
+	}
 	series := make([]line.Series, len(model.Series))
 	paints := make([]chartPaintModel, len(model.Series))
 	rows := make([]AccessibleRow, 0, len(model.Series)*len(model.Categories))
@@ -103,6 +115,26 @@ func renderLineWithOptions(rc margo.RenderContext, model lineModel, options char
 		}
 	}
 	controlOptions, exportOptions := chartControlConfig(options)
+	style := chartThemeForSeries(model.Style, paints)
+	if model.Renderer == "interactive" {
+		interactiveSeries := make([]interactiveline.Series, len(model.Series))
+		for seriesIndex, source := range model.Series {
+			data := make([]interactiveline.Data, len(source.Values))
+			for valueIndex, value := range source.Values {
+				data[valueIndex] = interactiveline.Data{Name: model.Categories[valueIndex], Value: value}
+			}
+			interactiveSeries[seriesIndex] = interactiveline.Series{Name: source.Name, Data: data}
+		}
+		component := interactiveline.Line(interactiveline.Config{
+			Label: model.Title, Caption: Caption(model.Title), XAxis: append([]string(nil), model.Categories...),
+			Series: interactiveSeries, Style: style,
+			Options: sharedchart.ChartOptions{
+				Title: &sharedchart.TitleOptions{Text: model.Title}, Animation: sharedchart.Bool(false), Controls: controlOptions, Export: exportOptions,
+			},
+		})
+		chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+		return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
+	}
 	component := line.Line(line.Config{
 		Label:    model.Title,
 		Title:    line.Title{Text: model.Title},
@@ -110,7 +142,7 @@ func renderLineWithOptions(rc margo.RenderContext, model lineModel, options char
 		Series:   series,
 		Controls: controlOptions,
 		Export:   exportOptions,
-		Style:    chartThemeForSeries(model.Style, paints),
+		Style:    style,
 	})
 	chartComponent := applyChartPrintPolicy(templ.Component(component), options)
 	return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil

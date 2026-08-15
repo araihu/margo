@@ -70,6 +70,109 @@ func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
 	}
 }
 
+func TestRootSupportsInteractiveBarRenderer(t *testing.T) {
+	body := `schemaVersion: 1
+type: bar
+renderer: interactive
+title: Revenue
+categories: [Development, Production]
+series:
+  - name: Revenue
+    values: [12, 18]
+  - name: Cost
+    values: [7, 9]`
+	out, observed, err := renderThroughRoot(t, body, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(out)
+	for _, marker := range []string{
+		`class="goshtoso-charts-interactive`,
+		`data-goshtoso-chart-capability="interactive-raster"`,
+		`data-goshtoso-charts-explicit-animation="false"`,
+		`exportFromMenu($el, &#34;png&#34;)`,
+		`data-margo-chart-data="v1"`,
+		`data-margo-extension-script="charts"`,
+	} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("interactive chart output missing %q: %s", marker, markup)
+		}
+	}
+	if observed != 1<<20 {
+		t.Fatalf("observed policy = %d", observed)
+	}
+}
+
+func TestRootSupportsInteractiveLineRenderer(t *testing.T) {
+	body := `schemaVersion: 1
+type: line
+renderer: interactive
+title: Revenue trend
+categories: [Q1, Q2]
+series:
+  - name: Revenue
+    values: [12, 18]
+  - name: Cost
+    values: [7, 9]`
+	out, observed, err := renderThroughRoot(t, body, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(out)
+	for _, marker := range []string{
+		`class="goshtoso-charts-interactive`,
+		`data-goshtoso-chart-capability="interactive-raster"`,
+		`data-goshtoso-charts-explicit-animation="false"`,
+		`exportFromMenu($el, &#34;png&#34;)`,
+		`Revenue|Q1|12`,
+		`Cost|Q2|9`,
+	} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("interactive line output missing %q: %s", marker, markup)
+		}
+	}
+	if observed != 1<<20 {
+		t.Fatalf("observed policy = %d", observed)
+	}
+}
+
+func TestCartesianChartsRejectUnknownRenderer(t *testing.T) {
+	for _, chartType := range []string{"bar", "line"} {
+		t.Run(chartType, func(t *testing.T) {
+			body := "schemaVersion: 1\ntype: " + chartType + "\nrenderer: holographic\ntitle: Revenue\ncategories: [Q1]\nseries: [{name: Revenue, values: [12]}]"
+			_, _, err := renderThroughRoot(t, body, 1<<20)
+			if err == nil || !strings.Contains(err.Error(), "chart.renderer_invalid") {
+				t.Fatalf("error = %v, want chart.renderer_invalid", err)
+			}
+		})
+	}
+}
+
+func TestInteractiveCartesianChartsRejectSeriesClasses(t *testing.T) {
+	for _, chartType := range []string{"bar", "line"} {
+		t.Run(chartType, func(t *testing.T) {
+			body := "schemaVersion: 1\ntype: " + chartType + "\nrenderer: interactive\ntitle: Revenue\ncategories: [Q1]\nseries: [{name: Revenue, class: revenue-series, values: [12]}]"
+			_, _, err := renderThroughRoot(t, body, 1<<20)
+			if err == nil || !strings.Contains(err.Error(), "chart.renderer_style_unsupported") {
+				t.Fatalf("error = %v, want chart.renderer_style_unsupported", err)
+			}
+		})
+	}
+}
+
+func TestInteractiveRendererRequiresControlWrapperInPOC(t *testing.T) {
+	body := `schemaVersion: 1
+type: bar
+renderer: interactive
+title: Revenue
+categories: [Q1]
+series: [{name: Revenue, values: [12]}]`
+	_, _, err := renderThroughRootWithExtension(t, body, 1<<20, Extension(WithControlWrapper(false)))
+	if err == nil || !strings.Contains(err.Error(), "chart.renderer_controls_required") {
+		t.Fatalf("error = %v, want chart.renderer_controls_required", err)
+	}
+}
+
 func TestRootChartSchemaSupportsThemeClassAndHexOverrides(t *testing.T) {
 	barBody := `schemaVersion: 1
 type: bar
@@ -188,14 +291,16 @@ func TestRootCanDisableChartControlWrapper(t *testing.T) {
 	}
 	markup := string(out)
 	for _, marker := range []string{
-		`data-goshtoso-chart-wrapper`,
+		`data-goshtoso-chart-wrapper-mode`,
 		`assets/js/controls/5/controls.js`,
 		`data-goshtoso-chart-export-filename`,
-		`data-margo-chart-print`,
 	} {
 		if strings.Contains(markup, marker) {
 			t.Fatalf("disabled chart output contains %q", marker)
 		}
+	}
+	if !strings.Contains(markup, `data-margo-chart-print-data="disabled"`) {
+		t.Fatal("disabled chart wrapper lost default print-data policy")
 	}
 	if !strings.Contains(markup, `data-margo-chart-data="v1"`) {
 		t.Fatal("disabled chart output lost accessible data table")
@@ -210,6 +315,32 @@ func TestChartControlWrapperConfigurationIsIdentityBound(t *testing.T) {
 	disabled := Extension(WithControlWrapper(false)).Identity.ConfigurationHash
 	if enabled == "" || disabled == "" || enabled == disabled {
 		t.Fatalf("configuration hashes = enabled %q disabled %q", enabled, disabled)
+	}
+}
+
+func TestPrintableAccessibleDataIsExplicitAndIdentityBound(t *testing.T) {
+	defaultRegistration := Extension()
+	enabledRegistration := Extension(WithPrintableAccessibleData(true))
+	if defaultRegistration.Identity.ConfigurationHash == enabledRegistration.Identity.ConfigurationHash {
+		t.Fatal("printable accessible data did not change extension identity")
+	}
+	body := readChartFixtureForIntegration(t, "testdata/bar/bar-valid.yaml")
+	out, _, err := renderThroughRootWithExtension(t, body, 1<<20, enabledRegistration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(out)
+	for _, want := range []string{
+		`data-margo-chart-print-data="enabled"`,
+		`.margo-chart-data {`,
+		`display: block !important`,
+		`border-collapse: collapse`,
+		`[data-field="canonical"]`,
+		`[data-goshtoso-chart-content] > details`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("printable accessible data output missing %q: %s", want, markup)
+		}
 	}
 }
 

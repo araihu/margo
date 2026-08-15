@@ -29,6 +29,7 @@ type familyHandler func(margo.RenderContext, any, chartRenderOptions) (templ.Com
 type chartRenderOptions struct {
 	controlWrapper             bool
 	externalizedControlRuntime bool
+	printAccessibleData        bool
 }
 
 var defaultChartRenderOptions = chartRenderOptions{controlWrapper: true}
@@ -56,6 +57,15 @@ func WithChartControlWrapper(enabled bool) Option {
 func WithExternalizedControlRuntime(enabled bool) Option {
 	return func(options *chartRenderOptions) {
 		options.externalizedControlRuntime = enabled
+	}
+}
+
+// WithPrintableAccessibleData includes one formatted exact-data table after
+// each chart in print/PDF output. Exact data remains available in HTML when
+// this option is false, but print output hides it by default.
+func WithPrintableAccessibleData(enabled bool) Option {
+	return func(options *chartRenderOptions) {
+		options.printAccessibleData = enabled
 	}
 }
 
@@ -128,7 +138,7 @@ func extensionFactoryWithOptions(rc margo.RenderContext, options chartRenderOpti
 }
 
 func (options chartRenderOptions) configurationHash() string {
-	value := fmt.Sprintf("control-wrapper=%t\nexternalized-control-runtime=%t", options.controlWrapper, options.externalizedControlRuntime)
+	value := fmt.Sprintf("control-wrapper=%t\nexternalized-control-runtime=%t\nprint-accessible-data=%t", options.controlWrapper, options.externalizedControlRuntime, options.printAccessibleData)
 	hash := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(hash[:])
 }
@@ -150,12 +160,13 @@ type encodedRequirementCapabilityAsset struct {
 }
 
 type controlRuntimeAsset struct {
-	id        string
-	localURL  string
-	integrity string
-	loadAfter []string
-	handler   http.Handler
-	prefix    string
+	id         string
+	localURL   string
+	inlinePath string
+	integrity  string
+	loadAfter  []string
+	handler    http.Handler
+	prefix     string
 }
 
 func chartControlRequirementCapabilities() ([]string, error) {
@@ -176,7 +187,8 @@ func chartControlRequirementCapabilities() ([]string, error) {
 		{id: "goshtoso.runtime.alpine-focus", localURL: focus.LocalURL, integrity: focus.Integrity, loadAfter: []string{"margo.document.styles"}, handler: goshtosoassets.Handler(), prefix: "/assets/"},
 		{id: "goshtoso.runtime.first-party", localURL: firstParty.LocalURL, integrity: firstParty.Integrity, loadAfter: []string{"goshtoso.runtime.alpine-focus"}, handler: goshtosoassets.Handler(), prefix: "/assets/"},
 		{id: "goshtoso.runtime.alpine", localURL: alpine.LocalURL, integrity: alpine.Integrity, loadAfter: []string{"goshtoso.runtime.first-party"}, handler: goshtosoassets.Handler(), prefix: "/assets/"},
-		{id: "goshtoso-charts.controls", localURL: chartassets.ControlRuntimeURL, loadAfter: []string{"goshtoso.runtime.alpine"}, handler: chartassets.Handler(), prefix: chartassets.Prefix},
+		{id: "goshtoso-charts.runtime", localURL: chartassets.RuntimeURL, inlinePath: "charts-runtime.js", loadAfter: []string{"margo.document.styles"}, handler: chartassets.Handler(), prefix: chartassets.Prefix},
+		{id: "goshtoso-charts.controls", localURL: chartassets.ControlRuntimeURL, loadAfter: []string{"goshtoso-charts.runtime", "goshtoso.runtime.alpine"}, handler: chartassets.Handler(), prefix: chartassets.Prefix},
 	}
 	capabilities := make([]string, 0, len(assets))
 	for _, asset := range assets {
@@ -212,11 +224,15 @@ func materializeRequirementCapability(asset controlRuntimeAsset) (string, error)
 		return "", fmt.Errorf("runtime %q returned no bytes", asset.id)
 	}
 	digest := sha256.Sum256(content)
+	inlinePath := asset.inlinePath
+	if inlinePath == "" {
+		inlinePath = strings.TrimPrefix(asset.localURL, asset.prefix)
+	}
 	value := encodedRequirementCapability{
 		ID: asset.id, Kind: "script", LocalURL: asset.localURL,
 		Integrity: asset.integrity, LoadAfter: append([]string(nil), asset.loadAfter...),
 		Inline: encodedRequirementCapabilityAsset{
-			Path: strings.TrimPrefix(asset.localURL, asset.prefix), MediaType: "application/javascript",
+			Path: inlinePath, MediaType: "application/javascript",
 			SHA256: hex.EncodeToString(digest[:]), Content: content,
 		},
 	}

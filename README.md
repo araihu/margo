@@ -107,7 +107,7 @@ go get github.com/araihu/margo@vX.Y.Z
 | --- | --- | --- |
 | `github.com/araihu/margo` | Compile Markdown and project rendered documents to HTML. | `margo.New`, then `Compile` and `Render` |
 | `github.com/araihu/margo/assets` | Serve and inspect embedded Muamba runtime assets. | `assets.MuambaHTTPHandler` |
-| `github.com/araihu/margo/charts` | Register optional static Goshtoso chart fences. | `charts.Extension` |
+| `github.com/araihu/margo/charts` | Register optional static and printable interactive Goshtoso chart fences. | `charts.Extension` |
 | `github.com/araihu/margo/deck` | Parse and render accessible HTML presentation decks. | `deck.Render` |
 | `github.com/araihu/margo/pdf` | Define PDF engine, request, page, and link-policy contracts. | `pdf.Engine.Export` |
 | `github.com/araihu/margo/pdf/chromium` | Export Margo HTML through an explicitly selected installed Chromium executable. | `chromium.New` |
@@ -246,7 +246,8 @@ the destination and published by rename only after a successful build.
 [--engine-path PATH] [--page-size A4|Letter] [--orientation portrait|landscape]
 [--margin-top MM] [--margin-right MM] [--margin-bottom MM] [--margin-left MM]
 [--relative-links strip|error|keep|resolve] [--base-url URL] [--title TEXT]
-[--lang TAG] [--policy FILE] [--diagnostics text|json]` renders a PDF.
+[--lang TAG] [--print-chart-data] [--policy FILE]
+[--diagnostics text|json]` renders a PDF.
 
 Defaults are `--engine auto`, A4 portrait, and readable document margins of
 24 mm top, 22 mm right, 26 mm bottom, and 22 mm left unless `margo.page`
@@ -255,7 +256,10 @@ set all four margin flags to `0` for full bleed. The default
 `--relative-links strip` keeps visible text while removing relative PDF link
 targets. `--base-url URL` selects `resolve` when `--relative-links` was not set;
 explicit `resolve` requires `--base-url`. `margo doctor` reports candidate
-discovery and compiled capabilities.
+discovery and compiled capabilities. One formatted semantic exact-data table
+follows each chart in HTML; redundant chart-owned disclosures are suppressed.
+Exact-data tables are omitted from PDF by default. `--print-chart-data` adds
+them to PDF output.
 
 Current releases use installed Chromium. `auto` tries an explicit
 `--engine-path`, `MARGO_CHROMIUM_PATH`, discovered Chromium-family executables,

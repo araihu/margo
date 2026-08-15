@@ -240,6 +240,33 @@ func TestExportWithInstalledChromium(t *testing.T) {
 	}
 }
 
+func TestExportAwaitsPrintPreparation(t *testing.T) {
+	path := installedChromium()
+	if path == "" {
+		t.Skip("no installed Chromium-family browser")
+	}
+	engine, err := New(Config{ExecutablePath: path, Timeout: 20 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor := margo.RuntimeDescriptor{
+		Protocol:            margo.RuntimeProtocolV1,
+		DocumentFingerprint: margo.DocumentFingerprint{3},
+		RenderInstanceID:    "ri-00000002",
+		Tasks:               []margo.RuntimeTask{},
+	}
+	_, err = engine.Export(context.Background(), pdf.Request{
+		HTML: []byte(`<!doctype html><html><body><script>
+window.margoPreparePrint = async () => { throw new Error("interactive chart capture failed"); };
+</script><h1>Chart</h1></body></html>`),
+		Runtime: descriptor, ExecutionID: "chromium-print-preparation",
+		Page: pdf.PageConfig{Size: pdf.PageA4},
+	})
+	if code(err) != "pdf.chromium.export_failed" || !strings.Contains(err.Error(), "interactive chart capture failed") {
+		t.Fatalf("Export() error = %v", err)
+	}
+}
+
 func TestExportExecutesMermaidRuntimeTaskWithInstalledChromium(t *testing.T) {
 	path := installedChromium()
 	if path == "" {

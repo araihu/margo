@@ -12,7 +12,12 @@ import (
 )
 
 func newCompiler(options ...margo.Option) *margo.Compiler {
-	compilerOptions := []margo.Option{margo.WithExtension(charts.Extension(charts.WithExternalizedControlRuntime(true)))}
+	return newCompilerWithChartOptions(nil, options...)
+}
+
+func newCompilerWithChartOptions(chartOptions []charts.Option, options ...margo.Option) *margo.Compiler {
+	chartOptions = append([]charts.Option{charts.WithExternalizedControlRuntime(true)}, chartOptions...)
+	compilerOptions := []margo.Option{margo.WithExtension(charts.Extension(chartOptions...))}
 	compilerOptions = append(compilerOptions, options...)
 	return margo.New(compilerOptions...)
 }

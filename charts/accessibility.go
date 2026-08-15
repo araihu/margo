@@ -163,8 +163,8 @@ func AccessibleText(title string, rows []AccessibleRow, policy AccessibleRenderP
 	return string(out.Bytes()), nil
 }
 
-// WithAccessibleData appends a complete text alternative only after the chart
-// and table both fit the effective output limit.
+// WithAccessibleData scopes a chart with its complete text alternative only
+// after both fit the effective output limit.
 func WithAccessibleData(chart templ.Component, data AccessibleData, policy AccessibleRenderPolicy) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if chart == nil {
@@ -178,6 +178,9 @@ func WithAccessibleData(chart templ.Component, data AccessibleData, policy Acces
 		if err := combined.init(policy.MaxOutputBytes); err != nil {
 			return err
 		}
+		if err := writeString(&combined, `<div data-margo-chart-with-data="v1">`); err != nil {
+			return err
+		}
 		chartRenderMu.Lock()
 		renderErr := chart.Render(ctx, &combined)
 		chartRenderMu.Unlock()
@@ -185,6 +188,9 @@ func WithAccessibleData(chart templ.Component, data AccessibleData, policy Acces
 			return renderErr
 		}
 		if err := renderAccessibleText(&combined, data.Title, data.Rows); err != nil {
+			return err
+		}
+		if err := writeString(&combined, `</div>`); err != nil {
 			return err
 		}
 		_, err := out.Write(combined.Bytes())
@@ -228,7 +234,7 @@ func renderAccessibleText(out io.Writer, title string, rows []AccessibleRow) err
 	if err := writeHTMLValue(out, title); err != nil {
 		return err
 	}
-	if err := writeString(out, `</caption><tbody>`); err != nil {
+	if err := writeString(out, `</caption><thead><tr><th scope="col">Series</th><th scope="col">Category</th><th scope="col">Sample</th><th scope="col">Value</th></tr></thead><tbody>`); err != nil {
 		return err
 	}
 	for index, row := range rows {
@@ -256,7 +262,7 @@ func renderAccessibleText(out io.Writer, title string, rows []AccessibleRow) err
 		if err := writeAccessibleField(out, row.Value); err != nil {
 			return err
 		}
-		if err := writeString(out, `</td><td data-field="canonical">`); err != nil {
+		if err := writeString(out, `</td><td data-field="canonical" hidden>`); err != nil {
 			return err
 		}
 		if row.Series != "" {
@@ -403,7 +409,7 @@ func (b *boundedBuffer) Bytes() []byte { return b.data }
 func extractAccessibleRows(markup string) []string {
 	const tableMarker = `<div class="margo-chart-data" data-margo-chart-data="v1"><table>`
 	const rowStart = `<tr data-margo-chart-row="`
-	const canonicalStart = `<td data-field="canonical">`
+	const canonicalStart = `<td data-field="canonical" hidden>`
 	table := strings.Index(markup, tableMarker)
 	if table < 0 {
 		return nil

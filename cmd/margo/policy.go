@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"github.com/spf13/cobra"
 )
 
@@ -71,9 +72,9 @@ func parsePolicyDocument(input []byte) (loadedPolicy, error) {
 	return loadedPolicy{Host: policy, Digest: "sha256:" + hex.EncodeToString(hash[:])}, nil
 }
 
-func compilerForPolicy(policy *loadedPolicy, _ policyTarget) *margo.Compiler {
+func compilerForPolicy(policy *loadedPolicy, _ policyTarget, chartOptions ...charts.Option) *margo.Compiler {
 	if policy == nil {
-		return newCompiler()
+		return newCompilerWithChartOptions(chartOptions)
 	}
-	return newCompiler(margo.WithHostPolicy(policy.Host))
+	return newCompilerWithChartOptions(chartOptions, margo.WithHostPolicy(policy.Host))
 }

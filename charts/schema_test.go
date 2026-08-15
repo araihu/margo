@@ -93,3 +93,27 @@ func TestSchemasExposeThemeClassAndHexOverrides(t *testing.T) {
 		})
 	}
 }
+
+func TestCartesianSchemasExposeRendererChoice(t *testing.T) {
+	for _, chartType := range []string{"bar", "line"} {
+		t.Run(chartType, func(t *testing.T) {
+			body, err := Schema(chartType)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var document map[string]any
+			if err := json.Unmarshal(body, &document); err != nil {
+				t.Fatal(err)
+			}
+			properties := document["properties"].(map[string]any)
+			renderer, ok := properties["renderer"].(map[string]any)
+			if !ok {
+				t.Fatal("renderer schema missing")
+			}
+			enum, ok := renderer["enum"].([]any)
+			if !ok || len(enum) != 2 || enum[0] != "static" || enum[1] != "interactive" {
+				t.Fatalf("renderer enum = %#v", renderer["enum"])
+			}
+		})
+	}
+}

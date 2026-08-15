@@ -136,6 +136,37 @@ func TestStandaloneMermaidEmbedsOfflineBrowserRuntime(t *testing.T) {
 	}
 }
 
+func TestStandaloneRelocatesProvenanceMarkedChartScripts(t *testing.T) {
+	requirements, err := mergeHTMLRequirements([]HTMLRequirement{{
+		ID: "goshtoso-charts.runtime", Kind: HTMLScript,
+		Inline: AssetRef{Path: "charts-runtime.js", MediaType: "application/javascript", Content: []byte("window.echarts = {};")},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := &RenderResult{
+		content:          templ.Raw(`<article class="margo-document"><h1>Chart</h1><figure class="goshtoso-charts-interactive"><script data-margo-extension-script="charts">window.chartReady = true;</script></figure></article>`),
+		htmlRequirements: requirements,
+	}
+	component, err := RenderStandalone(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, component)
+	for _, want := range []string{
+		`data-margo-chart-script-slot="0"`,
+		`data-margo-requirement="margo.charts.inline.0"`,
+		`window.chartReady = true;`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("standalone chart runtime missing %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, `data-margo-extension-script="charts"`) {
+		t.Fatalf("provenance script remained in article: %s", markup)
+	}
+}
+
 func TestStandaloneUsesEditorialFragmentExactlyOnce(t *testing.T) {
 	result := mustRenderSource(t, "# Shared\n\n| Name | Count |\n|---|---:|\n| Item 2 | 2 |\n")
 	editorial, err := RenderHTML(result)

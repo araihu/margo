@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html"
 	"strings"
@@ -24,8 +25,14 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
 
   const originalDetailsState = new WeakMap();
   const staticPrintReplacements = [];
+  const chartPrintReplacements = [];
 
   const restorePrintState = () => {
+	for (let index = chartPrintReplacements.length - 1; index >= 0; index -= 1) {
+	  const { original, replacement } = chartPrintReplacements[index];
+	  if (replacement.isConnected) replacement.replaceWith(original);
+	}
+	chartPrintReplacements.length = 0;
     for (let index = staticPrintReplacements.length - 1; index >= 0; index -= 1) {
       const { original, replacement, preserveChildren } = staticPrintReplacements[index];
       if (!replacement.isConnected) continue;
@@ -64,7 +71,29 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
     element.replaceWith(replacement);
   };
 
-  const prepare = () => {
+	const prepareInteractiveCharts = async () => {
+	  const wrappers = [...article.querySelectorAll('[data-goshtoso-chart-capability="interactive-raster"]')];
+	  for (const wrapper of wrappers) {
+		const figure = wrapper.querySelector(".goshtoso-charts-interactive");
+		if (!figure) continue;
+		const ratio = Number(wrapper.dataset.goshtosoChartExportPixelRatio) || 1;
+		const surface = getComputedStyle(wrapper).getPropertyValue("--color-chart-surface").trim() || "#ffffff";
+		const request = { format: "png", pixelRatio: ratio, backgroundColor: surface, dataURL: "" };
+		wrapper.dispatchEvent(new CustomEvent("goshtoso-charts:export-request", { bubbles: true, detail: request }));
+		if (typeof request.dataURL !== "string" || !request.dataURL.startsWith("data:image/png")) {
+		  throw new Error("Interactive chart PNG export is unavailable.");
+		}
+		const image = new Image();
+		image.dataset.margoChartPrintImage = "";
+		image.alt = figure.getAttribute("aria-label") || "Chart";
+		image.src = request.dataURL;
+		await image.decode();
+		chartPrintReplacements.push({ original: figure, replacement: image });
+		figure.replaceWith(image);
+	  }
+	};
+
+  const prepare = async () => {
     for (const details of mermaidSources()) {
       if (!originalDetailsState.has(details)) originalDetailsState.set(details, details.open);
       details.open = true;
@@ -82,17 +111,18 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
     for (const checkbox of [...article.querySelectorAll('input[type="checkbox"]')]) {
       replaceForStaticPrint(checkbox, "checkbox", checkbox.checked ? "☑" : "☐");
     }
+	await prepareInteractiveCharts();
   };
 
   window.margoPreparePrint = prepare;
   window.margoRestorePrintState = restorePrintState;
-  window.addEventListener("beforeprint", prepare);
+	window.addEventListener("beforeprint", () => { void prepare(); });
   window.addEventListener("afterprint", restorePrintState);
   const printMedia = window.matchMedia("print");
   if (typeof printMedia.addEventListener === "function") {
-    printMedia.addEventListener("change", (event) => event.matches ? prepare() : restorePrintState());
+	printMedia.addEventListener("change", (event) => event.matches ? void prepare() : restorePrintState());
   }
-  if (printMedia.matches) prepare();
+	if (printMedia.matches) void prepare();
 })();
 </script>`
 
@@ -253,7 +283,11 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	if result == nil || result.Content() == nil {
 		return nil, fmt.Errorf("margo: standalone render requires a result")
 	}
-	editorial, err := RenderHTML(result)
+	prepared, err := relocateStandaloneChartScripts(result)
+	if err != nil {
+		return nil, err
+	}
+	editorial, err := RenderHTML(prepared)
 	if err != nil {
 		return nil, err
 	}
@@ -348,6 +382,98 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 			"margo.theme." + string(config.theme): "shell",
 		},
 	})
+}
+
+func relocateStandaloneChartScripts(result *RenderResult) (*RenderResult, error) {
+	if result == nil || result.Content() == nil {
+		return result, nil
+	}
+	fragment, err := renderHTMLComponentBytes(result.Content())
+	if err != nil {
+		return nil, fmt.Errorf("html.fragment_render: %w", err)
+	}
+	contextNode := &nethtml.Node{Type: nethtml.ElementNode, DataAtom: atom.Div, Data: "div"}
+	nodes, err := nethtml.ParseFragment(bytes.NewReader(fragment), contextNode)
+	if err != nil {
+		return nil, htmlError("html.metadata_invalid", fmt.Sprintf("invalid HTML fragment: %v", err))
+	}
+	var scripts []HTMLRequirement
+	var visit func(*nethtml.Node) error
+	visit = func(node *nethtml.Node) error {
+		for child := node.FirstChild; child != nil; {
+			next := child.NextSibling
+			if err := visit(child); err != nil {
+				return err
+			}
+			child = next
+		}
+		if node.Type != nethtml.ElementNode || node.Data != "script" || !htmlAttributeEquals(node, "data-margo-extension-script", "charts") {
+			return nil
+		}
+		if _, found := htmlAttributeValue(node, "src"); found {
+			return htmlError("html.metadata_invalid", "chart extension script source must be externalized before standalone rendering")
+		}
+		if node.Parent == nil || node.FirstChild == nil || node.FirstChild != node.LastChild || node.FirstChild.Type != nethtml.TextNode {
+			return htmlError("html.metadata_invalid", "chart extension script is malformed")
+		}
+		ordinal := len(scripts)
+		slotID := fmt.Sprintf("%d", ordinal)
+		slot := &nethtml.Node{Type: nethtml.ElementNode, DataAtom: atom.Span, Data: "span", Attr: []nethtml.Attribute{
+			{Key: "data-margo-chart-script-slot", Val: slotID},
+			{Key: "hidden"},
+		}}
+		node.Parent.InsertBefore(slot, node)
+		node.Parent.RemoveChild(node)
+		dependency := "goshtoso-charts.runtime"
+		if ordinal > 0 {
+			dependency = fmt.Sprintf("margo.charts.inline.%d", ordinal-1)
+		}
+		scripts = append(scripts, HTMLRequirement{
+			ID: fmt.Sprintf("margo.charts.inline.%d", ordinal), Kind: HTMLScript,
+			LoadAfter: []string{dependency},
+			Inline:    AssetRef{Path: "charts-inline.js", MediaType: "application/javascript", Content: chartScriptBootstrap(slotID, node.FirstChild.Data)},
+		})
+		return nil
+	}
+	for _, node := range nodes {
+		if err := visit(node); err != nil {
+			return nil, err
+		}
+	}
+	if len(scripts) == 0 {
+		return result, nil
+	}
+	var transformed bytes.Buffer
+	for _, node := range nodes {
+		if err := nethtml.Render(&transformed, node); err != nil {
+			return nil, htmlError("html.metadata_invalid", fmt.Sprintf("serialize chart script slots: %v", err))
+		}
+	}
+	requirements := append(result.projectedHTMLRequirements().List(), scripts...)
+	merged, err := mergeHTMLRequirements(requirements)
+	if err != nil {
+		return nil, err
+	}
+	prepared := *result
+	prepared.content = templ.Raw(transformed.String())
+	prepared.htmlRequirements = merged
+	return &prepared, nil
+}
+
+func chartScriptBootstrap(slotID, source string) []byte {
+	encodedSlot, _ := json.Marshal(slotID)
+	encodedSource, _ := json.Marshal(source)
+	return []byte(fmt.Sprintf(`(() => {
+  const run = () => {
+    const slot = document.querySelector('[data-margo-chart-script-slot="' + %s + '"]');
+    if (!slot) return;
+    const script = document.createElement("script");
+    script.textContent = %s;
+    slot.replaceWith(script);
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run, { once: true });
+  else run();
+})();`, encodedSlot, encodedSource))
 }
 
 // Standalone is a short alias for RenderStandalone.
