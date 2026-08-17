@@ -73,9 +73,30 @@ func TestPageConfigAcceptsZeroMargins(t *testing.T) {
 func TestPageConfigAcceptsDefaultPortrait(t *testing.T) {
 	t.Parallel()
 
-	if err := (PageConfig{Size: PageA4}).Validate(); err != nil {
+	config := PageConfig{Size: PageA4}
+	if err := config.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
+	if got := config.EffectiveImageOverflowPolicy(); got != ImageOverflowLimit {
+		t.Fatalf("default image overflow policy = %q, want %q", got, ImageOverflowLimit)
+	}
+}
+
+func TestPageConfigAcceptsExplicitImageOverflowPolicy(t *testing.T) {
+	t.Parallel()
+
+	for _, policy := range []ImageOverflowPolicy{ImageOverflowLimit, ImageOverflowAllow} {
+		if err := (PageConfig{Size: PageA4, ImageOverflow: policy}).Validate(); err != nil {
+			t.Fatalf("Validate(%q) error = %v", policy, err)
+		}
+	}
+}
+
+func TestPageConfigRejectsUnsupportedImageOverflowPolicy(t *testing.T) {
+	t.Parallel()
+
+	err := (PageConfig{Size: PageA4, ImageOverflow: ImageOverflowPolicy("stretch")}).Validate()
+	requirePDFErrorCode(t, err, "pdf.image_overflow_unsupported")
 }
 
 func requirePDFErrorCode(t *testing.T, err error, code string) {

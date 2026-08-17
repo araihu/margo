@@ -26,9 +26,32 @@ func TestInjectPageGeometryUsesOneCanonicalCSSAuthority(t *testing.T) {
 			if !strings.Contains(markup, test.want) || !strings.Contains(markup, test.wantWide) || strings.Count(markup, "@page") != 2 {
 				t.Fatalf("geometry = %s", markup)
 			}
+			for _, want := range []string{
+				`max-block-size: 70vh !important`,
+				`max-height: 70vh !important`,
+				`aspect-ratio: auto !important`,
+			} {
+				if !strings.Contains(markup, want) {
+					t.Fatalf("geometry missing image policy %q: %s", want, markup)
+				}
+			}
 			if strings.Index(markup, `const marker = '</head>'`) > strings.Index(markup, `data-margo-page-geometry`) {
 				t.Fatalf("geometry was injected inside embedded script: %s", markup)
 			}
 		})
+	}
+}
+
+func TestInjectPageGeometryAllowsImageOverflowExplicitly(t *testing.T) {
+	result, err := injectPageGeometry([]byte("<html><head></head><body></body></html>"), pdf.PageConfig{
+		Size:          pdf.PageA4,
+		ImageOverflow: pdf.ImageOverflowAllow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result)
+	if !strings.Contains(markup, `max-block-size: none !important`) || !strings.Contains(markup, `max-height: none !important`) {
+		t.Fatalf("geometry did not disable image cap: %s", markup)
 	}
 }

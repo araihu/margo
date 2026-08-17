@@ -97,33 +97,37 @@
   .margo-document [data-table-client-sort="true"] {
     margin-block-end: calc(var(--spacing) * 4);
   }
-  .margo-document .margo-table-sort-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: calc(var(--spacing) * 2);
-    inline-size: 100%;
-    padding: 0;
-    border: 0;
-    color: inherit;
-    background: transparent;
+  .margo-document th.margo-table-sort-button {
+    background-color: transparent;
+    color: var(--color-on-surface-strong);
     font: inherit;
     text-align: inherit;
     cursor: pointer;
   }
-  .margo-document .margo-table-sort-button:focus-visible {
+  .margo-document th.margo-table-sort-button:hover {
+    background-color: var(--color-surface);
+  }
+  .margo-document th.margo-table-sort-button.margo-table-sort-active {
+    color: var(--color-primary);
+  }
+  .margo-document:is(.dark *) th.margo-table-sort-button {
+    background-color: transparent;
+    color: var(--color-on-surface-dark-strong);
+  }
+  .margo-document:is(.dark *) th.margo-table-sort-button:hover {
+    background-color: var(--color-surface-dark);
+  }
+  .margo-document:is(.dark *) th.margo-table-sort-button.margo-table-sort-active {
+    color: var(--color-primary-dark);
+  }
+  .margo-document th.margo-table-sort-button:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: calc(var(--spacing) / 2);
   }
-  .margo-document th[aria-sort] .margo-table-sort-button::after {
-    color: var(--color-on-surface);
-    font-size: var(--text-xs);
-  }
-  .margo-document th[aria-sort="ascending"] .margo-table-sort-button::after {
-    content: "↑";
-  }
-  .margo-document th[aria-sort="descending"] .margo-table-sort-button::after {
-    content: "↓";
+  .margo-document th.margo-table-sort-button > div {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1);
   }
   .margo-document [data-code-block],
   .margo-document div:has(> .codeblock) {
@@ -256,6 +260,21 @@
     overflow-x: auto;
     overscroll-behavior-inline: contain;
   }
+  .margo-document .margo-mermaid .treeView-node-label,
+  .margo-document .margo-mermaid .treeView-node-dir {
+    color: var(--color-on-surface-strong);
+    fill: var(--color-on-surface-strong) !important;
+  }
+  .margo-document .margo-mermaid .treeView-node-description {
+    color: var(--color-primary);
+    fill: var(--color-primary) !important;
+  }
+  .margo-document .margo-mermaid .treeView-node-icon {
+    color: var(--color-primary) !important;
+  }
+  .margo-document .margo-mermaid .treeView-node-line {
+    stroke: var(--color-outline-strong) !important;
+  }
   .margo-document .margo-mermaid__overflow-cue {
     display: none;
     margin-block-start: calc(var(--spacing) * 2);
@@ -320,6 +339,35 @@
   .margo-document:is(.dark *) hr {
     border-color: var(--color-outline-dark);
   }
+  .margo-document:is(.dark *) .margo-mermaid {
+    border-color: var(--color-outline-dark);
+    background: var(--color-surface-dark-alt);
+  }
+  .margo-document:is(.dark *) .margo-mermaid__canvas:empty::before,
+  .margo-document:is(.dark *) .margo-mermaid__overflow-cue {
+    color: var(--color-on-surface-dark);
+  }
+  .margo-document:is(.dark *) .margo-mermaid .treeView-node-label,
+  .margo-document:is(.dark *) .margo-mermaid .treeView-node-dir,
+  .dark .margo-document .margo-mermaid .treeView-node-label,
+  .dark .margo-document .margo-mermaid .treeView-node-dir,
+  [data-color-mode="dark"] .margo-document .margo-mermaid .treeView-node-label,
+  [data-color-mode="dark"] .margo-document .margo-mermaid .treeView-node-dir {
+    color: var(--color-on-surface-dark-strong);
+    fill: var(--color-on-surface-dark-strong) !important;
+  }
+  .margo-document:is(.dark *) .margo-mermaid .treeView-node-description {
+    color: var(--color-primary-dark);
+    fill: var(--color-primary-dark) !important;
+  }
+  .margo-document:is(.dark *) .margo-mermaid .treeView-node-icon,
+  .dark .margo-document .margo-mermaid .treeView-node-icon,
+  [data-color-mode="dark"] .margo-document .margo-mermaid .treeView-node-icon {
+    color: var(--color-primary-dark) !important;
+  }
+  .margo-document:is(.dark *) .margo-mermaid .treeView-node-line {
+    stroke: var(--color-outline-dark-strong) !important;
+  }
   .margo-document:is(.dark *) .margo-mermaid__source {
     color: var(--color-on-surface-dark);
     background: var(--color-surface-dark-alt);
@@ -330,6 +378,21 @@
   }
   .margo-document:is(.dark *) .margo-figure-caption {
     color: var(--color-on-surface-dark);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-color-mode="system"] .margo-document .margo-mermaid .treeView-node-label,
+  [data-color-mode="system"] .margo-document .margo-mermaid .treeView-node-dir {
+    color: var(--color-on-surface-dark-strong);
+    fill: var(--color-on-surface-dark-strong) !important;
+  }
+  [data-color-mode="system"] .margo-document .margo-mermaid .treeView-node-description {
+    color: var(--color-primary-dark);
+    fill: var(--color-primary-dark) !important;
+  }
+  [data-color-mode="system"] .margo-document .margo-mermaid .treeView-node-icon {
+    color: var(--color-primary-dark) !important;
   }
 }
 
@@ -368,8 +431,22 @@
     break-inside: auto;
   }
   .margo-document img {
+    max-block-size: 70vh !important;
+    max-height: 70vh !important;
+    max-inline-size: 100% !important;
+    max-width: 100% !important;
     page-break-inside: avoid;
     break-inside: avoid-page;
+    inline-size: auto !important;
+    width: auto !important;
+    block-size: auto !important;
+    height: auto !important;
+    aspect-ratio: auto !important;
+    object-fit: contain !important;
+  }
+  [data-margo-image-overflow="allow"] .margo-document img {
+    max-block-size: none !important;
+    max-height: none !important;
   }
   .margo-document [data-table-client-sort="true"] {
     max-inline-size: 100%;
@@ -417,11 +494,8 @@
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .margo-document .margo-table-sort-button {
-    display: inline;
-  }
-  .margo-document .margo-table-sort-button::after {
-    content: none !important;
+  .margo-document th.margo-table-sort-button {
+    display: table-cell;
   }
   .margo-document [data-code-block-header],
   .margo-document [data-code-block] > :first-child,

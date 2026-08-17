@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/araihu/margo/site"
 )
 
 func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
@@ -49,6 +52,47 @@ func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
 	manifest := readSiteFixture(t, filepath.Join(output, "margo-manifest.json"))
 	if !strings.Contains(manifest, `"schemaVersion":"margo-site-manifest/v1"`) || !strings.Contains(manifest, `"index.html"`) {
 		t.Fatalf("manifest = %s", manifest)
+	}
+}
+
+func TestSiteCommandBuildsYAMLConfig(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nConfigured site.\n")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+base_path: /docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo()})
+	command.SetArgs([]string{"site", filepath.Join(root, "site.yaml"), "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("site config: %v\nstderr: %s", err, stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "dist", "index.html")); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{site.SitemapPath, site.LLMSPath} {
+		if _, err := os.Stat(filepath.Join(root, "dist", name)); err != nil {
+			t.Fatalf("generated discovery artifact %q: %v", name, err)
+		}
+	}
+	manifest := readSiteFixture(t, filepath.Join(root, "dist", "margo-manifest.json"))
+	for _, required := range []string{`"configVersion":1`, `"layout":"frame:top-left-main-footer"`, `"basePath":"/docs"`, `"documentStyleDigest":"`} {
+		if !strings.Contains(manifest, required) {
+			t.Fatalf("config manifest missing %q: %s", required, manifest)
+		}
 	}
 }
 
@@ -176,4 +220,17 @@ func readSiteFixture(t *testing.T, name string) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+func copySiteConfigAsset(t *testing.T, target, relative string) {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime caller unavailable")
+	}
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "..", "..", "assets", relative))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeSiteFixture(t, target, string(data))
 }

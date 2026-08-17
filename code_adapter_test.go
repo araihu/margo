@@ -14,3 +14,22 @@ func TestCodeBlockUsesGoshtosoChroma(t *testing.T) {
 		t.Fatalf("code block unexpectedly emitted script markup:\n%s", markup)
 	}
 }
+
+func TestCodeBlockCopyCanBeDisabledByFenceInfo(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "```text:copy_disabled\nordinary Markdown\n```\n").Content())
+
+	if !bytes.Contains([]byte(markup), []byte(`>text</span>`)) {
+		t.Fatalf("copy-disabled fence leaked its option into the language label:\n%s", markup)
+	}
+	if bytes.Contains([]byte(markup), []byte(`<button`)) {
+		t.Fatalf("copy-disabled fence still rendered a button:\n%s", markup)
+	}
+}
+
+func TestCodeBlockCopyRemainsEnabledByDefault(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "```text\nordinary Markdown\n```\n").Content())
+
+	if !bytes.Contains([]byte(markup), []byte(`aria-label="Copy text code"`)) {
+		t.Fatalf("regular fence lost its copy button:\n%s", markup)
+	}
+}

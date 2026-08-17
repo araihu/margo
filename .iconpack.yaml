@@ -1,0 +1,42 @@
+schemaVersion: 1
+sources:
+  - id: heroicons
+    kind: file
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-clipboard.svg
+    packName: heroicons-copy
+    path: 16/solid/clipboard.svg
+    license: MIT
+    licensePath: LICENSE
+    licenseUrl: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+  - id: heroicons-document-text
+    kind: file
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-document-text.svg
+    packName: heroicons-document-text
+    path: 16/solid/document-text.svg
+    license: MIT
+    licensePath: LICENSE
+    licenseUrl: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+  - id: heroicons-arrow-top-right
+    kind: file
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-arrow-top-right-on-square.svg
+    packName: heroicons-arrow-top-right
+    path: 16/solid/arrow-top-right-on-square.svg
+    license: MIT
+    licensePath: LICENSE
+    licenseUrl: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+  - id: heroicons-arrow-down-tray
+    kind: file
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-arrow-down-tray.svg
+    packName: heroicons-arrow-down-tray
+    path: 16/solid/arrow-down-tray.svg
+    license: MIT
+    licensePath: LICENSE
+    licenseUrl: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+  - id: heroicons-printer
+    kind: file
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-printer.svg
+    packName: heroicons-printer
+    path: 16/solid/printer.svg
+    license: MIT
+    licensePath: LICENSE
+    licenseUrl: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt

@@ -350,7 +350,7 @@ func assertSortCycle(t *testing.T, ctx context.Context) {
 	}
 	want := []string{"ascending|Item 2,Item 10", "descending|Item 10,Item 2", "source|Item 10,Item 2"}
 	for index, expected := range want {
-		if err := chromedp.Run(ctx, chromedp.Click(`[data-margo-table-sort] th:first-child button`, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Run(ctx, chromedp.Click(`[data-margo-table-sort] th:first-child`, chromedp.ByQuery)); err != nil {
 			t.Fatal(err)
 		}
 		if got := readState(); got != expected {

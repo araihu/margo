@@ -222,6 +222,37 @@ type browserRuntimeOutput struct {
 }
 
 const runtimeExpression = `(async () => {
+	function materializeTreeViewIcons(svg) {
+		// Mermaid strict mode strips <use>; only restore fixed built-in paths.
+		const tree = svg.querySelector('.tree-view');
+		if (!tree) return;
+		const paths = Object.freeze({
+			folder: 'M10.59 4.59A2 2 0 0 0 9.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.17z',
+			file: 'M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.83a2 2 0 0 0-.59-1.42l-4.82-4.82A2 2 0 0 0 13.17 2H6Zm7.5 1.9l4.6 4.6h-3.6a1 1 0 0 1-1-1V3.9Z'
+		});
+		for (const group of [...tree.children]) {
+			if (group.localName !== 'g') continue;
+			const label = [...group.children].find((child) => child.localName === 'text' && child.classList.contains('treeView-node-label'));
+			if (!label || [...group.children].some((child) => child.classList.contains('treeView-node-icon'))) continue;
+			const x = Number(label.getAttribute('x'));
+			const y = Number(label.getAttribute('y'));
+			if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+			const remainder = ((x - 5) % 15 + 15) % 15;
+			if (Math.abs(remainder - 3) > 0.5) continue;
+			const type = label.classList.contains('treeView-node-dir') ? 'folder' : 'file';
+			const icon = svg.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'path');
+			icon.setAttribute('class', 'treeView-node-icon');
+			icon.setAttribute('d', paths[type]);
+			icon.setAttribute('fill', 'currentColor');
+			if (type === 'file') {
+				icon.setAttribute('fill-rule', 'evenodd');
+				icon.setAttribute('clip-rule', 'evenodd');
+			}
+			icon.setAttribute('transform', 'translate(' + (x - 18) + ' ' + (y - 7) + ') scale(' + (14 / 24) + ')');
+			group.insertBefore(icon, label);
+		}
+	}
+
 	const nodes = Array.from(document.querySelectorAll('[data-margo-runtime-task="mermaid"]'));
 	if (nodes.length === 0) return {svg: []};
 	if (globalThis.margoRuntimeReady && typeof globalThis.margoRuntimeReady.then === 'function') {
@@ -243,15 +274,18 @@ const runtimeExpression = `(async () => {
 			flowchart: {htmlLabels: false},
 			look: 'classic',
 			layout: 'dagre',
+			treeView: {showIcons: true},
 			deterministicIds: true,
 			deterministicIDSeed: 'margo-pdf-' + index
 		});
 		const rendered = await mermaid.render('margo-pdf-' + index, sourceNode.textContent);
 		if (!rendered || typeof rendered.svg !== 'string' || rendered.svg.length === 0) throw new Error('Mermaid returned no SVG');
 		target.innerHTML = rendered.svg;
+		const svg = target.querySelector('svg');
+		if (svg) materializeTreeViewIcons(svg);
 		const source = node.querySelector('.margo-mermaid__source');
 		if (source) source.hidden = true;
-		outputs.push(rendered.svg);
+		outputs.push(svg ? svg.outerHTML : rendered.svg);
 	}
 	return {svg: outputs};
 })()`
@@ -282,8 +316,13 @@ func injectPageGeometry(document []byte, config pdf.PageConfig) ([]byte, error) 
 		formatMillimeters(config.Margins.Top), formatMillimeters(config.Margins.Right),
 		formatMillimeters(config.Margins.Bottom), formatMillimeters(config.Margins.Left),
 	)
-	rule := fmt.Sprintf(`<style data-margo-page-geometry>@page { size: %s %s; margin: %s; } @page margo-diagram-landscape { size: %s landscape; margin: %s; }</style>`,
-		config.Size, orientation, margins, config.Size, margins,
+	maxImageHeight := fmt.Sprintf("%dvh", pdf.DefaultImageMaxHeightPercent)
+	if config.EffectiveImageOverflowPolicy() == pdf.ImageOverflowAllow {
+		maxImageHeight = "none"
+	}
+	imageRule := fmt.Sprintf(`@media print { .margo-document img { max-block-size: %s !important; max-height: %s !important; max-inline-size: 100%% !important; max-width: 100%% !important; inline-size: auto !important; width: auto !important; block-size: auto !important; height: auto !important; aspect-ratio: auto !important; object-fit: contain !important; page-break-inside: avoid; break-inside: avoid-page; } }`, maxImageHeight, maxImageHeight)
+	rule := fmt.Sprintf(`<style data-margo-page-geometry>@page { size: %s %s; margin: %s; } @page margo-diagram-landscape { size: %s landscape; margin: %s; } %s</style>`,
+		config.Size, orientation, margins, config.Size, margins, imageRule,
 	)
 	lower := strings.ToLower(string(document))
 	// Embedded runtimes may contain the literal text "</head>" inside script

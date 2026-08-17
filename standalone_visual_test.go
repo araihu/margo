@@ -459,7 +459,11 @@ func TestFullFeatureStandaloneHasNoNarrowClippingOrConsoleWarnings(t *testing.T)
 		defer evidenceMu.Unlock()
 		switch typed := event.(type) {
 		case *cdpruntime.EventExceptionThrown:
-			consoleFindings = append(consoleFindings, typed.ExceptionDetails.Text)
+			finding := typed.ExceptionDetails.Text
+			if typed.ExceptionDetails.Exception != nil && typed.ExceptionDetails.Exception.Description != "" {
+				finding += ": " + typed.ExceptionDetails.Exception.Description
+			}
+			consoleFindings = append(consoleFindings, finding)
 		case *cdpruntime.EventConsoleAPICalled:
 			if typed.Type == cdpruntime.APITypeWarning || typed.Type == cdpruntime.APITypeError || typed.Type == cdpruntime.APITypeAssert {
 				consoleFindings = append(consoleFindings, string(typed.Type))

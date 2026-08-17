@@ -13,12 +13,13 @@ import (
 )
 
 type pageFlags struct {
-	Size        string
-	Orientation string
-	Top         float64
-	Right       float64
-	Bottom      float64
-	Left        float64
+	Size          string
+	Orientation   string
+	ImageOverflow string
+	Top           float64
+	Right         float64
+	Bottom        float64
+	Left          float64
 }
 
 const (
@@ -159,6 +160,7 @@ func (options pdfLinkFlags) config(policyExplicit bool) (pdfLinkConfig, error) {
 func (options *pageFlags) bind(command *cobra.Command) {
 	command.Flags().StringVar(&options.Size, "page-size", string(pdf.PageA4), "page size: A4 or Letter")
 	command.Flags().StringVar(&options.Orientation, "orientation", string(pdf.Portrait), "orientation: portrait or landscape")
+	command.Flags().StringVar(&options.ImageOverflow, "image-overflow", "", "PDF image overflow: limit or allow (default: limit)")
 	command.Flags().Float64Var(&options.Top, "margin-top", options.Top, "top margin in millimeters")
 	command.Flags().Float64Var(&options.Right, "margin-right", options.Right, "right margin in millimeters")
 	command.Flags().Float64Var(&options.Bottom, "margin-bottom", options.Bottom, "bottom margin in millimeters")
@@ -168,6 +170,7 @@ func (options *pageFlags) bind(command *cobra.Command) {
 func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata) (pdf.PageConfig, error) {
 	size := options.Size
 	orientation := options.Orientation
+	imageOverflow := options.ImageOverflow
 	top, right, bottom, left := options.Top, options.Right, options.Bottom, options.Left
 	if metadata.Margo.Page != nil {
 		if !command.Flags().Changed("page-size") && metadata.Margo.Page.Size != "" {
@@ -175,6 +178,9 @@ func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata)
 		}
 		if !command.Flags().Changed("orientation") && metadata.Margo.Page.Orientation != "" {
 			orientation = metadata.Margo.Page.Orientation
+		}
+		if !command.Flags().Changed("image-overflow") && metadata.Margo.Page.ImageOverflow != "" {
+			imageOverflow = metadata.Margo.Page.ImageOverflow
 		}
 		if margins := metadata.Margo.Page.Margins; margins != nil {
 			if !command.Flags().Changed("margin-top") && margins.Top != nil {
@@ -192,8 +198,9 @@ func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata)
 		}
 	}
 	config := pdf.PageConfig{
-		Size:        pdf.PageSize(size),
-		Orientation: pdf.Orientation(orientation),
+		Size:          pdf.PageSize(size),
+		Orientation:   pdf.Orientation(orientation),
+		ImageOverflow: pdf.ImageOverflowPolicy(imageOverflow),
 		Margins: pdf.Margins{
 			Top: pdf.Millimeters(top), Right: pdf.Millimeters(right),
 			Bottom: pdf.Millimeters(bottom), Left: pdf.Millimeters(left),

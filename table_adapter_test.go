@@ -22,6 +22,27 @@ func TestMarkdownTableUsesClientOnlyGoshtosoTable(t *testing.T) {
 	}
 }
 
+func TestTableSortRuntimeUsesGoshtosoHeaderControls(t *testing.T) {
+	asset, err := EmbeddedAsset("table-sort.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := string(asset.Content)
+	for _, required := range []string{
+		"margo-table-sort-button p-4 cursor-pointer",
+		"cell.tabIndex = 0",
+		"event.key !== \"Enter\"",
+		"createElementNS(\"http://www.w3.org/2000/svg\", \"svg\")",
+	} {
+		if !strings.Contains(runtime, required) {
+			t.Fatalf("table sort runtime missing %q", required)
+		}
+	}
+	if strings.Contains(runtime, `createElement("button")`) {
+		t.Fatal("table sort runtime regressed to nested header buttons")
+	}
+}
+
 func TestMultipleMarkdownTablesUseUniqueDocumentIDs(t *testing.T) {
 	markup := renderComponent(t, mustRenderSource(t, tableMarkdown()+"\n"+tableMarkdown()).Content())
 	matches := regexp.MustCompile(`\sid="([^"]+)"`).FindAllStringSubmatch(markup, -1)

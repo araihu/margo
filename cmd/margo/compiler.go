@@ -72,9 +72,16 @@ func compileStandaloneWithCompiler(ctx context.Context, deps Dependencies, input
 	if err != nil {
 		return compiledStandalone{}, err
 	}
-	renderOptions := make([]any, len(options))
+	renderOptions := make([]any, 0, len(options)+1)
 	for index := range options {
-		renderOptions[index] = options[index]
+		renderOptions = append(renderOptions, options[index])
+	}
+	if target == margo.TargetPDF {
+		logo, logoErr := margo.EmbeddedAsset("logo.svg")
+		if logoErr != nil {
+			return compiledStandalone{}, fmt.Errorf("cli.pdf_brand_logo: %w", logoErr)
+		}
+		renderOptions = append(renderOptions, margo.WithPDFBrand("Margo", logo))
 	}
 	component, err := margo.RenderStandalone(rendered, renderOptions...)
 	if err != nil {

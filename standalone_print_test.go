@@ -21,7 +21,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 	}
 	document := `<!doctype html><html><body><div class="goshtoso-document"><article class="margo-document">
 <p><strong id="strong">Strong <a id="nested" href="https://example.com">link</a></strong> and <em>emphasis</em>.</p>
-<div data-table-client-sort="true"><button class="margo-table-sort-button">Column</button></div>
+<div data-table-client-sort="true"><table><thead><tr><th class="margo-table-sort-button" tabindex="0">Column</th></tr></thead><tbody><tr><td>Value</td></tr></tbody></table></div>
 <p><input type="checkbox" disabled checked> Complete</p>
 <figure id="diagram" class="margo-mermaid"><div class="margo-mermaid__canvas"></div><details class="margo-mermaid__source"><summary>Source</summary></details></figure>
 <div data-goshtoso-chart-wrapper data-goshtoso-chart-capability="interactive-raster" data-goshtoso-chart-export-pixel-ratio="1">
@@ -50,6 +50,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 		Buttons           int    `json:"buttons"`
 		Inputs            int    `json:"inputs"`
 		StaticLabels      int    `json:"staticLabels"`
+		TableHeaders      int    `json:"tableHeaders"`
 		NestedLinks       int    `json:"nestedLinks"`
 		DetailsOpen       bool   `json:"detailsOpen"`
 		PaginationMarkers int    `json:"paginationMarkers"`
@@ -68,6 +69,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 				buttons: document.querySelectorAll('button').length,
 				inputs: document.querySelectorAll('input').length,
 				staticLabels: document.querySelectorAll('[data-margo-print-static]').length,
+				tableHeaders: document.querySelectorAll('th.margo-table-sort-button').length,
 				nestedLinks: document.querySelectorAll('#nested[href="https://example.com"]').length,
 				detailsOpen: document.querySelector('.margo-mermaid__source').open,
 				paginationMarkers: document.querySelectorAll('[data-margo-print-break-before], [data-margo-print-oversized], [data-margo-print-heading-group]').length,
@@ -82,7 +84,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if prepared.Buttons != 0 || prepared.Inputs != 0 || prepared.StaticLabels != 4 || prepared.NestedLinks != 1 || !prepared.DetailsOpen {
+	if prepared.Buttons != 0 || prepared.Inputs != 0 || prepared.StaticLabels != 3 || prepared.TableHeaders != 1 || prepared.NestedLinks != 1 || !prepared.DetailsOpen {
 		t.Fatalf("static print preparation = %+v", prepared)
 	}
 	if prepared.PaginationMarkers != 0 || prepared.Scale != "" {
@@ -96,6 +98,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 		Buttons           int  `json:"buttons"`
 		Inputs            int  `json:"inputs"`
 		StaticLabels      int  `json:"staticLabels"`
+		TableHeaders      int  `json:"tableHeaders"`
 		NestedLinks       int  `json:"nestedLinks"`
 		DetailsOpen       bool `json:"detailsOpen"`
 		PrintChartImages  int  `json:"printChartImages"`
@@ -107,6 +110,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 			buttons: document.querySelectorAll('button').length,
 			inputs: document.querySelectorAll('input').length,
 			staticLabels: document.querySelectorAll('[data-margo-print-static]').length,
+			tableHeaders: document.querySelectorAll('th.margo-table-sort-button').length,
 			nestedLinks: document.querySelectorAll('strong #nested[href="https://example.com"]').length,
 			detailsOpen: document.querySelector('.margo-mermaid__source').open,
 			printChartImages: document.querySelectorAll('[data-margo-chart-print-image]').length,
@@ -115,7 +119,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 	})()`, &restored)); err != nil {
 		t.Fatal(err)
 	}
-	if restored.Buttons != 1 || restored.Inputs != 1 || restored.StaticLabels != 0 || restored.NestedLinks != 1 || restored.DetailsOpen {
+	if restored.Buttons != 0 || restored.Inputs != 1 || restored.StaticLabels != 0 || restored.TableHeaders != 1 || restored.NestedLinks != 1 || restored.DetailsOpen {
 		t.Fatalf("screen structure was not restored exactly: %+v", restored)
 	}
 	if restored.PrintChartImages != 0 || restored.InteractiveCharts != 1 {

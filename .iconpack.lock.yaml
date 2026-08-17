@@ -1,0 +1,52 @@
+schema: 1
+files:
+  - id: heroicons-arrow-down-tray/icon
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-arrow-down-tray.svg
+    path: .iconpack/sources/heroicons-arrow-down-tray/16/solid/arrow-down-tray.svg
+    size: 843
+    integrity: sha384-rEBIVygcAv6qL9Te4+TtyFleVdUAPRVOdFiITDb447RiO9Yt85XJIUzOvHH+vQ7m
+  - id: heroicons-arrow-down-tray/license
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+    path: .iconpack/sources/heroicons-arrow-down-tray/LICENSE
+    size: 1071
+    integrity: sha384-zZwI/O2prTGDEmLZ7zRQDU5uBHh0I9RcfsxxiBs8rVAEUeWHCkfZZuadqFVCMuoU
+  - id: heroicons-arrow-top-right/icon
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-arrow-top-right-on-square.svg
+    path: .iconpack/sources/heroicons-arrow-top-right/16/solid/arrow-top-right-on-square.svg
+    size: 834
+    integrity: sha384-sK1M3B5nsm+JPLgtj5RcLqrEjbpwXUU2omSNwALkrz1YQTIdCNzOwfVwiz6/Eh8l
+  - id: heroicons-arrow-top-right/license
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+    path: .iconpack/sources/heroicons-arrow-top-right/LICENSE
+    size: 1071
+    integrity: sha384-zZwI/O2prTGDEmLZ7zRQDU5uBHh0I9RcfsxxiBs8rVAEUeWHCkfZZuadqFVCMuoU
+  - id: heroicons-document-text/icon
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-document-text.svg
+    path: .iconpack/sources/heroicons-document-text/16/solid/document-text.svg
+    size: 649
+    integrity: sha384-cBE1A3oC6rKfykcxRqHr1xoaSrza1BrUCNzYvpds0Tk2/JnhIJDa3AZEtw14/1H0
+  - id: heroicons-document-text/license
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+    path: .iconpack/sources/heroicons-document-text/LICENSE
+    size: 1071
+    integrity: sha384-zZwI/O2prTGDEmLZ7zRQDU5uBHh0I9RcfsxxiBs8rVAEUeWHCkfZZuadqFVCMuoU
+  - id: heroicons-printer/icon
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-printer.svg
+    path: .iconpack/sources/heroicons-printer/16/solid/printer.svg
+    size: 544
+    integrity: sha384-7Y712XeQ8LAAzTv9pBcvAwcwSXL0g1fGeqtrKrQdH2Wd3stIEUUGvEdKUCJ8sWk7
+  - id: heroicons-printer/license
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+    path: .iconpack/sources/heroicons-printer/LICENSE
+    size: 1071
+    integrity: sha384-zZwI/O2prTGDEmLZ7zRQDU5uBHh0I9RcfsxxiBs8rVAEUeWHCkfZZuadqFVCMuoU
+  - id: heroicons/icon
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-clipboard.svg
+    path: .iconpack/sources/heroicons/16/solid/clipboard.svg
+    size: 453
+    integrity: sha384-DsVWRP1ynyD2H7vsdF4/cL3rZEzlR/jFlqZ9d6RLjmcccIa2ciA8mstQSnUOCsvl
+  - id: heroicons/license
+    url: https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/licenses/heroicons-MIT.txt
+    path: .iconpack/sources/heroicons/LICENSE
+    size: 1071
+    integrity: sha384-zZwI/O2prTGDEmLZ7zRQDU5uBHh0I9RcfsxxiBs8rVAEUeWHCkfZZuadqFVCMuoU

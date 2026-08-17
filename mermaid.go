@@ -105,6 +105,38 @@ func mermaidBrowserCapabilities() ([]string, error) {
 
 const mermaidBrowserExecutor = `(() => {
   "use strict";
+
+  function materializeTreeViewIcons(svg) {
+    // Mermaid strict mode strips <use>; only restore fixed built-in paths.
+    const tree = svg.querySelector(".tree-view");
+    if (!tree) return;
+    const paths = Object.freeze({
+      folder: "M10.59 4.59A2 2 0 0 0 9.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.17z",
+      file: "M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.83a2 2 0 0 0-.59-1.42l-4.82-4.82A2 2 0 0 0 13.17 2H6Zm7.5 1.9l4.6 4.6h-3.6a1 1 0 0 1-1-1V3.9Z"
+    });
+    for (const group of [...tree.children]) {
+      if (group.localName !== "g") continue;
+      const label = [...group.children].find((child) => child.localName === "text" && child.classList.contains("treeView-node-label"));
+      if (!label || [...group.children].some((child) => child.classList.contains("treeView-node-icon"))) continue;
+      const x = Number(label.getAttribute("x"));
+      const y = Number(label.getAttribute("y"));
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      const remainder = ((x - 5) % 15 + 15) % 15;
+      if (Math.abs(remainder - 3) > 0.5) continue;
+      const type = label.classList.contains("treeView-node-dir") ? "folder" : "file";
+      const icon = svg.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "path");
+      icon.setAttribute("class", "treeView-node-icon");
+      icon.setAttribute("d", paths[type]);
+      icon.setAttribute("fill", "currentColor");
+      if (type === "file") {
+        icon.setAttribute("fill-rule", "evenodd");
+        icon.setAttribute("clip-rule", "evenodd");
+      }
+      icon.setAttribute("transform", "translate(" + (x - 18) + " " + (y - 7) + ") scale(" + (14 / 24) + ")");
+      group.insertBefore(icon, label);
+    }
+  }
+
   const execute = async () => {
     if (document.readyState === "loading") {
       await new Promise((resolve) => document.addEventListener("DOMContentLoaded", resolve, {once: true}));
@@ -131,6 +163,7 @@ const mermaidBrowserExecutor = `(() => {
         flowchart: {htmlLabels: false},
         look: "classic",
         layout: "dagre",
+        treeView: {showIcons: true},
         deterministicIds: true,
         deterministicIDSeed: "margo-html-" + index
       });
@@ -139,22 +172,29 @@ const mermaidBrowserExecutor = `(() => {
       target.innerHTML = rendered.svg;
       const svg = target.querySelector("svg");
       if (svg) {
+        materializeTreeViewIcons(svg);
         svg.setAttribute("aria-hidden", "true");
         svg.setAttribute("focusable", "false");
       }
       const fallback = node.querySelector(".margo-mermaid__source");
       if (fallback) fallback.hidden = true;
       node.dataset.margoRuntimeStatus = "succeeded";
-      outputs.push(rendered.svg);
+      outputs.push(svg ? svg.outerHTML : rendered.svg);
     }
     document.documentElement.dataset.margoRuntimeStatus = "ready";
     return outputs;
   };
-  globalThis.margoRuntimeReady = execute().catch((error) => {
-    document.documentElement.dataset.margoRuntimeStatus = "failed";
-    for (const node of document.querySelectorAll('[data-margo-runtime-task="mermaid"]')) node.dataset.margoRuntimeStatus = "failed";
-    throw error;
-  });
+  const run = () => {
+    const promise = execute().catch((error) => {
+      document.documentElement.dataset.margoRuntimeStatus = "failed";
+      for (const node of document.querySelectorAll('[data-margo-runtime-task="mermaid"]')) node.dataset.margoRuntimeStatus = "failed";
+      throw error;
+    });
+    globalThis.margoRuntimeReady = promise;
+    return promise;
+  };
+  globalThis.margoRunMermaid = run;
+  globalThis.margoRuntimeReady = run();
 })();`
 
 func compileMermaidNode(compileContext extensionCompileContext, node ExtensionNode, ordinal uint32) (ExtensionNode, error) {

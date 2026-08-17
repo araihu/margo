@@ -1,6 +1,7 @@
 # Go build and test outputs
 /bin/
 /dist/
+/showcase/dist/
 /.dagger/
 /.dagger-ci-context.json
 /.dagger-git.bundle
@@ -14,6 +15,10 @@ coverage.out
 # Local Go workspaces
 go.work
 go.work.sum
+
+# Consumer-local iconpack acquisition cache
+/.iconpack/
+/.iconpack-cache/
 
 # Local worktrees and editor files
 .worktrees/

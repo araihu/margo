@@ -15,6 +15,8 @@ import (
 
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/internal/staticimage"
+	"github.com/araihu/margo/pdf"
+	"github.com/araihu/margo/ssg"
 	"golang.org/x/net/html"
 )
 
@@ -27,6 +29,10 @@ const (
 	AssetsInline AssetMode = "inline"
 	// ManifestPath is reserved for the CLI-owned exact-byte manifest.
 	ManifestPath = "margo-manifest.json"
+	// SitemapPath is the generated XML index of configured public routes.
+	SitemapPath = "sitemap.xml"
+	// LLMSPath is the generated Markdown index for language-model consumers.
+	LLMSPath = "llms.txt"
 )
 
 // Source is one site-relative Markdown input.
@@ -42,6 +48,7 @@ type Request struct {
 	Compiler    *margo.Compiler
 	Assets      AssetMode
 	AssetReader margo.CheckAssetReader
+	PDFEngine   pdf.Engine
 }
 
 // Artifact is one site-relative output and its exact bytes.
@@ -52,8 +59,33 @@ type Artifact struct {
 
 // Page records one deterministic source-to-output mapping.
 type Page struct {
-	Source string `json:"source"`
-	Output string `json:"output"`
+	Source         string             `json:"source"`
+	Output         string             `json:"output"`
+	Locale         string             `json:"locale,omitempty"`
+	Title          string             `json:"title,omitempty"`
+	Description    string             `json:"description,omitempty"`
+	Canonical      string             `json:"canonical,omitempty"`
+	DocumentDigest string             `json:"documentDigest,omitempty"`
+	ImageOverflow  string             `json:"imageOverflow,omitempty"`
+	Actions        *margo.PageActions `json:"actions,omitempty"`
+	Alternates     []Alternate        `json:"alternates,omitempty"`
+}
+
+type Alternate struct {
+	Locale string `json:"locale"`
+	URL    string `json:"url"`
+}
+
+// SiteManifest carries config and route identity in addition to artifact
+// digests. Legacy callers receive the zero value and keep the old manifest.
+type SiteManifest struct {
+	ConfigVersion       int    `json:"configVersion,omitempty"`
+	Layout              string `json:"layout,omitempty"`
+	LayoutSchemaHash    string `json:"layoutSchemaHash,omitempty"`
+	BaseURL             string `json:"baseURL,omitempty"`
+	BasePath            string `json:"basePath,omitempty"`
+	DocumentStyleDigest string `json:"documentStyleDigest,omitempty"`
+	Routes              []Page `json:"routes,omitempty"`
 }
 
 // Result contains sorted artifacts and their exact-byte manifest.
@@ -61,19 +93,37 @@ type Result struct {
 	Artifacts []Artifact
 	Manifest  margo.Manifest
 	Pages     []Page
+	Site      SiteManifest
 }
 
 type builder struct {
-	request      Request
-	sources      map[string]Source
-	outputs      map[string]string
-	artifacts    map[string][]byte
-	artifactKeys map[string]string
-	assets       map[string]cachedAsset
-	dependencies map[string]string
-	pages        []Page
-	references   []siteReference
-	assetBytes   int64
+	request          Request
+	config           *Config
+	configDir        string
+	sourceDir        string
+	siteManifest     SiteManifest
+	frame            ssg.Frame
+	frameSchema      ssg.FrameSchema
+	frameHash        string
+	frameValues      ssg.Values
+	layoutName       string
+	shellMode        bool
+	shellName        string
+	shellAssetPrefix string
+	socialMediaType  string
+	configured       map[string]configuredPage
+	configPages      []Page
+	sources          map[string]Source
+	outputs          map[string]string
+	artifacts        map[string][]byte
+	artifactKeys     map[string]string
+	assets           map[string]cachedAsset
+	dependencies     map[string]string
+	pages            []Page
+	references       []siteReference
+	assetBytes       int64
+	pdfEngine        pdf.Engine
+	pdfInstances     *margo.InstanceAllocator
 }
 
 type cachedAsset struct {
@@ -112,6 +162,7 @@ func Build(ctx context.Context, request Request) (Result, error) {
 		request: request, sources: make(map[string]Source, len(request.Sources)),
 		outputs: make(map[string]string, len(request.Sources)), artifacts: make(map[string][]byte),
 		artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset), dependencies: make(map[string]string),
+		pdfEngine: request.PDFEngine, pdfInstances: margo.NewInstanceAllocator(),
 	}
 	ordered, err := b.indexSources()
 	if err != nil {
@@ -145,7 +196,7 @@ func (b *builder) indexSources() ([]Source, error) {
 		if _, exists := b.sources[key]; exists {
 			return nil, diagnostic("site.output_collision", fmt.Sprintf("multiple sources map to %q", outputPath(normalized)), "Rename one source so output paths are unique even on case-insensitive filesystems.", normalized)
 		}
-		output := outputPath(normalized)
+		output := b.pageOutput(normalized)
 		outputKey := strings.ToLower(output)
 		if previous, exists := b.outputs[outputKey]; exists {
 			return nil, diagnostic("site.output_collision", fmt.Sprintf("%q and %q map to the same output", previous, normalized), "Rename one source so each page has a unique output path.", normalized)
@@ -162,6 +213,9 @@ func (b *builder) indexSources() ([]Source, error) {
 
 func (b *builder) renderSource(ctx context.Context, source Source) (failure error) {
 	defer func() { failure = attachSource(failure, source.Path) }()
+	if b.config != nil {
+		return b.renderConfiguredSource(ctx, source)
+	}
 	base := filepath.Join(b.request.SourceRoot, filepath.FromSlash(path.Dir(source.Path)))
 	document, err := b.request.Compiler.Compile(ctx, margo.Source{Name: source.Path, Content: source.Content, BaseURL: base})
 	if err != nil {
@@ -171,6 +225,12 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	if err != nil {
 		return err
 	}
+	htmlResult, err := margo.RenderHTML(rendered)
+	if err != nil {
+		return err
+	}
+	output := b.pageOutput(source.Path)
+	page := Page{Source: source.Path, Output: output, ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
 
 	var componentBytes bytes.Buffer
 	if b.request.Assets == AssetsInline {
@@ -182,10 +242,6 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 			return renderErr
 		}
 	} else {
-		htmlResult, renderErr := margo.RenderHTML(rendered)
-		if renderErr != nil {
-			return renderErr
-		}
 		component, renderErr := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{Theme: margo.ThemeModern, ColorMode: margo.ColorModeLight, DependencyMode: margo.HTMLDependenciesLocal})
 		if renderErr != nil {
 			return renderErr
@@ -209,11 +265,17 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	if err != nil {
 		return err
 	}
-	output := outputPath(source.Path)
+	rewritten, err = b.injectPageActions(ctx, rewritten, page)
+	if err != nil {
+		return err
+	}
+	if err := b.addDeclaredPageArtifacts(ctx, source, page, document); err != nil {
+		return err
+	}
 	if err := b.addArtifact(output, rewritten); err != nil {
 		return err
 	}
-	b.pages = append(b.pages, Page{Source: source.Path, Output: output})
+	b.pages = append(b.pages, page)
 	return nil
 }
 
@@ -288,6 +350,12 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 	if err := visit(root); err != nil {
 		return nil, err
 	}
+	if b.shellMode {
+		decorateComponentDocShellHeadings(root)
+		if err := b.decorateComponentDocShellNavigation(root, source); err != nil {
+			return nil, err
+		}
+	}
 	var output bytes.Buffer
 	if err := html.Render(&output, root); err != nil {
 		return nil, err
@@ -317,7 +385,7 @@ func (b *builder) rewriteDependency(source Source, node *html.Node) error {
 	if !exists {
 		return nil
 	}
-	relative, err := relativeSitePath(path.Dir(outputPath(source.Path)), dependency)
+	relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), dependency)
 	if err != nil {
 		return err
 	}
@@ -345,14 +413,14 @@ func (b *builder) rewriteLink(source Source, node *html.Node) error {
 	if !exists {
 		return diagnostic("site.link_missing", fmt.Sprintf("Markdown link target %q does not exist", target), "Add the target document or correct the relative link.", source.Path)
 	}
-	relative, err := relativeSitePath(path.Dir(outputPath(source.Path)), outputPath(targetSource.Path))
+	relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), b.pageOutput(targetSource.Path))
 	if err != nil {
 		return err
 	}
 	parsed.Path = relative
 	parsed.RawPath = ""
 	node.Attr[index].Val = parsed.String()
-	b.references = append(b.references, siteReference{source: source.Path, target: outputPath(targetSource.Path), fragment: parsed.Fragment})
+	b.references = append(b.references, siteReference{source: source.Path, target: b.pageOutput(targetSource.Path), fragment: parsed.Fragment})
 	return nil
 }
 
@@ -370,8 +438,22 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		return nil
 	}
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.IsAbs() || parsed.Host != "" || strings.HasPrefix(parsed.Path, "/") || parsed.Path == "" {
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Path == "" {
 		return diagnostic("site.asset_external", fmt.Sprintf("image %q is not a local site asset", value), "Download the image into the site source tree.", source.Path)
+	}
+	if strings.HasPrefix(parsed.Path, "/") {
+		dependency, exists := b.dependencies[strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))]
+		if !exists {
+			return diagnostic("site.asset_external", fmt.Sprintf("image %q is not a local site asset", value), "Download the image into the site source tree.", source.Path)
+		}
+		relative, relativeErr := relativeSitePath(path.Dir(b.pageOutput(source.Path)), dependency)
+		if relativeErr != nil {
+			return relativeErr
+		}
+		parsed.Path = relative
+		parsed.RawPath = ""
+		node.Attr[index].Val = parsed.String()
+		return nil
 	}
 	assetPath := path.Clean(path.Join(path.Dir(source.Path), parsed.Path))
 	if assetPath == ".." || strings.HasPrefix(assetPath, "../") {
@@ -484,9 +566,13 @@ func (b *builder) result() Result {
 		paths = append(paths, name)
 	}
 	sort.Strings(paths)
+	pages := b.pages
+	if b.config != nil {
+		pages = b.configPages
+	}
 	result := Result{
 		Artifacts: make([]Artifact, 0, len(paths)), Manifest: margo.Manifest{Entries: make([]margo.ManifestEntry, 0, len(paths))},
-		Pages: append([]Page(nil), b.pages...),
+		Pages: append([]Page(nil), pages...), Site: b.siteManifest,
 	}
 	for _, name := range paths {
 		content := append([]byte(nil), b.artifacts[name]...)
@@ -494,6 +580,13 @@ func (b *builder) result() Result {
 		result.Manifest.Entries = append(result.Manifest.Entries, margo.ManifestEntry{Path: name, Digest: margo.ArtifactDigestOf(content)})
 	}
 	return result
+}
+
+func (b *builder) pageOutput(name string) string {
+	if b.config == nil {
+		return outputPath(name)
+	}
+	return configuredOutputPath(name, b.config.Locales)
 }
 
 func validSourcePath(name string) (string, bool) {

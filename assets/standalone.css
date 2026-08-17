@@ -98,6 +98,10 @@
     flex: none;
   }
 
+  .margo-pdf-brand-name {
+    font-weight: var(--font-weight-bold);
+  }
+
   .goshtoso-document__backdrop {
     position: absolute;
     z-index: 0;

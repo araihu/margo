@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "tool": "goshtoso-iconpack",
+  "release": "iconpack-c92fd330bad5",
+  "catalogSha256": "c92fd330bad5cb0f28b43778e7a07207d5d5556047c846883e56d3899534c2b7",
+  "sourceKind": "muamba-snapshot",
+  "archiveSha256": "",
+  "sourceConfigSha256": "c92fd330bad5cb0f28b43778e7a07207d5d5556047c846883e56d3899534c2b7",
+  "sourceLockSha256": "52a7fc8a823e89abeae58ba25e4f31fec55e43bf0b2c5a27d00c0a07746d9f66",
+  "sources": [
+    {
+      "namespace": "custom",
+      "product": "heroicons-arrow-down-tray",
+      "spritePath": "",
+      "spriteSha256": "",
+      "manifestPath": ".iconpack.yaml",
+      "manifestSha256": "c92fd330bad5cb0f28b43778e7a07207d5d5556047c846883e56d3899534c2b7",
+      "provenancePath": "",
+      "provenanceSha256": "",
+      "licensePath": "heroicons-arrow-down-tray/LICENSE",
+      "licenseSha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+    },
+    {
+      "namespace": "custom",
+      "product": "heroicons-arrow-top-right",
+      "spritePath": "",
+      "spriteSha256": "",
+      "manifestPath": ".iconpack.yaml",
+      "manifestSha256": "c92fd330bad5cb0f28b43778e7a07207d5d5556047c846883e56d3899534c2b7",
+      "provenancePath": "",
+      "provenanceSha256": "",
+      "licensePath": "heroicons-arrow-top-right/LICENSE",
+      "licenseSha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+    },
+    {
+      "namespace": "custom",
+      "product": "heroicons-copy",
+      "spritePath": "",
+      "spriteSha256": "",
+      "manifestPath": ".iconpack.yaml",
+      "manifestSha256": "c92fd330bad5cb0f28b43778e7a07207d5d5556047c846883e56d3899534c2b7",
+      "provenancePath": "",
+      "provenanceSha256": "",
+      "licensePath": "heroicons/LICENSE",
+      "licenseSha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+    },
+    {
+      "namespace": "custom",
+      "product": "heroicons-document-text",
+      "spritePath": "",
+      "spriteSha256": "",
+      "manifestPath": ".iconpack.yaml",
+      "manifestSha256": "c92fd330bad5cb0f28b43778e7a07207d5d5556047c846883e56d3899534c2b7",
+      "provenancePath": "",
+      "provenanceSha256": "",
+      "licensePath": "heroicons-document-text/LICENSE",
+      "licenseSha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+    },
+    {
+      "namespace": "custom",
+      "product": "heroicons-printer",
+      "spritePath": "",
+      "spriteSha256": "",
+      "manifestPath": ".iconpack.yaml",
+      "manifestSha256": "c92fd330bad5cb0f28b43778e7a07207d5d5556047c846883e56d3899534c2b7",
+      "provenancePath": "",
+      "provenanceSha256": "",
+      "licensePath": "heroicons-printer/LICENSE",
+      "licenseSha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+    }
+  ],
+  "assets": [
+    {
+      "canonicalName": "heroicons-arrow-down-tray-16-solid-arrow-down-tray",
+      "source": "https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-arrow-down-tray.svg:16/solid/arrow-down-tray.svg",
+      "license": "MIT",
+      "path": "heroicons-arrow-down-tray/16/solid/arrow-down-tray.svg",
+      "sha256": "99e18f3cc67359f6e79edd7bec2d65c6c2e9be481cc0e36c60e0dfb5c0f42f6e"
+    },
+    {
+      "canonicalName": "heroicons-arrow-top-right-16-solid-arrow-top-right-on-square",
+      "source": "https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-arrow-top-right-on-square.svg:16/solid/arrow-top-right-on-square.svg",
+      "license": "MIT",
+      "path": "heroicons-arrow-top-right/16/solid/arrow-top-right-on-square.svg",
+      "sha256": "449fef91543458cffa10005b4abe52ce35293c06365347a611354e6eae60f105"
+    },
+    {
+      "canonicalName": "heroicons-copy-16-solid-clipboard",
+      "source": "https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-clipboard.svg:16/solid/clipboard.svg",
+      "license": "MIT",
+      "path": "heroicons/16/solid/clipboard.svg",
+      "sha256": "955acdf8f78ca01a9f03fba1113a14e9c45a5e6bc43749c5054008efb7f0c4dd"
+    },
+    {
+      "canonicalName": "heroicons-document-text-16-solid-document-text",
+      "source": "https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-document-text.svg:16/solid/document-text.svg",
+      "license": "MIT",
+      "path": "heroicons-document-text/16/solid/document-text.svg",
+      "sha256": "98de4feb8ffc1736f7813d208f24a64c5c2def5261fbe1969f7d8dc145f33607"
+    },
+    {
+      "canonicalName": "heroicons-printer-16-solid-printer",
+      "source": "https://raw.githubusercontent.com/araihu/assets/v0.1.4/dist/icons/ui/heroicons/16-solid-printer.svg:16/solid/printer.svg",
+      "license": "MIT",
+      "path": "heroicons-printer/16/solid/printer.svg",
+      "sha256": "39b994f7aabd0f48cc43d52d3516a5bebe1589951675f968c310b6a97acc75af"
+    }
+  ]
+}

@@ -36,12 +36,12 @@ func TestFrontmatterPreservesGenericMetadata(t *testing.T) {
 }
 
 func TestFrontmatterAcceptsClosedMargoPagePreferences(t *testing.T) {
-	doc, err := New().Compile(context.Background(), Source{Name: "page.md", Content: []byte("---\nmargo:\n  page:\n    size: Letter\n    orientation: landscape\n    margins:\n      top: 12.5\n      right: 0\n      left: 18\n---\n# Page")})
+	doc, err := New().Compile(context.Background(), Source{Name: "page.md", Content: []byte("---\nmargo:\n  page:\n    size: Letter\n    orientation: landscape\n    imageOverflow: allow\n    margins:\n      top: 12.5\n      right: 0\n      left: 18\n---\n# Page")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	page := doc.Metadata().Margo.Page
-	if page == nil || page.Size != "Letter" || page.Orientation != "landscape" {
+	if page == nil || page.Size != "Letter" || page.Orientation != "landscape" || page.ImageOverflow != "allow" {
 		t.Fatalf("page preference = %#v", page)
 	}
 	if page.Margins == nil || page.Margins.Top == nil || *page.Margins.Top != 12.5 ||

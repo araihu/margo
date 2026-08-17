@@ -121,6 +121,9 @@ func TestDocumentPrintCSSWrapsLongCodeAndUsesLandscapeForWideDiagrams(t *testing
 		[]byte(".margo-document pre {"),
 		[]byte("white-space: pre-wrap"),
 		[]byte("overflow-wrap: anywhere"),
+		[]byte("max-height: 70vh !important"),
+		[]byte("aspect-ratio: auto !important"),
+		[]byte(`[data-margo-image-overflow="allow"] .margo-document img`),
 		[]byte(`.margo-document .margo-mermaid[data-margo-print-layout="landscape"]`),
 		[]byte("page: margo-diagram-landscape"),
 		[]byte("max-inline-size: none"),
@@ -226,6 +229,33 @@ func TestDocumentStylesKeepNarrowMermaidLabelsReadableWithLocalOverflow(t *testi
 	} {
 		if !bytes.Contains(css, want) {
 			t.Fatalf("document CSS has no narrow Mermaid behavior %q", want)
+		}
+	}
+}
+
+func TestDocumentStylesThemeMermaidTreeViewLabels(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".margo-document .margo-mermaid .treeView-node-label"),
+		[]byte("color: var(--color-on-surface-strong)"),
+		[]byte("fill: var(--color-on-surface-strong) !important"),
+		[]byte(".margo-document .margo-mermaid .treeView-node-icon"),
+		[]byte("color: var(--color-primary) !important"),
+		[]byte("stroke: var(--color-outline-strong) !important"),
+		[]byte(".margo-document:is(.dark *) .margo-mermaid .treeView-node-label"),
+		[]byte(".dark .margo-document .margo-mermaid .treeView-node-label"),
+		[]byte("[data-color-mode=\"dark\"] .margo-document .margo-mermaid .treeView-node-label"),
+		[]byte("color: var(--color-on-surface-dark-strong)"),
+		[]byte("fill: var(--color-on-surface-dark-strong) !important"),
+		[]byte(".dark .margo-document .margo-mermaid .treeView-node-icon"),
+		[]byte("color: var(--color-primary-dark) !important"),
+		[]byte("stroke: var(--color-outline-dark-strong) !important"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document CSS missing themed TreeView rule %q", want)
 		}
 	}
 }

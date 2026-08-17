@@ -18,13 +18,42 @@ type Metadata struct {
 }
 
 type DocumentPreferences struct {
-	Page *PagePreference
+	Page    *PagePreference
+	Actions *PageActions
+}
+
+// PDFMode selects how a site's PDF action is fulfilled.
+type PDFMode string
+
+const (
+	PDFModePreRendered PDFMode = "pre-rendered"
+	PDFModeClient      PDFMode = "client"
+)
+
+// PageActions selects optional artifacts and controls emitted by a site
+// generator. PDF publication also retains the Markdown source for the page.
+type PageActions struct {
+	Markdown bool    `json:"markdown,omitempty"`
+	PDF      bool    `json:"pdf,omitempty"`
+	PDFMode  PDFMode `json:"pdfMode,omitempty"`
+}
+
+func (actions PageActions) EffectivePDFMode() PDFMode {
+	if actions.PDFMode == "" {
+		return PDFModePreRendered
+	}
+	return actions.PDFMode
+}
+
+func (actions PageActions) UsesClientPDF() bool {
+	return actions.PDF && actions.EffectivePDFMode() == PDFModeClient
 }
 
 type PagePreference struct {
-	Size        string
-	Orientation string
-	Margins     *PageMarginPreference
+	Size          string
+	Orientation   string
+	ImageOverflow string
+	Margins       *PageMarginPreference
 }
 
 // PageMarginPreference keeps every side optional so an author can override
@@ -51,6 +80,10 @@ func (m Metadata) clone() Metadata {
 			page.Margins = &margins
 		}
 		m.Margo.Page = &page
+	}
+	if m.Margo.Actions != nil {
+		actions := *m.Margo.Actions
+		m.Margo.Actions = &actions
 	}
 	if len(m.Additional) > 0 {
 		m.Additional = cloneStringAnyMap(m.Additional)

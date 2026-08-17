@@ -41,6 +41,7 @@ type strictConfigurationIdentity struct {
 	DeterministicIDs  bool   `json:"deterministicIds"`
 	Look              string `json:"look"`
 	Layout            string `json:"layout"`
+	TreeViewShowIcons bool   `json:"treeViewShowIcons"`
 	CallbacksEnabled  bool   `json:"callbacksEnabled"`
 	ExternalIcons     bool   `json:"externalIcons"`
 }
@@ -66,7 +67,7 @@ func Compile(source []byte, blockOrdinal uint32) (TaskDescriptor, error) {
 	}, nil
 }
 
-// StrictConfigurationHash identifies the one literal v0.0.1 configuration.
+// StrictConfigurationHash identifies the one fixed strict Mermaid configuration.
 func StrictConfigurationHash() [32]byte {
 	identity := strictConfigurationIdentity{
 		SchemaVersion:     "margo/mermaid-configuration/v1",
@@ -79,6 +80,7 @@ func StrictConfigurationHash() [32]byte {
 		DeterministicIDs:  true,
 		Look:              "classic",
 		Layout:            "dagre",
+		TreeViewShowIcons: true,
 		CallbacksEnabled:  false,
 		ExternalIcons:     false,
 	}

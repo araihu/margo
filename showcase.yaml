@@ -1,0 +1,28 @@
+version: 1
+source: showcase/content
+output: showcase/dist
+assets: local
+offline: true
+site:
+  name: Margo
+  description: A visual guide to Margo's Markdown compiler, Go module, and publishing CLI.
+  version: v0.0.5
+  repository_url: https://github.com/araihu/margo
+  base_url: https://margo.araihu.com
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social/margo-social-v2.jpg
+    alt: "Margo showcase: Markdown flowing into HTML, sites, PDFs, and decks."
+shell:
+  builtin: componentdocshell
+locales:
+  default: en
+  supported: [en]
+navigation:
+  mode: file-tree
+theme:
+  builtin: true
+  name: modern
+  color_mode: system

@@ -37,6 +37,41 @@ Body
 	}
 }
 
+func TestEditorialFrontmatterNormalizesPageActions(t *testing.T) {
+	document, err := New().Compile(context.Background(), Source{Name: "guide.md", Content: []byte(`---
+margo:
+  actions:
+    markdown: true
+    pdf: true
+---
+# Guide
+`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := document.Metadata().Margo.Actions
+	if actions == nil || !actions.Markdown || !actions.PDF {
+		t.Fatalf("page actions = %#v", actions)
+	}
+	if actions.EffectivePDFMode() != PDFModePreRendered || actions.UsesClientPDF() {
+		t.Fatalf("default PDF mode = %#v", actions)
+	}
+	clientDocument, err := New().Compile(context.Background(), Source{Name: "client.md", Content: []byte(`---
+margo:
+  actions:
+    pdf: client
+---
+# Client print
+`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientActions := clientDocument.Metadata().Margo.Actions
+	if clientActions == nil || !clientActions.PDF || !clientActions.UsesClientPDF() {
+		t.Fatalf("client page actions = %#v", clientActions)
+	}
+}
+
 func TestEditorialFrontmatterRejectsInvalidMetadata(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -85,15 +85,41 @@
       "x-margo-precedence": "frontmatter only"
     },
     "margo": {
-      "description": "Closed namespace for non-authoritative Margo document preferences.",
+      "description": "Closed namespace for non-authoritative Margo document preferences and site publication controls.",
       "type": "object",
       "additionalProperties": false,
       "examples": [{"page": {"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}}],
-      "x-margo-targets": ["pdf", "deck"],
+      "x-margo-targets": ["site", "pdf", "deck"],
       "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
-      "x-margo-security": "Non-authoritative preferences only; capabilities are forbidden here.",
+      "x-margo-security": "Non-authoritative preferences only; publication controls do not grant capabilities or runtime access.",
       "x-margo-interactions": "Unknown nested properties fail while unknown consumer-owned root properties remain available.",
       "properties": {
+        "actions": {
+          "description": "Optional site publication controls. PDF publication also retains the Markdown source.",
+          "type": "object",
+          "additionalProperties": false,
+          "examples": [{"markdown": true, "pdf": true}, {"markdown": true, "pdf": "client"}],
+          "x-margo-targets": ["site"],
+          "x-margo-precedence": "frontmatter declaration only",
+          "x-margo-security": "Publication controls only; does not grant document capabilities or runtime access.",
+          "properties": {
+            "markdown": {
+              "description": "Retain the original Markdown source and expose copy/view actions in configured HTML sites.",
+              "type": "boolean",
+              "default": false,
+              "x-margo-targets": ["site"]
+            },
+            "pdf": {
+              "description": "Generate a pre-rendered PDF artifact and retain the original Markdown source, or use client browser print without generating a PDF artifact.",
+              "oneOf": [
+                {"type": "boolean", "default": false},
+                {"type": "string", "enum": ["pre-rendered", "client"], "default": "pre-rendered"}
+              ],
+              "x-margo-targets": ["site"]
+            }
+          },
+          "default": {}
+        },
         "page": {
           "description": "Optional PDF page preferences overridden by explicit CLI or API values.",
           "type": "object",
@@ -101,7 +127,7 @@
           "examples": [{"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}],
           "x-margo-targets": ["pdf", "deck"],
           "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
-          "x-margo-interactions": "Size, orientation, and four physical margins combine into one browser-owned PageConfig.",
+          "x-margo-interactions": "Size, orientation, margins, and image overflow combine into one browser-owned PageConfig. Images default to a 70% page-viewport height cap while preserving their intrinsic aspect ratio.",
           "properties": {
             "size": {
               "description": "Preferred physical page size.",
@@ -120,6 +146,16 @@
               "examples": ["portrait"],
               "x-margo-targets": ["pdf", "deck"],
               "x-margo-precedence": "explicit CLI or API option, then document preference, then portrait"
+            },
+            "imageOverflow": {
+              "description": "Controls whether print images are capped at 70% of the page viewport height while preserving their intrinsic aspect ratio.",
+              "type": "string",
+              "enum": ["limit", "allow"],
+              "default": "limit",
+              "examples": ["limit", "allow"],
+              "x-margo-targets": ["pdf", "deck"],
+              "x-margo-precedence": "explicit CLI or API option, then document preference, then limit",
+              "x-margo-security": "No capability or privacy effect; changes printable image geometry."
             },
             "margins": {
               "description": "Optional physical page margins in millimeters; omitted sides retain the target default and explicit zero requests full bleed on that side. PDF documents default to 24/22/26/22 mm while decks default to zero.",

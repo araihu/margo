@@ -53,7 +53,7 @@ func TestMermaidTaskDescriptorIsDeterministic(t *testing.T) {
 }
 
 func TestMermaidStrictConfigurationHashIsPinned(t *testing.T) {
-	const want = "38c4b58dcdb0fa27325e3b89b9732ea6665ee66396b0f4f3c52438c3cd0cbd2b"
+	const want = "a04349ffafbde0ee1d6986b4116a7567c4424d9b4092b1889f9252e061c12d8e"
 	digest := internalmermaid.StrictConfigurationHash()
 	if got := hex.EncodeToString(digest[:]); got != want {
 		t.Fatalf("strict configuration hash = %s, want %s", got, want)

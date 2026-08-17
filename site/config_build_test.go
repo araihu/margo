@@ -1,0 +1,431 @@
+package site
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+func TestBuildConfigRendersRouteOwnedSocialMetadataAndFrameBindings(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nWelcome to the Margo docs.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "# Guide\n\nA guide-specific description.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+offline: true
+base_path: /docs
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+frame:
+  builtin: top-left-main-footer
+  values:
+    areas:
+      top-nav:
+        sticky:
+          enabled: true
+          edge: top
+          offset: 1rem
+locales:
+  default: en
+  supported: [en]
+navigation:
+  mode: file-tree
+bindings:
+  navigation:
+    area: left-nav
+  breadcrumbs:
+    area: top-nav
+  pagination:
+    area: main-content
+    slot: after-article
+  footer:
+    area: footer
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	first, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(first, second) {
+		t.Fatal("configured build is not byte-deterministic")
+	}
+	if first.Site.Layout != "frame:top-left-main-footer" || first.Site.BasePath != "/docs" || len(first.Site.Routes) != 2 {
+		t.Fatalf("site manifest = %+v", first.Site)
+	}
+	index := string(configArtifact(t, first, "index.html"))
+	guide := string(configArtifact(t, first, "guide.html"))
+	for _, page := range []string{index, guide} {
+		for _, required := range []string{
+			`<link rel="canonical" href="https://margo.example/docs/`,
+			`property="og:url"`, `property="og:image" content="https://margo.example/docs/assets/social.jpg"`, `property="og:image:type" content="image/jpeg"`,
+			`property="og:image:width" content="1280"`, `property="og:image:height" content="640"`,
+			`name="twitter:card" content="summary_large_image"`,
+			`name="twitter:image:alt" content="Margo documentation preview"`,
+			`id="margo-document"`, `class="margo-skip-link"`, `aria-current="page"`,
+		} {
+			if !strings.Contains(page, required) {
+				t.Fatalf("page missing %q: %s", required, page)
+			}
+		}
+		if strings.Count(page, `<title>`) != 1 || strings.Count(page, `property="og:url"`) != 1 || strings.Count(page, `name="twitter:card"`) != 1 {
+			t.Fatalf("duplicate route metadata: %s", page)
+		}
+	}
+	if !strings.Contains(index, `href="guide.html"`) || !strings.Contains(index, `Article navigation`) {
+		t.Fatalf("frame bindings missing: %s", index)
+	}
+	if strings.Contains(index, `margo-breadcrumbs`) {
+		t.Fatalf("home page unexpectedly renders breadcrumbs: %s", index)
+	}
+	for _, required := range []string{
+		`<nav class="text-sm font-medium text-on-surface dark:text-on-surface-dark margo-breadcrumbs" aria-label="Breadcrumbs">`,
+		`<ol class="flex flex-wrap items-center gap-1">`,
+		`href="index.html">Home</a>`,
+		`aria-current="page">Guide</li>`,
+		`<svg xmlns="http://www.w3.org/2000/svg"`,
+	} {
+		if !strings.Contains(guide, required) {
+			t.Fatalf("Goshtoso breadcrumb markup missing %q: %s", required, guide)
+		}
+	}
+	if strings.Contains(guide, `aria-current="false"`) {
+		t.Fatalf("breadcrumb still emits a non-semantic current marker: %s", guide)
+	}
+	if !strings.Contains(index, `data-margo-sticky="true" data-margo-sticky-edge="block-start" data-margo-sticky-offset="1rem"`) {
+		t.Fatalf("frame values missing from rendered area: %s", index)
+	}
+	if !strings.Contains(guide, `https://margo.example/docs/guide.html`) || strings.Contains(index, `https://margo.example/docs/guide.html`) {
+		t.Fatalf("route metadata not distinct: index=%s guide=%s", index, guide)
+	}
+	if got := configArtifact(t, first, "assets/social.jpg"); len(got) < 1000 {
+		t.Fatalf("social asset unexpectedly small: %d", len(got))
+	}
+	sitemap := string(configArtifact(t, first, SitemapPath))
+	for _, required := range []string{
+		`<?xml version="1.0" encoding="UTF-8"?>`,
+		`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+		`<loc>https://margo.example/docs/</loc>`,
+		`<loc>https://margo.example/docs/guide.html</loc>`,
+	} {
+		if !strings.Contains(sitemap, required) {
+			t.Fatalf("sitemap missing %q: %s", required, sitemap)
+		}
+	}
+	if strings.Count(sitemap, "<url>") != 2 {
+		t.Fatalf("sitemap url count = %d: %s", strings.Count(sitemap, "<url>"), sitemap)
+	}
+	llms := string(configArtifact(t, first, LLMSPath))
+	for _, required := range []string{
+		"# Margo", "> Margo documentation", "## Documentation",
+		"[Home](<https://margo.example/docs/>)",
+		"[Guide](<https://margo.example/docs/guide.html>)",
+	} {
+		if !strings.Contains(llms, required) {
+			t.Fatalf("llms.txt missing %q: %s", required, llms)
+		}
+	}
+}
+
+func TestBuildConfigRendersGoshtosoComponentDocShell(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Showcase\n\nA public feature tour.\n\n## A section\n\nA section for the shell TOC.\n")
+	writeConfigFile(t, filepath.Join(root, "showcase", "markdown.md"), "# Markdown\n\nThe compiler path.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: showcase
+site:
+  name: Margo
+  description: A public feature tour.
+  version: v0.0.5
+  repository_url: https://github.com/araihu/margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo showcase preview.
+shell:
+  builtin: componentdocshell
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	if result.Site.Layout != "shell:componentdocshell" || len(result.Site.Routes) != 2 {
+		t.Fatalf("shell manifest = %+v", result.Site)
+	}
+	for _, required := range []string{
+		`component-doc-shell__header`, `component-doc-shell__sidebar`, `component-doc-shell__toc`,
+		`margo-shell-topnav`, `href="/markdown.html"`, `margo-assets/goshtoso/shell.js`,
+		`assets/js/goshtoso.min.js`, `component-doc-shell__brand-badge`, `v0.0.5`,
+		`component-doc-shell__repository`, `https://github.com/araihu/margo`,
+		`hx-get="/markdown.html"`, `hx-select="#main-content"`, `hx-target="#main-content"`,
+		`hx-swap="outerHTML transition:true swap:160ms settle:240ms"`, `hx-push-url="true"`,
+		`hx-swap-oob="outerHTML:#componentdocshell-sidebar-content"`,
+		`data-margo-navigation="true"`,
+		`data-toc-heading`, `src="margo-assets/goshtoso/margo-scroll-spy.js"`,
+		`href="https://goshtoso.araihu.com/"`, `Built with Goshtoso`,
+		`href="https://araihu.com/"`, `Arai Hû`,
+		`href="/llms.txt">llms.txt`, `href="/sitemap.xml">sitemap.xml`,
+		`<title>Showcase — Markdown to durable outputs</title>`, `<meta name="description" content="A public feature tour."`,
+		`<link rel="canonical" href="https://margo.example/"`, `property="og:image"`,
+		`name="twitter:card" content="summary_large_image"`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("shell page missing %q: %s", required, page)
+		}
+	}
+	if strings.Contains(page, `component-doc-shell__brand-logo`) {
+		t.Fatalf("shell page unexpectedly includes a brand image: %s", page)
+	}
+	footerStart := strings.Index(page, `<p class="margo-shell-footer">`)
+	if footerStart == -1 {
+		t.Fatalf("shell footer missing: %s", page)
+	}
+	footerEnd := strings.Index(page[footerStart:], `</p>`)
+	if footerEnd == -1 {
+		t.Fatalf("shell footer is not closed: %s", page)
+	}
+	footer := page[footerStart : footerStart+footerEnd]
+	if strings.Count(footer, `<a `) != 4 || strings.Count(footer, ` text-primary `) != 4 {
+		t.Fatalf("shell footer links are not Goshtoso Link components: %s", footer)
+	}
+	if strings.Count(footer, `target="_blank"`) != 2 || strings.Count(footer, `rel="noopener noreferrer"`) != 2 {
+		t.Fatalf("shell footer external-link contract missing: %s", footer)
+	}
+	for _, asset := range []string{
+		"margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css",
+	} {
+		if len(configArtifact(t, result, asset)) == 0 {
+			t.Fatalf("shell asset %q missing", asset)
+		}
+	}
+	scrollSpy := string(configArtifact(t, result, "margo-assets/goshtoso/margo-scroll-spy.js"))
+	for _, required := range []string{
+		"IntersectionObserver", "history.replaceState", "htmx:afterSwap", "htmx:afterSettle", "htmx:historyRestore",
+		"window.addEventListener(\"componentdocshell:navigated\"", "observerGeneration", "visibleHeadings", "entry.time", "explicitLock", "explicitRestore", "headingIsVisible", "automaticHold",
+		"data-margo-toc-active", "aria-current", "scrollend", "renderMermaidAfterSwap", "margoRunMermaid", "mermaid.min.js",
+	} {
+		if !strings.Contains(scrollSpy, required) {
+			t.Fatalf("scroll-spy asset missing %q: %s", required, scrollSpy)
+		}
+	}
+	if strings.Contains(scrollSpy, `document.addEventListener("componentdocshell:navigated"`) {
+		t.Fatal("scroll-spy listens for shell navigation on document instead of window")
+	}
+	if strings.Contains(scrollSpy, `rootMargin: "0px 0px -65% 0px"`) || strings.Contains(scrollSpy, "visible.sort") {
+		t.Fatal("scroll-spy still uses the old topmost-heading algorithm")
+	}
+	afterSwap := strings.Index(scrollSpy, `document.addEventListener("htmx:afterSwap"`)
+	afterSettle := strings.Index(scrollSpy, `document.addEventListener("htmx:afterSettle"`)
+	if afterSwap == -1 || afterSettle == -1 || afterSettle < afterSwap {
+		t.Fatalf("scroll-spy Mermaid lifecycle ordering is invalid: afterSwap=%d afterSettle=%d", afterSwap, afterSettle)
+	}
+	if strings.Contains(scrollSpy[afterSwap:afterSettle], "queueMermaidRender()") {
+		t.Fatal("scroll-spy queues Mermaid before HTMX settles the swapped content")
+	}
+	styles := string(configArtifact(t, result, "margo-assets/site.css"))
+	for _, required := range []string{
+		".margo-shell-topnav { order: 1;",
+		"#componentdocshell-dark-mode { order: 2; }",
+		".component-doc-shell__repository { order: 3; }",
+		".component-doc-shell__brand-mark { display: none !important; }",
+		".margo-showcase-article .margo-pagination ul { justify-content: space-between; column-gap: 2rem; row-gap: 0.75rem; }",
+		".margo-showcase-article .margo-pagination a { color: var(--margo-accent);",
+		":where(.margo-frame button, .margo-frame a) { min-block-size: 2.75rem; }",
+		":where(.margo-frame a, .margo-document a) { color: var(--margo-accent); }",
+		"view-transition-name: margo-main-content",
+		"prefers-reduced-motion: reduce",
+	} {
+		if !strings.Contains(styles, required) {
+			t.Fatalf("shell ordering CSS missing %q: %s", required, styles)
+		}
+	}
+	for _, forbidden := range []string{"\nbutton, a {", "\nbutton {", "\n:focus-visible {"} {
+		if strings.Contains(styles, forbidden) {
+			t.Fatalf("shell CSS leaks an unscoped control rule %q: %s", forbidden, styles)
+		}
+	}
+}
+
+func TestLoadConfigRejectsUnknownKeys(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), "version: 1\nunknown: true\n")
+	if _, err := LoadConfig(filepath.Join(root, "site.yaml")); err == nil || !strings.Contains(err.Error(), "site.config_invalid") {
+		t.Fatalf("unknown key error = %v", err)
+	}
+}
+
+func TestBuildConfigResolvesRootBasePathAndLocaleRoutes(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nEnglish home.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "# Guide\n\nEnglish guide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "pt-BR", "index.md"), "# Início\n\nPágina inicial.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "pt-BR", "guide.md"), "# Guia\n\nPágina do guia.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+locales:
+  default: en
+  supported: [en, pt-BR]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := string(configArtifact(t, result, "index.html"))
+	ptGuide := string(configArtifact(t, result, "pt-br/guide.html"))
+	if !strings.Contains(index, `property="og:image" content="https://margo.example/assets/social.jpg"`) || strings.Contains(index, `https://margo.example//assets/`) {
+		t.Fatalf("root social URL is not canonical: %s", index)
+	}
+	if !strings.Contains(index, `href="pt-br/index.html"`) {
+		t.Fatalf("root locale switch is not relative: %s", index)
+	}
+	if !strings.Contains(ptGuide, `href="https://margo.example/pt-br/guide.html"`) || !strings.Contains(ptGuide, `href="../guide.html"`) || !strings.Contains(ptGuide, `href="index.html">Início`) {
+		t.Fatalf("locale route metadata is not coherent: %s", ptGuide)
+	}
+	if strings.Contains(index, `>Início</a>`) || strings.Contains(index, `>Guia</a>`) {
+		t.Fatalf("English navigation leaked Portuguese routes: %s", index)
+	}
+}
+
+func TestBuildConfigStagesSelectedThemeAndBootstrap(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nTheme fixture.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	themeCSS := []byte(`:root { --margo-accent: rebeccapurple; }`)
+	writeConfigFile(t, filepath.Join(root, "themes", "custom.css"), string(themeCSS))
+	digest := sha256.Sum256(themeCSS)
+	writeConfigFile(t, filepath.Join(root, "themes", "custom.tokens.yaml"), `schema: margo.theme.tokens/v1
+css_digest: sha256-`+hex.EncodeToString(digest[:])+`
+fonts: []
+minimum_text_size: 1rem
+touch_target: {min_css_px: 44}
+typography:
+  display: {}
+  headline: {}
+  title: {}
+  body: {}
+  label: {}
+  caption: {alias_of: label}
+layout: {}
+spacing: {}
+breakpoints: []
+grid: {}
+drawer: {}
+colors: {light: {}, dark: {}}
+states: {light: {}, dark: {}}
+feedback: {light: {}, dark: {}}
+contrast_pairs: {}
+`)
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+themes:
+  - name: custom_theme
+    css_url: themes/custom.css
+    token_catalog: themes/custom.tokens.yaml
+theme:
+  name: custom_theme
+  allow_switch_theme: true
+  color_mode: dark
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	if !strings.Contains(page, `data-theme="custom_theme"`) || !strings.Contains(page, `data-color-mode="dark"`) || !strings.Contains(page, `data-margo-theme-css="custom_theme"`) || !strings.Contains(page, `data-margo-theme-bootstrap`) {
+		t.Fatalf("theme bootstrap or stylesheet missing: %s", page)
+	}
+	if len(configArtifact(t, result, "themes/custom.tokens.yaml")) == 0 || result.Site.DocumentStyleDigest == "" {
+		t.Fatalf("theme provenance missing: %+v", result.Site)
+	}
+}
+
+func configArtifact(t *testing.T, result Result, name string) []byte {
+	t.Helper()
+	for _, artifact := range result.Artifacts {
+		if artifact.Path == name {
+			return artifact.Content
+		}
+	}
+	t.Fatalf("artifact %q missing", name)
+	return nil
+}
+
+func writeConfigFile(t *testing.T, name, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(name, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func copyMargoAsset(t *testing.T, target, relative string) {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime caller unavailable")
+	}
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "..", "assets", relative))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeConfigFile(t, target, string(data))
+}

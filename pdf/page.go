@@ -22,6 +22,19 @@ const (
 	Landscape Orientation = "landscape"
 )
 
+// ImageOverflowPolicy controls whether print images are capped to keep one
+// image from spanning several pages. The zero value uses ImageOverflowLimit.
+type ImageOverflowPolicy string
+
+const (
+	ImageOverflowLimit ImageOverflowPolicy = "limit"
+	ImageOverflowAllow ImageOverflowPolicy = "allow"
+
+	// DefaultImageMaxHeightPercent is the default maximum image height during
+	// print projection, expressed as a percentage of the page viewport.
+	DefaultImageMaxHeightPercent = 70
+)
+
 // Millimeters is a physical page length. Page margins use millimeters so all
 // engines receive the same renderer-neutral values.
 type Millimeters float64
@@ -37,9 +50,18 @@ type Margins struct {
 // PageConfig is the engine-neutral physical page contract. Headers, footers,
 // watermarks, and page numbers remain part of the supplied core HTML/CSS.
 type PageConfig struct {
-	Size        PageSize    `json:"size"`
-	Orientation Orientation `json:"orientation"`
-	Margins     Margins     `json:"margins"`
+	Size          PageSize            `json:"size"`
+	Orientation   Orientation         `json:"orientation"`
+	Margins       Margins             `json:"margins"`
+	ImageOverflow ImageOverflowPolicy `json:"imageOverflow,omitempty"`
+}
+
+// EffectiveImageOverflowPolicy returns the safe default for an omitted policy.
+func (config PageConfig) EffectiveImageOverflowPolicy() ImageOverflowPolicy {
+	if config.ImageOverflow == "" {
+		return ImageOverflowLimit
+	}
+	return config.ImageOverflow
 }
 
 // Validate rejects values that cannot be represented consistently by every
@@ -55,6 +77,12 @@ func (config PageConfig) Validate() error {
 	case "", Portrait, Landscape:
 	default:
 		return pageValidationError("pdf.orientation_unsupported", "orientation must be portrait or landscape")
+	}
+
+	switch config.ImageOverflow {
+	case "", ImageOverflowLimit, ImageOverflowAllow:
+	default:
+		return pageValidationError("pdf.image_overflow_unsupported", "image overflow policy must be limit or allow")
 	}
 
 	for _, marginValue := range []struct {

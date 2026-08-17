@@ -134,11 +134,27 @@ func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, er
 			if value, ok := pageValues["orientation"].(string); ok {
 				metadata.Margo.Page.Orientation = value
 			}
+			if value, ok := pageValues["imageOverflow"].(string); ok {
+				metadata.Margo.Page.ImageOverflow = value
+			}
 			if marginValues, ok := pageValues["margins"].(map[string]any); ok {
 				metadata.Margo.Page.Margins = &PageMarginPreference{
 					Top: pageMarginValue(marginValues, "top"), Right: pageMarginValue(marginValues, "right"),
 					Bottom: pageMarginValue(marginValues, "bottom"), Left: pageMarginValue(marginValues, "left"),
 				}
+			}
+		}
+		if actionValues, ok := margoValues["actions"].(map[string]any); ok {
+			metadata.Margo.Actions = &PageActions{}
+			if value, ok := actionValues["markdown"].(bool); ok {
+				metadata.Margo.Actions.Markdown = value
+			}
+			switch value := actionValues["pdf"].(type) {
+			case bool:
+				metadata.Margo.Actions.PDF = value
+			case string:
+				metadata.Margo.Actions.PDF = true
+				metadata.Margo.Actions.PDFMode = PDFMode(value)
 			}
 		}
 	}

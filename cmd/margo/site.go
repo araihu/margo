@@ -30,10 +30,16 @@ type siteReport struct {
 }
 
 type siteManifestDocument struct {
-	SchemaVersion string              `json:"schemaVersion"`
-	Digest        string              `json:"digest"`
-	Policy        string              `json:"policy,omitempty"`
-	Entries       []siteManifestEntry `json:"entries"`
+	SchemaVersion       string              `json:"schemaVersion"`
+	Digest              string              `json:"digest"`
+	Policy              string              `json:"policy,omitempty"`
+	ConfigVersion       int                 `json:"configVersion,omitempty"`
+	Layout              string              `json:"layout,omitempty"`
+	BaseURL             string              `json:"baseURL,omitempty"`
+	BasePath            string              `json:"basePath,omitempty"`
+	DocumentStyleDigest string              `json:"documentStyleDigest,omitempty"`
+	Routes              []site.Page         `json:"routes,omitempty"`
+	Entries             []siteManifestEntry `json:"entries"`
 }
 
 type siteManifestEntry struct {
@@ -47,7 +53,7 @@ func newSiteCommand(deps Dependencies) *cobra.Command {
 	diagnostics := string(diagnosticText)
 	var policyOptions policyFlags
 	command := &cobra.Command{
-		Use:   "site INPUT_DIR",
+		Use:   "site INPUT_DIR|CONFIG",
 		Short: "Build a linked HTML site from a Markdown directory",
 		Args:  diagnosticExactArgs(1, &diagnostics),
 		RunE: func(command *cobra.Command, args []string) error {
@@ -55,29 +61,48 @@ func newSiteCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if outputDirectory == "" {
+			configInput := false
+			if info, statErr := os.Stat(args[0]); statErr == nil {
+				configInput = !info.IsDir() && (strings.HasSuffix(strings.ToLower(args[0]), ".yaml") || strings.HasSuffix(strings.ToLower(args[0]), ".yml"))
+			}
+			if outputDirectory == "" && !configInput {
 				return reportCommandError(command, format, errors.New("site.output_required: --output-dir is required"))
 			}
 			mode := site.AssetMode(assets)
 			if mode != site.AssetsLocal && mode != site.AssetsInline {
 				return reportCommandError(command, format, errors.New("site.assets_invalid: --assets must be local or inline"))
 			}
-			if _, err := validateSiteOutputTarget(outputDirectory); err != nil {
-				return reportCommandError(command, format, err)
-			}
 			policy, err := policyOptions.load(command.Context(), deps.SourceReader)
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			root, sources, err := discoverSiteSources(command.Context(), deps.SourceReader, args[0])
+			var result site.Result
+			if configInput {
+				config, configErr := site.LoadConfig(args[0])
+				if configErr != nil {
+					return reportCommandError(command, format, configErr)
+				}
+				if outputDirectory == "" {
+					outputDirectory = filepath.Join(filepath.Dir(args[0]), config.Output)
+				}
+				result, err = site.BuildConfig(command.Context(), site.ConfigRequest{ConfigPath: args[0], Compiler: compilerForPolicy(policy, policyTargetSite), AssetReader: deps.CheckAssetReader})
+			} else {
+				if _, err := validateSiteOutputTarget(outputDirectory); err != nil {
+					return reportCommandError(command, format, err)
+				}
+				root, sources, discoverErr := discoverSiteSources(command.Context(), deps.SourceReader, args[0])
+				if discoverErr != nil {
+					return reportCommandError(command, format, discoverErr)
+				}
+				result, err = site.Build(command.Context(), site.Request{
+					SourceRoot: root, Sources: sources, Compiler: compilerForPolicy(policy, policyTargetSite),
+					Assets: mode, AssetReader: deps.CheckAssetReader,
+				})
+			}
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			result, err := site.Build(command.Context(), site.Request{
-				SourceRoot: root, Sources: sources, Compiler: compilerForPolicy(policy, policyTargetSite),
-				Assets: mode, AssetReader: deps.CheckAssetReader,
-			})
-			if err != nil {
+			if _, err := validateSiteOutputTarget(outputDirectory); err != nil {
 				return reportCommandError(command, format, err)
 			}
 			policyDigest := ""
@@ -202,7 +227,7 @@ func publishSite(ctx context.Context, target string, result site.Result, policy 
 			return err
 		}
 	}
-	manifest, err := marshalSiteManifest(result.Manifest, policy)
+	manifest, err := marshalSiteManifest(result, policy)
 	if err != nil {
 		return err
 	}
@@ -255,12 +280,12 @@ func writeSiteArtifact(ctx context.Context, root, relative string, content []byt
 	return nil
 }
 
-func marshalSiteManifest(manifest margo.Manifest, policy string) ([]byte, error) {
-	if err := manifest.Validate(); err != nil {
+func marshalSiteManifest(result site.Result, policy string) ([]byte, error) {
+	if err := result.Manifest.Validate(); err != nil {
 		return nil, fmt.Errorf("site.manifest_invalid: %w", err)
 	}
-	document := siteManifestDocument{SchemaVersion: siteManifestSchema, Digest: manifest.Digest(), Policy: policy, Entries: make([]siteManifestEntry, len(manifest.Entries))}
-	for index, entry := range manifest.Entries {
+	document := siteManifestDocument{SchemaVersion: siteManifestSchema, Digest: result.Manifest.Digest(), Policy: policy, ConfigVersion: result.Site.ConfigVersion, Layout: result.Site.Layout, BaseURL: result.Site.BaseURL, BasePath: result.Site.BasePath, DocumentStyleDigest: result.Site.DocumentStyleDigest, Routes: append([]site.Page(nil), result.Site.Routes...), Entries: make([]siteManifestEntry, len(result.Manifest.Entries))}
+	for index, entry := range result.Manifest.Entries {
 		document.Entries[index] = siteManifestEntry{Path: entry.Path, Digest: entry.Digest.String()}
 	}
 	data, err := json.Marshal(document)

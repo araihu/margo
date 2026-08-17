@@ -104,6 +104,47 @@ func TestBuildInlineSiteEmbedsAssetsAndIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestBuildLocalSitePublishesDeclaredMarkdownActions(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		Sources: []Source{{Path: "guide.md", Content: []byte(`---
+title: Guide
+margo:
+  actions:
+    markdown: true
+---
+# Guide
+
+The source stays available beside the rendered page.
+`)}},
+		Compiler: margo.New(), Assets: AssetsLocal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(artifactBytes(t, result, "guide.md")); !strings.Contains(got, "The source stays available") {
+		t.Fatalf("retained Markdown = %q", got)
+	}
+	page := artifactContent(t, result, "guide.html")
+	for _, required := range []string{
+		`class="margo-page-actions"`,
+		`data-margo-copy-page`,
+		`href="guide.md"`,
+		`View as Markdown`,
+		`class="margo-page-heading__anchor"`,
+		`href="#guide"`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("page action markup missing %q: %s", required, page)
+		}
+	}
+	if strings.Count(page, "bg-primary text-on-primary") < 2 || strings.Contains(page, "bg-surface-alt text-on-surface-strong border-surface-alt") {
+		t.Fatalf("page action split button does not keep a unified primary tone: %s", page)
+	}
+	if len(artifactBytes(t, result, pageActionsScriptPath)) == 0 || len(artifactBytes(t, result, pageActionsStylePath)) == 0 {
+		t.Fatalf("page action assets missing: %+v", result.Artifacts)
+	}
+}
+
 func TestBuildRejectsOutputCollisionAndBrokenMarkdownLink(t *testing.T) {
 	_, err := Build(context.Background(), Request{Sources: []Source{{Path: "README.md", Content: []byte("# one")}, {Path: "README.MD", Content: []byte("# two")}}})
 	requireSiteCode(t, err, "site.output_collision")

@@ -116,9 +116,6 @@ const standalonePrintPreparationScript = `<script data-margo-print-preparation>
     for (const element of [...article.querySelectorAll("em, i")]) {
       replaceForStaticPrint(element, "emphasis");
     }
-    for (const button of [...article.querySelectorAll(".margo-table-sort-button")]) {
-      replaceForStaticPrint(button, "table-label", button.textContent);
-    }
     for (const checkbox of [...article.querySelectorAll('input[type="checkbox"]')]) {
       replaceForStaticPrint(checkbox, "checkbox", checkbox.checked ? "☑" : "☐");
     }
