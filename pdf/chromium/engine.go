@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -109,15 +110,7 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	}
 	defer os.RemoveAll(profile)
 
-	options := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
-	options = append(options,
-		chromedp.ExecPath(engine.executablePath),
-		chromedp.UserDataDir(profile),
-		chromedp.Flag("disable-dev-shm-usage", true),
-		chromedp.Flag("host-resolver-rules", "MAP * 0.0.0.0, EXCLUDE 127.0.0.1, EXCLUDE localhost"),
-		chromedp.Flag("no-first-run", true),
-		chromedp.Flag("no-default-browser-check", true),
-	)
+	options := chromiumAllocatorOptions(engine.executablePath, profile)
 	allocatorCtx, cancelAllocator := chromedp.NewExecAllocator(exportCtx, options...)
 	defer cancelAllocator()
 	browserCtx, cancelBrowser := chromedp.NewContext(allocatorCtx)
@@ -184,6 +177,22 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 		Runtime: report,
 		Engine:  pdf.EngineInfo{Name: engine.Name(), Version: version},
 	}, nil
+}
+
+func chromiumAllocatorOptions(executablePath, profile string) []chromedp.ExecAllocatorOption {
+	options := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
+	options = append(options,
+		chromedp.ExecPath(executablePath),
+		chromedp.UserDataDir(profile),
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("host-resolver-rules", "MAP * 0.0.0.0, EXCLUDE 127.0.0.1, EXCLUDE localhost"),
+		chromedp.Flag("no-first-run", true),
+		chromedp.Flag("no-default-browser-check", true),
+	)
+	if runtime.GOOS == "linux" {
+		options = append(options, chromedp.NoSandbox, chromedp.DisableGPU)
+	}
+	return options
 }
 
 func validateRequest(request pdf.Request) error {
