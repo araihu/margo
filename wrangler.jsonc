@@ -1,0 +1,20 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "margo-site",
+  "account_id": "482241c1c361c24977ac6540df946c2f",
+  "compatibility_date": "2026-08-17",
+  "assets": {
+    "directory": "showcase/dist",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    {
+      "pattern": "margo.araihu.com",
+      "custom_domain": true
+    }
+  ],
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
+}

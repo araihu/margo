@@ -2,6 +2,7 @@
 /bin/
 /dist/
 /showcase/dist/
+/.wrangler/
 /.dagger/
 /.dagger-ci-context.json
 /.dagger-git.bundle
