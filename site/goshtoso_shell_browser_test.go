@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -68,8 +69,7 @@ locales:
 	}))
 	defer server.Close()
 
-	allocatorOptions := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
-	allocatorOptions = append(allocatorOptions, chromedp.ExecPath(browserPath))
+	allocatorOptions := siteTestChromiumAllocatorOptions(browserPath)
 	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
@@ -188,8 +188,7 @@ locales:
 	}))
 	defer server.Close()
 
-	allocatorOptions := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
-	allocatorOptions = append(allocatorOptions, chromedp.ExecPath(browserPath))
+	allocatorOptions := siteTestChromiumAllocatorOptions(browserPath)
 	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
@@ -267,6 +266,15 @@ locales:
 	if state.Path != "/guide.html" || state.Navigation != "navigate" || state.Shortcut != "⌘ K" {
 		t.Fatalf("search state = %+v, want guide navigation with visible shortcut", state)
 	}
+}
+
+func siteTestChromiumAllocatorOptions(browserPath string) []chromedp.ExecAllocatorOption {
+	options := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
+	options = append(options, chromedp.ExecPath(browserPath))
+	if runtime.GOOS == "linux" {
+		options = append(options, chromedp.NoSandbox, chromedp.DisableGPU)
+	}
+	return options
 }
 
 func installedSiteTestChromium() string {
