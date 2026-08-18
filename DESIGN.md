@@ -69,14 +69,14 @@ components:
 ---
 
 <!--
-margo-visual-spec-version: 1.0.0
+margo-visual-spec-version: 1.1.0
 status: approved
-effective-date: 2026-08-15
+effective-date: 2026-08-17
 -->
 
 # Design System: Margo
 
-**Visual specification:** 1.0.0
+**Visual specification:** 1.1.0
 
 **Status:** Approved foundation
 
@@ -168,6 +168,21 @@ default.
 
 **The Parity Rule.** Light and dark modes may change values, never hierarchy,
 geometry, element visibility, or document meaning.
+
+### Margo theme: mangrove daylight
+
+The mascot supplies the color relationship, not a page background: blue-green
+teal anchors the system, analogous mint carries the quiet supporting surfaces,
+and the coral/berry counterpoint marks feedback and focus. Warm paper keeps the
+light projection connected to the illustration without lowering reading
+contrast. The dark projection moves that same relationship onto teal night and
+uses mint as its readable action color.
+
+The concrete theme lives in `themes/margo.css` with its required semantic
+catalog in `themes/margo.tokens.yaml`. Coral and amber are never used for body
+copy or ordinary links; they remain state-bound or decorative. Every text and
+focus pairing is recorded for both modes so the mascot-derived palette cannot
+silently become an accessibility regression.
 
 ## Typography
 

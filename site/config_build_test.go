@@ -281,6 +281,84 @@ locales:
 	}
 }
 
+func TestBuildConfigUsesSelectedCustomThemeInGoshtosoComponentDocShell(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Showcase\n\nA themed feature tour.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	themeCSS := []byte(`[data-theme="margo"] { --color-surface: #fcfaf4; }`)
+	writeConfigFile(t, filepath.Join(root, "themes", "margo.css"), string(themeCSS))
+	digest := sha256.Sum256(themeCSS)
+	writeConfigFile(t, filepath.Join(root, "themes", "margo.tokens.yaml"), `schema: margo.theme.tokens/v1
+css_digest: sha256-`+hex.EncodeToString(digest[:])+`
+fonts: []
+minimum_text_size: 1rem
+touch_target: {min_css_px: 44}
+typography:
+  display: {}
+  headline: {}
+  title: {}
+  body: {}
+  label: {}
+  caption: {alias_of: label}
+layout: {}
+spacing: {}
+breakpoints: []
+grid: {}
+drawer: {}
+colors: {light: {}, dark: {}}
+states: {light: {}, dark: {}}
+feedback: {light: {}, dark: {}}
+contrast_pairs: {}
+`)
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: showcase
+site:
+  name: Margo
+  description: A themed feature tour.
+  version: v0.0.5
+  repository_url: https://github.com/araihu/margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo themed showcase preview.
+shell:
+  builtin: componentdocshell
+themes:
+  - name: margo
+    css_url: themes/margo.css
+    token_catalog: themes/margo.tokens.yaml
+theme:
+  builtin: false
+  name: margo
+  color_mode: dark
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	for _, required := range []string{
+		`"theme":"margo"`,
+		`"colorScheme":"dark"`,
+		`<link rel="stylesheet" href="themes/margo.css"/>`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("custom shell theme missing %q: %s", required, page)
+		}
+	}
+	if strings.Contains(page, `araihu.css`) {
+		t.Fatalf("custom shell theme still loads the Arai Hû stylesheet: %s", page)
+	}
+	if len(configArtifact(t, result, "themes/margo.css")) == 0 {
+		t.Fatal("custom shell theme stylesheet was not staged")
+	}
+}
+
 func TestLoadConfigRejectsUnknownKeys(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), "version: 1\nunknown: true\n")

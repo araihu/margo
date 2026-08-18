@@ -23,6 +23,11 @@ locales:
 navigation:
   mode: file-tree
 theme:
-  builtin: true
-  name: modern
+  builtin: false
+  name: margo
+  allow_switch_theme: false
   color_mode: system
+themes:
+  - name: margo
+    css_url: themes/margo.css
+    token_catalog: themes/margo.tokens.yaml

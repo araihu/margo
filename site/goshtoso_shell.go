@@ -574,6 +574,18 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 			AriaLabel: b.config.Site.Name + " version " + b.config.Site.Version,
 		}
 	}
+	defaultTheme := "araihu"
+	disableDefaultThemeStylesheet := false
+	var themeStylesheets []string
+	for _, theme := range b.config.Themes {
+		if theme.Name != b.config.Theme.Name {
+			continue
+		}
+		defaultTheme = theme.Name
+		disableDefaultThemeStylesheet = true
+		themeStylesheets = []string{b.publicationArtifactHref(theme.CSSURL)}
+		break
+	}
 	return componentdocshell.Config{
 		Brand: brand,
 		Navigation: componentdocshell.Navigation{
@@ -583,11 +595,13 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 			SearchPlaceholder: "Search features",
 		},
 		Appearance: componentdocshell.AppearanceConfig{
-			DefaultTheme:          "araihu",
-			InitialColorScheme:    componentDocShellColorScheme(b.config.Theme.ColorMode),
-			PersistPreferences:    true,
-			DisableThemeSelector:  true,
-			DisableDarkModeToggle: false,
+			DefaultTheme:                  defaultTheme,
+			InitialColorScheme:            componentDocShellColorScheme(b.config.Theme.ColorMode),
+			PersistPreferences:            true,
+			DisableThemeSelector:          true,
+			DisableDarkModeToggle:         false,
+			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
+			ThemeStylesheets:              themeStylesheets,
 		},
 		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
 		HeaderActions: b.componentDocShellTopNav(home),

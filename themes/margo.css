@@ -1,0 +1,111 @@
+/*
+ * Margo theme contract
+ *
+ * THESIS: A calm editorial studio for reading technical documentation.
+ * OWN-WORLD: Mascot-derived paper, deep teal ink, coral signal, and leaf mint.
+ * STORY: Read the source clearly, then follow it to a durable output.
+ * FIRST VIEWPORT: Goshtoso navigation stays quiet; the article gets the contrast.
+ * FORM: Read mode; semantic Goshtoso tokens, system fonts, restrained surfaces.
+ *
+ * The mascot's coral and warm amber stay decorative or state-bound. Teal and
+ * mint carry navigation and links because they remain readable in both modes.
+ */
+[data-theme="margo"] {
+  color-scheme: light;
+
+  --font-body: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-title: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --document-font-body: var(--font-body);
+  --document-font-heading: var(--font-title);
+  --document-line-height: 1.6;
+  --document-content-width: 75ch;
+
+  /* Light: warm paper + tropical mint, anchored by deep teal ink. */
+  --color-surface: #fcfaf4;
+  --color-surface-alt: #e8f2ee;
+  --color-on-surface: #24424a;
+  --color-on-surface-muted: #58747a;
+  --color-on-surface-strong: #102b34;
+  --color-primary: #075a67;
+  --color-on-primary: #ffffff;
+  --color-secondary: #8a304b;
+  --color-on-secondary: #ffffff;
+  --color-outline: #58747a;
+  --color-outline-strong: #24424a;
+  --color-control-outline: #466a72;
+  --color-focus-ring: #b33e5a;
+
+  /* Dark: teal-night surface + mint signal; coral remains a warm counterpoint. */
+  --color-surface-dark: #102b34;
+  --color-surface-dark-alt: #173e45;
+  --color-on-surface-dark: #d6e7e2;
+  --color-on-surface-dark-muted: #aac0be;
+  --color-on-surface-dark-strong: #f5faf6;
+  --color-primary-dark: #89e1c2;
+  --color-on-primary-dark: #102b34;
+  --color-secondary-dark: #ff9d8d;
+  --color-on-secondary-dark: #102b34;
+  --color-outline-dark: #91afb0;
+  --color-outline-dark-strong: #d6e7e2;
+  --color-control-outline-dark: #a8c5c3;
+  --color-focus-ring-dark: #ff9d8d;
+
+  /* Feedback keeps the same hue families, with text-safe foregrounds. */
+  --color-info: #075a67;
+  --color-on-info: #ffffff;
+  --color-success: #1b5a39;
+  --color-on-success: #ffffff;
+  --color-warning: #714400;
+  --color-on-warning: #ffffff;
+  --color-danger: #8a2436;
+  --color-on-danger: #ffffff;
+  --radius-radius: var(--radius-sm);
+
+  /* Margo's document CSS consumes the same semantic surface values. */
+  --margo-surface: var(--color-surface);
+  --margo-surface-alt: var(--color-surface-alt);
+  --margo-text: var(--color-on-surface);
+  --margo-text-strong: var(--color-on-surface-strong);
+  --margo-accent: var(--color-primary);
+  --margo-outline: var(--color-outline);
+  --margo-focus-ring: var(--color-focus-ring);
+  --margo-reading-measure: 75ch;
+}
+
+[data-theme="margo"].dark,
+.dark [data-theme="margo"] {
+  color-scheme: dark;
+  --margo-surface: var(--color-surface-dark);
+  --margo-surface-alt: var(--color-surface-dark-alt);
+  --margo-text: var(--color-on-surface-dark);
+  --margo-text-strong: var(--color-on-surface-dark-strong);
+  --margo-accent: var(--color-primary-dark);
+  --margo-outline: var(--color-outline-dark);
+  --color-focus-ring: var(--color-focus-ring-dark);
+  --margo-focus-ring: var(--color-focus-ring-dark);
+}
+
+/* Keep the shared shell geometry, but make Margo's published target contract
+ * explicit for the header controls and primary navigation. */
+[data-theme="margo"] .component-doc-shell__menu-button,
+[data-theme="margo"] .component-doc-shell__icon-button {
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+}
+
+[data-theme="margo"] .margo-shell-topnav a {
+  min-block-size: 2.75rem;
+}
+
+/* The accent is for links. Coral is the distinct focus cue. */
+[data-theme="margo"] .component-doc-shell :focus-visible,
+[data-theme="margo"] .margo-frame :focus-visible,
+[data-theme="margo"] .margo-document :focus-visible {
+  outline-color: var(--margo-focus-ring);
+}
+
+[data-theme="margo"].dark .component-doc-shell :focus-visible,
+[data-theme="margo"].dark .margo-frame :focus-visible,
+[data-theme="margo"].dark .margo-document :focus-visible {
+  outline-color: var(--margo-focus-ring);
+}
