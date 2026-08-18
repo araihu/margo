@@ -122,6 +122,19 @@ func Discover(ctx context.Context, request Request, probe Probe) (Discovery, err
 				return Discovery{}, err
 			}
 		}
+		appendKnownPaths := func() error {
+			for _, path := range probe.KnownPaths {
+				if err := appendChromium(path, SourceKnownLocation, false); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if probe.GOOS == "darwin" {
+			if err := appendKnownPaths(); err != nil {
+				return Discovery{}, err
+			}
+		}
 		for _, name := range chromiumExecutableNames(probe.GOOS) {
 			path, err := probe.LookPath(name)
 			if err != nil || strings.TrimSpace(path) == "" {
@@ -131,8 +144,8 @@ func Discover(ctx context.Context, request Request, probe Probe) (Discovery, err
 				return Discovery{}, err
 			}
 		}
-		for _, path := range probe.KnownPaths {
-			if err := appendChromium(path, SourceKnownLocation, false); err != nil {
+		if probe.GOOS != "darwin" {
+			if err := appendKnownPaths(); err != nil {
 				return Discovery{}, err
 			}
 		}
@@ -221,6 +234,8 @@ func knownChromiumPaths(goos string) []string {
 	switch goos {
 	case "darwin":
 		return []string{
+			"/opt/homebrew/bin/chromium",
+			"/usr/local/bin/chromium",
 			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 			"/Applications/Chromium.app/Contents/MacOS/Chromium",
 			"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",

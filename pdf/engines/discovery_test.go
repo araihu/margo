@@ -123,6 +123,37 @@ func TestDefaultProbeConstructsInstalledChromium(t *testing.T) {
 	}
 }
 
+func TestKnownDarwinChromiumPathsPrioritizeHomebrewChromium(t *testing.T) {
+	paths := knownChromiumPaths("darwin")
+	if len(paths) == 0 || paths[0] != "/opt/homebrew/bin/chromium" {
+		t.Fatalf("known Chromium paths = %v, want Homebrew Chromium first", paths)
+	}
+}
+
+func TestDiscoverPrioritizesKnownHomebrewChromiumOverPathOnDarwin(t *testing.T) {
+	directory := t.TempDir()
+	homebrewChromium := executableFile(t, directory, "homebrew-chromium")
+	pathBrowser := executableFile(t, directory, "path-chrome")
+	probe := testProbe()
+	probe.GOOS = "darwin"
+	probe.KnownPaths = []string{homebrewChromium}
+	probe.LookPath = func(string) (string, error) {
+		return pathBrowser, nil
+	}
+
+	discovery, err := Discover(context.Background(), Request{Mode: ModeChromium}, probe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, candidate, err := discovery.Select()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if candidate.Source != SourceKnownLocation || candidate.Path != homebrewChromium {
+		t.Fatalf("selected = %+v, want known Homebrew Chromium %q", candidate, homebrewChromium)
+	}
+}
+
 func TestDefaultNativeProbeReportsHonestCompiledOutState(t *testing.T) {
 	discovery, err := Discover(context.Background(), Request{Mode: ModeNative}, Probe{})
 	if err != nil {

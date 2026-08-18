@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/araihu/margo/internal/browserlaunch"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 )
@@ -178,7 +179,7 @@ func browserContext(t *testing.T, executable string) context.Context {
 	t.Cleanup(cancelTimeout)
 	options := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	options = append(options, chromedp.ExecPath(executable), chromedp.Flag("allow-file-access-from-files", true))
-	allocator, cancelAllocator := chromedp.NewExecAllocator(ctx, options...)
+	allocator, cancelAllocator := browserlaunch.NewExecAllocator(ctx, options...)
 	t.Cleanup(cancelAllocator)
 	browser, cancelBrowser := chromedp.NewContext(allocator)
 	t.Cleanup(cancelBrowser)

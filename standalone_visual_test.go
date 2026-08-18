@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/araihu/margo/internal/browserlaunch"
 	"github.com/chromedp/cdproto/css"
 	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/cdproto/emulation"
@@ -54,7 +55,7 @@ func TestStandaloneNarrowEntryPrioritizesReadingBeforeExhaustiveNavigation(t *te
 
 	allocatorOptions := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	allocatorOptions = append(allocatorOptions, chromedp.ExecPath(browserPath))
-	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()
@@ -154,7 +155,7 @@ func TestStandaloneWayfindingHasTouchFocusAndCurrentLocationFeedback(t *testing.
 
 	allocatorOptions := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	allocatorOptions = append(allocatorOptions, chromedp.ExecPath(browserPath))
-	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()
@@ -250,7 +251,7 @@ fmt.Println("local overflow remains inside code")
 	result := mustRenderSource(t, source)
 	allocatorOptions := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	allocatorOptions = append(allocatorOptions, chromedp.ExecPath(browserPath))
-	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 
 	for _, theme := range []ThemeName{ThemeModern, ThemeMinimal} {
@@ -445,7 +446,7 @@ func TestFullFeatureStandaloneHasNoNarrowClippingOrConsoleWarnings(t *testing.T)
 
 	allocatorOptions := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	allocatorOptions = append(allocatorOptions, chromedp.ExecPath(browserPath))
-	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()

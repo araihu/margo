@@ -27,6 +27,7 @@ import (
 	goshtosoassets "github.com/araihu/goshtoso/assets"
 	margo "github.com/araihu/margo"
 	charts "github.com/araihu/margo/charts"
+	"github.com/araihu/margo/internal/browserlaunch"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
@@ -51,7 +52,7 @@ func TestGeneratedEditorialHTMLJourneys(t *testing.T) {
 	assertInitialPublicationMetadata(t, fixture)
 
 	allocatorOptions := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(browserPath))
-	allocatorContext, allocatorCancel := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, allocatorCancel := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer allocatorCancel()
 
 	runManjaFragmentJourney(t, allocatorContext, fixture)
@@ -400,7 +401,7 @@ func assertNoDuplicateIDs(t *testing.T, ctx context.Context) {
 func runJavaScriptDisabledJourney(t *testing.T, browserPath string, fixture editorialFixture) {
 	t.Helper()
 	options := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(browserPath))
-	allocatorContext, allocatorCancel := chromedp.NewExecAllocator(context.Background(), options...)
+	allocatorContext, allocatorCancel := browserlaunch.NewExecAllocator(context.Background(), options...)
 	defer allocatorCancel()
 	ctx, cancel := chromedp.NewContext(allocatorContext)
 	defer cancel()
@@ -454,6 +455,8 @@ func requireInstalledChromium(t *testing.T) string {
 		t.Fatalf("MARGO_CHROMIUM is not an executable file: %s", configured)
 	}
 	candidates := []string{
+		"/opt/homebrew/bin/chromium",
+		"/usr/local/bin/chromium",
 		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 		"/Applications/Chromium.app/Contents/MacOS/Chromium",
 		"/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",

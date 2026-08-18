@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/araihu/margo/internal/browserlaunch"
 	"github.com/chromedp/chromedp"
 )
 
@@ -70,7 +71,7 @@ locales:
 	defer server.Close()
 
 	allocatorOptions := siteTestChromiumAllocatorOptions(browserPath)
-	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()
@@ -189,7 +190,7 @@ locales:
 	defer server.Close()
 
 	allocatorOptions := siteTestChromiumAllocatorOptions(browserPath)
-	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()

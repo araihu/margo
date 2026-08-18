@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	blogsite "github.com/araihu/margo/examples/blog/site"
+	"github.com/araihu/margo/internal/browserlaunch"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
@@ -34,7 +35,7 @@ func TestGeneratedBlogPagesDecodePopularImageFormats(t *testing.T) {
 	browserPath := requireInstalledChromium(t)
 	t.Logf("tested browser: %s on %s/%s", chromiumVersion(t, browserPath), runtime.GOOS, runtime.GOARCH)
 	allocatorOptions := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(browserPath))
-	allocatorContext, allocatorCancel := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, allocatorCancel := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer allocatorCancel()
 
 	ctx, cancel, evidence := newJourneyContext(t, allocatorContext)
@@ -85,7 +86,7 @@ func TestGeneratedBlogPagesHideScreenFooterWhenPrinting(t *testing.T) {
 
 	browserPath := requireInstalledChromium(t)
 	allocatorOptions := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(browserPath))
-	allocatorContext, allocatorCancel := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, allocatorCancel := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer allocatorCancel()
 	ctx, cancel := chromedp.NewContext(allocatorContext)
 	defer cancel()

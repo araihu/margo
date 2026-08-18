@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/araihu/margo/internal/browserlaunch"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 )
@@ -39,7 +40,7 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 
 	allocatorOptions := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	allocatorOptions = append(allocatorOptions, chromedp.ExecPath(browserPath))
-	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()
@@ -130,7 +131,11 @@ func TestPrintPreparationChangesOnlyStaticContentStructure(t *testing.T) {
 func installedPrintTestChromium() string {
 	candidates := []string{}
 	if runtime.GOOS == "darwin" {
-		candidates = append(candidates, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+		candidates = append(candidates,
+			"/opt/homebrew/bin/chromium",
+			"/usr/local/bin/chromium",
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		)
 	}
 	for _, name := range []string{"google-chrome", "chromium", "chromium-browser"} {
 		if path, err := exec.LookPath(name); err == nil {

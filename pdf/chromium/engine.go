@@ -23,6 +23,7 @@ import (
 
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/assets"
+	"github.com/araihu/margo/internal/browserlaunch"
 	"github.com/araihu/margo/pdf"
 )
 
@@ -111,7 +112,7 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	defer os.RemoveAll(profile)
 
 	options := chromiumAllocatorOptions(engine.executablePath, profile)
-	allocatorCtx, cancelAllocator := chromedp.NewExecAllocator(exportCtx, options...)
+	allocatorCtx, cancelAllocator := browserlaunch.NewExecAllocator(exportCtx, options...)
 	defer cancelAllocator()
 	browserCtx, cancelBrowser := chromedp.NewContext(allocatorCtx)
 	defer cancelBrowser()

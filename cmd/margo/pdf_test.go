@@ -417,8 +417,9 @@ type capturingEngine struct {
 
 func installedCLITestChromium() string {
 	for _, candidate := range []string{
-		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 		"/opt/homebrew/bin/chromium",
+		"/usr/local/bin/chromium",
+		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 	} {
 		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
 			return candidate
