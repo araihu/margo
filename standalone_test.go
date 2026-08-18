@@ -129,7 +129,7 @@ func TestStandaloneMermaidEmbedsOfflineBrowserRuntime(t *testing.T) {
 		t.Fatal(err)
 	}
 	markup := renderComponent(t, component)
-	for _, marker := range []string{`data-margo-requirement="margo.mermaid.runtime"`, `data-margo-requirement="margo.mermaid.execute"`, "materializeTreeViewIcons", "treeView: {showIcons: true}", "margoRunMermaid", "margoRuntimeReady"} {
+	for _, marker := range []string{`data-margo-requirement="margo.mermaid.runtime"`, `data-margo-requirement="margo.mermaid.execute"`, "materializeTreeViewIcons", "treeView: {showIcons: true}", "theme: \"base\"", "themeVariables", "MutationObserver", "margoMermaidThemeObserver", "margoRunMermaid", "margoRuntimeReady"} {
 		if !strings.Contains(markup, marker) {
 			t.Fatalf("standalone Mermaid HTML missing %q", marker)
 		}

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	chartassets "github.com/araihu/goshtoso-charts/assets"
 	margo "github.com/araihu/margo"
 )
 
@@ -54,7 +55,7 @@ func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
 		`data-goshtoso-chart-wrapper-mode="enabled"`,
 		`data-goshtoso-chart-capability="static-svg"`,
 		`data-goshtoso-chart-export-filename="revenue"`,
-		`assets/js/controls/5/controls.js`,
+		chartassets.ControlRuntimeURL,
 		`goshtoso-charts-palette-auto`,
 		`var(--color-chart-series-1)`,
 		`data-margo-chart-print`,
@@ -456,7 +457,7 @@ func TestRootCanDisableChartControlWrapper(t *testing.T) {
 	markup := string(out)
 	for _, marker := range []string{
 		`data-goshtoso-chart-wrapper-mode`,
-		`assets/js/controls/5/controls.js`,
+		chartassets.ControlRuntimeURL,
 		`data-goshtoso-chart-export-filename`,
 	} {
 		if strings.Contains(markup, marker) {

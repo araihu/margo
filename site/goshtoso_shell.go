@@ -18,6 +18,7 @@ import (
 	shellassets "github.com/araihu/goshtoso-app-shells/componentdocshell/assets"
 	goshtosoassets "github.com/araihu/goshtoso/assets"
 	"github.com/araihu/goshtoso/components/link"
+	"github.com/araihu/goshtoso/components/search"
 	"github.com/araihu/goshtoso/components/sidebar"
 	internalmermaid "github.com/araihu/margo/internal/mermaid"
 	"github.com/araihu/margo/ssg"
@@ -516,7 +517,7 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 		},
 		Active:    componentDocShellPageID(b, page),
 		Content:   templ.Raw(content),
-		Head:      templ.Raw(b.renderComponentDocShellHead(page, dependencyBytes)),
+		Head:      templ.Raw(b.renderComponentDocShellHead(page)),
 		EnableTOC: true,
 	}
 	component := componentdocshell.Layout(b.componentDocShellConfig(), shellPage)
@@ -524,7 +525,15 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	if err := component.Render(ctx, &rendered); err != nil {
 		return err
 	}
-	rewritten, err := b.rewriteHTML(ctx, source, rendered.Bytes())
+	withSearchModal, err := injectComponentDocShellSearchModal(rendered.Bytes(), b.componentDocShellSearchConfig(), ctx, page.Source)
+	if err != nil {
+		return err
+	}
+	withDependencies, err := injectComponentDocShellPageDependencies(withSearchModal, dependencyBytes, page.Source)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, withDependencies)
 	if err != nil {
 		return err
 	}
@@ -593,6 +602,7 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 			SectionsTitle:     "Margo features",
 			Sections:          []sidebar.Section{{Title: "Features", Items: items}},
 			SearchPlaceholder: "Search features",
+			SearchSlot:        b.componentDocShellSearch(),
 		},
 		Appearance: componentdocshell.AppearanceConfig{
 			DefaultTheme:                  defaultTheme,
@@ -609,6 +619,44 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   b.shellAssetPrefix,
 	}
+}
+
+func (b *builder) componentDocShellSearch() templ.Component {
+	return search.SearchField(b.componentDocShellSearchConfig())
+}
+
+func (b *builder) componentDocShellSearchConfig() search.Config {
+	return search.Config{
+		ID:             "margo-doc-search",
+		Label:          "Search features",
+		Placeholder:    "Search features",
+		ShortcutText:   "⌘ K",
+		GlobalShortcut: true,
+		Items:          b.componentDocShellSearchItems(),
+		MatchMode:      search.MatchModeFuzzy,
+		MaxResults:     8,
+		EmptyText:      "No matching pages.",
+	}
+}
+
+func (b *builder) componentDocShellSearchItems() []search.Item {
+	items := make([]search.Item, 0, len(b.configPages))
+	for _, page := range b.configPages {
+		if page.Locale != b.config.Locales.Default {
+			continue
+		}
+		href := b.shellPageHref(page)
+		items = append(items, search.Item{
+			ID:          "margo-search-" + componentDocShellPageID(b, page),
+			Title:       page.Title,
+			Description: page.Description,
+			Href:        href,
+			Kind:        "Page",
+			Path:        href,
+			Keywords:    []string{page.Source, page.Output},
+		})
+	}
+	return items
 }
 
 func (b *builder) componentDocShellFooter() templ.Component {
@@ -768,7 +816,7 @@ func (b *builder) shellPageHref(page Page) string {
 	return route
 }
 
-func (b *builder) renderComponentDocShellHead(page Page, dependencyBytes []byte) string {
+func (b *builder) renderComponentDocShellHead(page Page) string {
 	var builder strings.Builder
 	iconURL, _ := relativeSitePath(path.Dir(page.Output), b.config.Site.Icon)
 	if iconURL != "" {
@@ -780,8 +828,50 @@ func (b *builder) renderComponentDocShellHead(page Page, dependencyBytes []byte)
 		builder.WriteString(`<link rel="stylesheet" href="/` + stdhtml.EscapeString(strings.TrimPrefix(css.CSSURL, "/")) + `">`)
 	}
 	builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.shellAssetPrefix+componentDocShellScrollSpyAssetName) + `"></script>`)
-	builder.Write(dependencyBytes)
 	return builder.String()
+}
+
+func injectComponentDocShellPageDependencies(document, dependencies []byte, source string) ([]byte, error) {
+	if len(dependencies) == 0 {
+		return document, nil
+	}
+	const closingHead = "</head>"
+	index := bytes.Index(bytes.ToLower(document), []byte(closingHead))
+	if index < 0 {
+		return nil, diagnostic(
+			"site.html_invalid",
+			"componentdocshell output has no closing head element",
+			"Keep page dependencies inside the generated document head.",
+			source,
+		)
+	}
+	result := make([]byte, 0, len(document)+len(dependencies))
+	result = append(result, document[:index]...)
+	result = append(result, dependencies...)
+	result = append(result, document[index:]...)
+	return result, nil
+}
+
+func injectComponentDocShellSearchModal(document []byte, config search.Config, ctx context.Context, source string) ([]byte, error) {
+	var modal bytes.Buffer
+	if err := search.SearchModal(config).Render(ctx, &modal); err != nil {
+		return nil, err
+	}
+	const closingBody = "</body>"
+	index := bytes.Index(bytes.ToLower(document), []byte(closingBody))
+	if index < 0 {
+		return nil, diagnostic(
+			"site.html_invalid",
+			"componentdocshell output has no closing body element",
+			"Keep the Goshtoso search modal inside the generated document body.",
+			source,
+		)
+	}
+	result := make([]byte, 0, len(document)+modal.Len())
+	result = append(result, document[:index]...)
+	result = append(result, modal.Bytes()...)
+	result = append(result, document[index:]...)
+	return result, nil
 }
 
 func decorateComponentDocShellHeadings(root *html.Node) {

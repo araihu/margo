@@ -253,6 +253,46 @@ const runtimeExpression = `(async () => {
 		}
 	}
 
+	function margoMermaidConfiguration() {
+		const styles = getComputedStyle(document.documentElement);
+		const read = (name) => styles.getPropertyValue(name).trim();
+		const canvas = read('--margo-mermaid-canvas');
+		const node = read('--margo-mermaid-node');
+		const nodeBorder = read('--margo-mermaid-node-border');
+		const text = read('--margo-mermaid-text');
+		const edge = read('--margo-mermaid-edge');
+		const edgeLabel = read('--margo-mermaid-edge-label');
+		const edgeLabelBackground = read('--margo-mermaid-edge-label-background');
+		if (!canvas || !node || !nodeBorder || !text || !edge || !edgeLabel || !edgeLabelBackground) return {};
+		const themeVariables = {
+			background: canvas,
+			darkMode: document.documentElement.classList.contains('dark'),
+			fontFamily: read('--font-body'),
+			primaryColor: node,
+			primaryTextColor: text,
+			primaryBorderColor: nodeBorder,
+			secondaryColor: canvas,
+			secondaryTextColor: text,
+			secondaryBorderColor: nodeBorder,
+			tertiaryColor: canvas,
+			tertiaryTextColor: text,
+			tertiaryBorderColor: nodeBorder,
+			textColor: edgeLabel,
+			titleColor: text,
+			lineColor: edge,
+			defaultLinkColor: edge,
+			arrowheadColor: edge,
+			nodeBkg: node,
+			nodeBorder,
+			nodeTextColor: text,
+			clusterBkg: canvas,
+			clusterBorder: nodeBorder,
+			edgeLabelBackground,
+			labelBackground: edgeLabelBackground
+		};
+		return {theme: 'base', themeVariables};
+	}
+
 	const nodes = Array.from(document.querySelectorAll('[data-margo-runtime-task="mermaid"]'));
 	if (nodes.length === 0) return {svg: []};
 	if (globalThis.margoRuntimeReady && typeof globalThis.margoRuntimeReady.then === 'function') {
@@ -261,6 +301,7 @@ const runtimeExpression = `(async () => {
 		if (embedded.every((svg) => svg.length > 0)) return {svg: embedded};
 	}
 	const mermaid = (await import('/margo-assets/mermaid/11.16.1/mermaid.esm.min.mjs')).default;
+	const mermaidConfiguration = margoMermaidConfiguration();
 	const outputs = [];
 	for (let index = 0; index < nodes.length; index += 1) {
 		const node = nodes[index];
@@ -268,6 +309,7 @@ const runtimeExpression = `(async () => {
 		const target = node.querySelector('.margo-mermaid__canvas');
 		if (!sourceNode || !target) throw new Error('malformed Mermaid runtime marker');
 		mermaid.initialize({
+			...mermaidConfiguration,
 			startOnLoad: false,
 			securityLevel: 'strict',
 			htmlLabels: false,

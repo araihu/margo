@@ -1,5 +1,5 @@
 schema: margo.theme.tokens/v1
-css_digest: sha256-34219e2cfc49bc9c85184c9d978b93624785d0c7e9fac3fda1d746f34e6b7e49
+css_digest: sha256-69f53b214f57602030801bd3d83075734b853bb46c293720b8a7582796172e98
 fonts: []
 minimum_text_size: 1rem
 touch_target:
@@ -100,6 +100,25 @@ colors:
     text-strong: '#F5FAF6'
     outline: '#91AFB0'
     focus-ring: '#FF9D8D'
+mermaid:
+  light:
+    canvas: '#E8F2EE'
+    node: '#D9ECE6'
+    node-border: '#075A67'
+    text: '#102B34'
+    edge: '#8A304B'
+    edge-label: '#102B34'
+    edge-label-background: '#FCFAF4'
+    description: '#075A67'
+  dark:
+    canvas: '#173E45'
+    node: '#245660'
+    node-border: '#A8C5C3'
+    text: '#F5FAF6'
+    edge: '#FF9D8D'
+    edge-label: '#F5FAF6'
+    edge-label-background: '#102B34'
+    description: '#89E1C2'
 states:
   light:
     default: {background: '#E8F2EE', foreground: '#102B34'}

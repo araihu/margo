@@ -137,6 +137,62 @@ const mermaidBrowserExecutor = `(() => {
     }
   }
 
+  function margoMermaidConfiguration() {
+    const styles = getComputedStyle(document.documentElement);
+    const read = (name) => styles.getPropertyValue(name).trim();
+    const canvas = read("--margo-mermaid-canvas");
+    const node = read("--margo-mermaid-node");
+    const nodeBorder = read("--margo-mermaid-node-border");
+    const text = read("--margo-mermaid-text");
+    const edge = read("--margo-mermaid-edge");
+    const edgeLabel = read("--margo-mermaid-edge-label");
+    const edgeLabelBackground = read("--margo-mermaid-edge-label-background");
+    if (!canvas || !node || !nodeBorder || !text || !edge || !edgeLabel || !edgeLabelBackground) return {};
+    const themeVariables = {
+      background: canvas,
+      darkMode: document.documentElement.classList.contains("dark"),
+      fontFamily: read("--font-body"),
+      primaryColor: node,
+      primaryTextColor: text,
+      primaryBorderColor: nodeBorder,
+      secondaryColor: canvas,
+      secondaryTextColor: text,
+      secondaryBorderColor: nodeBorder,
+      tertiaryColor: canvas,
+      tertiaryTextColor: text,
+      tertiaryBorderColor: nodeBorder,
+      textColor: edgeLabel,
+      titleColor: text,
+      lineColor: edge,
+      defaultLinkColor: edge,
+      arrowheadColor: edge,
+      nodeBkg: node,
+      nodeBorder,
+      nodeTextColor: text,
+      clusterBkg: canvas,
+      clusterBorder: nodeBorder,
+      edgeLabelBackground,
+      labelBackground: edgeLabelBackground
+    };
+    return {theme: "base", themeVariables};
+  }
+
+  function margoMermaidThemeSignature() {
+    const styles = getComputedStyle(document.documentElement);
+    const read = (name) => styles.getPropertyValue(name).trim();
+    const values = [
+      document.documentElement.classList.contains("dark") ? "dark" : "light",
+      read("--margo-mermaid-canvas"),
+      read("--margo-mermaid-node"),
+      read("--margo-mermaid-node-border"),
+      read("--margo-mermaid-text"),
+      read("--margo-mermaid-edge"),
+      read("--margo-mermaid-edge-label"),
+      read("--margo-mermaid-edge-label-background")
+    ];
+    return values.slice(1).every(Boolean) ? values.join("|") : "";
+  }
+
   const execute = async () => {
     if (document.readyState === "loading") {
       await new Promise((resolve) => document.addEventListener("DOMContentLoaded", resolve, {once: true}));
@@ -150,6 +206,7 @@ const mermaidBrowserExecutor = `(() => {
     if (!engine || typeof engine.initialize !== "function" || typeof engine.render !== "function") {
       throw new Error("embedded Mermaid runtime is unavailable");
     }
+    const mermaidConfiguration = margoMermaidConfiguration();
     const outputs = [];
     for (let index = 0; index < nodes.length; index += 1) {
       const node = nodes[index];
@@ -157,6 +214,7 @@ const mermaidBrowserExecutor = `(() => {
       const target = node.querySelector(".margo-mermaid__canvas");
       if (!sourceNode || !target) throw new Error("malformed Mermaid runtime marker");
       engine.initialize({
+        ...mermaidConfiguration,
         startOnLoad: false,
         securityLevel: "strict",
         htmlLabels: false,
@@ -184,8 +242,32 @@ const mermaidBrowserExecutor = `(() => {
     document.documentElement.dataset.margoRuntimeStatus = "ready";
     return outputs;
   };
+
+  let themeRenderQueue = Promise.resolve();
+  function observeMermaidTheme() {
+    if (typeof MutationObserver !== "function") return;
+    if (globalThis.margoMermaidThemeObserver) globalThis.margoMermaidThemeObserver.disconnect();
+    let signature = margoMermaidThemeSignature();
+    if (!signature) return;
+    const observer = new MutationObserver(() => {
+      const next = margoMermaidThemeSignature();
+      if (!next || next === signature) return;
+      signature = next;
+      themeRenderQueue = themeRenderQueue.catch(() => {}).then(() => execute()).catch(() => {
+        document.documentElement.dataset.margoRuntimeStatus = "failed";
+        for (const node of document.querySelectorAll('[data-margo-runtime-task="mermaid"]')) node.dataset.margoRuntimeStatus = "failed";
+      });
+      globalThis.margoRuntimeReady = themeRenderQueue;
+    });
+    observer.observe(document.documentElement, {attributes: true, attributeFilter: ["class", "data-theme"]});
+    globalThis.margoMermaidThemeObserver = observer;
+  }
+
   const run = () => {
-    const promise = execute().catch((error) => {
+    const promise = execute().then((outputs) => {
+      observeMermaidTheme();
+      return outputs;
+    }).catch((error) => {
       document.documentElement.dataset.margoRuntimeStatus = "failed";
       for (const node of document.querySelectorAll('[data-margo-runtime-task="mermaid"]')) node.dataset.margoRuntimeStatus = "failed";
       throw error;

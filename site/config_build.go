@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	chartassets "github.com/araihu/goshtoso-charts/assets"
 	"github.com/araihu/goshtoso/components/breadcrumbs"
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/internal/staticimage"
@@ -121,7 +122,7 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 .margo-showcase-article .margo-document h1 { color: var(--margo-text-strong); font-size: clamp(2.25rem, 6vw, 4.5rem); letter-spacing: -0.04em; line-height: 1.05; }
 .margo-showcase-article .margo-document__lead { color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
 .margo-showcase-article .margo-document h2 { margin-block-start: 3rem; color: var(--margo-text-strong); letter-spacing: -0.02em; }
-.margo-showcase-article .margo-document blockquote { margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
+.margo-showcase-article .margo-document blockquote { margin-block-start: 1.25rem; margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
 .margo-showcase-article .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
 .component-doc-shell__brand-mark { display: none !important; }
 .margo-shell-topnav { order: 1; display: flex; align-items: center; gap: 0.25rem; margin-inline: 0.5rem; }
@@ -696,6 +697,9 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 	if b.request.Assets == AssetsInline {
 		mode = margo.HTMLDependenciesInline
 	}
+	if err := b.stageChartIconSprite(prepared.result.Requirements()); err != nil {
+		return nil, err
+	}
 	requirements, err := margo.RenderHTMLDependencies(prepared.result.Requirements(), mode)
 	if err != nil {
 		return nil, err
@@ -713,6 +717,19 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 		}
 	}
 	return renderComponentBytes(requirements)
+}
+
+func (b *builder) stageChartIconSprite(requirements margo.HTMLRequirements) error {
+	if b.request.Assets != AssetsLocal {
+		return nil
+	}
+	for _, requirement := range requirements.List() {
+		if requirement.ID != "goshtoso-charts.controls" {
+			continue
+		}
+		return b.stageHandlerAsset(chartassets.Handler(), chartassets.ChartIconsSpriteURL)
+	}
+	return nil
 }
 
 func (b *builder) bindingsForPage(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {

@@ -37,7 +37,7 @@ var accessiblePolicyObserver = struct {
 	fn func(AccessibleRenderPolicy)
 }{}
 
-// goshtoso-charts v0.0.2-0.20260803224432-297df2f562e8 uses shared palette
+// goshtoso-charts v0.0.2 uses shared palette
 // values while constructing SVG options. Serialize only that upstream render
 // call so independent root sessions remain race-free without sharing output.
 var chartRenderMu sync.Mutex

@@ -188,7 +188,7 @@ func TestChartControlLoaderIsExternalizedForEveryFamily(t *testing.T) {
 				t.Fatal(err)
 			}
 			markup := string(out)
-			if strings.Contains(markup, `src="/charts/assets/js/controls/5/controls.js"`) {
+			if strings.Contains(markup, `src="`+chartassets.ControlRuntimeURL+`"`) {
 				t.Fatalf("externalized chart retained loader: %s", markup)
 			}
 			for _, want := range []string{`data-goshtoso-chart-wrapper`, `data-margo-chart-data="v1"`, `<svg`} {

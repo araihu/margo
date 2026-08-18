@@ -259,6 +259,9 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 			}
 			b.dependencies[strings.ToLower(assetPath)] = assetPath
 		}
+		if err := b.stageChartIconSprite(htmlResult.Requirements()); err != nil {
+			return err
+		}
 	}
 
 	rewritten, err := b.rewriteHTML(ctx, source, componentBytes.Bytes())

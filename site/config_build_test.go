@@ -4,13 +4,48 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+
+	margo "github.com/araihu/margo"
+	"golang.org/x/net/html"
 )
+
+func TestInjectComponentDocShellPageDependenciesAfterShellHead(t *testing.T) {
+	for _, closingHead := range []string{"</head>", "</HEAD>"} {
+		t.Run(closingHead, func(t *testing.T) {
+			document := []byte(`<!doctype html><html><head><script src="shell.js"></script>` + closingHead + `<body></body></html>`)
+			got, err := injectComponentDocShellPageDependencies(document, []byte(`<script defer src="page.js"></script>`), "guide.md")
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := `<!doctype html><html><head><script src="shell.js"></script><script defer src="page.js"></script>` + closingHead + `<body></body></html>`
+			if string(got) != want {
+				t.Fatalf("document = %s, want %s", got, want)
+			}
+		})
+	}
+}
+
+func TestInjectComponentDocShellPageDependenciesRequiresHead(t *testing.T) {
+	_, err := injectComponentDocShellPageDependencies([]byte(`<html><body></body></html>`), []byte(`<script src="page.js"></script>`), "guide.md")
+	if err == nil {
+		t.Fatal("expected missing-head diagnostic")
+	}
+	var diagnosticError *margo.DiagnosticError
+	if !errors.As(err, &diagnosticError) || len(diagnosticError.Diagnostics) != 1 {
+		t.Fatalf("error = %v, want one diagnostic", err)
+	}
+	diagnostic := diagnosticError.Diagnostics[0]
+	if diagnostic.Code != "site.html_invalid" || diagnostic.Source != "guide.md" {
+		t.Fatalf("diagnostic = %+v", diagnostic)
+	}
+}
 
 func TestBuildConfigRendersRouteOwnedSocialMetadataAndFrameBindings(t *testing.T) {
 	root := t.TempDir()
@@ -196,6 +231,8 @@ locales:
 		`hx-swap="outerHTML transition:true swap:160ms settle:240ms"`, `hx-push-url="true"`,
 		`hx-swap-oob="outerHTML:#componentdocshell-sidebar-content"`,
 		`data-margo-navigation="true"`,
+		`data-search-id="margo-doc-search"`, `data-search-global-shortcut="true"`, `<kbd`, `⌘ K`,
+		`data-search-title="Markdown"`, `data-search-href="/markdown.html"`,
 		`data-toc-heading`, `src="margo-assets/goshtoso/margo-scroll-spy.js"`,
 		`href="https://goshtoso.araihu.com/"`, `Built with Goshtoso`,
 		`href="https://araihu.com/"`, `Arai Hû`,
@@ -207,6 +244,25 @@ locales:
 		if !strings.Contains(page, required) {
 			t.Fatalf("shell page missing %q: %s", required, page)
 		}
+	}
+	searchModalIndex := strings.Index(page, `id="margo-doc-search-dialog"`)
+	mainEndIndex := strings.Index(page, `</main>`)
+	if searchModalIndex == -1 || mainEndIndex == -1 || searchModalIndex < mainEndIndex {
+		t.Fatalf("search modal is not mounted outside the shell content: modal=%d main-end=%d", searchModalIndex, mainEndIndex)
+	}
+	resources := componentDocShellHeadResources(t, page)
+	shellScript := -1
+	firstPageDependency := -1
+	for index, resource := range resources {
+		if shellScript == -1 && strings.Contains(resource.url, "margo-assets/goshtoso/shell.js") {
+			shellScript = index
+		}
+		if firstPageDependency == -1 && resource.requirement != "" {
+			firstPageDependency = index
+		}
+	}
+	if shellScript == -1 || firstPageDependency == -1 || shellScript > firstPageDependency {
+		t.Fatalf("page dependencies run before the component shell: shell=%d dependency=%d resources=%+v", shellScript, firstPageDependency, resources)
 	}
 	if strings.Contains(page, `component-doc-shell__brand-logo`) {
 		t.Fatalf("shell page unexpectedly includes a brand image: %s", page)
@@ -279,6 +335,124 @@ locales:
 			t.Fatalf("shell CSS leaks an unscoped control rule %q: %s", forbidden, styles)
 		}
 	}
+}
+
+func TestBuildConfigRendersInlineShellDependenciesWithBasePath(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Home\n\nThe home page owns a Mermaid runtime dependency.\n\n```mermaid\nflowchart LR\n  source[Markdown] --> output[HTML]\n```\n")
+	writeConfigFile(t, filepath.Join(root, "showcase", "guide.md"), "# Guide\n\nThe guide has no page-specific runtime dependency.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: showcase
+assets: inline
+base_path: /docs
+site:
+  name: Margo
+  description: An inline shell fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo inline shell fixture.
+shell:
+  builtin: componentdocshell
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Site.BasePath != "/docs" {
+		t.Fatalf("base path = %q, want /docs", result.Site.BasePath)
+	}
+	index := string(configArtifact(t, result, "index.html"))
+	guide := string(configArtifact(t, result, "guide.html"))
+	for _, required := range []string{
+		`hx-get="/docs/guide.html"`,
+		`data-margo-requirement="margo.mermaid.runtime"`,
+		`data-margo-requirement="margo.mermaid.execute"`,
+	} {
+		if !strings.Contains(index, required) {
+			t.Fatalf("inline shell page missing %q: %s", required, index)
+		}
+	}
+	if strings.Contains(guide, `data-margo-requirement="margo.mermaid.runtime"`) {
+		t.Fatalf("page-specific Mermaid dependency leaked into guide: %s", guide)
+	}
+	resources := componentDocShellHeadResources(t, index)
+	shellScript := -1
+	mermaidRequirement := -1
+	for resourceIndex, resource := range resources {
+		if shellScript == -1 && strings.Contains(resource.url, "margo-assets/goshtoso/shell.js") {
+			shellScript = resourceIndex
+		}
+		if mermaidRequirement == -1 && resource.requirement == "margo.mermaid.runtime" {
+			mermaidRequirement = resourceIndex
+		}
+	}
+	if shellScript == -1 || mermaidRequirement == -1 || shellScript > mermaidRequirement {
+		t.Fatalf("inline dependency order is invalid: shell=%d mermaid=%d resources=%+v", shellScript, mermaidRequirement, resources)
+	}
+	if artifactExists(result, "margo-assets/mermaid/11.16.1/mermaid.min.js") || artifactExists(result, "margo-assets/runtime/mermaid-run.js") {
+		t.Fatal("inline shell unexpectedly publishes Mermaid runtime artifacts")
+	}
+}
+
+type shellHeadResource struct {
+	url         string
+	requirement string
+}
+
+func componentDocShellHeadResources(t *testing.T, document string) []shellHeadResource {
+	t.Helper()
+	root, err := html.Parse(strings.NewReader(document))
+	if err != nil {
+		t.Fatalf("parse generated document: %v", err)
+	}
+	var head *html.Node
+	var findHead func(*html.Node)
+	findHead = func(node *html.Node) {
+		if head != nil {
+			return
+		}
+		if node.Type == html.ElementNode && node.Data == "head" {
+			head = node
+			return
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			findHead(child)
+		}
+	}
+	findHead(root)
+	if head == nil {
+		t.Fatal("generated document has no head")
+	}
+
+	resources := make([]shellHeadResource, 0)
+	var collect func(*html.Node)
+	collect = func(node *html.Node) {
+		if node.Type == html.ElementNode && (node.Data == "script" || node.Data == "link") {
+			resourceURL := attributeValue(node, "src")
+			if resourceURL == "" {
+				resourceURL = attributeValue(node, "href")
+			}
+			resources = append(resources, shellHeadResource{
+				url:         resourceURL,
+				requirement: attributeValue(node, "data-margo-requirement"),
+			})
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			collect(child)
+		}
+	}
+	collect(head)
+	return resources
 }
 
 func TestBuildConfigUsesSelectedCustomThemeInGoshtosoComponentDocShell(t *testing.T) {

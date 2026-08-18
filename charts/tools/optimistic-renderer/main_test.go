@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	chartassets "github.com/araihu/goshtoso-charts/assets"
 	margo "github.com/araihu/margo"
 )
 
@@ -64,7 +65,7 @@ func TestGenerateHTMLAppendsAndRendersChartsAtomically(t *testing.T) {
 		}
 	}
 	markup := string(data)
-	if strings.Contains(markup, `/charts/assets/js/controls/5/controls.js`) {
+	if strings.Contains(markup, chartassets.ControlRuntimeURL) {
 		t.Fatal("generated HTML retains an external chart-control runtime")
 	}
 	for _, external := range []string{

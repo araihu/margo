@@ -8,7 +8,7 @@
  * FORM: Read mode; semantic Goshtoso tokens, system fonts, restrained surfaces.
  *
  * The mascot's coral and warm amber stay decorative or state-bound. Teal and
- * mint carry navigation and links because they remain readable in both modes.
+ * mint carry navigation and links; the pink signal marks editorial entry points.
  */
 [data-theme="margo"] {
   color-scheme: light;
@@ -67,9 +67,18 @@
   --margo-text: var(--color-on-surface);
   --margo-text-strong: var(--color-on-surface-strong);
   --margo-accent: var(--color-primary);
+  --margo-pink: var(--color-secondary);
   --margo-outline: var(--color-outline);
   --margo-focus-ring: var(--color-focus-ring);
   --margo-reading-measure: 75ch;
+  --margo-mermaid-canvas: var(--color-surface-alt);
+  --margo-mermaid-node: #d9ece6;
+  --margo-mermaid-node-border: var(--color-primary);
+  --margo-mermaid-text: var(--color-on-surface-strong);
+  --margo-mermaid-edge: var(--color-secondary);
+  --margo-mermaid-edge-label: var(--color-on-surface-strong);
+  --margo-mermaid-edge-label-background: var(--color-surface);
+  --margo-mermaid-description: var(--color-primary);
 }
 
 [data-theme="margo"].dark,
@@ -80,9 +89,18 @@
   --margo-text: var(--color-on-surface-dark);
   --margo-text-strong: var(--color-on-surface-dark-strong);
   --margo-accent: var(--color-primary-dark);
+  --margo-pink: var(--color-secondary-dark);
   --margo-outline: var(--color-outline-dark);
   --color-focus-ring: var(--color-focus-ring-dark);
   --margo-focus-ring: var(--color-focus-ring-dark);
+  --margo-mermaid-canvas: var(--color-surface-dark-alt);
+  --margo-mermaid-node: #245660;
+  --margo-mermaid-node-border: var(--color-control-outline-dark);
+  --margo-mermaid-text: var(--color-on-surface-dark-strong);
+  --margo-mermaid-edge: var(--color-secondary-dark);
+  --margo-mermaid-edge-label: var(--color-on-surface-dark-strong);
+  --margo-mermaid-edge-label-background: var(--color-surface-dark);
+  --margo-mermaid-description: var(--color-primary-dark);
 }
 
 /* Keep the shared shell geometry, but make Margo's published target contract
@@ -97,7 +115,70 @@
   min-block-size: 2.75rem;
 }
 
-/* The accent is for links. Coral is the distinct focus cue. */
+/* Keep the pink signal visible without turning the reading surface into a
+ * candy wrapper: it marks feature-page entry rails only. */
+[data-theme="margo"] .margo-document .margo-document__lead {
+  color: var(--margo-accent);
+}
+
+/* The home lead keeps a real HTML fallback while cycling through Margo's
+ * durable output surfaces without adding another runtime dependency. */
+[data-theme="margo"] .margo-document .margo-document__lead code {
+  position: relative;
+  display: inline-block;
+  min-inline-size: 5.5ch;
+  padding: 0;
+  border: 0;
+  color: var(--margo-accent);
+  background: transparent;
+  font: inherit;
+  font-style: italic;
+  font-weight: 750;
+  vertical-align: baseline;
+}
+
+[data-theme="margo"] .margo-document .margo-document__lead code::after {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: baseline;
+  color: inherit;
+  background: var(--margo-surface);
+  content: "HTML";
+  animation: margo-output-cycle 24s ease-in-out infinite;
+}
+
+@keyframes margo-output-cycle {
+  0%, 20% { content: "HTML"; opacity: 1; transform: translateY(0); }
+  24% { content: "HTML"; opacity: 0; transform: translateY(-0.12em); }
+  25% { content: "PDF"; opacity: 0; transform: translateY(0.12em); }
+  29%, 45% { content: "PDF"; opacity: 1; transform: translateY(0); }
+  49% { content: "PDF"; opacity: 0; transform: translateY(-0.12em); }
+  50% { content: "Site"; opacity: 0; transform: translateY(0.12em); }
+  54%, 70% { content: "Site"; opacity: 1; transform: translateY(0); }
+  74% { content: "Site"; opacity: 0; transform: translateY(-0.12em); }
+  75% { content: "Slides"; opacity: 0; transform: translateY(0.12em); }
+  79%, 95% { content: "Slides"; opacity: 1; transform: translateY(0); }
+  99% { content: "Slides"; opacity: 0; transform: translateY(-0.12em); }
+  99.1% { content: "HTML"; opacity: 0; transform: translateY(0.12em); }
+  100% { content: "HTML"; opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce), print {
+  [data-theme="margo"] .margo-document .margo-document__lead code::after {
+    animation: none;
+    content: "HTML";
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-theme="margo"] .margo-page-heading__title {
+  border-inline-start: 0.25rem solid var(--margo-pink);
+  padding-inline-start: 0.75rem;
+}
+
+/* The accent is for links. Pink is the distinct focus/editorial cue. */
 [data-theme="margo"] .component-doc-shell :focus-visible,
 [data-theme="margo"] .margo-frame :focus-visible,
 [data-theme="margo"] .margo-document :focus-visible {

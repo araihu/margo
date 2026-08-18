@@ -10,7 +10,7 @@ margo:
 
 # Margo
 
-Markdown in. Durable outputs out.
+Convert Markdown to `HTML`
 
 ![Margo mascot preparing a document](margo-mascot.png)
 
