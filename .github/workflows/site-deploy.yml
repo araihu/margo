@@ -1,0 +1,105 @@
+name: Publish Margo site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/site-deploy.yml'
+      - '.iconpack.lock.yaml'
+      - '.iconpack.yaml'
+      - '*.go'
+      - 'assets/**'
+      - 'charts/**'
+      - 'cmd/margo/**'
+      - 'deck/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'internal/**'
+      - 'mermaid.go'
+      - 'muamba.yaml'
+      - 'pdf/**'
+      - 'scripts/**'
+      - 'showcase.yaml'
+      - 'showcase/**'
+      - 'site/**'
+      - 'ssg/**'
+      - 'themes/**'
+      - 'wrangler.jsonc'
+  workflow_dispatch:
+
+concurrency:
+  group: margo-site-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: '1.26.5'
+  GOWORK: 'off'
+  GOFLAGS: '-mod=readonly'
+  WRANGLER_VERSION: '4.114.0'
+
+jobs:
+  deploy:
+    name: Build and publish site
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://margo.araihu.com
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+          cache: true
+
+      - name: Test site pipeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./site ./cmd/margo -count=1
+
+      - name: Build local offline site
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run ./cmd/margo site showcase.yaml \
+            --output-dir showcase/dist \
+            --assets local \
+            --diagnostics text
+          test -s showcase/dist/index.html
+          test -s showcase/dist/sitemap.xml
+          test -s showcase/dist/llms.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          check-latest: false
+
+      - name: Validate Worker deployment
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" deploy \
+            --config wrangler.jsonc \
+            --dry-run
+
+      - name: Deploy Worker and static assets
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" deploy \
+            --config wrangler.jsonc
