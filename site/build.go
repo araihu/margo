@@ -240,23 +240,19 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	output := b.pageOutput(source.Path)
 	page := Page{Source: source.Path, Output: output, ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
 
-	var componentBytes bytes.Buffer
+	dependencyMode := margo.HTMLDependenciesLocal
 	if b.request.Assets == AssetsInline {
-		component, renderErr := margo.RenderStandalone(rendered)
-		if renderErr != nil {
-			return renderErr
-		}
-		if renderErr = component.Render(ctx, &componentBytes); renderErr != nil {
-			return renderErr
-		}
-	} else {
-		component, renderErr := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{Theme: margo.ThemeModern, ColorMode: margo.ColorModeLight, DependencyMode: margo.HTMLDependenciesLocal})
-		if renderErr != nil {
-			return renderErr
-		}
-		if renderErr = component.Render(ctx, &componentBytes); renderErr != nil {
-			return renderErr
-		}
+		dependencyMode = margo.HTMLDependenciesInline
+	}
+	component, err := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{Theme: margo.ThemeModern, ColorMode: margo.ColorModeLight, DependencyMode: dependencyMode})
+	if err != nil {
+		return err
+	}
+	var componentBytes bytes.Buffer
+	if err := component.Render(ctx, &componentBytes); err != nil {
+		return err
+	}
+	if b.request.Assets == AssetsLocal {
 		for _, requirement := range htmlResult.Requirements().List() {
 			assetPath := strings.TrimPrefix(requirement.LocalURL, "/")
 			if assetPath == "" || len(requirement.Inline.Content) == 0 {
@@ -273,10 +269,6 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	}
 
 	rewritten, err := b.rewriteHTML(ctx, source, componentBytes.Bytes())
-	if err != nil {
-		return err
-	}
-	rewritten, err = b.injectPageActions(ctx, rewritten, page)
 	if err != nil {
 		return err
 	}
@@ -339,6 +331,9 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 		if node.Type == html.ElementNode {
 			if err := b.rewriteDependency(source, node); err != nil {
 				return err
+			}
+			if b.config == nil && attributeValue(node, "data-margo-requirement") == "goshtoso.styles" {
+				removeAttribute(node, "data-margo-requirement")
 			}
 			switch node.Data {
 			case "a":
@@ -649,6 +644,14 @@ func attributeIndex(node *html.Node, key string) int {
 		}
 	}
 	return -1
+}
+
+func removeAttribute(node *html.Node, key string) {
+	index := attributeIndex(node, key)
+	if index < 0 {
+		return
+	}
+	node.Attr = append(node.Attr[:index], node.Attr[index+1:]...)
 }
 
 func relativeSitePath(fromDirectory, target string) (string, error) {

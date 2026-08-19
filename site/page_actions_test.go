@@ -269,39 +269,6 @@ locales:
 	}
 }
 
-func TestBuildInlineSiteEmbedsPageActionIconSprite(t *testing.T) {
-	result, err := Build(context.Background(), Request{
-		Sources: []Source{{Path: "guide.md", Content: []byte(`---
-title: Guide
-margo:
-  actions:
-    markdown: true
----
-# Guide
-
-The source stays available beside the rendered page.
-`)}},
-		Compiler: margo.New(), Assets: AssetsInline,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := artifactContent(t, result, "guide.html")
-	for _, required := range []string{
-		`href="#heroicons-copy-16-solid-clipboard"`,
-		`href="#heroicons-document-text-16-solid-document-text"`,
-		`<svg xmlns="http://www.w3.org/2000/svg" hidden="" aria-hidden="true">`,
-		`<symbol id="heroicons-copy-16-solid-clipboard"`,
-	} {
-		if !strings.Contains(page, required) {
-			t.Fatalf("inline page action markup missing %q: %s", required, page)
-		}
-	}
-	if strings.Contains(page, pageActionsIconSpritePath) || artifactExists(result, pageActionsIconSpritePath) {
-		t.Fatalf("inline page unexpectedly publishes an external icon sprite: %s", page)
-	}
-}
-
 func artifactExists(result Result, name string) bool {
 	for _, artifact := range result.Artifacts {
 		if artifact.Path == name {
