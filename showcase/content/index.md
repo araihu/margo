@@ -19,23 +19,6 @@ into standalone HTML, linked static sites, PDF documents, and an experimental
 presentation deck projection. This showcase is the public path through those
 capabilities: each page is a small, runnable-looking example of one feature.
 
-## Start with the surface
-
-| Feature | Output | Best first stop |
-| --- | --- | --- |
-| Markdown compiler | A semantic document model | [Markdown](markdown.md) |
-| Standalone HTML | One portable HTML page | [HTML](html.md) |
-| Static sites | Linked pages plus a manifest | [Static sites](site.md) |
-| Development server | In-memory preview with live reload | [CLI workflows](cli.md#develop-with-live-reload) |
-| PDF documents | Print-ready PDF bytes | [PDF](pdf.md) |
-| Presentation decks | Experimental HTML/PDF projection | [Decks](decks.md) |
-| Charts | Static SVG, accessible data, optional interaction | [Charts](charts.md) |
-| Mermaid diagrams | Rendered flowcharts with a text fallback | [Mermaid](mermaid.md) |
-| Policy and diagnostics | Actionable validation | [Policy](policy.md) |
-
-Ready to write a site? Start with the
-[live-reload development workflow](cli.md#develop-with-live-reload).
-
 ## One source, several projections
 
 ```mermaid

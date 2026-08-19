@@ -598,11 +598,10 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 	return componentdocshell.Config{
 		Brand: brand,
 		Navigation: componentdocshell.Navigation{
-			Items:             []sidebar.Item{{ID: componentDocShellPageID(b, home), Label: home.Title, Href: b.shellPageHref(home)}},
-			SectionsTitle:     "Margo features",
-			Sections:          []sidebar.Section{{Title: "Features", Items: items}},
-			SearchPlaceholder: "Search features",
-			SearchSlot:        b.componentDocShellSearch(),
+			Items:         []sidebar.Item{{ID: componentDocShellPageID(b, home), Label: home.Title, Href: b.shellPageHref(home)}},
+			SectionsTitle: "Margo features",
+			Sections:      []sidebar.Section{{Title: "Features", Items: items}},
+			DisableSearch: true,
 		},
 		Appearance: componentdocshell.AppearanceConfig{
 			DefaultTheme:                  defaultTheme,
@@ -614,7 +613,7 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 			ThemeStylesheets:              themeStylesheets,
 		},
 		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderActions: b.componentDocShellTopNav(home),
+		HeaderActions: b.componentDocShellSearch(),
 		Footer:        b.componentDocShellFooter(),
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   b.shellAssetPrefix,
@@ -622,7 +621,16 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 }
 
 func (b *builder) componentDocShellSearch() templ.Component {
-	return search.SearchField(b.componentDocShellSearchConfig())
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		if _, err := io.WriteString(writer, `<div class="margo-shell-search">`); err != nil {
+			return err
+		}
+		if err := search.SearchField(b.componentDocShellSearchConfig()).Render(ctx, writer); err != nil {
+			return err
+		}
+		_, err := io.WriteString(writer, `</div>`)
+		return err
+	})
 }
 
 func (b *builder) componentDocShellSearchConfig() search.Config {
@@ -636,6 +644,7 @@ func (b *builder) componentDocShellSearchConfig() search.Config {
 		MatchMode:      search.MatchModeFuzzy,
 		MaxResults:     8,
 		EmptyText:      "No matching pages.",
+		TriggerClass:   "margo-shell-search-trigger",
 	}
 }
 
@@ -778,17 +787,6 @@ func componentDocShellColorScheme(value string) componentdocshell.ColorScheme {
 	default:
 		return componentdocshell.ColorSchemeSystem
 	}
-}
-
-func (b *builder) componentDocShellTopNav(home Page) templ.Component {
-	cliHref := b.shellPageHref(home)
-	for _, page := range b.configPages {
-		if strings.HasPrefix(strings.ToLower(page.Title), "cli") {
-			cliHref = b.shellPageHref(page)
-			break
-		}
-	}
-	return templ.Raw(`<nav class="margo-shell-topnav" aria-label="Primary"><a href="` + stdhtml.EscapeString(b.shellPageHref(home)) + `">Overview</a><a href="` + stdhtml.EscapeString(cliHref) + `">CLI</a></nav>`)
 }
 
 func componentDocShellPageID(b *builder, page Page) string {

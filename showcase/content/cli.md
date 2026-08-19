@@ -1,6 +1,6 @@
 ---
 title: CLI workflows
-description: Drive the same module through a small command surface with explicit outputs.
+description: Build and preview outputs through a small command surface, including the development server and live reload.
 language: en
 margo:
   actions:
