@@ -26,11 +26,15 @@ capabilities: each page is a small, runnable-looking example of one feature.
 | Markdown compiler | A semantic document model | [Markdown](markdown.md) |
 | Standalone HTML | One portable HTML page | [HTML](html.md) |
 | Static sites | Linked pages plus a manifest | [Static sites](site.md) |
+| Development server | In-memory preview with live reload | [CLI workflows](cli.md#develop-with-live-reload) |
 | PDF documents | Print-ready PDF bytes | [PDF](pdf.md) |
 | Presentation decks | Experimental HTML/PDF projection | [Decks](decks.md) |
 | Charts | Static SVG, accessible data, optional interaction | [Charts](charts.md) |
 | Mermaid diagrams | Rendered flowcharts with a text fallback | [Mermaid](mermaid.md) |
 | Policy and diagnostics | Actionable validation | [Policy](policy.md) |
+
+Ready to write a site? Start with the
+[live-reload development workflow](cli.md#develop-with-live-reload).
 
 ## One source, several projections
 
@@ -40,6 +44,7 @@ treeView-beta
     check ## compatibility findings
     html ## standalone HTML
     site ## linked HTML pages
+    serve ## development preview and live reload
     pdf ## browser-backed PDF
     deck ## experimental deck projection
     mermaid ## rendered diagram plus source fallback
@@ -56,12 +61,14 @@ structure remains source text with a readable fallback.
 ```sh
 margo check guide.md
 margo html guide.md --output guide.html
+margo serve ./docs --open
 margo pdf guide.md --output guide.pdf
 ```
 
 For a larger publication, point `margo site` at a directory of Markdown files.
-For a programmatic integration, import the root module and choose the package
-that owns the projection you need.
+While writing, use `margo serve` for an in-memory preview with live reload; it
+is a development tool, not a production server. For a programmatic integration,
+import the root module and choose the package that owns the projection you need.
 
 > This is a feature tour, not the project's internal decision log. For source,
 > releases, and the complete public README, visit the

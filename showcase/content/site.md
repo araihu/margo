@@ -24,6 +24,23 @@ Use `--assets inline` when a page should carry its generated dependencies in
 the document. The output directory must be new; the site is staged and only
 published after the build succeeds.
 
+## Preview while writing
+
+`margo serve` is the development companion to the publication command. It can
+start from the same config or directly from a Markdown directory:
+
+```sh
+margo serve ./content
+margo serve ./showcase.yaml --open
+```
+
+The preview is served from an immutable in-memory snapshot. Margo recursively
+watches pages and local assets, serializes rebuilds, and signals the browser to
+reload only after a successful replacement. If a build fails, the last good
+snapshot remains available while the terminal shows the diagnostics.
+
+This server is a local development tool, not a production deployment target.
+
 ## What the builder verifies
 
 | Input concern | Site result |
