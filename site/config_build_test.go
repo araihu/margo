@@ -340,7 +340,7 @@ theme:
 	}
 }
 
-func TestBuildConfigInvalidSelectedProfileDoesNotEmitHTML(t *testing.T) {
+func TestBuildConfigLayoutPreflightInvalidSelectedProfileDoesNotEmitHTML(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nChoose a path.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "---\nmargo:\n  site:\n    layout: missing\n---\n# Module\n\nModule documentation.\n")
@@ -390,6 +390,60 @@ theme:
 	var diagnosticError *margo.DiagnosticError
 	if !errors.As(err, &diagnosticError) || len(diagnosticError.Diagnostics) != 1 || diagnosticError.Diagnostics[0].Code != "site.layout_unknown" {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestBuildConfigPresentationIdentityMatchesRoutes(t *testing.T) {
+	config := Config{
+		Version: 1, Source: "docs", Output: "dist", Assets: string(AssetsLocal),
+		Site:    SiteConfig{Name: "Margo", BaseURL: "https://margo.example", Home: "index.md"},
+		Locales: LocaleConfig{Default: "en", Supported: []string{"en"}},
+		Theme:   ThemeSelection{Name: "modern", ColorMode: "light"},
+		Layouts: LayoutProfiles{
+			Default: "docs",
+			Profiles: map[string]LayoutProfile{
+				"landing": {Frame: LayoutSelection{Builtin: "top-main-footer"}},
+				"docs":    {Frame: LayoutSelection{Builtin: "top-left-main-right-footer"}},
+			},
+		},
+		Navigation: NavigationConfig{Families: []FamilyConfig{
+			{ID: "tour", Label: "Tour", Source: ".", Overview: "index.md", Layout: "landing"},
+			{ID: "module", Label: "Module", Source: "module", Overview: "module/index.md", Layout: "docs"},
+		}},
+	}
+	presentations, err := prepareFramePresentations(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &builder{
+		request: Request{Compiler: margo.New()}, config: &config, sourceDir: t.TempDir(),
+		profileMode: true, presentations: presentations, configured: map[string]configuredPage{},
+	}
+	sources := []Source{
+		{Path: "index.md", Content: []byte("# Landing\n\nChoose a path.\n")},
+		{Path: "module/index.md", Content: []byte("# Module\n\nModule documentation.\n")},
+	}
+	if err := b.preflightConfigured(context.Background(), sources); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		family string
+		layout string
+	}{
+		"index.md":        {family: "tour", layout: "landing"},
+		"module/index.md": {family: "module", layout: "docs"},
+	}
+	for source, expected := range want {
+		prepared, ok := b.configured[source]
+		if !ok {
+			t.Fatalf("configured page %q missing", source)
+		}
+		if prepared.presentation.FamilyID != expected.family || prepared.presentation.LayoutName != expected.layout {
+			t.Fatalf("presentation %q = family %q layout %q, want family %q layout %q", source, prepared.presentation.FamilyID, prepared.presentation.LayoutName, expected.family, expected.layout)
+		}
+		if prepared.page.Family != prepared.presentation.FamilyID || prepared.page.Layout != prepared.presentation.LayoutName {
+			t.Fatalf("route %q = family %q layout %q, presentation = family %q layout %q", source, prepared.page.Family, prepared.page.Layout, prepared.presentation.FamilyID, prepared.presentation.LayoutName)
+		}
 	}
 }
 

@@ -468,6 +468,7 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 					"/layouts/profiles",
 				), source.Path)
 			}
+			presentation.FamilyID = family.ID
 			page.Family = family.ID
 			page.Layout = layout
 		}
