@@ -1856,6 +1856,40 @@ layout:
 	requirePresentationDiagnostic(t, err, "site.layout_value_invalid", "index.md", "/layout/values/sidebar")
 }
 
+func TestBuildConfigPreflightValidatesOrphanDirectoryPatchesDeterministically(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nPublic page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "z", "_layout.yaml"), "values:\n  zeta: true\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "a", "_layout.yaml"), "values:\n  alpha: true\n")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: docs\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err == nil {
+		t.Fatal("expected orphan layout patch diagnostic")
+	}
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatal("invalid orphan patch returned partial result")
+	}
+	requirePresentationDiagnostic(t, err, "site.layout_value_unknown", "a/_layout.yaml", "/values/alpha")
+}
+
+func TestBuildConfigPreflightValidatesOrphanPatchAgainstAncestorKind(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nPublic page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "orphan", "_layout.yaml"), "kind: landing\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "orphan", "nested", "_layout.yaml"), "values:\n  sidebar: false\n")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: docs\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err == nil {
+		t.Fatal("expected ancestor-kind layout patch diagnostic")
+	}
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatal("invalid orphan patch returned partial result")
+	}
+	requirePresentationDiagnostic(t, err, "site.layout_value_unknown", "orphan/nested/_layout.yaml", "/values/sidebar")
+}
+
 func TestBuildConfigLayoutCascadeIdentityIsDeterministic(t *testing.T) {
 	firstLayout := ResolvedLayout{Kind: LayoutDocs, Values: map[string]any{
 		"sidebar": true,

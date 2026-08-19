@@ -47,6 +47,13 @@ func TestFrontmatterLayoutPatchAcceptsKindOrValues(t *testing.T) {
 	}
 }
 
+func TestFrontmatterLayoutPatchRejectsExplicitEmptyKind(t *testing.T) {
+	_, err := layoutPatchFromMetadata(margo.Metadata{Additional: map[string]any{
+		"layout": map[string]any{"kind": ""},
+	}}, "guide.md")
+	requirePresentationDiagnostic(t, err, "site.layout_unknown", "guide.md", "/layout/kind")
+}
+
 func TestFrontmatterLayoutPatchRejectsInvalidShape(t *testing.T) {
 	tests := []struct {
 		name    string

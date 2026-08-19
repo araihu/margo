@@ -586,6 +586,9 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			return err
 		}
 		siteLayout = siteCascade.resolved()
+		if err := validateDirectoryLayoutPatches(siteCascade, b.layoutPatches); err != nil {
+			return err
+		}
 	}
 
 	for _, source := range sources {

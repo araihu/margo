@@ -43,6 +43,14 @@ func layoutPatchFromMetadata(metadata margo.Metadata, source string) (LayoutPatc
 			if !ok {
 				return LayoutPatch{}, invalidMarkdownLayoutPatch(source, pointer, "layout kind must be a string")
 			}
+			if kind == "" {
+				return LayoutPatch{}, presentationSourceDiagnostic(newPresentationDiagnostic(
+					"site.layout_unknown",
+					fmt.Sprintf("unknown layout kind %q", kind),
+					"Choose article, landing, or docs.",
+					pointer,
+				), source)
+			}
 			patch.Kind = LayoutKind(kind)
 		case "values":
 			layoutValues, ok := values[key].(map[string]any)
@@ -203,6 +211,22 @@ func layoutPatchChain(sourcePath string, patches []LayoutPatch) []LayoutPatch {
 		}
 	}
 	return chain
+}
+
+func validateDirectoryLayoutPatches(siteCascade layoutCascade, patches []LayoutPatch) error {
+	ordered := append([]LayoutPatch(nil), patches...)
+	sort.Slice(ordered, func(left, right int) bool { return ordered[left].Source < ordered[right].Source })
+	for _, target := range ordered {
+		cascade := siteCascade
+		for _, patch := range layoutPatchChain(target.Source, ordered) {
+			var err error
+			cascade, err = cascade.apply(patch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func splitLayoutPatchDirectory(directory string) []string {
