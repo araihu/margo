@@ -47,16 +47,17 @@ type BlockedRequest struct {
 }
 
 type RuntimeReport struct {
-	Protocol            string              `json:"protocol"`
-	DocumentFingerprint DocumentFingerprint `json:"documentFingerprint"`
-	RenderInstanceID    RenderInstanceID    `json:"renderInstanceID"`
-	ExecutionID         ExecutionID         `json:"executionID"`
-	Status              RuntimeStatus       `json:"status"`
-	Tasks               []RuntimeTaskReport `json:"tasks"`
-	FontChecks          []FontCheck         `json:"fontChecks"`
-	BlockedRequests     []BlockedRequest    `json:"blockedRequests"`
-	Layout              LayoutMetrics       `json:"layout"`
-	Diagnostic          *Diagnostic         `json:"diagnostic"`
+	Protocol            string                     `json:"protocol"`
+	DocumentFingerprint DocumentFingerprint        `json:"documentFingerprint"`
+	RenderInstanceID    RenderInstanceID           `json:"renderInstanceID"`
+	ExecutionID         ExecutionID                `json:"executionID"`
+	Status              RuntimeStatus              `json:"status"`
+	Tasks               []RuntimeTaskReport        `json:"tasks"`
+	FontChecks          []FontCheck                `json:"fontChecks"`
+	BlockedRequests     []BlockedRequest           `json:"blockedRequests"`
+	Layout              LayoutMetrics              `json:"layout"`
+	Diagnostic          *Diagnostic                `json:"diagnostic"`
+	ValidationIdentity  *RuntimeValidationIdentity `json:"validationIdentity,omitempty"`
 }
 
 func ParseRuntimeReport(data []byte) (RuntimeReport, error) {
@@ -100,6 +101,23 @@ func ValidateRuntimeReport(descriptor RuntimeDescriptor, executionID ExecutionID
 	}
 	if len(seen) != len(expected) {
 		return runtimeDiagnostic("runtime.task_missing", "runtime report omitted an expected task")
+	}
+	if descriptor.Protocol == RuntimeProtocolV2 {
+		if report.Status == RuntimeReady {
+			if report.ValidationIdentity == nil {
+				return runtimeDiagnostic("deck.validator_profile_mismatch", "ready v2 runtime report is missing observed validation identity")
+			}
+			if report.ValidationIdentity.BrowserProfile != descriptor.ValidationRequest.BrowserProfile {
+				return runtimeDiagnostic("deck.validator_profile_mismatch", "observed browser profile differs from the descriptor request")
+			}
+			if report.ValidationIdentity.FontBundleDigest != descriptor.ValidationRequest.ExpectedFontBundleDigest {
+				return runtimeDiagnostic("deck.font_bundle_mismatch", "observed font bundle differs from the descriptor lock")
+			}
+		} else if report.ValidationIdentity != nil && report.ValidationIdentity.BrowserProfile != descriptor.ValidationRequest.BrowserProfile {
+			return runtimeDiagnostic("deck.validator_profile_mismatch", "observed browser profile differs from the descriptor request")
+		}
+	} else if report.ValidationIdentity != nil {
+		return runtimeDiagnostic("runtime.report_malformed", "v1 runtime report cannot contain a validation identity")
 	}
 	return nil
 }
@@ -153,7 +171,7 @@ func CanonicalRuntimeProjection(report RuntimeReport) ([]byte, error) {
 	if report.Diagnostic != nil {
 		diagnosticCode = report.Diagnostic.Code
 	}
-	return canonicaljson.Marshal(map[string]any{
+	projection := map[string]any{
 		"blockedRequests":     blockedProjection,
 		"diagnosticCode":      diagnosticCode,
 		"documentFingerprint": report.DocumentFingerprint.String(),
@@ -166,11 +184,21 @@ func CanonicalRuntimeProjection(report RuntimeReport) ([]byte, error) {
 		"renderInstanceID": report.RenderInstanceID,
 		"status":           report.Status,
 		"tasks":            taskProjection,
-	})
+	}
+	if report.ValidationIdentity != nil {
+		projection["validationIdentity"] = map[string]any{
+			"browserProfile":   report.ValidationIdentity.BrowserProfile,
+			"engineName":       report.ValidationIdentity.EngineName,
+			"engineVersion":    report.ValidationIdentity.EngineVersion,
+			"fontBundleDigest": report.ValidationIdentity.FontBundleDigest,
+			"platformProfile":  report.ValidationIdentity.PlatformProfile,
+		}
+	}
+	return canonicaljson.Marshal(projection)
 }
 
 func validateRuntimeReportShape(report RuntimeReport) error {
-	if report.Protocol != RuntimeProtocolV1 || report.DocumentFingerprint == (DocumentFingerprint{}) || ValidateRenderInstanceID(report.RenderInstanceID) != nil || report.ExecutionID == "" {
+	if (report.Protocol != RuntimeProtocolV1 && report.Protocol != RuntimeProtocolV2) || report.DocumentFingerprint == (DocumentFingerprint{}) || ValidateRenderInstanceID(report.RenderInstanceID) != nil || report.ExecutionID == "" {
 		return runtimeDiagnostic("runtime.report_malformed", "runtime report identity is malformed")
 	}
 	if report.Status != RuntimeReady && report.Status != RuntimeFailed {
@@ -223,6 +251,17 @@ func validateRuntimeReportShape(report RuntimeReport) error {
 		}
 	} else if report.Diagnostic == nil || !validRuntimeDiagnosticCode(report.Diagnostic.Code) || report.Diagnostic.Severity != SeverityError {
 		return runtimeDiagnostic("runtime.report_malformed", "failed report lacks a stable terminal diagnostic")
+	}
+	if report.Protocol == RuntimeProtocolV2 {
+		if report.ValidationIdentity != nil {
+			if err := report.ValidationIdentity.Validate(); err != nil {
+				return err
+			}
+		} else if report.Status == RuntimeReady {
+			return runtimeDiagnostic("runtime.validation_identity_missing", "ready v2 runtime report requires an observed validation identity")
+		}
+	} else if report.ValidationIdentity != nil {
+		return runtimeDiagnostic("runtime.report_malformed", "v1 runtime report cannot contain a validation identity")
 	}
 	return nil
 }
@@ -352,6 +391,10 @@ func (s *runtimeState) fail(code string) error {
 
 func cloneRuntimeReportValue(value RuntimeReport) RuntimeReport {
 	clone := value
+	if value.ValidationIdentity != nil {
+		identity := *value.ValidationIdentity
+		clone.ValidationIdentity = &identity
+	}
 	if value.Tasks != nil {
 		clone.Tasks = append([]RuntimeTaskReport{}, value.Tasks...)
 	}

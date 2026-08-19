@@ -416,6 +416,15 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	})
 }
 
+// PrepareHTMLRenderResult relocates trusted chart extension scripts out of an
+// editorial fragment and into the result's dependency graph. Complete HTML
+// shells (standalone pages and presentation decks) can then place those
+// dependencies in their own lifecycle-controlled region without weakening the
+// fragment policy that rejects executable markup.
+func PrepareHTMLRenderResult(result *RenderResult) (*RenderResult, error) {
+	return relocateStandaloneChartScripts(result)
+}
+
 func relocateStandaloneChartScripts(result *RenderResult) (*RenderResult, error) {
 	if result == nil || result.Content() == nil {
 		return result, nil

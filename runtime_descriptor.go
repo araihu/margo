@@ -25,10 +25,11 @@ type RuntimeTask struct {
 }
 
 type RuntimeDescriptor struct {
-	Protocol            string              `json:"protocol"`
-	DocumentFingerprint DocumentFingerprint `json:"documentFingerprint"`
-	RenderInstanceID    RenderInstanceID    `json:"renderInstanceID"`
-	Tasks               []RuntimeTask       `json:"tasks"`
+	Protocol            string                    `json:"protocol"`
+	DocumentFingerprint DocumentFingerprint       `json:"documentFingerprint"`
+	RenderInstanceID    RenderInstanceID          `json:"renderInstanceID"`
+	Tasks               []RuntimeTask             `json:"tasks"`
+	ValidationRequest   *RuntimeValidationRequest `json:"validationRequest,omitempty"`
 }
 
 var (
@@ -65,8 +66,18 @@ func ValidateRenderInstanceID(value RenderInstanceID) error {
 }
 
 func ValidateRuntimeDescriptor(descriptor RuntimeDescriptor) error {
-	if descriptor.Protocol != RuntimeProtocolV1 {
+	if descriptor.Protocol != RuntimeProtocolV1 && descriptor.Protocol != RuntimeProtocolV2 {
 		return runtimeDiagnostic("runtime.protocol_invalid", "runtime protocol is not margo-runtime/v1")
+	}
+	if descriptor.Protocol == RuntimeProtocolV2 {
+		if descriptor.ValidationRequest == nil {
+			return runtimeDiagnostic("runtime.validation_request_missing", "v2 runtime descriptor requires a validation request")
+		}
+		if err := descriptor.ValidationRequest.Validate(); err != nil {
+			return err
+		}
+	} else if descriptor.ValidationRequest != nil {
+		return runtimeDiagnostic("runtime.descriptor_malformed", "v1 runtime descriptor cannot contain a validation request")
 	}
 	if descriptor.DocumentFingerprint == (DocumentFingerprint{}) {
 		return runtimeDiagnostic("runtime.document_fingerprint_invalid", "document fingerprint is zero")
@@ -266,6 +277,10 @@ func consumeRuntimeJSONValue(decoder *json.Decoder) error {
 
 func cloneRuntimeDescriptorValue(value RuntimeDescriptor) RuntimeDescriptor {
 	clone := value
+	if value.ValidationRequest != nil {
+		request := *value.ValidationRequest
+		clone.ValidationRequest = &request
+	}
 	clone.Tasks = make([]RuntimeTask, len(value.Tasks))
 	for index, task := range value.Tasks {
 		clone.Tasks[index] = task

@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"github.com/araihu/margo/deck"
 	"github.com/araihu/margo/pdf"
 	"github.com/spf13/cobra"
@@ -15,6 +19,8 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	output := outputOptions{Path: "-"}
 	engineOptions := engineFlags{Mode: "auto"}
 	pageOptions := pageFlags{Size: "A4", Orientation: "portrait"}
+	var slideOptions slideGeometryFlags
+	printChartData := false
 	diagnostics := string(diagnosticText)
 	var policyOptions policyFlags
 	command := &cobra.Command{
@@ -36,7 +42,7 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			artifact, err := renderDeckArtifact(command, deps, args[0], formatValue, engineOptions, pageOptions, policy)
+			artifact, err := renderDeckArtifact(command, deps, args[0], formatValue, engineOptions, pageOptions, slideOptions, printChartData, policy)
 			if err == nil {
 				_, err = publish(command.Context(), artifact, output, command.OutOrStdout())
 			}
@@ -49,15 +55,64 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVar(&formatValue, "format", "html", "deck format: html or pdf")
 	command.Flags().StringVarP(&output.Path, "output", "o", "-", "output path, or - for stdout")
 	command.Flags().BoolVarP(&output.Force, "force", "f", false, "replace an existing output file")
+	command.Flags().BoolVar(&printChartData, "print-chart-data", false, "print accessible exact-data tables after charts")
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
 	engineOptions.bind(command)
 	pageOptions.bind(command)
+	slideOptions.bind(command)
 	policyOptions.bind(command)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
 
-func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format string, engineOptions engineFlags, pageOptions pageFlags, policy *loadedPolicy) ([]byte, error) {
+type slideGeometryFlags struct {
+	Size   string
+	Width  float64
+	Height float64
+	Unit   string
+}
+
+func (options *slideGeometryFlags) bind(command *cobra.Command) {
+	command.Flags().StringVar(&options.Size, "slide-size", "", "deck slide size: 16:9, 4:3, or custom")
+	command.Flags().Float64Var(&options.Width, "slide-width", 0, "custom deck slide width")
+	command.Flags().Float64Var(&options.Height, "slide-height", 0, "custom deck slide height")
+	command.Flags().StringVar(&options.Unit, "slide-unit", "px", "custom deck slide unit: px, mm, cm, in, pt, pc, or Q")
+}
+
+func (options slideGeometryFlags) explicit(command *cobra.Command) bool {
+	return command.Flags().Changed("slide-size") || command.Flags().Changed("slide-width") || command.Flags().Changed("slide-height") || command.Flags().Changed("slide-unit")
+}
+
+func (options slideGeometryFlags) geometry(command *cobra.Command) (deck.DeckGeometry, bool, error) {
+	if !options.explicit(command) {
+		return deck.DeckGeometry{}, false, nil
+	}
+	size := strings.TrimSpace(options.Size)
+	if size == "16:9" || size == "4:3" {
+		if command.Flags().Changed("slide-width") || command.Flags().Changed("slide-height") || command.Flags().Changed("slide-unit") {
+			return deck.DeckGeometry{}, false, fmt.Errorf("cli.deck_geometry_conflict: preset slide size cannot include custom width, height, or unit")
+		}
+		geometry, err := deck.ParseDeckGeometry(size)
+		return geometry, true, err
+	}
+	if size != "" && size != "custom" {
+		return deck.DeckGeometry{}, false, fmt.Errorf("cli.deck_geometry_invalid: --slide-size must be 16:9, 4:3, or custom")
+	}
+	if size != "custom" {
+		return deck.DeckGeometry{}, false, fmt.Errorf("cli.deck_geometry_invalid: custom slide width and height require --slide-size custom")
+	}
+	if options.Width <= 0 || options.Height <= 0 {
+		return deck.DeckGeometry{}, false, fmt.Errorf("cli.deck_geometry_invalid: custom slide width and height are required")
+	}
+	if !command.Flags().Changed("slide-unit") {
+		return deck.DeckGeometry{}, false, fmt.Errorf("cli.deck_geometry_invalid: --slide-unit is required for custom slide geometry")
+	}
+	value := strconv.FormatFloat(options.Width, 'f', -1, 64) + "x" + strconv.FormatFloat(options.Height, 'f', -1, 64) + options.Unit
+	geometry, err := deck.ParseDeckGeometry(value)
+	return geometry, true, err
+}
+
+func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format string, engineOptions engineFlags, pageOptions pageFlags, slideOptions slideGeometryFlags, printChartData bool, policy *loadedPolicy) ([]byte, error) {
 	source, err := readInput(command.Context(), deps.SourceReader, deps.Stdin, input)
 	if err != nil {
 		return nil, err
@@ -70,13 +125,17 @@ func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format
 		}
 		baseURL = filepath.Dir(absolute)
 	}
-	compiler := compilerForPolicy(policy, policyTargetDeck)
+	compiler := compilerForPolicy(policy, policyTargetDeck, charts.WithPrintableAccessibleData(printChartData))
 	metadataDocument, err := compiler.Compile(command.Context(), source)
 	if err != nil {
 		return nil, err
 	}
+	geometry, geometryExplicit, err := slideOptions.geometry(command)
+	if err != nil {
+		return nil, err
+	}
 	result, err := deck.Render(command.Context(), compiler, deck.RenderInput{
-		Name: source.Name, Markdown: source.Content, BaseURL: baseURL,
+		Name: source.Name, Markdown: source.Content, BaseURL: baseURL, Geometry: geometry,
 	})
 	if err != nil {
 		return nil, err
@@ -104,5 +163,32 @@ func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format
 	if err != nil {
 		return nil, err
 	}
-	return exportPDFArtifact(command.Context(), deps, html, descriptor, executionID, pageConfig, engineOptions, pdfLinkConfig{Policy: pdf.RelativeLinksStrip})
+	legacyPageExplicit := command.Flags().Changed("page-size") || command.Flags().Changed("orientation")
+	if legacyPageExplicit {
+		legacyWidth, legacyHeight, err := pageConfigCSSGeometry(pageConfig)
+		if err != nil {
+			return nil, err
+		}
+		if math.Abs(legacyWidth-result.Geometry().Width) > 0.0001 || math.Abs(legacyHeight-result.Geometry().Height) > 0.0001 {
+			return nil, fmt.Errorf("cli.deck_geometry_conflict: legacy page geometry does not match the selected slide geometry")
+		}
+	}
+	if geometryExplicit || result.Geometry().Preset != "16:9" || metadataDocument.Metadata().Margo.Page == nil {
+		pageConfig, err = deckGeometryPageConfig(result.Geometry(), pageConfig.ImageOverflow)
+		if err != nil {
+			return nil, err
+		}
+	}
+	geometryForArtifact := result.Geometry()
+	return exportPDFArtifact(command.Context(), deps, html, descriptor, executionID, pageConfig, engineOptions, pdfLinkConfig{Policy: pdf.RelativeLinksStrip}, &geometryForArtifact)
+}
+
+func deckGeometryPageConfig(geometry deck.DeckGeometry, overflow pdf.ImageOverflowPolicy) (pdf.PageConfig, error) {
+	widthMM := pdf.Millimeters(geometry.Width * 25.4 / 96)
+	heightMM := pdf.Millimeters(geometry.Height * 25.4 / 96)
+	config := pdf.PageConfig{Custom: &pdf.CustomPageSize{WidthMM: widthMM, HeightMM: heightMM}, ImageOverflow: overflow}
+	if err := config.Validate(); err != nil {
+		return pdf.PageConfig{}, err
+	}
+	return config, nil
 }

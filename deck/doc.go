@@ -19,7 +19,12 @@
 // Result also reports the slide count, merged HTML requirements, document
 // fingerprint, and runtime descriptor needed by later projections. Theme and
 // color-mode defaults are Margo's modern theme and light mode.
+// Detect inspects only opening frontmatter and returns true for `marp: true`,
+// allowing a host to route a source into this package without changing the
+// root compiler's ordinary Markdown behavior.
 //
-// Deck projection is experimental. Hosts should not treat its current slide or
-// publication behavior as a stable pre-v1 contract.
+// The implementation follows the versioned Margo Marpit-compatible v0.0.1
+// profile. It intentionally does not claim universal Marpit or Marp Core
+// compatibility: only the built-in themes, directives, layouts, and extension
+// contracts documented by this profile are accepted.
 package deck

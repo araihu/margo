@@ -10,6 +10,7 @@ import (
 	"time"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/deck"
 	"github.com/araihu/margo/pdf"
 )
 
@@ -301,6 +302,46 @@ func TestExportExecutesMermaidRuntimeTaskWithInstalledChromium(t *testing.T) {
 	}
 	if len(result.Runtime.Tasks) != 1 || result.Runtime.Tasks[0].OutputBytes < 100 || result.Runtime.Tasks[0].OutputSHA256 == "" {
 		t.Fatalf("runtime tasks = %+v", result.Runtime.Tasks)
+	}
+}
+
+func TestExportDeckReportsObservedFontBundle(t *testing.T) {
+	path := installedChromium()
+	if path == "" {
+		t.Skip("no installed Chromium-family browser")
+	}
+	result, err := deck.Render(context.Background(), margo.New(), deck.RenderInput{
+		Name:     "font-check.md",
+		Markdown: []byte("---\nlang: en\n---\n# Font check\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor, err := result.RuntimeDescriptor("ri-00000042")
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine, err := New(Config{ExecutablePath: path, Timeout: 20 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := engine.Export(context.Background(), pdf.Request{
+		HTML:        result.HTML(),
+		Runtime:     descriptor,
+		ExecutionID: "chromium-font-e2e",
+		Page: pdf.PageConfig{Custom: &pdf.CustomPageSize{
+			WidthMM:  pdf.Millimeters(338.6666667),
+			HeightMM: pdf.Millimeters(190.5),
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Runtime.FontChecks) != 6 {
+		t.Fatalf("font checks = %#v", report.Runtime.FontChecks)
+	}
+	if report.Runtime.ValidationIdentity == nil || report.Runtime.ValidationIdentity.FontBundleDigest != descriptor.ValidationRequest.ExpectedFontBundleDigest {
+		t.Fatalf("validation identity = %#v want digest %q", report.Runtime.ValidationIdentity, descriptor.ValidationRequest.ExpectedFontBundleDigest)
 	}
 }
 

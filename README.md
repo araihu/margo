@@ -5,7 +5,7 @@
 </p>
 
 Margo turns Markdown into standalone HTML, linked static sites, PDF documents,
-and experimental presentation decks. Use one `margo` command from a terminal
+and versioned Margo Marpit-compatible presentation decks. Use one `margo` command from a terminal
 or the root Go module from an application. Applications retain ownership of
 URLs, navigation, storage, and deployment.
 
@@ -349,14 +349,36 @@ it to `0` for full bleed on that edge.
 [--engine auto|chromium|native] [--engine-path PATH] [--page-size A4|Letter]
 [--orientation portrait|landscape] [--margin-top MM] [--margin-right MM]
 [--margin-bottom MM] [--margin-left MM] [--image-overflow limit|allow]
-[--policy FILE]
-[--diagnostics text|json]` renders an experimental presentation deck. Deck
-projection remains work in progress.
+[--slide-size 16:9|4:3|custom] [--slide-width N --slide-height N]
+[--slide-unit px|mm|cm|in|pt|pc|Q] [--print-chart-data] [--policy FILE]
+[--diagnostics text|json]` renders the versioned Margo
+Marpit-compatible v0.0.1 deck profile.
 
 Its defaults are HTML to stdout, `--engine auto`, A4, portrait, and zero
 margins. PDF decks require `--format pdf` and an explicit output path or `-`.
 PDF deck links use the same default `strip` policy as `margo pdf`.
 `--image-overflow limit` is the default for PDF decks.
+Deck PDF validation requires an installed Chromium-compatible engine; selecting
+`--engine native` fails with `cli.deck_validator_unavailable` instead of
+claiming visual validation.
+
+Deck authoring accepts YAML frontmatter, top-level CommonMark thematic breaks,
+heading-divider pagination, local/spot directives, presenter-note comments,
+the built-in `modern`, `goshtoso`, and `minimal` themes, and the closed
+`columns`, `sidebar`, `compare`, `metrics`, `timeline`, and `demo` layout
+catalog. Mermaid, tables, code, images, and supported Goshtoso charts keep the
+same accessible extension projections used by the other Margo targets. Layout
+classes and slot names are validated before rendering; arbitrary HTML/CSS,
+remote backgrounds, custom Marpit themes, and unregistered extension ID
+allocators are rejected with diagnostics.
+
+`--slide-size 16:9` selects a 1280x720 logical canvas and `--slide-size 4:3`
+selects 960x720. For custom geometry, pass positive dimensions with
+`--slide-width`, `--slide-height`, and `--slide-unit`; slide geometry cannot be
+combined with the legacy document `--page-size` or `--orientation` flags.
+HTML uses a responsive visual stage while retaining logical coordinates. PDF
+decks compare every page MediaBox edge and page count against the selected
+canvas before publication.
 
 ### Doctor, version, and completion
 

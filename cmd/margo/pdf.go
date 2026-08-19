@@ -8,6 +8,7 @@ import (
 
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/charts"
+	"github.com/araihu/margo/deck"
 	"github.com/araihu/margo/pdf"
 	"github.com/spf13/cobra"
 )
@@ -129,7 +130,7 @@ func renderPDF(command *cobra.Command, deps Dependencies, input string, engineOp
 	if err != nil {
 		return nil, err
 	}
-	return exportPDFArtifact(command.Context(), deps, compiled.HTML, descriptor, executionID, pageConfig, engineOptions, linkConfig)
+	return exportPDFArtifact(command.Context(), deps, compiled.HTML, descriptor, executionID, pageConfig, engineOptions, linkConfig, nil)
 }
 
 func (options *pdfLinkFlags) bind(command *cobra.Command) {
@@ -212,13 +213,17 @@ func (options pageFlags) config(command *cobra.Command, metadata margo.Metadata)
 	return config, nil
 }
 
-func exportPDFArtifact(ctx context.Context, deps Dependencies, html []byte, descriptor margo.RuntimeDescriptor, executionID margo.ExecutionID, pageConfig pdf.PageConfig, engineOptions engineFlags, linkConfig pdfLinkConfig) ([]byte, error) {
+func exportPDFArtifact(ctx context.Context, deps Dependencies, html []byte, descriptor margo.RuntimeDescriptor, executionID margo.ExecutionID, pageConfig pdf.PageConfig, engineOptions engineFlags, linkConfig pdfLinkConfig, expectedDeckGeometry *deck.DeckGeometry) ([]byte, error) {
 	engine, _, err := selectEngine(ctx, deps.EngineProbe, engineOptions)
 	if err != nil {
 		return nil, err
 	}
+	if expectedDeckGeometry != nil && engine.Name() == "native" {
+		return nil, fmt.Errorf("cli.deck_validator_unavailable: deck mode requires a Chromium-compatible validator")
+	}
+	requestDescriptor := descriptor
 	result, err := engine.Export(ctx, pdf.Request{
-		HTML: html, Runtime: descriptor, ExecutionID: executionID, Page: pageConfig,
+		HTML: html, Runtime: requestDescriptor, ExecutionID: executionID, Page: pageConfig,
 		RelativeLinks: linkConfig.Policy, BaseURL: linkConfig.BaseURL,
 	})
 	if err != nil {
@@ -227,11 +232,46 @@ func exportPDFArtifact(ctx context.Context, deps Dependencies, html []byte, desc
 	if !bytes.HasPrefix(result.PDF, []byte("%PDF-")) {
 		return nil, fmt.Errorf("pdf.output_invalid: selected engine returned invalid PDF bytes")
 	}
-	if err := margo.ValidateRuntimeReport(descriptor, executionID, result.Runtime); err != nil {
+	if err := margo.ValidateRuntimeReport(requestDescriptor, executionID, result.Runtime); err != nil {
 		return nil, fmt.Errorf("pdf.runtime_report_invalid: %w", err)
 	}
 	if err := result.Engine.Validate(); err != nil {
 		return nil, err
 	}
+	if descriptor.Protocol == margo.RuntimeProtocolV2 && engine.Name() == "chromium" && expectedDeckGeometry != nil {
+		widthCSS, heightCSS, err := pageConfigCSSGeometry(pageConfig)
+		if err != nil {
+			return nil, err
+		}
+		boxes, err := deck.ParsePDFMediaBoxes(result.PDF)
+		if err != nil {
+			return nil, err
+		}
+		slideCount := bytes.Count(html, []byte(`data-margo-slide="`))
+		report, err := deck.BuildPDFArtifactReport(widthCSS, heightCSS, slideCount, boxes)
+		if err != nil {
+			return nil, err
+		}
+		if !report.Valid {
+			return nil, fmt.Errorf("deck.pdf_media_box_mismatch: PDF media boxes do not match the deck geometry (expected=%gx%g cssPx boxes=%v)", widthCSS, heightCSS, report.MediaBoxesMicrometers)
+		}
+	}
 	return append([]byte(nil), result.PDF...), nil
+}
+
+func pageConfigCSSGeometry(config pdf.PageConfig) (float64, float64, error) {
+	if err := config.Validate(); err != nil {
+		return 0, 0, err
+	}
+	if config.Custom != nil {
+		return float64(config.Custom.WidthMM) * 96 / 25.4, float64(config.Custom.HeightMM) * 96 / 25.4, nil
+	}
+	widthMM, heightMM := 210.0, 297.0
+	if config.Size == pdf.PageLetter {
+		widthMM, heightMM = 215.9, 279.4
+	}
+	if config.Orientation == pdf.Landscape {
+		widthMM, heightMM = heightMM, widthMM
+	}
+	return widthMM * 96 / 25.4, heightMM * 96 / 25.4, nil
 }

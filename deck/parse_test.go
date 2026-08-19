@@ -65,6 +65,20 @@ func TestParseRejectsInvalidFrontmatterAndUnclosedFence(t *testing.T) {
 	}
 }
 
+func TestDeckActivationDetectionAndConflict(t *testing.T) {
+	active, err := Detect("active.md", []byte("---\nmarp: true\n---\n# One\n"))
+	if err != nil || !active {
+		t.Fatalf("active = %v err = %v", active, err)
+	}
+	inactive, err := Detect("inactive.md", []byte("---\nmarp: false\n---\n# One\n"))
+	if err != nil || inactive {
+		t.Fatalf("inactive = %v err = %v", inactive, err)
+	}
+	if _, err := Parse("contradictory.md", []byte("---\nmarp: false\n---\n# One\n")); deckDiagnosticCode(err) != "deck.activation_conflict" {
+		t.Fatalf("conflict error = %v", err)
+	}
+}
+
 func TestDocumentAndSlidesReturnDefensiveCopies(t *testing.T) {
 	doc, err := Parse("copy.md", []byte("# One\n---\n# Two\n"))
 	if err != nil {

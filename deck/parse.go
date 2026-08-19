@@ -18,20 +18,42 @@ type fenceState struct {
 func Parse(name string, source []byte) (*Document, error) {
 	snapshot := append([]byte(nil), source...)
 	lines := bytes.SplitAfter(snapshot, []byte("\n"))
-	metadata, bodyStart, err := parseMetadata(name, lines)
+	metadata, directives, bodyStart, err := parseMetadata(name, lines)
 	if err != nil {
 		return nil, err
 	}
-	slides, err := parseSlides(name, lines[bodyStart:], bodyStart+1)
+	if metadata.Marp != nil && !*metadata.Marp {
+		return nil, deckError("deck.activation_conflict", name, 1, "marp: false contradicts explicit deck parsing")
+	}
+	if err := scanGlobalDirectives(name, lines[bodyStart:], bodyStart+1, &directives); err != nil {
+		return nil, err
+	}
+	slides, err := parseSlides(name, lines[bodyStart:], bodyStart+1, directives)
 	if err != nil {
 		return nil, err
 	}
-	return &Document{name: name, metadata: metadata, slides: slides}, nil
+	if err := validateDeckReferences(name, slides); err != nil {
+		return nil, err
+	}
+	return &Document{name: name, metadata: metadata, directives: directives, slides: slides}, nil
 }
 
-func parseMetadata(name string, lines [][]byte) (Metadata, int, error) {
+// Detect reports whether opening frontmatter explicitly opts into deck
+// routing with `marp: true`. It does not parse or render the document body.
+func Detect(name string, source []byte) (bool, error) {
+	snapshot := append([]byte(nil), source...)
+	lines := bytes.SplitAfter(snapshot, []byte("\n"))
+	metadata, _, _, err := parseMetadata(name, lines)
+	if err != nil {
+		return false, err
+	}
+	return metadata.Marp != nil && *metadata.Marp, nil
+}
+
+func parseMetadata(name string, lines [][]byte) (Metadata, DirectiveState, int, error) {
+	directives := defaultDirectiveState()
 	if len(lines) == 0 || lineContent(lines[0]) != "---" {
-		return Metadata{}, 0, nil
+		return Metadata{}, directives, 0, nil
 	}
 	closeIndex := -1
 	for index := 1; index < len(lines); index++ {
@@ -41,26 +63,58 @@ func parseMetadata(name string, lines [][]byte) (Metadata, int, error) {
 		}
 	}
 	if closeIndex < 0 {
-		return Metadata{}, 0, deckError("deck.frontmatter_invalid", name, 1, "opening frontmatter is not closed")
+		return Metadata{}, directives, 0, deckError("deck.frontmatter_invalid", name, 1, "opening frontmatter is not closed")
 	}
 	encoded := bytes.Join(lines[1:closeIndex], nil)
 	var node yaml.Node
 	if err := yaml.Unmarshal(encoded, &node); err != nil {
-		return Metadata{}, 0, deckError("deck.frontmatter_invalid", name, 1, err.Error())
+		return Metadata{}, directives, 0, deckError("deck.frontmatter_invalid", name, 1, err.Error())
 	}
 	if len(node.Content) > 0 && node.Content[0].Kind != yaml.MappingNode {
-		return Metadata{}, 0, deckError("deck.frontmatter_invalid", name, 1, "frontmatter must be a mapping")
+		return Metadata{}, directives, 0, deckError("deck.frontmatter_invalid", name, 1, "frontmatter must be a mapping")
 	}
 	var metadata Metadata
 	if err := yaml.Unmarshal(encoded, &metadata); err != nil {
-		return Metadata{}, 0, deckError("deck.frontmatter_invalid", name, 1, err.Error())
+		return Metadata{}, directives, 0, deckError("deck.frontmatter_invalid", name, 1, err.Error())
 	}
-	return metadata, closeIndex + 1, nil
+	if len(node.Content) > 0 {
+		mapping := node.Content[0]
+		for index := 0; index+1 < len(mapping.Content); index += 2 {
+			key := mapping.Content[index].Value
+			if key == "title" || key == "description" {
+				continue
+			}
+			if key == "marp" {
+				value := mapping.Content[index+1]
+				if value.Kind != yaml.ScalarNode || value.Tag != "!!bool" {
+					return Metadata{}, directives, 0, deckError("deck.frontmatter_invalid", name, 1, "marp must be boolean")
+				}
+				active := value.Value == "true"
+				metadata.Marp = &active
+				continue
+			}
+			if strings.HasPrefix(key, "$") {
+				return Metadata{}, directives, 0, deckError("deck.directive_invalid", name, 1, "legacy $ directives are not supported; use the unprefixed form")
+			}
+			if _, ok := globalDirectiveNames[key]; !ok {
+				// Existing Margo frontmatter namespaces (for example margo.page)
+				// remain host metadata. Deck-owned keys are validated below while
+				// unrelated frontmatter is preserved for the CLI projection.
+				continue
+			}
+			event := directiveEvent{name: key, node: mapping.Content[index+1], line: 1}
+			if err := validateDirectiveNode(name, 1, key, event.node); err != nil {
+				return Metadata{}, directives, 0, err
+			}
+			if err := applyDirectiveEvent(&directives, event); err != nil {
+				return Metadata{}, directives, 0, err
+			}
+		}
+	}
+	return metadata, directives, closeIndex + 1, nil
 }
 
-func parseSlides(name string, lines [][]byte, firstLine int) ([]Slide, error) {
-	var slides []Slide
-	var current bytes.Buffer
+func scanGlobalDirectives(name string, lines [][]byte, firstLine int, directives *DirectiveState) error {
 	var fence *fenceState
 	for index, line := range lines {
 		lineNumber := firstLine + index
@@ -68,41 +122,305 @@ func parseSlides(name string, lines [][]byte, firstLine int) ([]Slide, error) {
 			if closesFence(line, *fence) {
 				fence = nil
 			}
-			_, _ = current.Write(line)
 			continue
 		}
 		if marker, length, ok := opensFence(line); ok {
 			fence = &fenceState{marker: marker, length: length, line: lineNumber}
-			_, _ = current.Write(line)
 			continue
 		}
-		if lineContent(line) == "---" {
+		comment, ok := htmlComment(line)
+		if !ok {
+			continue
+		}
+		kind, events, _, err := parseDirectiveComment(name, lineNumber, comment)
+		if err != nil {
+			return err
+		}
+		if kind != directiveCommentMapping {
+			continue
+		}
+		for _, event := range events {
+			if _, global := globalDirectiveNames[event.name]; !global {
+				continue
+			}
+			if event.spot {
+				return deckError("deck.directive_invalid", name, event.line, "global directives cannot use the spot prefix")
+			}
+			if err := applyDirectiveEvent(directives, event); err != nil {
+				return err
+			}
+		}
+	}
+	if fence != nil {
+		return deckError("deck.fence_unclosed", name, fence.line, "fenced code block is not closed")
+	}
+	return nil
+}
+
+func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveState) ([]Slide, error) {
+	var slides []Slide
+	builder := newLayoutBuilder()
+	inherited := cloneDirectiveState(global)
+	var spot []directiveEvent
+	var notes []string
+	var fence *fenceState
+	previousLine := ""
+	for index, line := range lines {
+		lineNumber := firstLine + index
+		if fence != nil {
+			builder.write(line)
+			if closesFence(line, *fence) {
+				fence = nil
+			}
+			previousLine = lineContent(line)
+			continue
+		}
+		if marker, length, ok := opensFence(line); ok {
+			fence = &fenceState{marker: marker, length: length, line: lineNumber}
+			builder.write(line)
+			previousLine = lineContent(line)
+			continue
+		}
+		if marker, handled, markerErr := parseStructuralComment(line); handled {
+			if markerErr != nil {
+				return nil, deckError("deck.layout_invalid", name, lineNumber, markerErr.Error())
+			}
 			var err error
-			slides, err = appendSlide(slides, current.Bytes(), name, lineNumber)
+			switch marker.kind {
+			case "layout":
+				if !validLayoutClass(marker.value) || !isStructuralClass(marker.value) {
+					return nil, deckError("deck.layout_invalid", name, lineNumber, "layout marker names an unknown structural class")
+				}
+				err = builder.start(marker.value, lineNumber)
+			case "slot":
+				err = builder.slot(marker.value, lineNumber)
+			case "end":
+				err = builder.end()
+			}
+			if err != nil {
+				code := "deck.layout_invalid"
+				if marker.kind == "slot" && (strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "empty")) {
+					code = "deck.slot_invalid"
+				}
+				return nil, deckError(code, name, lineNumber, err.Error())
+			}
+			previousLine = lineContent(line)
+			continue
+		}
+		if comment, ok := htmlComment(line); ok {
+			kind, events, note, err := parseDirectiveComment(name, lineNumber, comment)
 			if err != nil {
 				return nil, err
 			}
-			current.Reset()
+			switch kind {
+			case directiveCommentNote:
+				if note != "" {
+					notes = append(notes, note)
+				}
+			case directiveCommentMapping:
+				for _, event := range events {
+					if _, global := globalDirectiveNames[event.name]; global {
+						continue
+					}
+					if event.spot {
+						spot = append(spot, event)
+						continue
+					}
+					if err := applyDirectiveEvent(&inherited, event); err != nil {
+						return nil, err
+					}
+				}
+			}
+			previousLine = lineContent(line)
 			continue
 		}
-		_, _ = current.Write(line)
+		if shouldSplitHeading(line, global.HeadingDivider) && hasLayoutContent(builder) {
+			var err error
+			slides, err = appendScannedSlide(slides, builder, name, lineNumber, global, inherited, spot, notes)
+			if err != nil {
+				return nil, err
+			}
+			builder = newLayoutBuilder()
+			spot = nil
+			notes = nil
+			previousLine = ""
+		}
+		if isThematicBreak(line) && !isSetextUnderline(previousLine, line) {
+			var err error
+			slides, err = appendScannedSlide(slides, builder, name, lineNumber, global, inherited, spot, notes)
+			if err != nil {
+				return nil, err
+			}
+			builder = newLayoutBuilder()
+			spot = nil
+			notes = nil
+			previousLine = ""
+			continue
+		}
+		builder.write(line)
+		previousLine = lineContent(line)
 	}
 	if fence != nil {
 		return nil, deckError("deck.fence_unclosed", name, fence.line, "fenced code block is not closed")
 	}
-	return appendSlide(slides, current.Bytes(), name, firstLine+len(lines))
+	return appendScannedSlide(slides, builder, name, firstLine+len(lines), global, inherited, spot, notes)
 }
 
-func appendSlide(slides []Slide, markdown []byte, name string, line int) ([]Slide, error) {
-	if len(bytes.TrimSpace(markdown)) == 0 {
+func appendScannedSlide(slides []Slide, builder *layoutBuilder, name string, line int, global, inherited DirectiveState, spot []directiveEvent, notes []string) ([]Slide, error) {
+	classes := append([]string(nil), inherited.Classes...)
+	for _, event := range spot {
+		if event.name != "class" {
+			continue
+		}
+		values, _ := directiveStringList(event.node)
+		if len(values) == 0 || len(values) == 1 && values[0] == "none" {
+			classes = nil
+		} else {
+			classes = append([]string(nil), values...)
+		}
+	}
+	layout, markdown, err := builder.finish(name, line, classes)
+	if err != nil {
+		return nil, err
+	}
+	state, err := effectiveState(global, inherited, spot)
+	if err != nil {
+		return nil, err
+	}
+	if state.Background.Source != "" && !state.Background.Decorative && strings.TrimSpace(state.Background.Alt) == "" {
+		return nil, deckError("deck.background_alt_required", name, line, "non-decorative local backgrounds require backgroundAlt")
+	}
+	foreground, background := state.Color, state.BackgroundColor
+	if foreground == "" {
+		foreground = "ink"
+	}
+	if background == "" || background == "transparent" {
+		background = "surface"
+	}
+	if err := ValidateThemeColorPair(state.Theme, state.ColorMode, foreground, background); err != nil {
+		return nil, deckError("deck.contrast_invalid", name, line, err.Error())
+	}
+	if len(bytes.TrimSpace(markdown)) == 0 && layout == nil {
 		return nil, deckError("deck.slide_empty", name, line, "slides must contain Markdown content")
 	}
 	ordinal := len(slides) + 1
 	return append(slides, Slide{
-		ordinal:  ordinal,
-		id:       fmt.Sprintf("slide-%04d", ordinal),
-		markdown: append([]byte(nil), markdown...),
+		ordinal:    ordinal,
+		id:         fmt.Sprintf("slide-%04d", ordinal),
+		markdown:   append([]byte(nil), markdown...),
+		directives: state,
+		notes:      append([]string(nil), notes...),
+		layout:     cloneLayout(layout),
 	}), nil
+}
+
+func htmlComment(line []byte) (string, bool) {
+	trimmed := strings.TrimSpace(lineContent(line))
+	if !strings.HasPrefix(trimmed, "<!--") || !strings.HasSuffix(trimmed, "-->") {
+		return "", false
+	}
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "<!--"), "-->")), true
+}
+
+func hasLayoutContent(builder *layoutBuilder) bool {
+	if builder == nil {
+		return false
+	}
+	if len(bytes.TrimSpace(builder.content.Bytes())) > 0 || len(bytes.TrimSpace(builder.current.Bytes())) > 0 {
+		return true
+	}
+	return len(builder.slots) > 0 || builder.started
+}
+
+func shouldSplitHeading(line []byte, divider HeadingDivider) bool {
+	level, ok := headingLevel(line)
+	if !ok {
+		return false
+	}
+	if divider.Scalar > 0 {
+		return level <= divider.Scalar
+	}
+	for _, candidate := range divider.Levels {
+		if level == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func headingLevel(line []byte) (int, bool) {
+	content := lineContent(line)
+	indent := 0
+	for indent < len(content) && indent < 4 && content[indent] == ' ' {
+		indent++
+	}
+	if indent > 3 || indent == len(content) {
+		return 0, false
+	}
+	index := indent
+	for index < len(content) && content[index] == '#' {
+		index++
+	}
+	level := index - indent
+	if level < 1 || level > 6 {
+		return 0, false
+	}
+	if index < len(content) && content[index] != ' ' && content[index] != '\t' {
+		return 0, false
+	}
+	return level, true
+}
+
+func isThematicBreak(line []byte) bool {
+	content := lineContent(line)
+	indent := 0
+	for indent < len(content) && content[indent] == ' ' {
+		indent++
+	}
+	if indent > 3 || indent == len(content) {
+		return false
+	}
+	if content[indent] == '>' || content[indent] == '+' || content[indent] >= '0' && content[indent] <= '9' {
+		return false
+	}
+	marker := content[indent]
+	if marker != '-' && marker != '_' && marker != '*' {
+		return false
+	}
+	count := 0
+	for _, character := range content[indent:] {
+		switch character {
+		case rune(marker):
+			count++
+		case ' ', '\t':
+		default:
+			return false
+		}
+	}
+	return count >= 3
+}
+
+func isSetextUnderline(previous string, line []byte) bool {
+	previous = strings.TrimSpace(previous)
+	if previous == "" || strings.HasPrefix(previous, "#") || strings.HasPrefix(previous, ">") {
+		return false
+	}
+	if strings.HasPrefix(previous, "```") || strings.HasPrefix(previous, "~~~") {
+		return false
+	}
+	if strings.HasPrefix(previous, "-") || strings.HasPrefix(previous, "*") || strings.HasPrefix(previous, "+") || strings.HasPrefix(previous, "[") {
+		return false
+	}
+	content := strings.TrimSpace(lineContent(line))
+	if content == "" {
+		return false
+	}
+	for _, character := range content {
+		if character != '-' && character != ' ' && character != '\t' {
+			return false
+		}
+	}
+	return strings.Count(content, "-") >= 3
 }
 
 func lineContent(line []byte) string {
