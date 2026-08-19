@@ -288,10 +288,11 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	if err != nil || !info.IsDir() {
 		return Result{}, diagnostic("site.source_unreadable", fmt.Sprintf("source directory %q is unavailable", config.Source), "Create the configured source directory.", absoluteConfig)
 	}
-	sources, err := discoverConfiguredSources(ctx, sourceDir, config.Navigation.Exclude)
+	inputs, err := discoverConfiguredInputs(ctx, sourceDir, config.Navigation.Exclude)
 	if err != nil {
 		return Result{}, err
 	}
+	sources := inputs.Sources
 	if len(sources) == 0 {
 		return Result{}, diagnostic("site.sources_empty", "configured source directory contains no public Markdown files", "Add a Markdown document or change navigation.exclude.", config.Source)
 	}
@@ -424,7 +425,16 @@ func requestToSiteRequest(request ConfigRequest, sourceDir string, sources []Sou
 }
 
 func discoverConfiguredSources(ctx context.Context, root string, excludes []string) ([]Source, error) {
-	paths := make([]string, 0)
+	inputs, err := discoverConfiguredInputs(ctx, root, excludes)
+	if err != nil {
+		return nil, err
+	}
+	return inputs.Sources, nil
+}
+
+func discoverConfiguredInputs(ctx context.Context, root string, excludes []string) (configuredInputs, error) {
+	sourcePaths := make([]string, 0)
+	patchPaths := make([]string, 0)
 	err := filepath.WalkDir(root, func(name string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -432,23 +442,34 @@ func discoverConfiguredSources(ctx context.Context, root string, excludes []stri
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			if entry.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
 		if entry.IsDir() {
 			return nil
-		}
-		if !entry.Type().IsRegular() {
-			return fmt.Errorf("site.source_invalid: %s is not a regular file", name)
 		}
 		relative, err := filepath.Rel(root, name)
 		if err != nil {
 			return err
 		}
-		relative = filepath.ToSlash(relative)
+		relative = norm.NFC.String(filepath.ToSlash(relative))
+		layoutPatch := entry.Name() == directoryLayoutPatchName
+		if entry.Type()&os.ModeSymlink != 0 {
+			if layoutPatch {
+				return invalidDirectoryLayoutPatch(relative, "", "layout patch must be a regular file, not a symlink")
+			}
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			if layoutPatch {
+				return invalidDirectoryLayoutPatch(relative, "", "layout patch must be a regular file")
+			}
+			return fmt.Errorf("site.source_invalid: %s is not a regular file", name)
+		}
+		if layoutPatch {
+			patchPaths = append(patchPaths, relative)
+			return nil
+		}
 		if !isMarkdownPath(relative) || pathExcluded(relative, excludes) {
 			return nil
 		}
@@ -459,22 +480,37 @@ func discoverConfiguredSources(ctx context.Context, root string, excludes []stri
 		if info.Size() > margo.MaxDocumentBytes {
 			return fmt.Errorf("site.input_too_large: %s exceeds %d bytes", relative, margo.MaxDocumentBytes)
 		}
-		paths = append(paths, norm.NFC.String(relative))
+		sourcePaths = append(sourcePaths, relative)
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("site.source_unreadable: %w", err)
+		return configuredInputs{}, fmt.Errorf("site.source_unreadable: %w", err)
 	}
-	sort.Strings(paths)
-	sources := make([]Source, 0, len(paths))
-	for _, relative := range paths {
+	sort.Strings(sourcePaths)
+	sort.Strings(patchPaths)
+	inputs := configuredInputs{
+		Sources: make([]Source, 0, len(sourcePaths)),
+		Patches: make([]LayoutPatch, 0, len(patchPaths)),
+	}
+	for _, relative := range sourcePaths {
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 		if err != nil {
-			return nil, fmt.Errorf("site.input_read: %s: %w", relative, err)
+			return configuredInputs{}, fmt.Errorf("site.input_read: %s: %w", relative, err)
 		}
-		sources = append(sources, Source{Path: relative, Content: data})
+		inputs.Sources = append(inputs.Sources, Source{Path: relative, Content: data})
 	}
-	return sources, nil
+	for _, relative := range patchPaths {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			return configuredInputs{}, fmt.Errorf("site.input_read: %s: %w", relative, err)
+		}
+		patch, err := decodeDirectoryLayoutPatch(relative, data)
+		if err != nil {
+			return configuredInputs{}, err
+		}
+		inputs.Patches = append(inputs.Patches, patch)
+	}
+	return inputs, nil
 }
 
 func pathExcluded(value string, patterns []string) bool {
