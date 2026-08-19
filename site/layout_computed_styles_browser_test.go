@@ -13,7 +13,7 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-func TestProfileDocsFrameResponsiveComputedStyles(t *testing.T) {
+func TestLayoutDocsFrameResponsiveComputedStyles(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
 		t.Skip("installed Chromium-family browser unavailable")

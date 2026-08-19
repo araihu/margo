@@ -20,13 +20,13 @@ import (
 	"github.com/chromedp/chromedp/kb"
 )
 
-func TestLayoutProfileBrowser(t *testing.T) {
+func TestLayoutBrowser(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
-		t.Fatal("layout profile browser acceptance requires an installed Chromium-family browser")
+		t.Fatal("layout browser acceptance requires an installed Chromium-family browser")
 	}
 
-	server := layoutProfileBrowserServer(t)
+	server := layoutBrowserServer(t)
 	defer server.Close()
 	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
 	defer cancelAllocator()
@@ -71,15 +71,16 @@ func TestLayoutProfileBrowser(t *testing.T) {
 		name        string
 		layout      string
 		family      string
+		heading     string
 		sidebar     bool
 		tocArea     bool
 		pagination  bool
 		familyCount int
 	}
 	cells := []browserCell{
-		{route: "/", name: "Tour", layout: "landing"},
-		{route: "/module/", name: "Module", layout: "docs", family: "module", familyCount: 1, sidebar: true, tocArea: true, pagination: true},
-		{route: "/cli/", name: "CLI", layout: "docs", family: "cli", familyCount: 1, sidebar: true, tocArea: true, pagination: true},
+		{route: "/", name: "Tour", layout: "landing", heading: "Tour"},
+		{route: "/module/", name: "Module", layout: "docs", family: "module", heading: "Module", familyCount: 1, sidebar: true, tocArea: true, pagination: true},
+		{route: "/cli/", name: "CLI", layout: "docs", family: "cli", heading: "CLI", familyCount: 1, sidebar: true, tocArea: true, pagination: true},
 	}
 	for _, colorMode := range []string{"light", "dark"} {
 		for _, viewport := range []struct {
@@ -87,6 +88,7 @@ func TestLayoutProfileBrowser(t *testing.T) {
 			width int64
 		}{
 			{name: "mobile", width: 390},
+			{name: "tablet", width: 820},
 			{name: "desktop", width: 1440},
 		} {
 			for _, cell := range cells {
@@ -105,7 +107,7 @@ func TestLayoutProfileBrowser(t *testing.T) {
 					}
 					resetBrowserErrors()
 
-					var state layoutProfileBrowserState
+					var state layoutBrowserState
 					actions := chromedp.Tasks{
 						runtime.Enable(),
 						network.Enable(),
@@ -113,7 +115,7 @@ func TestLayoutProfileBrowser(t *testing.T) {
 						chromedp.EmulateViewport(viewport.width, 844),
 						chromedp.Navigate(server.URL + route),
 						chromedp.WaitVisible(`[data-margo-layout]`, chromedp.ByQuery),
-						chromedp.Evaluate(layoutProfileBrowserStateScript, &state),
+						chromedp.Evaluate(layoutBrowserStateScript, &state),
 					}
 					if err := chromedp.Run(ctx, actions...); err != nil {
 						t.Fatalf("%s at %s/%d browser check failed: %v", route, colorMode, viewport.width, err)
@@ -124,14 +126,29 @@ func TestLayoutProfileBrowser(t *testing.T) {
 					if state.Path != route && !(route == "/" && state.Path == "/index.html") {
 						t.Fatalf("route path = %q, want %q: %+v", state.Path, route, state)
 					}
-					if state.Layout != cell.layout || state.ActiveFamily != cell.family || state.ActiveFamilyCount != cell.familyCount {
+					if state.Layout != cell.layout || state.Heading != cell.heading || state.ArticleCount != 1 || state.ActiveFamily != cell.family || state.ActiveFamilyCount != cell.familyCount {
 						t.Fatalf("%s active layout/family = %+v, want layout=%q family=%q", cell.name, state, cell.layout, cell.family)
 					}
 					if state.ColorMode != colorMode {
 						t.Fatalf("color mode = %q, want %q: %+v", state.ColorMode, colorMode, state)
 					}
-					if state.Sidebar != cell.sidebar || state.TOCArea != cell.tocArea || state.Pagination != cell.pagination || state.TOC != cell.tocArea || (cell.tocArea && state.TOCLinks == 0) {
+					if state.Sidebar != cell.sidebar || state.TOCArea != cell.tocArea || state.Pagination != cell.pagination || state.TOC != cell.tocArea || state.TOCVisible != cell.tocArea || (cell.tocArea && state.TOCLinks == 0) {
 						t.Fatalf("%s chrome presence = %+v, want sidebar=%t toc-area=%t pagination=%t and a usable docs TOC", cell.name, state, cell.sidebar, cell.tocArea, cell.pagination)
+					}
+					if cell.layout == "landing" {
+						if state.FamilyNavigation || state.Breadcrumbs || state.PageActions || state.DocsShellAttributeCount != 0 {
+							t.Fatalf("Tour leaked docs shell chrome or attributes at %dpx: %+v", viewport.width, state)
+						}
+						if state.FrameDisplay != "block" || state.ArticleOverflow {
+							t.Fatalf("Tour is not a one-column, viewport-contained article at %dpx: %+v", viewport.width, state)
+						}
+					} else {
+						if !state.FamilyNavigation || state.DocsShellAttributeCount == 0 || state.SidebarLinkCount < 2 || state.SidebarForeignLinkCount != 0 {
+							t.Fatalf("%s docs shell/sidebar scope at %dpx = %+v", cell.name, viewport.width, state)
+						}
+						if state.PaginationLinkCount == 0 || state.PaginationForeignLinkCount != 0 {
+							t.Fatalf("%s pagination is missing or crosses family at %dpx: %+v", cell.name, viewport.width, state)
+						}
 					}
 					wantMobileTrigger := viewport.width == 390 && cell.layout == "docs"
 					if state.MobileTriggerCount != boolToInt(wantMobileTrigger) || state.MobileTriggerVisible != wantMobileTrigger {
@@ -145,21 +162,44 @@ func TestLayoutProfileBrowser(t *testing.T) {
 		}
 	}
 
-	t.Run("normal navigation retains active family", func(t *testing.T) {
+	t.Run("normal navigation updates and clears docs state", func(t *testing.T) {
 		errorMu.Lock()
 		browserErrors = nil
 		errorMu.Unlock()
+		var moduleState layoutBrowserState
 		if err := chromedp.Run(ctx,
 			runtime.Enable(),
 			network.Enable(),
 			emulation.SetEmulatedMedia().WithFeatures([]*emulation.MediaFeature{{Name: "prefers-color-scheme", Value: "light"}}),
-			chromedp.EmulateViewport(390, 844),
+			chromedp.EmulateViewport(820, 844),
 			chromedp.Navigate(server.URL+"/module/"),
 			chromedp.WaitVisible(`[data-margo-layout="docs"]`, chromedp.ByQuery),
+			chromedp.Evaluate(layoutBrowserStateScript, &moduleState),
 			chromedp.Click(`[data-margo-family-link="cli"]`, chromedp.ByQuery),
-			chromedp.Evaluate(waitForFamilyRouteScript("cli", "/cli/"), nil),
+			chromedp.Evaluate(waitForLayoutRouteScript("docs", "cli", "/cli/"), nil),
 		); err != nil {
 			t.Fatal(err)
+		}
+		if moduleState.Layout != "docs" || moduleState.ActiveFamily != "module" || moduleState.ActiveFamilyCount != 1 || !moduleState.Sidebar || !moduleState.TOC || !moduleState.Pagination || moduleState.SidebarForeignLinkCount != 0 || moduleState.PaginationForeignLinkCount != 0 {
+			t.Fatalf("initial Module navigation state is not family-scoped docs: %+v", moduleState)
+		}
+		var cliState layoutBrowserState
+		if err := chromedp.Run(ctx,
+			chromedp.Evaluate(layoutBrowserStateScript, &cliState),
+			chromedp.Click(`[data-margo-global-navigation] .margo-site-brand`, chromedp.ByQuery),
+			chromedp.Evaluate(waitForLayoutRouteScript("landing", "", "/"), nil),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if cliState.Layout != "docs" || cliState.ActiveFamily != "cli" || cliState.ActiveFamilyCount != 1 || !cliState.Sidebar || !cliState.TOC || !cliState.Pagination || cliState.SidebarForeignLinkCount != 0 || cliState.PaginationForeignLinkCount != 0 {
+			t.Fatalf("Module to CLI navigation did not update family-scoped docs state: %+v", cliState)
+		}
+		var tourState layoutBrowserState
+		if err := chromedp.Run(ctx, chromedp.Evaluate(layoutBrowserStateScript, &tourState)); err != nil {
+			t.Fatal(err)
+		}
+		if tourState.Layout != "landing" || tourState.Heading != "Tour" || tourState.ArticleCount != 1 || tourState.FrameDisplay != "block" || tourState.ActiveFamily != "" || tourState.ActiveFamilyCount != 0 || tourState.FamilyNavigation || tourState.Sidebar || tourState.TOCArea || tourState.TOC || tourState.Breadcrumbs || tourState.Pagination || tourState.PageActions || tourState.DocsShellAttributeCount != 0 || tourState.ArticleOverflow || tourState.DocumentOverflow || tourState.FrameOverflow {
+			t.Fatalf("CLI to Tour navigation retained docs state: %+v", tourState)
 		}
 		errorMu.Lock()
 		errors := append([]string(nil), browserErrors...)
@@ -170,35 +210,48 @@ func TestLayoutProfileBrowser(t *testing.T) {
 	})
 }
 
-type layoutProfileBrowserState struct {
-	Path                 string  `json:"path"`
-	Layout               string  `json:"layout"`
-	ActiveFamily         string  `json:"activeFamily"`
-	ActiveFamilyCount    int     `json:"activeFamilyCount"`
-	ColorMode            string  `json:"colorMode"`
-	Sidebar              bool    `json:"sidebar"`
-	TOCArea              bool    `json:"tocArea"`
-	TOC                  bool    `json:"toc"`
-	TOCLinks             int     `json:"tocLinks"`
-	Pagination           bool    `json:"pagination"`
-	MobileTriggerCount   int     `json:"mobileTriggerCount"`
-	MobileTriggerVisible bool    `json:"mobileTriggerVisible"`
-	DocumentOverflow     bool    `json:"documentOverflow"`
-	FrameOverflow        bool    `json:"frameOverflow"`
-	DocumentClientWidth  float64 `json:"documentClientWidth"`
-	DocumentScrollWidth  float64 `json:"documentScrollWidth"`
-	FrameClientWidth     float64 `json:"frameClientWidth"`
-	FrameScrollWidth     float64 `json:"frameScrollWidth"`
+type layoutBrowserState struct {
+	Path                       string  `json:"path"`
+	Layout                     string  `json:"layout"`
+	Heading                    string  `json:"heading"`
+	ArticleCount               int     `json:"articleCount"`
+	ActiveFamily               string  `json:"activeFamily"`
+	ActiveFamilyCount          int     `json:"activeFamilyCount"`
+	ColorMode                  string  `json:"colorMode"`
+	FamilyNavigation           bool    `json:"familyNavigation"`
+	Sidebar                    bool    `json:"sidebar"`
+	SidebarLinkCount           int     `json:"sidebarLinkCount"`
+	SidebarForeignLinkCount    int     `json:"sidebarForeignLinkCount"`
+	TOCArea                    bool    `json:"tocArea"`
+	TOC                        bool    `json:"toc"`
+	TOCVisible                 bool    `json:"tocVisible"`
+	TOCLinks                   int     `json:"tocLinks"`
+	Breadcrumbs                bool    `json:"breadcrumbs"`
+	Pagination                 bool    `json:"pagination"`
+	PaginationLinkCount        int     `json:"paginationLinkCount"`
+	PaginationForeignLinkCount int     `json:"paginationForeignLinkCount"`
+	PageActions                bool    `json:"pageActions"`
+	DocsShellAttributeCount    int     `json:"docsShellAttributeCount"`
+	MobileTriggerCount         int     `json:"mobileTriggerCount"`
+	MobileTriggerVisible       bool    `json:"mobileTriggerVisible"`
+	FrameDisplay               string  `json:"frameDisplay"`
+	ArticleOverflow            bool    `json:"articleOverflow"`
+	DocumentOverflow           bool    `json:"documentOverflow"`
+	FrameOverflow              bool    `json:"frameOverflow"`
+	DocumentClientWidth        float64 `json:"documentClientWidth"`
+	DocumentScrollWidth        float64 `json:"documentScrollWidth"`
+	FrameClientWidth           float64 `json:"frameClientWidth"`
+	FrameScrollWidth           float64 `json:"frameScrollWidth"`
 }
 
-type layoutProfileBrowserFocusState struct {
+type layoutBrowserFocusState struct {
 	Found        bool `json:"found"`
 	Focused      bool `json:"focused"`
 	FocusVisible bool `json:"focusVisible"`
 	Steps        int  `json:"steps"`
 }
 
-func tabUntilFocus(name, script string, state *layoutProfileBrowserFocusState) chromedp.Action {
+func tabUntilFocus(name, script string, state *layoutBrowserFocusState) chromedp.Action {
 	return chromedp.ActionFunc(func(ctx context.Context) error {
 		const maxTabPresses = 64
 		for step := 1; step <= maxTabPresses; step++ {
@@ -217,7 +270,7 @@ func tabUntilFocus(name, script string, state *layoutProfileBrowserFocusState) c
 	})
 }
 
-const layoutProfileBrowserStateScript = `(() => {
+const layoutBrowserStateScript = `(() => {
   const visible = (element) => {
     if (!element) return false;
     const style = getComputedStyle(element);
@@ -228,19 +281,46 @@ const layoutProfileBrowserStateScript = `(() => {
   const mobileTriggers = familyLinks.length === 0 ? [] : [...document.querySelectorAll("[data-margo-global-navigation] button")]
     .filter((button) => (button.getAttribute("aria-label") || "").toLowerCase().includes("mobile menu"));
 	const frame = document.querySelector("[data-margo-layout]");
+	const article = document.querySelector('[data-margo-area="main-content"] article.margo-document');
+	const articleRect = article?.getBoundingClientRect();
+	const sidebar = document.querySelector('[data-margo-area="left-nav"] nav[aria-label="sidebar navigation"]');
+	const sidebarLinks = [...(sidebar?.querySelectorAll('a[href]') || [])];
+	const pagination = document.querySelector('[data-margo-area="main-content"] .margo-pagination');
+	const paginationLinks = [...(pagination?.querySelectorAll('a[href]') || [])];
+	const activeFamily = familyLinks.find((link) => link.getAttribute("aria-current") === "location")?.dataset.margoFamilyLink || "";
+	const familyPathPrefix = activeFamily ? '/' + activeFamily + '/' : '';
+	const isFamilyPath = (link) => {
+		if (!familyPathPrefix) return false;
+		return new URL(link.href, window.location.href).pathname.startsWith(familyPathPrefix);
+	};
+	const toc = document.querySelector('[data-margo-area="right-nav"] [data-margo-toc="true"]');
+	const frameStyle = frame ? getComputedStyle(frame) : {};
   return {
     path: window.location.pathname,
     layout: frame?.dataset.margoLayout || "",
-    activeFamily: familyLinks.find((link) => link.getAttribute("aria-current") === "location")?.dataset.margoFamilyLink || "",
+		heading: article?.querySelector('h1')?.textContent.trim() || '',
+		articleCount: document.querySelectorAll('[data-margo-area="main-content"] article.margo-document').length,
+		activeFamily,
     activeFamilyCount: familyLinks.filter((link) => link.getAttribute("aria-current") === "location").length,
 		colorMode: document.documentElement.dataset.colorMode || "",
-		sidebar: !!document.querySelector('[data-margo-area="left-nav"] nav[aria-label="sidebar navigation"]'),
+		familyNavigation: !!document.querySelector('[data-margo-family-navigation="true"]'),
+		sidebar: !!sidebar,
+		sidebarLinkCount: sidebarLinks.length,
+		sidebarForeignLinkCount: sidebarLinks.filter((link) => !isFamilyPath(link)).length,
 		tocArea: !!document.querySelector('[data-margo-area="right-nav"]'),
-		toc: !!document.querySelector('[data-margo-area="right-nav"] [data-margo-toc="true"]'),
+		toc: !!toc,
+		tocVisible: visible(toc),
 		tocLinks: document.querySelectorAll('[data-margo-area="right-nav"] [data-margo-toc-link]').length,
-    pagination: !!document.querySelector('[data-margo-area="main-content"] .margo-pagination'),
+		breadcrumbs: !!document.querySelector('[data-margo-area="main-content"] .margo-breadcrumbs, [aria-label="Breadcrumbs"]'),
+		pagination: !!pagination,
+		paginationLinkCount: paginationLinks.length,
+		paginationForeignLinkCount: paginationLinks.filter((link) => !isFamilyPath(link)).length,
+		pageActions: !!document.querySelector('[data-margo-area="main-content"] .margo-page-actions'),
+		docsShellAttributeCount: document.querySelectorAll('[data-margo-global-navigation], [data-margo-family-navigation], [data-margo-repository-link], [data-sidebar-section], [data-margo-toc], [data-margo-layout-dependency]').length,
     mobileTriggerCount: mobileTriggers.filter(visible).length,
     mobileTriggerVisible: mobileTriggers.some(visible),
+		frameDisplay: frameStyle.display || '',
+		articleOverflow: !!article && (article.scrollWidth > article.clientWidth + 1 || articleRect.left < -1 || articleRect.right > window.innerWidth + 1),
 		documentOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.body.clientWidth + 1,
 		frameOverflow: !!frame && frame.scrollWidth > frame.clientWidth + 1,
 		documentClientWidth: document.documentElement.clientWidth,
@@ -277,18 +357,25 @@ const focusDesktopScript = `(() => {
   };
 })()`
 
-func waitForFamilyRouteScript(family, route string) string {
+func waitForLayoutRouteScript(layout, family, route string) string {
 	return fmt.Sprintf(`(async () => {
   const deadline = Date.now() + 10000;
   while (Date.now() < deadline) {
-    const frame = document.querySelector("[data-margo-layout]");
-    const active = document.querySelector('[data-margo-family-link="%s"][aria-current="location"]');
+    const frame = document.querySelector('[data-margo-layout="%s"]');
+    const active = %s;
     const path = window.location.pathname;
     if (frame && active && (path === "%s" || (path === "/index.html" && "%s" === "/"))) return true;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
-  throw new Error("family navigation did not settle for %s");
-})()`, family, route, route, family)
+  throw new Error("layout navigation did not settle for %s at %s");
+})()`, layout, activeFamilyExpression(family), route, route, layout, route)
+}
+
+func activeFamilyExpression(family string) string {
+	if family == "" {
+		return `document.querySelectorAll('[data-margo-family-link][aria-current="location"]').length === 0`
+	}
+	return fmt.Sprintf(`document.querySelector('[data-margo-family-link="%s"][aria-current="location"]')`, family)
 }
 
 type landingGeometryState struct {
@@ -372,12 +459,12 @@ const landingGeometryScript = `(() => {
   };
 })()`
 
-func TestLandingProfileVisualGeometry(t *testing.T) {
+func TestLandingLayoutVisualGeometry(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
 		t.Skip("installed Chromium-family browser unavailable")
 	}
-	server := layoutProfileBrowserServer(t)
+	server := layoutBrowserServer(t)
 	defer server.Close()
 	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
 	defer cancelAllocator()
@@ -445,12 +532,12 @@ const docsGeometryScript = `(() => {
   };
 })()`
 
-func TestDocsProfileGridTemplate(t *testing.T) {
+func TestDocsLayoutGridTemplate(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
 		t.Skip("installed Chromium-family browser unavailable")
 	}
-	server := layoutProfileBrowserServer(t)
+	server := layoutBrowserServer(t)
 	defer server.Close()
 	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
 	defer cancelAllocator()
@@ -526,12 +613,12 @@ const searchSemanticsScript = `(() => {
   };
 })()`
 
-func TestProfileSearchSemanticsAndFocusReturn(t *testing.T) {
+func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
 		t.Skip("installed Chromium-family browser unavailable")
 	}
-	server := layoutProfileBrowserServer(t)
+	server := layoutBrowserServer(t)
 	defer server.Close()
 	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
 	defer cancelAllocator()
@@ -593,7 +680,7 @@ func TestProfileSearchSemanticsAndFocusReturn(t *testing.T) {
 	}
 }
 
-func layoutProfileBrowserServer(t *testing.T) *httptest.Server {
+func layoutBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
