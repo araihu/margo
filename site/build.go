@@ -62,6 +62,8 @@ type Page struct {
 	Source         string             `json:"source"`
 	Output         string             `json:"output"`
 	Locale         string             `json:"locale,omitempty"`
+	Family         string             `json:"family,omitempty"`
+	Layout         string             `json:"layout,omitempty"`
 	Title          string             `json:"title,omitempty"`
 	Description    string             `json:"description,omitempty"`
 	Canonical      string             `json:"canonical,omitempty"`
@@ -106,6 +108,8 @@ type builder struct {
 	frameSchema      ssg.FrameSchema
 	frameHash        string
 	frameValues      ssg.Values
+	profileMode      bool
+	presentations    map[string]PagePresentation
 	layoutName       string
 	shellMode        bool
 	shellName        string

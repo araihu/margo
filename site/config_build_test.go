@@ -187,6 +187,212 @@ theme:
 	}
 }
 
+func TestBuildConfigResolvesFamilyLayoutAndPresentationPerPage(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nChoose a path.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI documentation.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+navigation:
+  mode: file-tree
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+    - id: cli
+      label: CLI
+      source: cli
+      overview: cli/index.md
+      layout: docs
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	first, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(first, second) {
+		t.Fatal("configured profile build is not deterministic")
+	}
+	if len(first.Site.Routes) != 3 {
+		t.Fatalf("routes = %+v", first.Site.Routes)
+	}
+	want := map[string]Page{
+		"index.md":        {Family: "tour", Layout: "landing"},
+		"module/index.md": {Family: "module", Layout: "docs"},
+		"cli/index.md":    {Family: "cli", Layout: "docs"},
+	}
+	for _, page := range first.Site.Routes {
+		expected, ok := want[page.Source]
+		if !ok || page.Family != expected.Family || page.Layout != expected.Layout {
+			t.Fatalf("route %q identity = family %q layout %q, want %+v", page.Source, page.Family, page.Layout, expected)
+		}
+	}
+	if first.Site.Layout == "" || !strings.Contains(first.Site.Layout, "landing") || !strings.Contains(first.Site.Layout, "docs") {
+		t.Fatalf("profile layout identity = %q", first.Site.Layout)
+	}
+	if first.Site.LayoutSchemaHash == "" || first.Site.LayoutSchemaHash == "legacy" {
+		t.Fatalf("profile schema identity = %q", first.Site.LayoutSchemaHash)
+	}
+	landing := string(configArtifact(t, first, "index.html"))
+	docs := string(configArtifact(t, first, "module/index.html"))
+	if !strings.Contains(landing, `data-margo-frame="top-main-footer"`) {
+		t.Fatalf("landing frame missing: %s", landing)
+	}
+	if !strings.Contains(docs, `data-margo-frame="top-left-main-right-footer"`) {
+		t.Fatalf("docs frame missing: %s", docs)
+	}
+}
+
+func TestBuildConfigPageLayoutOverrideWinsOverFamily(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nChoose a path.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "---\nmargo:\n  site:\n    layout: landing\n---\n# Module\n\nModule documentation.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+navigation:
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, page := range result.Site.Routes {
+		if page.Source == "module/index.md" && (page.Family != "module" || page.Layout != "landing") {
+			t.Fatalf("page override identity = %+v", page)
+		}
+	}
+	if page := string(configArtifact(t, result, "module/index.html")); !strings.Contains(page, `data-margo-frame="top-main-footer"`) {
+		t.Fatalf("page override did not select landing frame: %s", page)
+	}
+}
+
+func TestBuildConfigInvalidSelectedProfileDoesNotEmitHTML(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nChoose a path.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "---\nmargo:\n  site:\n    layout: missing\n---\n# Module\n\nModule documentation.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layouts:
+  default: docs
+  profiles:
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+navigation:
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: docs
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err == nil {
+		t.Fatal("expected invalid page layout diagnostic")
+	}
+	if len(result.Artifacts) != 0 {
+		t.Fatalf("invalid profile emitted artifacts: %+v", result.Artifacts)
+	}
+	var diagnosticError *margo.DiagnosticError
+	if !errors.As(err, &diagnosticError) || len(diagnosticError.Diagnostics) != 1 || diagnosticError.Diagnostics[0].Code != "site.layout_unknown" {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestBuildConfigRendersGoshtosoComponentDocShell(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Showcase\n\nA public feature tour.\n\n## A section\n\nA section for the shell TOC.\n")

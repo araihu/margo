@@ -23,6 +23,33 @@ func TestResolveFamilyUsesMostSpecificSegmentPrefix(t *testing.T) {
 	}
 }
 
+func TestPrepareFramePresentationsResolvesProfilesAndIdentity(t *testing.T) {
+	config := validPresentationConfig()
+	config.Locales = LocaleConfig{Default: "en", Supported: []string{"en"}}
+	config.Theme = ThemeSelection{Name: "modern", ColorMode: "light"}
+	config.Layouts = LayoutProfiles{
+		Default: "docs",
+		Profiles: map[string]LayoutProfile{
+			"docs":    {Frame: LayoutSelection{Builtin: "top-left-main-right-footer"}},
+			"landing": {Frame: LayoutSelection{Builtin: "top-main-footer"}},
+		},
+	}
+	presentations, err := prepareFramePresentations(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if presentations["landing"].FrameName != "top-main-footer" || presentations["docs"].FrameName != "top-left-main-right-footer" {
+		t.Fatalf("presentations = %+v", presentations)
+	}
+	if presentations["landing"].SchemaHash == "" || presentations["docs"].SchemaHash == "" || presentations["landing"].SchemaHash == presentations["docs"].SchemaHash {
+		t.Fatalf("profile schema hashes = landing %q docs %q", presentations["landing"].SchemaHash, presentations["docs"].SchemaHash)
+	}
+	identity, hash := profileLayoutIdentity(presentations)
+	if identity != "profiles:docs=top-left-main-right-footer,landing=top-main-footer" || hash == "" {
+		t.Fatalf("profile identity = %q hash=%q", identity, hash)
+	}
+}
+
 func TestResolveFamilyStripsLocaleBeforeMatching(t *testing.T) {
 	families := []FamilyConfig{{ID: "tour", Source: "."}, {ID: "cli", Source: "cli"}}
 	got, err := resolveFamily("pt-BR/cli/index.md", LocaleConfig{Default: "en", Supported: []string{"en", "pt-BR"}}, families)

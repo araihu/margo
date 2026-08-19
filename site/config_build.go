@@ -32,11 +32,12 @@ import (
 )
 
 type configuredPage struct {
-	page      Page
-	article   []byte
-	plainText string
-	result    *margo.HTMLResult
-	document  *margo.Document
+	page         Page
+	presentation PagePresentation
+	article      []byte
+	plainText    string
+	result       *margo.HTMLResult
+	document     *margo.Document
 }
 
 const configuredSiteCSS = `:root {
@@ -175,15 +176,26 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	}
 	locale := config.Locales.Default
 	shellMode := config.Shell != nil
+	profileMode := configUsesLayoutProfiles(config)
 	frameName := ""
 	frame := ssg.Frame(nil)
 	schema := ssg.FrameSchema{}
 	frameValues := ssg.Values(nil)
 	frameHash := ""
 	layoutIdentity := ""
+	layoutSchemaHash := ""
+	presentations := map[string]PagePresentation(nil)
 	if shellMode {
 		layoutIdentity = "shell:" + config.Shell.Builtin
 		frameHash = componentDocShellSchemaHash(config)
+		layoutSchemaHash = frameHash
+	} else if profileMode {
+		var frameErr error
+		presentations, frameErr = prepareFramePresentations(config)
+		if frameErr != nil {
+			return Result{}, frameErr
+		}
+		layoutIdentity, layoutSchemaHash = profileLayoutIdentity(presentations)
 	} else {
 		frameName = "top-left-main-footer"
 		if config.Frame != nil && config.Frame.Builtin != "" {
@@ -214,6 +226,7 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 			return Result{}, err
 		}
 		layoutIdentity = "frame:" + frameName
+		layoutSchemaHash = frameHash
 	}
 	if request.Compiler == nil {
 		request.Compiler = margo.New()
@@ -231,13 +244,13 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	b := &builder{
 		request: requestToSiteRequest(request, sourceDir, sources, assets), config: &config,
 		configDir: configDir, sourceDir: sourceDir, frame: frame, frameSchema: schema,
-		frameHash: frameHash, frameValues: frameValues, layoutName: frameName, shellMode: shellMode,
+		frameHash: frameHash, frameValues: frameValues, profileMode: profileMode, presentations: presentations, layoutName: frameName, shellMode: shellMode,
 		shellName: shellName, shellAssetPrefix: shellAssetPrefix,
 		configured: make(map[string]configuredPage),
 		sources:    make(map[string]Source, len(sources)), outputs: make(map[string]string, len(sources)),
 		artifacts: make(map[string][]byte), artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset),
 		dependencies: make(map[string]string), pdfEngine: request.PDFEngine, pdfInstances: margo.NewInstanceAllocator(),
-		siteManifest: SiteManifest{ConfigVersion: 1, Layout: layoutIdentity, LayoutSchemaHash: frameHash, BaseURL: strings.TrimSuffix(config.Site.BaseURL, "/"), BasePath: normalizedBasePath(config.BasePath)},
+		siteManifest: SiteManifest{ConfigVersion: 1, Layout: layoutIdentity, LayoutSchemaHash: layoutSchemaHash, BaseURL: strings.TrimSuffix(config.Site.BaseURL, "/"), BasePath: normalizedBasePath(config.BasePath)},
 	}
 	if err := b.stageConfiguredAssets(config); err != nil {
 		return Result{}, err
@@ -432,8 +445,34 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			}
 		}
 		page := Page{Source: source.Path, Output: b.pageOutput(source.Path), Locale: locale, Title: title, Description: description, DocumentDigest: documentPayloadDigest(article), ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
+		presentation := PagePresentation{}
+		family := FamilyConfig{}
+		if b.profileMode {
+			if len(b.config.Navigation.Families) > 0 {
+				family, err = resolveFamily(source.Path, b.config.Locales, b.config.Navigation.Families)
+				if err != nil {
+					return err
+				}
+			}
+			layout, layoutErr := resolveLayout(document.Metadata(), family, b.config.Layouts)
+			if layoutErr != nil {
+				return layoutErr
+			}
+			var exists bool
+			presentation, exists = b.presentations[layout]
+			if !exists {
+				return presentationSourceDiagnostic(newPresentationDiagnostic(
+					"site.layout_unknown",
+					fmt.Sprintf("layout profile %q is not prepared", layout),
+					"Select a declared layouts.profiles name.",
+					"/layouts/profiles",
+				), source.Path)
+			}
+			page.Family = family.ID
+			page.Layout = layout
+		}
 		page.Canonical = b.pageURL(page)
-		b.configured[source.Path] = configuredPage{page: page, article: article, plainText: result.PlainText(), result: result, document: document}
+		b.configured[source.Path] = configuredPage{page: page, presentation: presentation, article: article, plainText: result.PlainText(), result: result, document: document}
 		b.configPages = append(b.configPages, page)
 	}
 	sort.Slice(b.configPages, func(i, j int) bool { return pageRouteLess(b.configPages[i], b.configPages[j]) })
@@ -448,7 +487,7 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			return b.configPages[index].Alternates[left].Locale < b.configPages[index].Alternates[right].Locale
 		})
 		prepared := b.configured[b.configPages[index].Source]
-		b.configured[b.configPages[index].Source] = configuredPage{page: b.configPages[index], article: prepared.article, plainText: prepared.plainText, result: prepared.result, document: prepared.document}
+		b.configured[b.configPages[index].Source] = configuredPage{page: b.configPages[index], presentation: prepared.presentation, article: prepared.article, plainText: prepared.plainText, result: prepared.result, document: prepared.document}
 	}
 	return nil
 }
@@ -662,7 +701,11 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	if err != nil {
 		return err
 	}
-	output, err := b.frame.Render(ssg.FrameInput{SchemaHash: b.frameHash, RootCompositionHash: b.frameHash, InstanceID: "root", Values: b.frameValues, Bindings: bindings})
+	presentation, err := b.presentationForPage(prepared)
+	if err != nil {
+		return err
+	}
+	output, err := presentation.Frame.Render(ssg.FrameInput{SchemaHash: presentation.SchemaHash, RootCompositionHash: presentation.SchemaHash, InstanceID: "root", Values: presentation.Values, Bindings: bindings})
 	if err != nil {
 		return err
 	}
@@ -694,6 +737,19 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	}
 	b.pages = append(b.pages, page)
 	return nil
+}
+
+func (b *builder) presentationForPage(prepared configuredPage) (PagePresentation, error) {
+	if b.profileMode {
+		if prepared.presentation.Frame == nil {
+			return PagePresentation{}, fmt.Errorf("site.layout_missing: page %q has no prepared layout presentation", prepared.page.Source)
+		}
+		return prepared.presentation, nil
+	}
+	if b.frame == nil {
+		return PagePresentation{}, fmt.Errorf("site.layout_missing: page %q has no configured frame", prepared.page.Source)
+	}
+	return PagePresentation{FrameName: b.layoutName, Frame: b.frame, Schema: b.frameSchema, Values: b.frameValues, SchemaHash: b.frameHash}, nil
 }
 
 func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, error) {
@@ -737,6 +793,12 @@ func (b *builder) stageChartIconSprite(requirements margo.HTMLRequirements) erro
 }
 
 func (b *builder) bindingsForPage(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {
+	presentation, err := b.presentationForPage(prepared)
+	if err != nil {
+		return nil, err
+	}
+	schema := presentation.Schema
+	schemaHash := presentation.SchemaHash
 	bindings := map[string][]ssg.AreaBinding{}
 	add := func(kind, defaultArea, slot, fragment string) error {
 		configuration, configured := b.config.Bindings[kind]
@@ -750,40 +812,40 @@ func (b *builder) bindingsForPage(prepared configuredPage) (map[string][]ssg.Are
 		if area == "" {
 			return nil
 		}
-		binding, err := ssg.NewAreaBinding(b.frameHash, prepared.page.Output, ssg.BindingSpec{Kind: kind, Area: area, Slot: slot}, len(bindings[area]), templ.Raw(fragment))
+		binding, err := ssg.NewAreaBinding(schemaHash, prepared.page.Output, ssg.BindingSpec{Kind: kind, Area: area, Slot: slot}, len(bindings[area]), templ.Raw(fragment))
 		if err != nil {
 			return err
 		}
 		bindings[area] = append(bindings[area], binding)
 		return nil
 	}
-	if err := add("document", b.frameSchema.BindingDefaults["document"], "", string(prepared.article)); err != nil {
+	if err := add("document", schema.BindingDefaults["document"], "", string(prepared.article)); err != nil {
 		return nil, err
 	}
-	if err := add("navigation", b.frameSchema.BindingDefaults["navigation"], "", b.navigationFragment(prepared.page)); err != nil {
+	if err := add("navigation", schema.BindingDefaults["navigation"], "", b.navigationFragment(prepared.page)); err != nil {
 		return nil, err
 	}
-	if err := add("breadcrumbs", b.frameSchema.BindingDefaults["breadcrumbs"], "", b.breadcrumbFragment(prepared.page)); err != nil {
+	if err := add("breadcrumbs", schema.BindingDefaults["breadcrumbs"], "", b.breadcrumbFragment(prepared.page)); err != nil {
 		return nil, err
 	}
-	if err := add("pagination", b.frameSchema.BindingDefaults["pagination"], "after-article", b.paginationFragment(prepared.page)); err != nil {
+	if err := add("pagination", schema.BindingDefaults["pagination"], "after-article", b.paginationFragment(prepared.page)); err != nil {
 		return nil, err
 	}
 	if b.config.Theme.AllowSwitchTheme {
 		label := localizedLabel(prepared.page.Locale, "theme")
-		if err := add("theme_controls", b.frameSchema.BindingDefaults["theme_controls"], "", `<div class="margo-theme-controls"><button type="button" aria-label="`+stdhtml.EscapeString(label)+`" data-margo-theme-control="cycle">`+stdhtml.EscapeString(label)+`</button></div>`); err != nil {
+		if err := add("theme_controls", schema.BindingDefaults["theme_controls"], "", `<div class="margo-theme-controls"><button type="button" aria-label="`+stdhtml.EscapeString(label)+`" data-margo-theme-control="cycle">`+stdhtml.EscapeString(label)+`</button></div>`); err != nil {
 			return nil, err
 		}
 	}
 	if len(b.config.Locales.Supported) > 1 {
-		if err := add("locale_controls", b.frameSchema.BindingDefaults["locale_controls"], "", b.localeFragment(prepared.page)); err != nil {
+		if err := add("locale_controls", schema.BindingDefaults["locale_controls"], "", b.localeFragment(prepared.page)); err != nil {
 			return nil, err
 		}
 	}
-	if err := add("footer", b.frameSchema.BindingDefaults["footer"], "", `<footer class="margo-footer"><p>`+stdhtml.EscapeString(b.config.Site.Name)+`</p></footer>`); err != nil {
+	if err := add("footer", schema.BindingDefaults["footer"], "", `<footer class="margo-footer"><p>`+stdhtml.EscapeString(b.config.Site.Name)+`</p></footer>`); err != nil {
 		return nil, err
 	}
-	if err := ssg.ValidateBindings(b.frameSchema, bindings); err != nil {
+	if err := ssg.ValidateBindings(schema, bindings); err != nil {
 		return nil, err
 	}
 	return bindings, nil
@@ -1134,9 +1196,15 @@ func documentPayloadDigest(payload []byte) string {
 func (b *builder) documentStyleDigest() string {
 	hash := sha256.New()
 	_, _ = hash.Write([]byte("margo.ssg.document-style/v1\x00"))
-	_, _ = hash.Write([]byte(b.layoutName))
+	layoutName := b.layoutName
+	frameHash := b.frameHash
+	if b.profileMode {
+		layoutName = b.siteManifest.Layout
+		frameHash = b.siteManifest.LayoutSchemaHash
+	}
+	_, _ = hash.Write([]byte(layoutName))
 	_, _ = hash.Write([]byte{0})
-	_, _ = hash.Write([]byte(b.frameHash))
+	_, _ = hash.Write([]byte(frameHash))
 	_, _ = hash.Write([]byte(b.config.Theme.Name))
 	_, _ = hash.Write([]byte(b.config.Theme.ColorMode))
 	styles := map[string][]byte{"margo-assets/site.css": []byte(configuredSiteCSS + "\n" + pageActionsCSS)}
