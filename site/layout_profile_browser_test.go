@@ -306,28 +306,31 @@ func waitForFamilyRouteScript(family, route string) string {
 }
 
 type landingGeometryState struct {
-	Display             string  `json:"display"`
-	GridColumns         string  `json:"gridColumns"`
-	GridAreas           string  `json:"gridAreas"`
-	FrameLeft           float64 `json:"frameLeft"`
-	FrameRight          float64 `json:"frameRight"`
-	MainLeft            float64 `json:"mainLeft"`
-	MainRight           float64 `json:"mainRight"`
-	BrandLabelRight     float64 `json:"brandLabelRight"`
-	SearchLeft          float64 `json:"searchLeft"`
-	SearchRight         float64 `json:"searchRight"`
-	SearchWidth         float64 `json:"searchWidth"`
-	RepositoryLeft      float64 `json:"repositoryLeft"`
-	ImageWidth          float64 `json:"imageWidth"`
-	ImageHeight         float64 `json:"imageHeight"`
-	ImageAspectRatio    float64 `json:"imageAspectRatio"`
-	ImageCSSAspectRatio string  `json:"imageCSSAspectRatio"`
-	ImageObjectFit      string  `json:"imageObjectFit"`
-	CTAExists           bool    `json:"ctaExists"`
-	CTAInViewport       bool    `json:"ctaInViewport"`
-	CTATop              float64 `json:"ctaTop"`
-	CTAHeight           float64 `json:"ctaHeight"`
-	ShowcaseWrapper     bool    `json:"showcaseWrapper"`
+	Display              string  `json:"display"`
+	GridColumns          string  `json:"gridColumns"`
+	GridAreas            string  `json:"gridAreas"`
+	FrameLeft            float64 `json:"frameLeft"`
+	FrameRight           float64 `json:"frameRight"`
+	MainLeft             float64 `json:"mainLeft"`
+	MainRight            float64 `json:"mainRight"`
+	BrandWidth           float64 `json:"brandWidth"`
+	BrandHeight          float64 `json:"brandHeight"`
+	BrandLabelRight      float64 `json:"brandLabelRight"`
+	SearchContainerWidth float64 `json:"searchContainerWidth"`
+	SearchLeft           float64 `json:"searchLeft"`
+	SearchRight          float64 `json:"searchRight"`
+	SearchWidth          float64 `json:"searchWidth"`
+	RepositoryLeft       float64 `json:"repositoryLeft"`
+	ImageWidth           float64 `json:"imageWidth"`
+	ImageHeight          float64 `json:"imageHeight"`
+	ImageAspectRatio     float64 `json:"imageAspectRatio"`
+	ImageCSSAspectRatio  string  `json:"imageCSSAspectRatio"`
+	ImageObjectFit       string  `json:"imageObjectFit"`
+	CTAExists            bool    `json:"ctaExists"`
+	CTAInViewport        bool    `json:"ctaInViewport"`
+	CTATop               float64 `json:"ctaTop"`
+	CTAHeight            float64 `json:"ctaHeight"`
+	ShowcaseWrapper      bool    `json:"showcaseWrapper"`
 }
 
 const landingGeometryScript = `(() => {
@@ -342,6 +345,7 @@ const landingGeometryScript = `(() => {
   const brandLabel = brand && brand.lastElementChild;
   const search = document.querySelector('[data-search-field] button');
   const repository = [...document.querySelectorAll('[data-margo-global-navigation] a')].find((link) => link.textContent.trim() === 'Repository');
+  const searchContainer = document.querySelector('[data-margo-global-navigation] .margo-site-search');
   const image = document.querySelector('[data-margo-layout="landing"] img[alt^="Margo mascot"]');
   const cta = document.querySelector('[data-margo-layout="landing"] .margo-document a');
   const frameRect = rect(frame);
@@ -359,7 +363,10 @@ const landingGeometryScript = `(() => {
     frameRight: frameRect.right,
     mainLeft: mainRect.left,
     mainRight: mainRect.right,
+    brandWidth: rect(brand).width,
+    brandHeight: rect(brand).height,
     brandLabelRight: rect(brandLabel).right,
+    searchContainerWidth: rect(searchContainer).width,
     searchLeft: rect(search).left,
     searchRight: rect(search).right,
     searchWidth: rect(search).width,
@@ -412,11 +419,17 @@ func TestLandingProfileVisualGeometry(t *testing.T) {
 		if state.BrandLabelRight > state.SearchLeft+1 {
 			t.Fatalf("landing at %dpx child brand content collides with search: %+v", width, state)
 		}
+		if state.BrandWidth < 2 || state.BrandHeight < 2 || state.BrandHeight > 48 {
+			t.Fatalf("landing at %dpx brand is not a horizontal visible lockup: %+v", width, state)
+		}
 		if state.RepositoryLeft > 1 && state.SearchRight > state.RepositoryLeft+1 {
 			t.Fatalf("landing at %dpx search collides with Repository: %+v", width, state)
 		}
 		if width < 480 && state.SearchWidth > 48 {
 			t.Fatalf("landing at %dpx search did not collapse at the content breakpoint: %+v", width, state)
+		}
+		if width < 480 && state.SearchContainerWidth > 48 {
+			t.Fatalf("landing at %dpx search container retained desktop width: %+v", width, state)
 		}
 		if state.ImageWidth > 386 || state.ImageAspectRatio < 1.28 || state.ImageAspectRatio > 1.38 || state.ImageCSSAspectRatio != "4 / 3" || state.ImageObjectFit != "cover" {
 			t.Fatalf("landing at %dpx hero geometry = %+v, want compact 4:3 cover", width, state)
@@ -428,18 +441,26 @@ func TestLandingProfileVisualGeometry(t *testing.T) {
 }
 
 type docsGeometryState struct {
-	Display       string  `json:"display"`
-	GridColumns   string  `json:"gridColumns"`
-	GridAreas     string  `json:"gridAreas"`
-	LeftNavWidth  float64 `json:"leftNavWidth"`
-	MainWidth     float64 `json:"mainWidth"`
-	RightNavWidth float64 `json:"rightNavWidth"`
+	Display         string  `json:"display"`
+	GridColumns     string  `json:"gridColumns"`
+	GridAreas       string  `json:"gridAreas"`
+	LeftNavWidth    float64 `json:"leftNavWidth"`
+	MainWidth       float64 `json:"mainWidth"`
+	RightNavWidth   float64 `json:"rightNavWidth"`
+	HeadingWidth    float64 `json:"headingWidth"`
+	LeadWidth       float64 `json:"leadWidth"`
+	HeadingFontSize float64 `json:"headingFontSize"`
+	LeadFontSize    float64 `json:"leadFontSize"`
 }
 
 const docsGeometryScript = `(() => {
   const frame = document.querySelector('[data-margo-layout="docs"].margo-frame--top-left-main-right-footer');
   const rect = (node) => node ? node.getBoundingClientRect() : { width: 0 };
   const style = frame ? getComputedStyle(frame) : {};
+  const heading = document.querySelector('[data-margo-area="main-content"] .margo-document h1');
+  const lead = document.querySelector('[data-margo-area="main-content"] .margo-document__lead');
+  const headingStyle = heading ? getComputedStyle(heading) : {};
+  const leadStyle = lead ? getComputedStyle(lead) : {};
   return {
     display: style.display || '',
     gridColumns: style.gridTemplateColumns || '',
@@ -447,6 +468,10 @@ const docsGeometryScript = `(() => {
     leftNavWidth: rect(document.querySelector('[data-margo-area="left-nav"]')).width,
     mainWidth: rect(document.querySelector('[data-margo-area="main-content"]')).width,
     rightNavWidth: rect(document.querySelector('[data-margo-area="right-nav"]')).width,
+    headingWidth: rect(heading).width,
+    leadWidth: rect(lead).width,
+    headingFontSize: parseFloat(headingStyle.fontSize || '0'),
+    leadFontSize: parseFloat(leadStyle.fontSize || '0'),
   };
 })()`
 
@@ -463,7 +488,7 @@ func TestDocsProfileGridTemplate(t *testing.T) {
 	defer cancelBrowser()
 	ctx, cancel := context.WithTimeout(browserContext, 90*time.Second)
 	defer cancel()
-	for _, width := range []int64{719, 720, 900, 1280, 1775} {
+	for _, width := range []int64{719, 720, 799, 800, 900, 1100, 1200, 1280, 1775} {
 		var state docsGeometryState
 		if err := chromedp.Run(ctx,
 			chromedp.EmulateViewport(width, 900),
@@ -476,17 +501,35 @@ func TestDocsProfileGridTemplate(t *testing.T) {
 		if state.Display != "grid" {
 			t.Fatalf("docs at %dpx display = %q, want grid: %+v", width, state.Display, state)
 		}
-		if width < 720 {
+		if width < 800 {
 			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 1 {
 				t.Fatalf("docs at %dpx did not collapse to one grid track: %+v", width, state)
 			}
+			if !strings.Contains(state.GridAreas, `"top-nav"`) || !strings.Contains(state.GridAreas, `"left-nav"`) || !strings.Contains(state.GridAreas, `"main-content"`) || !strings.Contains(state.GridAreas, `"right-nav"`) {
+				t.Fatalf("docs at %dpx missing stacked navigation/content areas: %+v", width, state)
+			}
+			if state.MainWidth < 320 {
+				t.Fatalf("docs at %dpx stacked content is not usable: %+v", width, state)
+			}
 			continue
 		}
-		if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 3 || !strings.Contains(state.GridAreas, `"left-nav main-content right-nav"`) {
-			t.Fatalf("docs at %dpx did not retain three-column grid: %+v", width, state)
+		if width < 1200 {
+			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 2 || !strings.Contains(state.GridAreas, `"left-nav main-content"`) || !strings.Contains(state.GridAreas, `"right-nav right-nav"`) {
+				t.Fatalf("docs at %dpx did not use the readable two-column grid: %+v", width, state)
+			}
+			if state.LeftNavWidth <= 0 || state.MainWidth < 320 || state.RightNavWidth <= 0 {
+				t.Fatalf("docs at %dpx grid tracks lack a usable reading column: %+v", width, state)
+			}
+		} else {
+			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 3 || !strings.Contains(state.GridAreas, `"left-nav main-content right-nav"`) {
+				t.Fatalf("docs at %dpx did not retain three-column grid: %+v", width, state)
+			}
+			if state.LeftNavWidth <= 0 || state.MainWidth < 320 || state.RightNavWidth <= 0 {
+				t.Fatalf("docs at %dpx grid tracks lack a usable reading column: %+v", width, state)
+			}
 		}
-		if state.LeftNavWidth <= 0 || state.MainWidth <= 0 || state.RightNavWidth <= 0 {
-			t.Fatalf("docs at %dpx grid tracks have no rendered geometry: %+v", width, state)
+		if state.HeadingWidth < 180 || state.LeadWidth < 220 || state.HeadingFontSize > 64 || state.LeadFontSize > 32 {
+			t.Fatalf("docs at %dpx typography or page-heading geometry is not readable: %+v", width, state)
 		}
 	}
 }

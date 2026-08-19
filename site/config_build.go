@@ -123,11 +123,11 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 .margo-showcase-article .margo-breadcrumbs { margin-block-end: 2rem; color: var(--margo-text); font-size: 0.875rem; }
 .margo-showcase-article .margo-breadcrumbs a { color: inherit; text-decoration: none; }
 .margo-showcase-article .margo-document { color: var(--margo-text); }
-.margo-showcase-article .margo-document h1 { color: var(--margo-text-strong); font-size: clamp(2.25rem, 6vw, 4.5rem); letter-spacing: -0.04em; line-height: 1.05; }
-.margo-showcase-article .margo-document__lead { color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
-.margo-showcase-article .margo-document h2 { margin-block-start: 3rem; color: var(--margo-text-strong); letter-spacing: -0.02em; }
-.margo-showcase-article .margo-document blockquote { margin-block-start: 1.25rem; margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
-.margo-showcase-article .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
+[data-margo-layout="landing"] .margo-showcase-article .margo-document h1 { color: var(--margo-text-strong); font-size: clamp(2.25rem, 6vw, 4.5rem); letter-spacing: -0.04em; line-height: 1.05; }
+[data-margo-layout="landing"] .margo-showcase-article .margo-document__lead { color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
+[data-margo-layout="landing"] .margo-showcase-article .margo-document h2 { margin-block-start: 3rem; color: var(--margo-text-strong); letter-spacing: -0.02em; }
+[data-margo-layout="landing"] .margo-showcase-article .margo-document blockquote { margin-block-start: 1.25rem; margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
+[data-margo-layout="landing"] .margo-showcase-article .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
 .component-doc-shell__brand-mark { display: none !important; }
 .margo-shell-search { width: clamp(11rem, 26vw, 18rem); min-width: 0; flex: 0 1 auto; }
 .margo-shell-search-trigger { min-block-size: 2.75rem; }
@@ -188,11 +188,11 @@ const configuredProfileLayoutCSS = `[data-margo-layout="landing"].margo-frame--t
 [data-margo-layout="landing"] .margo-site-navbar > div:first-of-type,
 [data-margo-layout="docs"] .margo-site-navbar > div:first-of-type { min-inline-size: 0; flex: 1 1 auto; }
 [data-margo-layout="landing"] .margo-site-navbar > div:first-of-type > a,
-[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > a { inline-size: max-content; max-inline-size: none; flex: 0 0 auto; min-inline-size: max-content; }
+[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > a { inline-size: auto; max-inline-size: none; flex: 0 0 auto; min-inline-size: max-content; }
 [data-margo-layout="landing"] .margo-site-brand,
-[data-margo-layout="docs"] .margo-site-brand { display: contents; }
+[data-margo-layout="docs"] .margo-site-brand { display: inline-flex; align-items: center; gap: 0.5rem; inline-size: auto; flex: 0 0 auto; min-inline-size: max-content; white-space: nowrap; }
 [data-margo-layout="landing"] .margo-site-brand img,
-[data-margo-layout="docs"] .margo-site-brand img { margin-inline-end: 0.5rem; vertical-align: middle; }
+[data-margo-layout="docs"] .margo-site-brand img { inline-size: 2rem; block-size: 2rem; flex: 0 0 2rem; margin-inline-end: 0; object-fit: contain; vertical-align: middle; }
 [data-margo-layout="landing"] .margo-site-navbar > div:first-of-type > .margo-site-search,
 [data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > .margo-site-search { inline-size: clamp(11rem, 26vw, 18rem); min-inline-size: 0; flex: 0 1 auto; }
 [data-margo-layout="landing"] .margo-site-family-links,
@@ -205,6 +205,8 @@ const configuredProfileLayoutCSS = `[data-margo-layout="landing"].margo-frame--t
 [data-margo-layout="docs"] .margo-search-clear:focus-visible { color: var(--margo-text-strong); background: var(--margo-surface-alt); }
 .margo-search-status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 @media (width < 30rem) {
+  [data-margo-layout="landing"] .margo-site-navbar > div:first-of-type > .margo-site-search,
+  [data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > .margo-site-search { inline-size: 2.75rem; flex: 0 0 2.75rem; }
   [data-margo-layout="landing"] .margo-site-search,
   [data-margo-layout="docs"] .margo-site-search { width: 2.75rem; flex: 0 0 2.75rem; }
   [data-margo-layout="landing"] .margo-site-search button,
@@ -214,7 +216,7 @@ const configuredProfileLayoutCSS = `[data-margo-layout="landing"].margo-frame--t
   [data-margo-layout="landing"] .margo-site-search button > kbd,
   [data-margo-layout="docs"] .margo-site-search button > kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
 }
-@media (min-width: 720px) {
+@media (min-width: 1200px) {
   [data-margo-layout="docs"].margo-frame--top-left-main-right-footer {
     grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem);
     grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";
@@ -224,12 +226,14 @@ const configuredProfileLayoutCSS = `[data-margo-layout="landing"].margo-frame--t
   [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content,
   [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav { max-inline-size: 100%; }
 }
-@media (min-width: 720px) and (max-width: 1099px) {
+@media (min-width: 800px) and (max-width: 1199px) {
   [data-margo-layout="docs"].margo-frame--top-left-main-right-footer {
-    grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) minmax(10rem, 14rem);
+    grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+    grid-template-areas: "top-nav top-nav" "left-nav main-content" "right-nav right-nav" "footer footer";
+    justify-content: center;
   }
 }
-@media (max-width: 719px) {
+@media (max-width: 799px) {
   [data-margo-layout="landing"] .margo-showcase-article,
   [data-margo-layout="docs"] .margo-showcase-article { inline-size: 100%; }
   [data-margo-layout="docs"].margo-frame--top-left-main-right-footer {
