@@ -22,7 +22,7 @@ import (
 func TestLayoutProfileBrowser(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
-		t.Skip("installed Chromium-family browser unavailable")
+		t.Fatal("layout profile browser acceptance requires an installed Chromium-family browser")
 	}
 
 	server := layoutProfileBrowserServer(t)
@@ -104,11 +104,7 @@ func TestLayoutProfileBrowser(t *testing.T) {
 					resetBrowserErrors()
 
 					var state layoutProfileBrowserState
-					var focusState struct {
-						Found        bool `json:"found"`
-						Focused      bool `json:"focused"`
-						FocusVisible bool `json:"focusVisible"`
-					}
+					var focusState layoutProfileBrowserFocusState
 					actions := chromedp.Tasks{
 						runtime.Enable(),
 						network.Enable(),
@@ -118,14 +114,14 @@ func TestLayoutProfileBrowser(t *testing.T) {
 						chromedp.WaitVisible(`[data-margo-layout]`, chromedp.ByQuery),
 						chromedp.Evaluate(layoutProfileBrowserStateScript, &state),
 					}
+					focusName, focusScript := "skip link", focusDesktopScript
 					if viewport.width == 390 {
-						actions = append(actions,
-							chromedp.Evaluate(waitForMobileTriggerScript, nil),
-							chromedp.KeyEvent(kb.Tab),
-							chromedp.Evaluate(focusMobileTriggerScript, &focusState),
-							chromedp.Evaluate(layoutProfileBrowserStateScript, &state),
-						)
+						focusName, focusScript = "mobile menu trigger", focusMobileScript
 					}
+					actions = append(actions,
+						tabUntilFocus(focusName, focusScript, &focusState),
+						chromedp.Evaluate(layoutProfileBrowserStateScript, &state),
+					)
 					if err := chromedp.Run(ctx, actions...); err != nil {
 						t.Fatalf("%s at %s/%d browser check failed: %v", route, colorMode, viewport.width, err)
 					}
@@ -147,8 +143,8 @@ func TestLayoutProfileBrowser(t *testing.T) {
 					if state.MobileTriggerCount != boolToInt(viewport.width == 390) || state.MobileTriggerVisible != (viewport.width == 390) {
 						t.Fatalf("mobile trigger state = %+v focus=%+v, want count/visibility for width %d", state, focusState, viewport.width)
 					}
-					if viewport.width == 390 && (!focusState.Found || !focusState.Focused || !focusState.FocusVisible) {
-						t.Fatalf("mobile trigger lacks keyboard focus visibility: focus=%+v state=%+v", focusState, state)
+					if !focusState.Found || !focusState.Focused || !focusState.FocusVisible {
+						t.Fatalf("%s lacks keyboard focus visibility after real Tab traversal: focus=%+v state=%+v", focusName, focusState, state)
 					}
 					if state.DocumentOverflow || state.FrameOverflow {
 						t.Fatalf("horizontal overflow at %s/%d: %+v", route, viewport.width, state)
@@ -207,6 +203,32 @@ type layoutProfileBrowserState struct {
 	FrameScrollWidth     float64 `json:"frameScrollWidth"`
 }
 
+type layoutProfileBrowserFocusState struct {
+	Found        bool `json:"found"`
+	Focused      bool `json:"focused"`
+	FocusVisible bool `json:"focusVisible"`
+	Steps        int  `json:"steps"`
+}
+
+func tabUntilFocus(name, script string, state *layoutProfileBrowserFocusState) chromedp.Action {
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		const maxTabPresses = 64
+		for step := 1; step <= maxTabPresses; step++ {
+			if err := chromedp.KeyEvent(kb.Tab).Do(ctx); err != nil {
+				return fmt.Errorf("Tab traversal toward %s failed at press %d: %w", name, step, err)
+			}
+			if err := chromedp.Evaluate(script, state).Do(ctx); err != nil {
+				return fmt.Errorf("reading focus state for %s failed at press %d: %w", name, step, err)
+			}
+			state.Steps = step
+			if state.Found && state.Focused {
+				return nil
+			}
+		}
+		return fmt.Errorf("Tab traversal did not reach %s after %d presses: %+v", name, maxTabPresses, *state)
+	})
+}
+
 const layoutProfileBrowserStateScript = `(() => {
   const visible = (element) => {
     if (!element) return false;
@@ -239,27 +261,30 @@ const layoutProfileBrowserStateScript = `(() => {
   };
 })()`
 
-const waitForMobileTriggerScript = `(async () => {
-  const deadline = Date.now() + 10000;
-  while (Date.now() < deadline) {
-    const trigger = [...document.querySelectorAll("[data-margo-global-navigation] button")]
-      .find((button) => (button.getAttribute("aria-label") || "").toLowerCase().includes("mobile menu"));
-    if (trigger) return true;
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  throw new Error("mobile navigation trigger did not stabilize");
-})()`
-
-const focusMobileTriggerScript = `(() => {
-  const buttons = [...document.querySelectorAll("[data-margo-global-navigation] button")];
-  const trigger = buttons.find((button) => (button.getAttribute("aria-label") || "").toLowerCase().includes("mobile menu"));
-  if (!trigger) return { found: false };
-  trigger.focus();
+const focusMobileScript = `(() => {
+  const trigger = [...document.querySelectorAll("[data-margo-global-navigation] button")]
+    .find((button) => {
+      const label = (button.getAttribute("aria-label") || "").toLowerCase();
+      const style = getComputedStyle(button);
+      return label.includes("mobile menu") && style.display !== "none" && style.visibility !== "hidden" && button.getClientRects().length > 0;
+    });
+  if (!trigger) return { found: false, focused: false, focusVisible: false };
   const style = getComputedStyle(trigger);
   return {
     found: true,
     focused: document.activeElement === trigger,
     focusVisible: trigger.matches(":focus-visible") && style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0,
+  };
+})()`
+
+const focusDesktopScript = `(() => {
+  const target = document.querySelector(".margo-skip-link");
+  if (!target) return { found: false, focused: false, focusVisible: false };
+  const style = getComputedStyle(target);
+  return {
+    found: true,
+    focused: document.activeElement === target,
+    focusVisible: target.matches(":focus-visible") && style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0,
   };
 })()`
 
