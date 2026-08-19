@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -206,6 +207,98 @@ locales:
 	}
 	if len(result.Site.Routes) != 2 || result.Site.Routes[0].Actions == nil || !result.Site.Routes[0].Actions.Markdown || !result.Site.Routes[0].Actions.PDF || result.Site.Routes[1].Actions == nil || !result.Site.Routes[1].Actions.UsesClientPDF() {
 		t.Fatalf("route actions = %+v", result.Site.Routes)
+	}
+}
+
+func TestBuildConfigLayoutKindsPublishDeclaredMarkdownAndPDFWithoutLeakingActions(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+margo:
+  page:
+    imageOverflow: allow
+  actions:
+    pdf: true
+---
+# Landing export
+
+Landing source remains publishable.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "article.md"), `---
+layout:
+  kind: article
+margo:
+  actions:
+    pdf: true
+---
+# Article export
+
+Article source remains publishable.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), `---
+margo:
+  actions:
+    markdown: true
+---
+# Module docs
+
+Docs keep their toolbar.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Typed page-action fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module]
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{
+		ConfigPath: filepath.Join(root, "site.yaml"),
+		PDFEngine:  siteTestPDFEngine{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for route, output := range map[string]string{"landing": "index.html", "article": "article.html"} {
+		page := string(configArtifact(t, result, output))
+		for _, forbidden := range []string{"margo-page-actions", pageActionsScriptPath, pageActionsIconSpritePath} {
+			if strings.Contains(page, forbidden) {
+				t.Fatalf("%s action UI leaked into %s: %s", forbidden, route, page)
+			}
+		}
+		markdown := pageMarkdownOutput(output)
+		pdfOutput := pagePDFOutput(output)
+		if !artifactExists(result, markdown) || !artifactExists(result, pdfOutput) {
+			t.Fatalf("%s declared artifacts missing: markdown=%t pdf=%t", route, artifactExists(result, markdown), artifactExists(result, pdfOutput))
+		}
+		if route == "landing" && !strings.Contains(page, `data-margo-image-overflow="allow"`) {
+			t.Fatalf("landing lost semantic image-overflow policy: %s", page)
+		}
+	}
+	docs := string(configArtifact(t, result, "module/index.html"))
+	if !strings.Contains(docs, `class="margo-page-actions"`) || !strings.Contains(docs, pageActionsScriptPath) {
+		t.Fatalf("docs page lost its action toolbar or dependency: %s", docs)
+	}
+	if !artifactExists(result, "module/index.md") {
+		t.Fatal("docs Markdown artifact missing")
 	}
 }
 

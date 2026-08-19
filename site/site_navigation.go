@@ -516,10 +516,57 @@ func (b *builder) stageGoshtosoNavigationAssets() error {
 }
 
 func (b *builder) configuredGoshtosoDependencyBytes() ([]byte, error) {
-	if !b.profileMode {
-		return nil, nil
-	}
 	return renderComponentBytes(head.Dependencies(head.WithLocalRuntime()))
+}
+
+func inlineGoshtosoNavigationDependencyBytes(requirements margo.HTMLRequirements) ([]byte, error) {
+	manifest := goshtosoassets.DefaultRuntimeManifest()
+	var builder strings.Builder
+	if !requirementsContainStylesheet(requirements, manifest.Stylesheet.LocalURL) {
+		stylesheet, err := readGoshtosoAsset(manifest.Stylesheet.LocalURL)
+		if err != nil {
+			return nil, err
+		}
+		builder.WriteString(`<style data-margo-layout-dependency="goshtoso-navigation">`)
+		builder.Write(stylesheet)
+		builder.WriteString(`</style>`)
+	}
+	for _, dependency := range manifest.Dependencies {
+		if !dependency.Enabled || dependency.LocalURL == "" {
+			continue
+		}
+		content, err := readGoshtosoAsset(dependency.LocalURL)
+		if err != nil {
+			return nil, err
+		}
+		builder.WriteString(`<script data-margo-layout-dependency="goshtoso-navigation"`)
+		if dependency.Defer {
+			builder.WriteString(` defer`)
+		}
+		builder.WriteString(`>`)
+		builder.Write(content)
+		builder.WriteString(`</script>`)
+	}
+	return []byte(builder.String()), nil
+}
+
+func requirementsContainStylesheet(requirements margo.HTMLRequirements, stylesheetURL string) bool {
+	wanted := canonicalResourceURL(stylesheetURL)
+	for _, requirement := range requirements.List() {
+		if requirement.Kind == margo.HTMLStylesheet && canonicalResourceURL(requirement.LocalURL) == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func readGoshtosoAsset(publicURL string) ([]byte, error) {
+	name := strings.TrimPrefix(publicURL, "/assets/")
+	content, err := goshtosoassets.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("site.shell_asset_unavailable: Goshtoso did not expose %q: %w", publicURL, err)
+	}
+	return content, nil
 }
 
 func withoutGoshtosoStylesheet(markup []byte, requirements margo.HTMLRequirements) []byte {

@@ -439,7 +439,7 @@ func (b *builder) rewriteLink(source Source, node *html.Node) error {
 	// Configured sites publish directory routes for index artifacts. The
 	// in-memory legacy builder has no public site configuration, so it retains
 	// its artifact-relative link contract.
-	if b.profileMode {
+	if b.usesPublicRoutes() {
 		parsed.Path = b.publicPagePath(targetSource.Path)
 	} else {
 		relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), b.pageOutput(targetSource.Path))
@@ -702,6 +702,10 @@ func (b *builder) publicOutputPath(output string, home bool) string {
 		route = strings.TrimSuffix(basePath, "/") + route
 	}
 	return route
+}
+
+func (b *builder) usesPublicRoutes() bool {
+	return b.profileMode || b.config != nil && b.config.Layout != nil
 }
 
 func (b *builder) publicPagePath(source string) string {

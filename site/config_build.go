@@ -20,6 +20,7 @@ import (
 
 	"github.com/a-h/templ"
 	chartassets "github.com/araihu/goshtoso-charts/assets"
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 	"github.com/araihu/goshtoso/components/breadcrumbs"
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/internal/staticimage"
@@ -154,6 +155,117 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 }
 .margo-shell-footer { margin: 0; color: var(--margo-text); font-size: 0.875rem; }
 `
+
+const (
+	configuredTypedSiteStylePath = "margo-assets/site.css"
+	configuredLandingStylePath   = "margo-assets/landing.css"
+	configuredDocsStylePath      = "margo-assets/docs.css"
+)
+
+// configuredTypedSiteCSS contains only the common one-document surface used
+// by every typed layout. Kind-specific chrome stays in its own stylesheet.
+const configuredTypedSiteCSS = `:root {
+  color-scheme: light dark;
+  --margo-surface: #ffffff;
+  --margo-surface-alt: #f5f7fa;
+  --margo-text: #17202a;
+  --margo-text-strong: #0b1220;
+  --margo-accent: #155eef;
+  --margo-outline: #7b8794;
+  --margo-gap: 1.5rem;
+  --margo-reading-measure: 75ch;
+}
+[data-color-mode="dark"], html.dark {
+  --margo-surface: #111827;
+  --margo-surface-alt: #1f2937;
+  --margo-text: #e5e7eb;
+  --margo-text-strong: #ffffff;
+  --margo-accent: #8ab4ff;
+  --margo-outline: #9ca3af;
+}
+* { box-sizing: border-box; }
+html { background: var(--margo-surface); color: var(--margo-text); }
+body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-height: 1.6; }
+.margo-skip-link { position: absolute; inset-inline-start: 0.75rem; inset-block-start: 0.75rem; transform: translateY(-200%); padding: 0.75rem 1rem; background: var(--margo-surface); color: var(--margo-text-strong); outline: 3px solid var(--margo-accent); z-index: 10; }
+.margo-skip-link:focus { transform: none; }
+.margo-frame { display: grid; gap: var(--margo-gap); max-inline-size: 100%; padding: 1rem; }
+.margo-frame > .margo-area { min-inline-size: 0; }
+.margo-area--main-content { inline-size: 100%; margin-inline: auto; }
+.margo-document { color: var(--margo-text); }
+.margo-document a { color: var(--margo-accent); }
+:where(.margo-frame :focus-visible, .margo-document :focus-visible) { outline: 3px solid var(--margo-accent); outline-offset: 2px; }
+@media (max-width: 719px) { .margo-frame { padding: 0.75rem; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
+@media print { .margo-skip-link { display: none !important; } .margo-frame { display: block; padding: 0; } .margo-area--main-content { max-inline-size: none; } }
+`
+
+const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { display: block; }
+[data-margo-layout="landing"] .margo-area--main-content { max-inline-size: none; }
+.margo-landing-article { inline-size: 100%; max-inline-size: none; margin-inline: auto; padding-block: clamp(1.5rem, 4vw, 4rem); }
+[data-margo-layout="landing"] .margo-document { max-inline-size: 100%; }
+[data-margo-layout="landing"] .margo-document h1 { color: var(--margo-text-strong); font-size: clamp(2.25rem, 6vw, 4.5rem); letter-spacing: -0.04em; line-height: 1.05; }
+[data-margo-layout="landing"] .margo-document__lead { color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
+[data-margo-layout="landing"] .margo-document h2 { margin-block-start: 3rem; color: var(--margo-text-strong); letter-spacing: -0.02em; }
+[data-margo-layout="landing"] .margo-document blockquote { margin-block-start: 1.25rem; margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
+[data-margo-layout="landing"] .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
+`
+
+const configuredDocsCSS = `[data-margo-layout="docs"].margo-frame--top-left-main-right-footer { grid-template-areas: "top-nav" "left-nav" "main-content" "right-nav" "footer"; }
+[data-margo-layout="docs"] .margo-area--top-nav { grid-area: top-nav; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+[data-margo-layout="docs"] .margo-area--top-nav > nav,
+[data-margo-layout="docs"] .margo-site-family-links,
+[data-margo-layout="docs"] .margo-area--top-nav > * { min-inline-size: 0; max-inline-size: 100%; }
+[data-margo-layout="docs"] .margo-area--left-nav { grid-area: left-nav; min-inline-size: 0; overflow-inline: auto; padding-block: 0.5rem; }
+[data-margo-layout="docs"] .margo-area--main-content { grid-area: main-content; max-inline-size: var(--margo-reading-measure); }
+[data-margo-layout="docs"] .margo-area--right-nav { grid-area: right-nav; min-inline-size: 0; overflow-inline: auto; padding-inline-start: 0.5rem; }
+[data-margo-layout="docs"] .margo-area--footer { grid-area: footer; }
+[data-margo-layout="docs"] .margo-showcase-article { inline-size: min(100%, var(--margo-reading-measure)); max-inline-size: 100%; margin-inline: auto; padding-block: clamp(1.5rem, 4vw, 4rem); }
+[data-margo-layout="docs"] :where(a, button):focus-visible { outline: 3px solid var(--margo-accent); outline-offset: 2px; }
+[data-margo-layout="docs"] .margo-site-family-links a,
+[data-margo-layout="docs"] .margo-site-search button { min-block-size: 2.75rem; }
+[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type { min-inline-size: 0; flex: 1 1 auto; }
+[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > a { inline-size: auto; max-inline-size: none; flex: 0 0 auto; min-inline-size: max-content; }
+[data-margo-layout="docs"] .margo-site-brand { display: inline-flex; align-items: center; gap: 0.5rem; inline-size: auto; flex: 0 0 auto; min-inline-size: max-content; white-space: nowrap; }
+[data-margo-layout="docs"] .margo-site-brand img { inline-size: 2rem; block-size: 2rem; flex: 0 0 2rem; margin-inline-end: 0; object-fit: contain; vertical-align: middle; }
+[data-margo-layout="docs"] .margo-site-repository { display: inline-flex; align-items: center; justify-content: center; inline-size: 2.75rem; block-size: 2.75rem; color: var(--margo-accent); text-decoration: none; }
+[data-margo-layout="docs"] .margo-site-repository svg { inline-size: 1.5rem; block-size: 1.5rem; }
+[data-margo-layout="docs"] .margo-site-repository:hover,
+[data-margo-layout="docs"] .margo-site-repository:focus-visible { color: var(--margo-text-strong); }
+[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > .margo-site-search { inline-size: clamp(11rem, 26vw, 18rem); min-inline-size: 0; flex: 0 1 auto; }
+[data-margo-layout="docs"] .margo-site-family-links { flex: 1 1 100%; }
+[data-margo-layout="docs"] .margo-search-clear { min-block-size: 2rem; border: 0; padding: 0.25rem 0.5rem; color: var(--margo-text); background: transparent; font-size: 0.875rem; white-space: nowrap; }
+[data-margo-layout="docs"] .margo-search-clear:hover,
+[data-margo-layout="docs"] .margo-search-clear:focus-visible { color: var(--margo-text-strong); background: var(--margo-surface-alt); }
+[data-margo-layout="docs"] .margo-pagination ul { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem 2rem; margin: 0; padding: 0; list-style: none; }
+[data-margo-layout="docs"] .margo-pagination { margin-block-start: 2rem; padding-block-start: 1rem; border-block-start: 1px solid var(--margo-outline); }
+[data-margo-layout="docs"] .margo-footer { margin-block-start: 1rem; padding-block-start: 1rem; border-block-start: 1px solid var(--margo-outline); }
+.margo-search-status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+@media (width < 30rem) {
+  [data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > .margo-site-search,
+  [data-margo-layout="docs"] .margo-site-search { inline-size: 2.75rem; width: 2.75rem; flex: 0 0 2.75rem; }
+  [data-margo-layout="docs"] .margo-site-search button { width: 2.75rem; min-width: 2.75rem; padding-inline: 0; justify-content: center; }
+  [data-margo-layout="docs"] .margo-site-search button > span,
+  [data-margo-layout="docs"] .margo-site-search button > kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+}
+@media (min-width: 1200px) {
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer { grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem); grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer"; justify-content: center; }
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav,
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content,
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav { max-inline-size: 100%; }
+}
+@media (min-width: 880px) and (max-width: 1199px) {
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer { grid-template-columns: minmax(9rem, 11rem) minmax(0, 1fr) minmax(9rem, 11rem); grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer"; justify-content: center; }
+}
+@media (max-width: 879px) {
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer { display: grid; grid-template-columns: minmax(0, 1fr); overflow-x: clip; }
+  [data-margo-layout="docs"] .margo-showcase-article { inline-size: 100%; }
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav,
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content,
+  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav { min-inline-size: 0; max-inline-size: 100%; overflow-inline: hidden; }
+  [data-margo-layout="docs"] .margo-area--right-nav { padding-inline-start: 0; }
+}
+@media print { [data-margo-layout="docs"] .margo-area--top-nav, [data-margo-layout="docs"] .margo-area--left-nav, [data-margo-layout="docs"] .margo-area--right-nav, [data-margo-layout="docs"] .margo-area--footer { display: none !important; } }
+` + pageActionsCSS
 
 // configuredProfileLayoutCSS is consumer-owned semantic presentation for
 // layout-profile pages. It deliberately names only Margo frame/layout hooks;
@@ -324,6 +436,8 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 			return Result{}, frameErr
 		}
 		layoutIdentity, layoutSchemaHash = profileLayoutIdentity(presentations)
+	} else if typedLayoutMode {
+		layoutIdentity = "layout:" + string(config.Layout.Kind)
 	} else {
 		frameName = "top-left-main-footer"
 		if config.Frame != nil && config.Frame.Builtin != "" {
@@ -353,12 +467,8 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 		if err != nil {
 			return Result{}, err
 		}
-		if typedLayoutMode {
-			layoutIdentity = "layout:" + string(config.Layout.Kind)
-		} else {
-			layoutIdentity = "frame:" + frameName
-			layoutSchemaHash = frameHash
-		}
+		layoutIdentity = "frame:" + frameName
+		layoutSchemaHash = frameHash
 	}
 	if request.Compiler == nil {
 		request.Compiler = margo.New()
@@ -663,6 +773,10 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			if err != nil {
 				return presentationSourceDiagnostic(err, source.Path)
 			}
+			resolvedLayout, err = prepareResolvedLayout(resolvedLayout, entry, locale, b.config.Theme)
+			if err != nil {
+				return presentationSourceDiagnostic(err, source.Path)
+			}
 			resolvedLayout.Family = ""
 			if resolvedLayout.Kind == LayoutDocs {
 				resolvedLayout.Family, _ = resolvedLayout.Values["family"].(string)
@@ -728,6 +842,40 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 		b.siteManifest.LayoutSchemaHash = identity
 	}
 	return nil
+}
+
+func prepareResolvedLayout(layout ResolvedLayout, entry layoutRegistryEntry, locale string, theme ThemeSelection) (ResolvedLayout, error) {
+	frame, err := ssg.BuiltinFrame(entry.frameName)
+	if err != nil {
+		return ResolvedLayout{}, err
+	}
+	schema, err := frame.Schema(ssg.FrameContext{
+		Locale: locale, Direction: localeDirection(locale), Profile: entry.frameProfile,
+		Root: true, InstanceID: "root",
+		Theme: ssg.ThemeContext{Name: theme.Name, ColorMode: theme.ColorMode, AllowSwitchTheme: theme.AllowSwitchTheme},
+	})
+	if err != nil {
+		return ResolvedLayout{}, err
+	}
+	if err := ssg.ValidateFrameSchema(schema, entry.frameProfile); err != nil {
+		return ResolvedLayout{}, err
+	}
+	values, err := ssg.ResolveFrameValues(schema, nil)
+	if err != nil {
+		return ResolvedLayout{}, err
+	}
+	schemaHash, err := ssg.SchemaHashForValues(schema, values)
+	if err != nil {
+		return ResolvedLayout{}, err
+	}
+	layout.FrameName = entry.frameName
+	layout.Frame = frame
+	layout.FrameSchema = schema
+	layout.FrameValues = values
+	layout.SchemaHash = schemaHash
+	layout.renderer = entry.renderer
+	layout.dependencies = entry.dependencies
+	return layout, nil
 }
 
 func (b *builder) buildDocsFamilies(siteLayout ResolvedLayout) error {
@@ -881,9 +1029,20 @@ func configuredLayoutRegistryIdentity(registry layoutRegistry) []any {
 			continue
 		}
 		entries = append(entries, map[string]any{
-			"kind":     string(kind),
-			"defaults": entry.defaults,
-			"schema":   configuredLayoutSchemaIdentity(entry.schema),
+			"kind":          string(kind),
+			"defaults":      entry.defaults,
+			"schema":        configuredLayoutSchemaIdentity(entry.schema),
+			"frame":         entry.frameName,
+			"frame_profile": entry.frameProfile,
+			"renderer":      entry.renderer.String(),
+			"dependencies": map[string]any{
+				"site_styles":         entry.dependencies.siteStyles,
+				"landing_styles":      entry.dependencies.landingStyles,
+				"docs_styles":         entry.dependencies.docsStyles,
+				"docs_interactions":   entry.dependencies.docsInteractions,
+				"goshtoso_navigation": entry.dependencies.goshtosoNavigation,
+				"page_actions":        entry.dependencies.pageActions,
+			},
 		})
 	}
 	return entries
@@ -1031,12 +1190,12 @@ func (b *builder) pageURL(page Page) string {
 		home = "index.md"
 	}
 	route := "/" + page.Output
-	if b.profileMode {
+	if b.usesPublicRoutes() {
 		route = b.publicOutputPath(page.Output, page.Source == home && page.Locale == b.config.Locales.Default)
 	} else if page.Source == home && page.Locale == b.config.Locales.Default {
 		route = "/"
 	}
-	if !b.profileMode {
+	if !b.usesPublicRoutes() {
 		basePath := normalizedBasePath(b.config.BasePath)
 		if basePath != "/" {
 			route = strings.TrimSuffix(basePath, "/") + route
@@ -1055,19 +1214,25 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 	if err := b.stageSocialImage(config.Site.SocialImage); err != nil {
 		return err
 	}
-	if err := b.addArtifact("margo-assets/site.css", []byte(configuredSiteStylesheet(b.profileMode))); err != nil {
-		return err
-	}
-	b.dependencies["margo-assets/site.css"] = "margo-assets/site.css"
-	if err := b.addArtifact(pageActionsScriptPath, []byte(pageActionsScript)); err != nil {
-		return err
-	}
-	b.dependencies[pageActionsScriptPath] = pageActionsScriptPath
-	if b.profileMode {
-		if err := b.addArtifact(profileInteractionScriptPath, []byte(profileInteractionScript)); err != nil {
+	if config.Layout != nil {
+		if err := b.stageTypedLayoutAssets(); err != nil {
 			return err
 		}
-		b.dependencies[profileInteractionScriptPath] = profileInteractionScriptPath
+	} else {
+		if err := b.addArtifact("margo-assets/site.css", []byte(configuredSiteStylesheet(b.profileMode))); err != nil {
+			return err
+		}
+		b.dependencies["margo-assets/site.css"] = "margo-assets/site.css"
+		if err := b.addArtifact(pageActionsScriptPath, []byte(pageActionsScript)); err != nil {
+			return err
+		}
+		b.dependencies[pageActionsScriptPath] = pageActionsScriptPath
+		if b.profileMode {
+			if err := b.addArtifact(profileInteractionScriptPath, []byte(profileInteractionScript)); err != nil {
+				return err
+			}
+			b.dependencies[profileInteractionScriptPath] = profileInteractionScriptPath
+		}
 	}
 	for _, theme := range config.Themes {
 		if strings.HasPrefix(theme.CSSURL, "https://") {
@@ -1095,12 +1260,69 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 		if err := b.stageGoshtosoComponentDocShellAssets(); err != nil {
 			return err
 		}
-	} else if b.profileMode {
+	} else if config.Layout == nil && b.profileMode {
 		if err := b.stageGoshtosoNavigationAssets(); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (b *builder) stageTypedLayoutAssets() error {
+	if b.request.Assets == AssetsInline {
+		return nil
+	}
+	dependencies := b.typedLayoutDependencies()
+	stage := func(name, content string) error {
+		if err := b.addArtifact(name, []byte(content)); err != nil {
+			return err
+		}
+		b.dependencies[strings.ToLower(name)] = name
+		return nil
+	}
+	if dependencies.siteStyles {
+		if err := stage(configuredTypedSiteStylePath, configuredTypedSiteCSS); err != nil {
+			return err
+		}
+	}
+	if dependencies.landingStyles {
+		if err := stage(configuredLandingStylePath, configuredLandingCSS); err != nil {
+			return err
+		}
+	}
+	if dependencies.docsStyles {
+		if err := stage(configuredDocsStylePath, configuredDocsCSS); err != nil {
+			return err
+		}
+	}
+	if dependencies.docsInteractions {
+		if err := stage(profileInteractionScriptPath, profileInteractionScript); err != nil {
+			return err
+		}
+	}
+	if dependencies.pageActions {
+		if err := stage(pageActionsScriptPath, pageActionsScript); err != nil {
+			return err
+		}
+	}
+	if dependencies.goshtosoNavigation {
+		return b.stageGoshtosoNavigationAssets()
+	}
+	return nil
+}
+
+func (b *builder) typedLayoutDependencies() layoutDependencies {
+	dependencies := layoutDependencies{}
+	for _, page := range b.configPages {
+		prepared := b.configured[page.Source]
+		dependencies.siteStyles = dependencies.siteStyles || prepared.layout.dependencies.siteStyles
+		dependencies.landingStyles = dependencies.landingStyles || prepared.layout.dependencies.landingStyles
+		dependencies.docsStyles = dependencies.docsStyles || prepared.layout.dependencies.docsStyles
+		dependencies.docsInteractions = dependencies.docsInteractions || prepared.layout.dependencies.docsInteractions
+		dependencies.goshtosoNavigation = dependencies.goshtosoNavigation || prepared.layout.dependencies.goshtosoNavigation
+		dependencies.pageActions = dependencies.pageActions || prepared.layout.dependencies.pageActions
+	}
+	return dependencies
 }
 
 func (b *builder) validateThemeCatalog(theme ThemeConfig) error {
@@ -1209,6 +1431,9 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	if b.shellMode {
 		return b.renderConfiguredShellSource(ctx, source, prepared, dependencyBytes)
 	}
+	if b.config.Layout != nil {
+		return b.renderResolvedLayoutSource(ctx, source, prepared, dependencyBytes)
+	}
 	bindings, err := b.bindingsForPage(prepared)
 	if err != nil {
 		return err
@@ -1228,7 +1453,7 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	fragment = addProfileLayoutHook(fragment, prepared.page.Layout)
 	page := prepared.page
 	iconURL, _ := relativeSitePath(path.Dir(page.Output), b.config.Site.Icon)
-	head, err := b.renderPageHead(page, iconURL, dependencyBytes, prepared.result.Requirements())
+	head, err := b.renderPageHeadForLayout(page, ResolvedLayout{}, iconURL, dependencyBytes, prepared.result.Requirements())
 	if err != nil {
 		return err
 	}
@@ -1246,6 +1471,56 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 		return err
 	}
 	if err := validateConfiguredDocument(rewritten, prepared.page, bindings); err != nil {
+		return err
+	}
+	if err := b.addArtifact(page.Output, rewritten); err != nil {
+		return err
+	}
+	b.pages = append(b.pages, page)
+	return nil
+}
+
+func (b *builder) renderResolvedLayoutSource(ctx context.Context, source Source, prepared configuredPage, dependencyBytes []byte) error {
+	bindings, err := b.resolvedBindingsForPage(prepared)
+	if err != nil {
+		return err
+	}
+	layout := prepared.layout
+	if layout.Frame == nil {
+		return fmt.Errorf("site.layout_missing: page %q has no resolved layout frame", prepared.page.Source)
+	}
+	output, err := layout.Frame.Render(ssg.FrameInput{
+		SchemaHash: layout.SchemaHash, RootCompositionHash: layout.SchemaHash,
+		InstanceID: "root", Values: layout.FrameValues, Bindings: bindings,
+	})
+	if err != nil {
+		return err
+	}
+	fragment, err := renderComponentBytes(output.Fragment)
+	if err != nil {
+		return err
+	}
+	fragment = addProfileLayoutHook(fragment, prepared.page.Layout)
+	page := prepared.page
+	iconURL, _ := relativeSitePath(path.Dir(page.Output), b.config.Site.Icon)
+	head, err := b.renderPageHeadForLayout(page, layout, iconURL, dependencyBytes, prepared.result.Requirements())
+	if err != nil {
+		return err
+	}
+	body := `<a class="margo-skip-link" href="#margo-document">Skip to content</a>` + string(fragment)
+	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
+	rewritten, err := b.rewriteHTML(ctx, source, markup)
+	if err != nil {
+		return err
+	}
+	rewritten, err = b.injectPageActionsForLayout(ctx, rewritten, page, layout)
+	if err != nil {
+		return err
+	}
+	if err := b.addDeclaredPageArtifacts(ctx, source, page, prepared.document); err != nil {
+		return err
+	}
+	if err := validateConfiguredDocument(rewritten, page, bindings); err != nil {
 		return err
 	}
 	if err := b.addArtifact(page.Output, rewritten); err != nil {
@@ -1293,6 +1568,119 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 		}
 	}
 	return renderComponentBytes(requirements)
+}
+
+func (b *builder) resolvedBindingsForPage(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {
+	switch prepared.layout.renderer {
+	case layoutRenderLanding:
+		return b.landingBindings(prepared)
+	case layoutRenderArticle:
+		return b.articleBindings(prepared)
+	case layoutRenderDocs:
+		return b.docsBindings(prepared)
+	default:
+		return nil, fmt.Errorf("site.layout_missing: page %q has no resolved renderer", prepared.page.Source)
+	}
+}
+
+func (b *builder) landingBindings(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {
+	article := `<div class="margo-landing-article" data-margo-landing-article="true">` + string(prepared.article) + `</div>`
+	return b.articleOnlyBindings(prepared, article)
+}
+
+func (b *builder) articleBindings(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {
+	return b.articleOnlyBindings(prepared, string(prepared.article))
+}
+
+func (b *builder) articleOnlyBindings(prepared configuredPage, article string) (map[string][]ssg.AreaBinding, error) {
+	bindings := map[string][]ssg.AreaBinding{}
+	if err := b.addResolvedBinding(bindings, prepared, "document", prepared.layout.FrameSchema.BindingDefaults["document"], "", article); err != nil {
+		return nil, err
+	}
+	if err := ssg.ValidateBindings(prepared.layout.FrameSchema, bindings); err != nil {
+		return nil, err
+	}
+	return bindings, nil
+}
+
+func (b *builder) docsBindings(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {
+	bindings := map[string][]ssg.AreaBinding{}
+	add := func(kind, defaultArea, slot, fragment string) error {
+		return b.addResolvedBinding(bindings, prepared, kind, defaultArea, slot, fragment)
+	}
+	article := `<div class="margo-showcase-article" data-margo-showcase-article="true">` + string(prepared.article) + `</div>`
+	if err := add("document", prepared.layout.FrameSchema.BindingDefaults["document"], "", article); err != nil {
+		return nil, err
+	}
+	siteNavigation, err := b.siteNavigationFragment(prepared.page)
+	if err != nil {
+		return nil, err
+	}
+	if err := add("site_navigation", "top-nav", "", siteNavigation); err != nil {
+		return nil, err
+	}
+	if resolvedLayoutBool(prepared.layout, "sidebar") {
+		familyNavigation, err := b.familyNavigationFragment(prepared.page)
+		if err != nil {
+			return nil, err
+		}
+		if err := add("navigation", prepared.layout.FrameSchema.BindingDefaults["navigation"], "", familyNavigation); err != nil {
+			return nil, err
+		}
+	}
+	if resolvedLayoutBool(prepared.layout, "toc") {
+		if err := add("toc", prepared.layout.FrameSchema.BindingDefaults["toc"], "", b.tocFragment(prepared.article, prepared.page.Locale)); err != nil {
+			return nil, err
+		}
+	}
+	if pagination := b.paginationFragment(prepared.page); pagination != "" {
+		if err := add("pagination", prepared.layout.FrameSchema.BindingDefaults["pagination"], "after-article", pagination); err != nil {
+			return nil, err
+		}
+	}
+	if b.config.Theme.AllowSwitchTheme {
+		label := localizedLabel(prepared.page.Locale, "theme")
+		if err := add("theme_controls", prepared.layout.FrameSchema.BindingDefaults["theme_controls"], "", `<div class="margo-theme-controls"><button type="button" aria-label="`+stdhtml.EscapeString(label)+`" data-margo-theme-control="cycle">`+stdhtml.EscapeString(label)+`</button></div>`); err != nil {
+			return nil, err
+		}
+	}
+	if len(b.config.Locales.Supported) > 1 {
+		if err := add("locale_controls", prepared.layout.FrameSchema.BindingDefaults["locale_controls"], "", b.localeFragment(prepared.page)); err != nil {
+			return nil, err
+		}
+	}
+	if err := add("footer", prepared.layout.FrameSchema.BindingDefaults["footer"], "", `<footer class="margo-footer"><p>`+stdhtml.EscapeString(b.config.Site.Name)+`</p></footer>`); err != nil {
+		return nil, err
+	}
+	if err := ssg.ValidateBindings(prepared.layout.FrameSchema, bindings); err != nil {
+		return nil, err
+	}
+	return bindings, nil
+}
+
+func (b *builder) addResolvedBinding(bindings map[string][]ssg.AreaBinding, prepared configuredPage, kind, defaultArea, slot, fragment string) error {
+	configuration, configured := b.config.Bindings[kind]
+	area := defaultArea
+	if configured {
+		area = configuration.Area
+		if configuration.Slot != "" {
+			slot = configuration.Slot
+		}
+	}
+	if area == "" || fragment == "" {
+		return nil
+	}
+	binding, err := ssg.NewAreaBinding(prepared.layout.SchemaHash, prepared.page.Output, ssg.BindingSpec{Kind: kind, Area: area, Slot: slot}, len(bindings[area]), templ.Raw(fragment))
+	if err != nil {
+		return err
+	}
+	bindings[area] = append(bindings[area], binding)
+	return nil
+}
+
+func resolvedLayoutBool(layout ResolvedLayout, key string) bool {
+	value, _ := layout.Values[key].(bool)
+	return value
 }
 
 func (b *builder) stageChartIconSprite(requirements margo.HTMLRequirements) error {
@@ -1444,7 +1832,7 @@ func (b *builder) breadcrumbFragment(page Page) string {
 		}
 	}
 	homeHref := relativeAssetPath(path.Dir(page.Output), b.localeHomeOutput(page))
-	if b.profileMode {
+	if b.usesPublicRoutes() {
 		homeHref = b.siteHomeHref(page)
 	}
 	markup, err := renderComponentBytes(breadcrumbs.Breadcrumbs(breadcrumbs.Config{
@@ -1524,7 +1912,7 @@ func (b *builder) localeFragment(page Page) string {
 	builder.WriteString(`<nav class="margo-locale-controls" aria-label="` + stdhtml.EscapeString(localizedLabel(page.Locale, "language")) + `"><ul>`)
 	for _, alternate := range page.Alternates {
 		href := b.relativeAlternate(page.Output, alternate.URL)
-		if b.profileMode {
+		if b.usesPublicRoutes() {
 			href = b.publicAlternatePath(alternate.URL)
 		}
 		builder.WriteString(`<li><a hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(alternate.Locale) + `</a></li>`)
@@ -1534,6 +1922,10 @@ func (b *builder) localeFragment(page Page) string {
 }
 
 func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []byte, requirements margo.HTMLRequirements) (string, error) {
+	return b.renderPageHeadForLayout(page, ResolvedLayout{}, iconURL, dependencyBytes, requirements)
+}
+
+func (b *builder) renderPageHeadForLayout(page Page, layout ResolvedLayout, iconURL string, dependencyBytes []byte, requirements margo.HTMLRequirements) (string, error) {
 	var builder strings.Builder
 	builder.WriteString(`<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="` + stdhtml.EscapeString(iconURL) + `"><title>` + stdhtml.EscapeString(page.Title) + `</title><meta name="description" content="` + stdhtml.EscapeString(page.Description) + `"><link rel="canonical" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
 	builder.WriteString(`<meta property="og:url" content="` + stdhtml.EscapeString(page.Canonical) + `"><meta property="og:type" content="website"><meta property="og:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta property="og:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta property="og:site_name" content="` + stdhtml.EscapeString(b.config.Site.Name) + `"><meta property="og:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta property="og:image:type" content="` + stdhtml.EscapeString(b.socialMediaType) + `"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
@@ -1547,6 +1939,67 @@ func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []by
 		}
 	}
 	builder.WriteString(b.themeBootstrap())
+	if layout.Kind != "" {
+		if b.request.Assets == AssetsInline {
+			if layout.dependencies.siteStyles {
+				builder.WriteString(`<style data-margo-layout-style="site">` + configuredTypedSiteCSS + `</style>`)
+			}
+			if layout.dependencies.landingStyles {
+				builder.WriteString(`<style data-margo-layout-style="landing">` + configuredLandingCSS + `</style>`)
+			}
+			if layout.dependencies.docsStyles {
+				builder.WriteString(`<style data-margo-layout-style="docs">` + configuredDocsCSS + `</style>`)
+			}
+			if layout.dependencies.pageActions {
+				builder.WriteString(`<script data-margo-layout-dependency="page-actions">` + pageActionsScript + `</script>`)
+			}
+			if layout.dependencies.docsInteractions {
+				builder.WriteString(`<script data-margo-layout-dependency="site-navigation">` + profileInteractionScript + `</script>`)
+			}
+		} else {
+			if layout.dependencies.siteStyles {
+				builder.WriteString(`<link rel="stylesheet" href="/` + configuredTypedSiteStylePath + `">`)
+			}
+			if layout.dependencies.landingStyles {
+				builder.WriteString(`<link rel="stylesheet" href="/` + configuredLandingStylePath + `">`)
+			}
+			if layout.dependencies.docsStyles {
+				builder.WriteString(`<link rel="stylesheet" href="/` + configuredDocsStylePath + `">`)
+			}
+			if layout.dependencies.pageActions {
+				builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(pageActionsScriptPath) + `"></script>`)
+			}
+			if layout.dependencies.docsInteractions {
+				builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(profileInteractionScriptPath) + `"></script>`)
+			}
+		}
+		for _, theme := range b.config.Themes {
+			media := "not all"
+			if theme.Name == b.config.Theme.Name {
+				media = "all"
+			}
+			builder.WriteString(`<link rel="stylesheet" data-margo-theme-css="` + stdhtml.EscapeString(theme.Name) + `" media="` + media + `" href="/` + stdhtml.EscapeString(strings.TrimPrefix(theme.CSSURL, "/")) + `">`)
+		}
+		for _, css := range b.config.CustomCSS {
+			builder.WriteString(`<link rel="stylesheet" href="/` + stdhtml.EscapeString(strings.TrimPrefix(css.CSSURL, "/")) + `">`)
+		}
+		builder.WriteString(string(dependencyBytes))
+		if layout.dependencies.goshtosoNavigation {
+			var goshtosoDependencies []byte
+			var err error
+			if b.request.Assets == AssetsInline {
+				goshtosoDependencies, err = inlineGoshtosoNavigationDependencyBytes(requirements)
+			} else {
+				goshtosoDependencies, err = b.configuredGoshtosoDependencyBytes()
+				goshtosoDependencies = withoutGoshtosoStylesheet(goshtosoDependencies, requirements)
+			}
+			if err != nil {
+				return "", err
+			}
+			builder.WriteString(string(goshtosoDependencies))
+		}
+		return builder.String(), nil
+	}
 	builder.WriteString(`<link rel="stylesheet" href="/margo-assets/site.css">`)
 	builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(pageActionsScriptPath) + `"></script>`)
 	if b.profileMode {
@@ -1563,12 +2016,14 @@ func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []by
 		builder.WriteString(`<link rel="stylesheet" href="/` + stdhtml.EscapeString(strings.TrimPrefix(css.CSSURL, "/")) + `">`)
 	}
 	builder.WriteString(string(dependencyBytes))
-	goshtosoDependencies, err := b.configuredGoshtosoDependencyBytes()
-	if err != nil {
-		return "", err
+	if b.profileMode {
+		goshtosoDependencies, err := b.configuredGoshtosoDependencyBytes()
+		if err != nil {
+			return "", err
+		}
+		goshtosoDependencies = withoutGoshtosoStylesheet(goshtosoDependencies, requirements)
+		builder.WriteString(string(goshtosoDependencies))
 	}
-	goshtosoDependencies = withoutGoshtosoStylesheet(goshtosoDependencies, requirements)
-	builder.WriteString(string(goshtosoDependencies))
 	return builder.String(), nil
 }
 
@@ -1796,7 +2251,7 @@ func (b *builder) documentStyleDigest() string {
 	_, _ = hash.Write([]byte("margo.ssg.document-style/v1\x00"))
 	layoutName := b.layoutName
 	frameHash := b.frameHash
-	if b.profileMode {
+	if b.profileMode || b.config.Layout != nil {
 		layoutName = b.siteManifest.Layout
 		frameHash = b.siteManifest.LayoutSchemaHash
 	}
@@ -1805,7 +2260,27 @@ func (b *builder) documentStyleDigest() string {
 	_, _ = hash.Write([]byte(frameHash))
 	_, _ = hash.Write([]byte(b.config.Theme.Name))
 	_, _ = hash.Write([]byte(b.config.Theme.ColorMode))
-	styles := map[string][]byte{"margo-assets/site.css": []byte(configuredSiteStylesheet(b.profileMode))}
+	styles := make(map[string][]byte)
+	if b.config.Layout != nil {
+		dependencies := b.typedLayoutDependencies()
+		if dependencies.siteStyles {
+			styles[configuredTypedSiteStylePath] = []byte(configuredTypedSiteCSS)
+		}
+		if dependencies.landingStyles {
+			styles[configuredLandingStylePath] = []byte(configuredLandingCSS)
+		}
+		if dependencies.docsStyles {
+			styles[configuredDocsStylePath] = []byte(configuredDocsCSS)
+		}
+		if dependencies.goshtosoNavigation {
+			manifest := goshtosoassets.DefaultRuntimeManifest()
+			if content, err := readGoshtosoAsset(manifest.Stylesheet.LocalURL); err == nil {
+				styles[strings.TrimPrefix(manifest.Stylesheet.LocalURL, "/")] = content
+			}
+		}
+	} else {
+		styles["margo-assets/site.css"] = []byte(configuredSiteStylesheet(b.profileMode))
+	}
 	for _, theme := range b.config.Themes {
 		if theme.Name == b.config.Theme.Name {
 			if asset, ok := b.assets[theme.CSSURL]; ok {
@@ -1821,9 +2296,11 @@ func (b *builder) documentStyleDigest() string {
 			styles[css.CSSURL] = asset.content
 		}
 	}
-	for name, content := range b.artifacts {
-		if strings.HasSuffix(strings.ToLower(name), ".css") {
-			styles[name] = content
+	if b.config.Layout == nil {
+		for name, content := range b.artifacts {
+			if strings.HasSuffix(strings.ToLower(name), ".css") {
+				styles[name] = content
+			}
 		}
 	}
 	styleNames := make([]string, 0, len(styles))

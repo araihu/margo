@@ -39,15 +39,45 @@ type LayoutPatch struct {
 // ResolvedLayout carries the active kind and its isolated, normalized values.
 // Rendering fields are populated when configured-site renderers consume it.
 type ResolvedLayout struct {
-	Kind        LayoutKind
-	Values      map[string]any
-	Family      string
-	FrameName   string
-	Frame       ssg.Frame
-	FrameSchema ssg.FrameSchema
-	FrameValues ssg.Values
-	SchemaHash  string
-	Identity    string
+	Kind         LayoutKind
+	Values       map[string]any
+	Family       string
+	FrameName    string
+	Frame        ssg.Frame
+	FrameSchema  ssg.FrameSchema
+	FrameValues  ssg.Values
+	SchemaHash   string
+	Identity     string
+	renderer     layoutRenderer
+	dependencies layoutDependencies
+}
+
+type layoutRenderer uint8
+
+const (
+	layoutRenderArticle layoutRenderer = iota
+	layoutRenderLanding
+	layoutRenderDocs
+)
+
+func (renderer layoutRenderer) String() string {
+	switch renderer {
+	case layoutRenderLanding:
+		return "landing"
+	case layoutRenderDocs:
+		return "docs"
+	default:
+		return "article"
+	}
+}
+
+type layoutDependencies struct {
+	siteStyles         bool
+	landingStyles      bool
+	docsStyles         bool
+	docsInteractions   bool
+	goshtosoNavigation bool
+	pageActions        bool
 }
 
 type layoutValueType uint8
@@ -74,9 +104,13 @@ type layoutValueSchema struct {
 }
 
 type layoutRegistryEntry struct {
-	kind     LayoutKind
-	defaults map[string]any
-	schema   layoutValueSchema
+	kind         LayoutKind
+	defaults     map[string]any
+	schema       layoutValueSchema
+	frameName    string
+	frameProfile string
+	renderer     layoutRenderer
+	dependencies layoutDependencies
 }
 
 type layoutRegistry struct {
@@ -112,17 +146,38 @@ func builtinLayoutRegistry() layoutRegistry {
 
 	entries := map[LayoutKind]layoutRegistryEntry{
 		LayoutArticle: {
-			kind:     LayoutArticle,
-			defaults: map[string]any{"content": map[string]any{"layout": "article"}},
-			schema:   articleSchema,
+			kind:      LayoutArticle,
+			defaults:  map[string]any{"content": map[string]any{"layout": "article"}},
+			schema:    articleSchema,
+			frameName: "main",
+			renderer:  layoutRenderArticle,
+			dependencies: layoutDependencies{
+				siteStyles: true,
+			},
 		},
 		LayoutLanding: {
-			kind:     LayoutLanding,
-			defaults: map[string]any{"content": map[string]any{"layout": "article"}},
-			schema:   articleSchema,
+			kind:      LayoutLanding,
+			defaults:  map[string]any{"content": map[string]any{"layout": "article"}},
+			schema:    articleSchema,
+			frameName: "main",
+			renderer:  layoutRenderLanding,
+			dependencies: layoutDependencies{
+				siteStyles:    true,
+				landingStyles: true,
+			},
 		},
 		LayoutDocs: {
-			kind: LayoutDocs,
+			kind:         LayoutDocs,
+			frameName:    "top-left-main-right-footer",
+			frameProfile: ssg.DocsProfile,
+			renderer:     layoutRenderDocs,
+			dependencies: layoutDependencies{
+				siteStyles:         true,
+				docsStyles:         true,
+				docsInteractions:   true,
+				goshtosoNavigation: true,
+				pageActions:        true,
+			},
 			defaults: map[string]any{
 				"families": []any{"default"},
 				"family":   "default",

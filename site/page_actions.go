@@ -392,6 +392,13 @@ func (b *builder) injectPageActions(ctx context.Context, document []byte, page P
 	return output.Bytes(), nil
 }
 
+func (b *builder) injectPageActionsForLayout(ctx context.Context, document []byte, page Page, layout ResolvedLayout) ([]byte, error) {
+	if !layout.dependencies.pageActions {
+		page.Actions = nil
+	}
+	return b.injectPageActions(ctx, document, page)
+}
+
 func pageHeadingLead(h1 *html.Node) *html.Node {
 	for sibling := h1.NextSibling; sibling != nil; sibling = sibling.NextSibling {
 		if sibling.Type == html.TextNode && strings.TrimSpace(sibling.Data) == "" {

@@ -803,9 +803,6 @@ func componentDocShellPageID(b *builder, page Page) string {
 }
 
 func (b *builder) shellPageHref(page Page) string {
-	if b.profileMode {
-		return b.publicOutputPath(page.Output, page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default)
-	}
 	basePath := normalizedBasePath(b.config.BasePath)
 	route := "/" + page.Output
 	if page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
