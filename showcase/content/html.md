@@ -10,9 +10,8 @@ margo:
 
 # Standalone HTML
 
-The HTML projection is the shortest path from a Markdown file to a browser
-document. It can be emitted to stdout, written to a new file, or composed by a
-Go host that wants to provide its own page shell.
+Render a Markdown file as a browser-ready HTML document. Write it to stdout,
+create a file, or compose it inside a host-owned page shell.
 
 ## CLI
 
@@ -21,8 +20,8 @@ margo check proposal.md
 margo html proposal.md --output proposal.html
 ```
 
-The default output is stdout. An explicit output path creates a file, and Margo
-does not replace an existing file unless `--force` is present.
+Output goes to stdout by default. An explicit path creates a file; `--force` is
+required to replace one.
 
 ## Host-owned composition
 
@@ -40,25 +39,24 @@ page, err := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{
 })
 ```
 
-`RenderHTML` exposes the semantic document fragment and its dependency
-requirements. `RenderHTMLPage` supplies a generic page shell without claiming
-ownership of a publication domain. That boundary is what lets a documentation
-site add its own navigation—or, as this showcase does, compose a Goshtoso
+`RenderHTML` returns the semantic document fragment and its dependency
+requirements. `RenderHTMLPage` adds a generic page shell. A host can instead
+compose its own navigation and identity, as this showcase does with a Goshtoso
 documentation shell.
 
 ## Local or inline assets
 
-Choose local dependencies when a host will publish an asset directory:
+Choose local dependencies when the host publishes an asset directory:
 
 ```go
 margo.HTMLDependenciesLocal
 ```
 
-Choose inline dependencies when the artifact should carry its runtime and
-styles with it:
+Choose inline dependencies when the HTML document must carry its runtime and
+styles:
 
 ```go
 margo.HTMLDependenciesInline
 ```
 
-The choice changes packaging, not the Markdown content.
+Dependency mode changes packaging, not the Markdown source.

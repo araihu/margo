@@ -10,8 +10,8 @@ margo:
 
 # Charts
 
-Charts are an optional Margo extension. The CLI registers the chart extension
-for you; Go applications opt in with `charts.Extension()`.
+Add charts through Margo's optional chart extension. The CLI registers it
+automatically; Go applications opt in with `charts.Extension()`.
 
 ## A chart fence
 
@@ -26,9 +26,8 @@ series:
     values: [12, 18, 16, 24]
 ```
 
-Static rendering produces an SVG and an adjacent semantic exact-data table.
-The table keeps the values available to readers and assistive technology even
-when JavaScript is disabled.
+Static rendering produces an SVG followed by a semantic exact-data table. The
+values remain available to readers and assistive technology without JavaScript.
 
 ## Go integration
 
@@ -38,13 +37,12 @@ compiler := margo.New(
 )
 ```
 
-The extension supports `bar`, `line`, `pie`, `doughnut`, and `scatter` families.
-Static SVG remains the default. Set `renderer: interactive` when the host also
-wants Goshtoso chart controls; the accessible data table remains part of the
-output contract.
+The extension supports `bar`, `line`, `pie`, `doughnut`, and `scatter`. Static
+SVG is the default. Set `renderer: interactive` to add Goshtoso chart controls;
+the accessible data table remains in the output.
 
 ## Print behavior
 
-Chart animation is disabled for deterministic capture. PDF output omits exact
-data tables by default; `--print-chart-data` includes them for a data-forward
-print artifact.
+Margo disables chart animation for deterministic capture. PDF output omits
+exact-data tables by default; `--print-chart-data` includes them after each
+chart.

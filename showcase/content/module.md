@@ -10,9 +10,9 @@ margo:
 
 # Go module
 
-Margo ships as one root Go module. Applications can use the compiler directly,
-select an output package, and keep URL, navigation, storage, and deployment
-ownership in the host application.
+Import one root Go module, then select the package for the required output.
+Your application retains ownership of URLs, navigation, storage, and
+deployment.
 
 ## Install once
 
@@ -28,7 +28,8 @@ go get github.com/araihu/margo@vX.Y.Z
 | `github.com/araihu/margo/charts` | `charts.Extension` |
 | `github.com/araihu/margo/deck` | `deck.Render` |
 | `github.com/araihu/margo/pdf` | `pdf.Engine.Export` |
-| `github.com/araihu/margo/site` | `site.Build` |
+| `github.com/araihu/margo/site` | `site.Build`, `site.LoadConfig`, and `site.BuildConfig` |
+| `github.com/araihu/margo/ssg` | Layout-neutral frame and shell contracts |
 
 ```go
 import (
@@ -37,13 +38,12 @@ import (
 )
 ```
 
-The CLI package is the executable surface; the root module packages are the
-library surface. This split keeps integrations explicit without requiring a
-second module for every projection.
+The `margo` executable provides the command surface. Root-module packages
+provide the library surface, so an application can depend only on the output
+boundaries it uses.
 
 ## Compose at the edge
 
-The module exposes semantic HTML and dependency requirements. The application
-can then add its own page shell, trusted asset handlers, and publication
-identity—or select a supported shell such as the Goshtoso component docs shell
-used by this showcase.
+The module exposes semantic HTML and dependency requirements. Add a page shell,
+trusted asset handlers, and publication identity in the host, or select a
+supported shell such as the Goshtoso component docs shell used here.

@@ -1,34 +1,47 @@
 # Margo Charts
 
-`github.com/araihu/margo/charts` is an optional package in the root Margo Go
-module. It registers the `goshtosochart` fence for Goshtoso Charts and
-accessible adjacent data tables. Static SVG remains the default. The root compiler reports
-`extension.missing_integration` until a consumer registers the extension.
+`github.com/araihu/margo/charts` adds the `goshtosochart` fenced block to a
+Margo compiler. It renders a static SVG and one adjacent accessible data table
+by default. The package is optional and belongs to the root Margo Go module.
+
+Register the extension before compiling Markdown that contains a chart:
 
 ```go
 compiler := margo.New(margo.WithExtension(charts.Extension()))
 ```
 
-Version 1 accepts `bar`, `line`, `pie`, `doughnut`, and `scatter` payloads in
-YAML or JSON. The default wrapper includes screen-only expand and export
-controls. Static SVG and its data table remain usable without JavaScript. Use
-`charts.WithControlWrapper(false)` for static-only HTML, or
-`charts.WithExternalizedControlRuntime(true)` when the host supplies the
-reviewed Goshtoso and chart runtimes through Margo’s requirement graph.
-One formatted semantic accessible data table follows each chart in HTML. Redundant
-chart-owned exact-value disclosures are suppressed so static and interactive
-renderers expose the same table surface. Tables are hidden from print by
-default. Use `charts.WithPrintableAccessibleData(true)` to include them in
-print/PDF output.
+Without that registration, the root compiler fails closed with
+`extension.missing_integration`.
+
+## First chart
+
+Version 1 accepts YAML or JSON payloads for `bar`, `line`, `pie`, `doughnut`,
+and `scatter` charts:
+
+````markdown
+```goshtosochart
+schemaVersion: 1
+type: bar
+title: Weekly revenue
+categories: [Mon, Tue, Wed]
+series:
+  - name: Revenue
+    values: [12, 18, 21]
+```
+````
+
+Static output does not require JavaScript. The default wrapper adds screen-only
+expand and export controls; the SVG and exact-data table remain usable when
+those controls are unavailable. Use
+`charts.WithControlWrapper(false)` when the host needs static-only HTML.
 
 Chart styles use Goshtoso tokens by default. A payload can choose a palette,
 caller class, or explicit hex colors. `class` and `color` are mutually
 exclusive on one series or slice.
 
-## Interactive renderers
+## Interactive charts
 
-Every v1 family (`bar`, `line`, `pie`, `doughnut`, and `scatter`) can select
-Goshtoso Charts' interactive implementation:
+Every v1 chart family can opt into Goshtoso Charts' interactive renderer:
 
 ```yaml
 schemaVersion: 1
@@ -41,14 +54,23 @@ series:
     values: [12, 18, 21]
 ```
 
-Omit `renderer`, or set it to `static`, for the existing server-rendered SVG.
-Interactive output keeps the accessible exact-data table and exposes PNG
-export. Margo disables initial chart animation so export and print capture a
-complete deterministic frame. Standalone HTML relocates provenance-marked chart
-initialization into the reviewed requirement graph, preserving Margo's
-script-free fragment contract. Chromium PDF export waits for initialization,
-requests the chart's PNG export, substitutes that image for print, then prints
-the document.
+Omit `renderer`, or set it to `static`, for server-rendered SVG. Interactive
+output retains the accessible data table and supports PNG export. Margo disables
+initial animation so export and print capture a complete frame.
+
+When the host resolves dependencies through Margo's HTML requirement graph,
+register the extension with:
+
+```go
+compiler := margo.New(margo.WithExtension(charts.Extension(
+	charts.WithExternalizedControlRuntime(true),
+)))
+```
+
+Standalone output can inline the declared Goshtoso and chart runtimes. A host
+using local dependencies must serve the matching asset mounts. Chromium PDF
+export waits for interactive initialization, requests PNG output, substitutes
+that image for print, then prints the document.
 
 Interactive limits: the default control wrapper is required. Per-series and
 per-slice `class` is rejected because the interactive public APIs cannot
@@ -56,10 +78,18 @@ preserve it; palettes, root class, and explicit colors remain supported.
 Interactive scatter requires exactly one point or value for every declared
 category. Use the static renderer when a category contains multiple samples.
 
-## Developer renderer
+## Accessible data in print
 
-The chart-aware optimistic renderer is a developer tool, not a released CLI.
-Run it from the repository root as part of the one root module:
+One formatted semantic accessible data table follows each chart in HTML.
+Redundant chart-owned exact-value disclosures are suppressed so static and
+interactive output expose the same table. Print and PDF hide that table by
+default. Register
+`charts.Extension(charts.WithPrintableAccessibleData(true))` to include it.
+
+## Development-only renderer
+
+The optimistic renderer is a repository development tool, not part of the
+released `margo` CLI. Run it from the repository root:
 
 ```sh
 GOWORK=off GOFLAGS=-mod=readonly \
@@ -70,5 +100,5 @@ GOWORK=off GOFLAGS=-mod=readonly \
 ```
 
 No `go.work` file or independent chart module is required. The output embeds
-the pinned chart-controls runtime for offline inspection. Print CSS hides the
+the pinned chart-control runtime for offline inspection. Print CSS hides
 controls and exact-data tables while retaining the chart.

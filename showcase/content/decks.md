@@ -10,15 +10,13 @@ margo:
 
 # Presentation decks
 
-The deck projection is a work in progress. It shares the Markdown compiler and
-metadata model with Margo's other outputs, but slide geometry, navigation, and
-end-to-end publication are not feature-complete yet. This page shows the
-intended output surface while the implementation is being finished.
+Deck output is experimental. It uses Margo's Markdown compiler and metadata
+model, then projects the document as an HTML or PDF presentation. Expect the
+deck contract to change before it becomes a stable publication path.
 
-> Work in progress: use [PDF documents](pdf.md) for production paginated output
-> while the deck pipeline is completed.
+> For a stable paginated document, use [PDF documents](pdf.md).
 
-## Intended output surface
+## Render a deck
 
 ```sh
 # Experimental deck projection: HTML is the default.
@@ -32,11 +30,10 @@ Deck defaults are HTML, automatic installed-engine discovery, A4, portrait,
 and zero margins. PDF deck links use the same default relative-link policy as
 the document PDF command.
 
-## A focused projection
+## One experimental projection
 
-The deck renderer consumes the same Markdown compiler and metadata model, then
-adds slide geometry and presentation navigation. That keeps the authoring
-choice separate from the final delivery format:
+The deck renderer adds slide geometry and presentation navigation after
+compilation:
 
 ```mermaid
 flowchart LR
@@ -46,5 +43,4 @@ flowchart LR
 ```
 
 Use [PDF documents](pdf.md) when the primary artifact is a paginated document.
-Treat the deck path as experimental until slide and publication support is
-complete.
+Choose decks only when the experimental presentation behavior is acceptable.

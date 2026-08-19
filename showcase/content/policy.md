@@ -10,9 +10,8 @@ margo:
 
 # Policy and diagnostics
 
-Margo distinguishes ordinary Markdown from privileged capabilities. The normal
-path needs no policy file. Raw HTML and iframe embeds require an explicit host
-policy, so the same document cannot silently widen what a target is allowed to
+Ordinary Markdown needs no policy file. Raw HTML and iframe embeds require an
+explicit host policy, preventing a document from widening what an output may
 load or publish.
 
 ## Check before you render
@@ -22,9 +21,9 @@ margo check guide.md --diagnostics json
 margo html guide.md --policy policy.json --diagnostics json
 ```
 
-Checks report a source, line or field pointer when available, plus a remediation
-hint. JSON diagnostics make the result straightforward to consume in CI; text
-diagnostics are the default for local work.
+Checks identify the source and, when available, a line or field. They also
+include a remediation hint. Text diagnostics suit local work; JSON diagnostics
+provide structured CI input.
 
 ## Policy is host-owned
 
@@ -44,13 +43,12 @@ diagnostics are the default for local work.
 }
 ```
 
-The document cannot change its own capabilities through frontmatter. A host
-chooses the policy, the CLI validates its exact schema, and each output target
-applies its own least-authoritative projection.
+A document cannot grant itself capabilities through frontmatter. The host
+chooses the policy, the CLI validates its schema, and each output target applies
+its configured projection.
 
 ## A useful failure is part of the feature
 
-If a link, image, SVG, heading sequence, policy field, or engine requirement is
-invalid, Margo fails with a stable diagnostic code and a next action. That makes
-the publishing boundary visible instead of turning a document build into a
-best-effort guess.
+An invalid link, image, SVG, heading sequence, policy field, or engine
+requirement fails with a stable diagnostic code and a next action. Margo does
+not silently publish a partial or best-effort result.
