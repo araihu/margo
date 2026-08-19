@@ -254,6 +254,9 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	}
 	if b.request.Assets == AssetsLocal {
 		for _, requirement := range htmlResult.Requirements().List() {
+			if requirement.ID == "goshtoso.styles" {
+				continue
+			}
 			assetPath := strings.TrimPrefix(requirement.LocalURL, "/")
 			if assetPath == "" || len(requirement.Inline.Content) == 0 {
 				continue
@@ -333,7 +336,8 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 				return err
 			}
 			if b.config == nil && attributeValue(node, "data-margo-requirement") == "goshtoso.styles" {
-				removeAttribute(node, "data-margo-requirement")
+				node.Parent.RemoveChild(node)
+				return nil
 			}
 			switch node.Data {
 			case "a":
@@ -346,10 +350,12 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 				}
 			}
 		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
+		for child := node.FirstChild; child != nil; {
+			next := child.NextSibling
 			if err := visit(child); err != nil {
 				return err
 			}
+			child = next
 		}
 		return nil
 	}
@@ -644,14 +650,6 @@ func attributeIndex(node *html.Node, key string) int {
 		}
 	}
 	return -1
-}
-
-func removeAttribute(node *html.Node, key string) {
-	index := attributeIndex(node, key)
-	if index < 0 {
-		return
-	}
-	node.Attr = append(node.Attr[:index], node.Attr[index+1:]...)
 }
 
 func relativeSitePath(fromDirectory, target string) (string, error) {

@@ -65,7 +65,7 @@ func TestBuildLocalSiteRewritesLinksAndSharesAssets(t *testing.T) {
 			shared++
 		}
 	}
-	if shared < 3 {
+	if shared < 2 {
 		t.Fatalf("shared assets = %d, artifacts = %+v", shared, result.Artifacts)
 	}
 	if err := result.Manifest.Validate(); err != nil {
@@ -136,10 +136,29 @@ The source stays available beside the rendered page.
 	}
 	for _, forbiddenArtifact := range []string{
 		pageActionsScriptPath, pageActionsStylePath, pageActionsIconSpritePath,
-		"margo-assets/site.css",
+		"margo-assets/site.css", "assets/styles.css",
 	} {
 		if artifactExists(result, forbiddenArtifact) {
 			t.Fatalf("unexpected artifact %q", forbiddenArtifact)
+		}
+	}
+}
+
+func TestBuildInlineSiteProjectsPlainHTMLWithoutGoshtosoCSS(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		Sources:  []Source{{Path: "guide.md", Content: []byte("# Guide\n\nPlain projection.\n")}},
+		Compiler: margo.New(), Assets: AssetsInline,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "guide.html")
+	for _, forbidden := range []string{
+		"tailwindcss v4.3.3", "--font-sans: -apple-system",
+		`data-margo-requirement="goshtoso.styles"`,
+	} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("inline HTML contains Goshtoso CSS %q", forbidden)
 		}
 	}
 }
@@ -190,7 +209,7 @@ func TestBuildLocalSiteUsesPageRelativeDependencyURLs(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := artifactContent(t, result, "nested/index.html")
-	for _, expected := range []string{`href="../assets/styles.css"`, `href="../margo-assets/document.css"`, `src="../margo-assets/table-sort.js"`} {
+	for _, expected := range []string{`href="../margo-assets/document.css"`, `src="../margo-assets/table-sort.js"`} {
 		if !strings.Contains(page, expected) {
 			t.Fatalf("nested page missing relative dependency %q: %s", expected, page)
 		}
