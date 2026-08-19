@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"golang.org/x/net/html"
 )
 
@@ -183,6 +185,131 @@ theme:
 	} {
 		if !strings.Contains(llms, required) {
 			t.Fatalf("llms.txt missing %q: %s", required, llms)
+		}
+	}
+}
+
+func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime caller unavailable")
+	}
+	root := filepath.Join(filepath.Dir(filename), "..")
+	result, err := BuildConfig(context.Background(), ConfigRequest{
+		ConfigPath: filepath.Join(root, "showcase.yaml"),
+		Compiler: margo.New(margo.WithExtension(charts.Extension(
+			charts.WithExternalizedControlRuntime(true),
+		))),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	htmlRoutes := make([]string, 0)
+	artifacts := make(map[string][]byte, len(result.Artifacts))
+	for _, artifact := range result.Artifacts {
+		artifacts[artifact.Path] = artifact.Content
+		if strings.HasSuffix(artifact.Path, ".html") {
+			htmlRoutes = append(htmlRoutes, artifact.Path)
+		}
+	}
+	sort.Strings(htmlRoutes)
+	if got, want := htmlRoutes, []string{"cli/index.html", "index.html", "module/index.html"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HTML routes = %v, want exactly %v", got, want)
+	}
+	for _, retired := range []string{"charts", "cli", "decks", "determinism", "html", "markdown", "mermaid", "module", "pdf", "policy", "site"} {
+		if _, exists := artifacts[retired+".html"]; exists {
+			t.Fatalf("retired route artifact %q exists", retired+".html")
+		}
+	}
+	if got, want := len(result.Site.Routes), 3; got != want {
+		t.Fatalf("configured routes = %d, want %d: %+v", got, want, result.Site.Routes)
+	}
+	wantRoutes := map[string]struct {
+		output string
+		family string
+		layout string
+	}{
+		"index.md":        {output: "index.html", family: "tour", layout: "landing"},
+		"module/index.md": {output: "module/index.html", family: "module", layout: "docs"},
+		"cli/index.md":    {output: "cli/index.html", family: "cli", layout: "docs"},
+	}
+	for _, route := range result.Site.Routes {
+		want, ok := wantRoutes[route.Source]
+		if !ok || route.Output != want.output || route.Family != want.family || route.Layout != want.layout {
+			t.Fatalf("route = %+v, want one of %+v", route, wantRoutes)
+		}
+		if route.Source == "index.md" {
+			if route.Actions != nil {
+				t.Fatalf("Tour unexpectedly has page actions: %+v", route.Actions)
+			}
+		} else if route.Actions == nil || !route.Actions.Markdown || !route.Actions.PDF {
+			t.Fatalf("technical route %q actions = %+v, want Markdown and PDF", route.Source, route.Actions)
+		}
+	}
+	if got, want := result.Site.Layout, "profiles:docs=top-left-main-right-footer,landing=top-main-footer"; got != want {
+		t.Fatalf("layout identity = %q, want %q", got, want)
+	}
+	if result.Site.LayoutSchemaHash == "" || result.Site.LayoutSchemaHash == "legacy" {
+		t.Fatalf("layout schema identity = %q", result.Site.LayoutSchemaHash)
+	}
+
+	landing := string(artifacts["index.html"])
+	module := string(artifacts["module/index.html"])
+	cli := string(artifacts["cli/index.html"])
+	for name, page := range map[string]string{"Tour": landing, "Module": module, "CLI": cli} {
+		if strings.Count(page, "<h1") != 1 {
+			t.Fatalf("%s h1 count = %d", name, strings.Count(page, "<h1"))
+		}
+	}
+	for _, required := range []string{`href="module/index.html"`, `href="cli/index.html"`, `One source, several projections`} {
+		if !strings.Contains(landing, required) {
+			t.Fatalf("Tour missing %q", required)
+		}
+	}
+	for _, required := range []string{"good fit", "not a fit"} {
+		if !strings.Contains(strings.ToLower(landing), required) {
+			t.Fatalf("Tour missing %q", required)
+		}
+	}
+	for _, required := range []string{"mermaid", "goshtoso-chart", "Margo mascot"} {
+		if !strings.Contains(strings.ToLower(landing), strings.ToLower(required)) {
+			t.Fatalf("Tour missing retained example marker %q", required)
+		}
+	}
+	for _, forbidden := range []string{"margo-breadcrumbs", "margo-pagination", "margo-page-actions", `id="left-nav"`, `id="right-nav"`, "data-toc-heading"} {
+		if strings.Contains(landing, forbidden) {
+			t.Fatalf("Tour contains forbidden landing markup %q", forbidden)
+		}
+	}
+	for _, required := range []string{"Compiler lifecycle", "Public package map", "Installation and versioning", "Testing"} {
+		if !strings.Contains(module, required) {
+			t.Fatalf("Module outline missing %q", required)
+		}
+	}
+	for _, required := range []string{"Command map", "Configuration and policy layering", "Operational gotchas", "check", "completion"} {
+		if !strings.Contains(cli, required) {
+			t.Fatalf("CLI outline missing %q", required)
+		}
+	}
+	sitemap := string(artifacts[SitemapPath])
+	if strings.Count(sitemap, "<url>") != 3 {
+		t.Fatalf("sitemap URL count = %d, want 3: %s", strings.Count(sitemap, "<url>"), sitemap)
+	}
+	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/index.html", "https://margo.araihu.com/cli/index.html"} {
+		if !strings.Contains(sitemap, "<loc>"+route+"</loc>") {
+			t.Fatalf("sitemap missing %q", route)
+		}
+	}
+	llms := string(artifacts[LLMSPath])
+	for _, title := range []string{"[Margo]", "[Go module]", "[CLI workflows]"} {
+		if !strings.Contains(llms, title) {
+			t.Fatalf("llms.txt missing %q: %s", title, llms)
+		}
+	}
+	for _, retired := range []string{"charts.html", "decks.html", "determinism.html", "html.html", "markdown.html", "mermaid.html", "pdf.html", "policy.html", "site.html"} {
+		if strings.Contains(sitemap, retired) || strings.Contains(llms, retired) {
+			t.Fatalf("discovery artifact contains retired route %q", retired)
 		}
 	}
 }

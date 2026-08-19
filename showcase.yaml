@@ -15,13 +15,36 @@ site:
   social_image:
     path: assets/social/margo-social-v2.jpg
     alt: "Margo showcase: Markdown flowing into HTML, sites, PDFs, and decks."
-shell:
-  builtin: componentdocshell
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
 locales:
   default: en
   supported: [en]
 navigation:
   mode: file-tree
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+    - id: cli
+      label: CLI
+      source: cli
+      overview: cli/index.md
+      layout: docs
 theme:
   builtin: false
   name: margo

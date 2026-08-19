@@ -2,57 +2,97 @@
 title: Margo
 description: A visual guide to Margo's Markdown compiler, Go module, and publishing CLI.
 language: en
-margo:
-  actions:
-    markdown: true
-    pdf: true
 ---
 
 # Margo
 
-Publish Markdown in the format you need.
+Publish one Markdown source in the format your project needs.
 
 ![Margo mascot preparing a document](margo-mascot.png)
 
-Margo turns Markdown source into standalone HTML, linked static sites, PDF
-documents, and experimental presentation decks. Use the `margo` command for
-publishing workflows or the Go module to integrate the same compiler into an
-application.
+Margo compiles ordinary Markdown into a semantic document, then projects it to
+standalone HTML, linked sites, PDFs, or experimental presentation decks. Use the
+CLI for a publishing workflow, or import the Go module when your application
+owns composition and delivery.
 
 ## One source, several projections
 
 ```mermaid
-treeView-beta
-  "ordinary Markdown"
-    check ## compatibility findings
-    html ## standalone HTML
-    site ## linked HTML pages
-    serve ## development preview and live reload
-    pdf ## browser-backed PDF
-    deck ## experimental deck projection
-    mermaid ## rendered diagram plus source fallback
+flowchart LR
+    source[Markdown source] --> check{Check compatibility}
+    check -->|pass| render[Compile and render once]
+    check -->|findings| revise[Revise source]
+    revise --> check
+    render --> html[Standalone HTML]
+    render --> site[Static site]
+    render --> pdf[PDF or deck]
 ```
 
-Every projection starts with the same compiled document. The application or
-site config still owns its frame, metadata, assets, routes, and publication
-destination. This diagram uses Mermaid's
-[TreeView syntax](https://mermaid.js.org/syntax/treeView.html), preserving a
-readable source fallback with the visual.
+One compiled document can feed several outputs. The host still owns its frame,
+metadata, assets, routes, and publication destination. Mermaid keeps its source
+and accessible fallback beside the rendered diagram.
 
-## A predictable workflow
+## A quick tour of the outputs
 
-```sh
-margo check guide.md
-margo html guide.md --output guide.html
-margo serve ./docs --open
-margo pdf guide.md --output guide.pdf
+| Output | Best for | Typical command |
+| --- | --- | --- |
+| Markdown | Versioned authoring source | `margo check guide.md` |
+| HTML | One browser-ready document | `margo html guide.md --output guide.html` |
+| Site | Linked pages with validated routes | `margo site ./docs --output-dir ./dist` |
+| PDF | A paginated document | `margo pdf guide.md --output guide.pdf` |
+| Deck | Experimental presentation projection | `margo deck talk.md --format html --output talk.html` |
+
+Run `margo serve ./docs --open` while editing. It provides loopback preview and
+live reload; it is not a production server.
+
+## Markdown stays expressive
+
+Margo keeps common authoring constructs in the source: headings, links, tables,
+code, images, Mermaid, and optional charts. A chart fence can produce a static
+SVG plus an exact-data table, so the values remain available without browser
+JavaScript:
+
+```goshtosochart
+schemaVersion: 1
+type: line
+renderer: static
+title: Weekly signal
+categories: [Mon, Tue, Wed, Thu]
+series:
+  - name: Requests
+    values: [12, 18, 16, 24]
 ```
 
-Use `margo site` for a directory of Markdown files. While writing, run
-`margo serve` for an in-memory preview with live reload. The development server
-is not a production server. For programmatic use, import the root module and
-choose the package for the required output.
+The charts extension supports `bar`, `line`, `pie`, `doughnut`, and `scatter`.
+Static SVG is the default; interactive controls remain optional. PDF output can
+include the exact chart data for print readers.
 
-> This showcase covers public features and runnable paths. For source, releases,
-> and the complete README, visit the
-> [Margo repository](https://github.com/araihu/margo#readme).
+## Trust boundaries stay visible
+
+Checks report invalid links, images, policy fields, heading structure, and
+engine requirements with a stable diagnostic and a next action. Raw HTML and
+iframe embeds require explicit host policy; a document cannot grant itself
+capabilities through frontmatter.
+
+Configured builds can run `offline: true` with local assets. Margo sorts routes,
+validates references, records artifact digests, and keeps deployment, release,
+and publication as separate lifecycle actions.
+
+## Good fit
+
+- Teams keeping Markdown in Git while publishing several projections.
+- Go applications that need a compiler with host-owned navigation and assets.
+- Documentation sites that value deterministic, inspectable output.
+
+## Not a fit
+
+- A hosted CMS, collaborative editor, or production web server.
+- A workflow that needs Margo to download browsers or deploy generated files.
+- A presentation system that requires a stable deck contract today; deck output
+  remains experimental.
+
+## Continue with the technical guides
+
+Start with the [Module guide](module/index.md) to embed Margo in a Go project,
+or read the [CLI guide](cli/index.md) for commands, configuration, policies,
+and operational boundaries.
