@@ -132,6 +132,7 @@ func (project *serveProject) Build(ctx context.Context) (devserver.Snapshot, err
 		if loadErr != nil {
 			return devserver.Snapshot{}, loadErr
 		}
+		project.updateConfig(config, "")
 		result, err = site.BuildConfig(ctx, site.ConfigRequest{
 			ConfigPath:  project.configPath,
 			Compiler:    compilerForPolicy(nil, policyTargetSite),

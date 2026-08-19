@@ -194,6 +194,50 @@ func TestResolveServeProjectRejectsMissingAndNonYAMLFiles(t *testing.T) {
 	}
 }
 
+func TestServeProjectUpdatesOutputExclusionAfterConfigLoadBeforeFailedBuild(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "docs", "index.md"), "# Ready\n")
+	configPath := filepath.Join(root, "site.yaml")
+	writeSiteFixture(t, configPath, `version: 1
+source: docs
+output: dist
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+	deps := normalizeDependencies(Dependencies{WorkingDirectory: root})
+	project, err := resolveServeProject(deps, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeSiteFixture(t, configPath, `version: 1
+source: missing
+output: public
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+	if _, err := project.Build(context.Background()); err == nil {
+		t.Fatal("build with missing source succeeded")
+	}
+	if !project.Ignore(filepath.Join(root, "public", "index.html")) {
+		t.Fatal("new configured output is not ignored after failed build")
+	}
+	if project.Ignore(filepath.Join(root, "dist", "index.html")) {
+		t.Fatal("stale configured output remains ignored")
+	}
+}
+
 func assertSnapshotRoute(t *testing.T, snapshot devserver.Snapshot, requestPath, required string) {
 	t.Helper()
 	store := devserver.NewSnapshotStore()

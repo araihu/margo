@@ -6,12 +6,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -20,14 +19,13 @@ func TestServeEndToEndReloadsRawMarkdownTree(t *testing.T) {
 	root := t.TempDir()
 	markdown := filepath.Join(root, "index.md")
 	writeSiteFixture(t, markdown, "# First version\n")
-	port := reserveTestPort(t)
-	url := "http://127.0.0.1:" + strconv.Itoa(port)
 
-	var stdout, stderr bytes.Buffer
+	var stdout lockedBuffer
+	var stderr bytes.Buffer
 	command := NewRootCommand(Dependencies{
 		Stdout: &stdout, Stderr: &stderr, WorkingDirectory: root, Build: testBuildInfo(),
 	})
-	command.SetArgs([]string{"serve", ".", "--port", strconv.Itoa(port)})
+	command.SetArgs([]string{"serve", "."})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- command.ExecuteContext(ctx) }()
@@ -44,6 +42,7 @@ func TestServeEndToEndReloadsRawMarkdownTree(t *testing.T) {
 		}
 	}()
 
+	url := strings.TrimSuffix(waitForServingURL(t, &stdout), "/")
 	waitForServedContent(t, url+"/", "First version")
 	reload := openReloadStream(t, ctx, url+"/.margo/live-reload")
 	if err := os.WriteFile(markdown, []byte("# Second version\n"), 0o644); err != nil {
@@ -67,17 +66,36 @@ func TestServeEndToEndReloadsRawMarkdownTree(t *testing.T) {
 	}
 }
 
-func reserveTestPort(t *testing.T) int {
+type lockedBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (buffer *lockedBuffer) Write(data []byte) (int, error) {
+	buffer.mu.Lock()
+	defer buffer.mu.Unlock()
+	return buffer.buffer.Write(data)
+}
+
+func (buffer *lockedBuffer) String() string {
+	buffer.mu.Lock()
+	defer buffer.mu.Unlock()
+	return buffer.buffer.String()
+}
+
+func waitForServingURL(t *testing.T, output *lockedBuffer) string {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		for _, line := range strings.Split(output.String(), "\n") {
+			if strings.HasPrefix(line, "Serving ") {
+				return strings.TrimPrefix(line, "Serving ")
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	if err := listener.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return port
+	t.Fatalf("timed out waiting for serving URL: %s", output.String())
+	return ""
 }
 
 func waitForServedContent(t *testing.T, url, required string) {
