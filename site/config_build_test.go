@@ -392,6 +392,23 @@ theme:
 			t.Fatalf("profile stylesheet missing %s", required)
 		}
 	}
+	for _, required := range []string{
+		`[data-margo-layout="docs"] .margo-frame--top-left-main-right-footer`,
+		`grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem);`,
+		`grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";`,
+		`@media (min-width: 720px) and (max-width: 1099px)`,
+		`grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) minmax(10rem, 14rem);`,
+		`[data-margo-layout="docs"] .margo-area--left-nav`,
+		`[data-margo-layout="docs"] .margo-area--main-content`,
+		`[data-margo-layout="docs"] .margo-area--right-nav`,
+		`@media (max-width: 719px)`,
+		`grid-template-areas: "top-nav" "left-nav" "main-content" "right-nav" "footer";`,
+		`overflow-x: clip`,
+	} {
+		if !strings.Contains(styles, required) {
+			t.Fatalf("profile stylesheet missing responsive docs rail contract %s", required)
+		}
+	}
 	if strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "componentdocshell") {
 		t.Fatalf("profile stylesheet leaks App Shell-private selectors")
 	}
@@ -422,6 +439,103 @@ theme:
 		}
 		if strings.Contains(page, `class="margo-pagination"`) {
 			t.Fatalf("%s renders pagination for one-page family: %s", source, page)
+		}
+	}
+}
+
+func TestBuildConfigRendersLocaleScopedFamilySearch(t *testing.T) {
+	root := t.TempDir()
+	for _, localePrefix := range []string{"", "pt-BR"} {
+		prefix := filepath.Join(root, "docs", localePrefix)
+		writeConfigFile(t, filepath.Join(prefix, "index.md"), "# Tour\n\nTour documentation.\n")
+		writeConfigFile(t, filepath.Join(prefix, "module", "index.md"), "# Module\n\nModule documentation.\n")
+		writeConfigFile(t, filepath.Join(prefix, "cli", "index.md"), "# CLI\n\nCLI documentation.\n")
+	}
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+base_path: /docs
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+navigation:
+  mode: file-tree
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+    - id: cli
+      label: CLI
+      source: cli
+      overview: cli/index.md
+      layout: docs
+locales:
+  default: en
+  supported: [en, pt-BR]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fixture := range []struct {
+		name        string
+		artifact    string
+		localRoutes []string
+		otherRoutes []string
+	}{
+		{
+			name:        "English",
+			artifact:    "module/index.html",
+			localRoutes: []string{"/docs/", "/docs/module/index.html", "/docs/cli/index.html"},
+			otherRoutes: []string{"/docs/pt-br/index.html", "/docs/pt-br/module/index.html", "/docs/pt-br/cli/index.html"},
+		},
+		{
+			name:        "Portuguese",
+			artifact:    "pt-br/module/index.html",
+			localRoutes: []string{"/docs/pt-br/index.html", "/docs/pt-br/module/index.html", "/docs/pt-br/cli/index.html"},
+			otherRoutes: []string{"/docs/", "/docs/module/index.html", "/docs/cli/index.html"},
+		},
+	} {
+		page := string(configArtifact(t, result, fixture.artifact))
+		for _, route := range fixture.localRoutes {
+			if !strings.Contains(page, `data-search-href="`+route+`"`) {
+				t.Fatalf("%s search missing same-locale route %s: %s", fixture.name, route, page)
+			}
+		}
+		for _, route := range fixture.otherRoutes {
+			if strings.Contains(page, `data-search-href="`+route+`"`) {
+				t.Fatalf("%s search leaked other-locale route %s: %s", fixture.name, route, page)
+			}
 		}
 	}
 }

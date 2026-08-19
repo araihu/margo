@@ -21,7 +21,7 @@ import (
 // profile page. The component owns only semantic navigation data; Goshtoso
 // remains the owner of its internal markup and responsive behavior.
 func (b *builder) siteNavigationFragment(page Page) (string, error) {
-	searchConfig := b.siteSearchConfig()
+	searchConfig := b.siteSearchConfig(page.Locale)
 	brand := templ.Raw(`<span class="margo-site-brand"><img src="` + stdhtml.EscapeString(relativeAssetPath(path.Dir(page.Output), b.config.Site.Logo)) + `" alt="` + stdhtml.EscapeString(b.config.Site.Name) + `"><span>` + stdhtml.EscapeString(b.config.Site.Name) + `</span></span>`)
 	secondaryLinks := make([]navbar.SecondaryLink, 0, len(b.config.Navigation.Families))
 	for _, family := range b.config.Navigation.Families {
@@ -131,10 +131,14 @@ func (b *builder) familyNavigationFragment(page Page) (string, error) {
 	return string(markup), nil
 }
 
-func (b *builder) siteSearchConfig() search.Config {
+func (b *builder) siteSearchConfig(locale string) search.Config {
+	locale = strings.TrimSpace(locale)
+	if locale == "" {
+		locale = b.config.Locales.Default
+	}
 	items := make([]search.Item, 0, len(b.configPages))
 	for _, page := range b.configPages {
-		if page.Locale != b.config.Locales.Default {
+		if page.Locale != locale {
 			continue
 		}
 		items = append(items, search.Item{

@@ -161,15 +161,46 @@ const configuredProfileLayoutCSS = `[data-margo-layout="landing"] .margo-area--m
 [data-margo-layout="docs"] .margo-showcase-article { inline-size: min(100%, var(--margo-reading-measure)); max-inline-size: 100%; }
 [data-margo-layout="docs"] .margo-area--left-nav { min-inline-size: 0; padding-block: 0.5rem; }
 [data-margo-layout="docs"] .margo-area--right-nav { min-inline-size: 0; padding-inline-start: 0.5rem; }
+[data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--left-nav,
+[data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--main-content,
+[data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--right-nav { min-inline-size: 0; }
 [data-margo-layout="landing"] :where(a, button):focus-visible,
 [data-margo-layout="docs"] :where(a, button):focus-visible { outline: 3px solid var(--margo-accent); outline-offset: 2px; }
 [data-margo-layout="landing"] .margo-site-family-links a,
 [data-margo-layout="docs"] .margo-site-family-links a,
 [data-margo-layout="landing"] .margo-site-search button,
 [data-margo-layout="docs"] .margo-site-search button { min-block-size: 2.75rem; }
+@media (min-width: 720px) {
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer {
+    grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem);
+    grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";
+    justify-content: center;
+  }
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--left-nav,
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--main-content,
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--right-nav { max-inline-size: 100%; }
+}
+@media (min-width: 720px) and (max-width: 1099px) {
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer {
+    grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) minmax(10rem, 14rem);
+  }
+}
 @media (max-width: 719px) {
   [data-margo-layout="landing"] .margo-showcase-article,
   [data-margo-layout="docs"] .margo-showcase-article { inline-size: 100%; }
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top-nav" "left-nav" "main-content" "right-nav" "footer";
+    overflow-x: clip;
+  }
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--left-nav,
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--main-content,
+  [data-margo-layout="docs"] .margo-frame--top-left-main-right-footer > .margo-area--right-nav {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow-inline: hidden;
+  }
   [data-margo-layout="docs"] .margo-area--right-nav { padding-inline-start: 0; }
 }
 `
