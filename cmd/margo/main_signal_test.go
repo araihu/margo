@@ -30,15 +30,28 @@ func TestServeProcessStopsCleanlyOnInterrupt(t *testing.T) {
 	if err := command.Start(); err != nil {
 		t.Fatal(err)
 	}
+	done := make(chan error, 1)
+	go func() { done <- command.Wait() }()
+	waited := false
+	t.Cleanup(func() {
+		if waited {
+			return
+		}
+		_ = command.Process.Kill()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Error("serve helper cleanup timed out")
+		}
+	})
 	url := readServingURL(t, bufio.NewScanner(stdout))
 	waitForServedContent(t, url, "Signal test")
 	if err := command.Process.Signal(os.Interrupt); err != nil {
 		t.Fatal(err)
 	}
-	done := make(chan error, 1)
-	go func() { done <- command.Wait() }()
 	select {
 	case err := <-done:
+		waited = true
 		if err != nil {
 			t.Fatalf("interrupted process: %v\nstderr: %s", err, stderr.String())
 		}
