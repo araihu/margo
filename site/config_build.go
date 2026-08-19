@@ -150,6 +150,43 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 .margo-shell-footer { margin: 0; color: var(--margo-text); font-size: 0.875rem; }
 `
 
+// configuredProfileLayoutCSS is consumer-owned semantic presentation for
+// layout-profile pages. It deliberately names only Margo frame/layout hooks;
+// Goshtoso component internals and App Shell-private selectors stay opaque.
+const configuredProfileLayoutCSS = `[data-margo-layout="landing"] .margo-area--main-content { max-inline-size: none; }
+[data-margo-layout="landing"] .margo-showcase-article { inline-size: 100%; max-inline-size: none; }
+[data-margo-layout="landing"] .margo-document { max-inline-size: 100%; }
+[data-margo-layout="landing"] .margo-area--top-nav { gap: 0; }
+[data-margo-layout="docs"] .margo-area--main-content { max-inline-size: var(--margo-reading-measure); }
+[data-margo-layout="docs"] .margo-showcase-article { inline-size: min(100%, var(--margo-reading-measure)); max-inline-size: 100%; }
+[data-margo-layout="docs"] .margo-area--left-nav { min-inline-size: 0; padding-block: 0.5rem; }
+[data-margo-layout="docs"] .margo-area--right-nav { min-inline-size: 0; padding-inline-start: 0.5rem; }
+[data-margo-layout="landing"] :where(a, button):focus-visible,
+[data-margo-layout="docs"] :where(a, button):focus-visible { outline: 3px solid var(--margo-accent); outline-offset: 2px; }
+[data-margo-layout="landing"] .margo-site-family-links a,
+[data-margo-layout="docs"] .margo-site-family-links a,
+[data-margo-layout="landing"] .margo-site-search button,
+[data-margo-layout="docs"] .margo-site-search button { min-block-size: 2.75rem; }
+@media (max-width: 719px) {
+  [data-margo-layout="landing"] .margo-showcase-article,
+  [data-margo-layout="docs"] .margo-showcase-article { inline-size: 100%; }
+  [data-margo-layout="docs"] .margo-area--right-nav { padding-inline-start: 0; }
+}
+`
+
+func configuredSiteStylesheet(profileMode bool) string {
+	if !profileMode {
+		return configuredSiteCSS + "\n" + pageActionsCSS
+	}
+	// Keep legacy shell CSS byte-for-byte for shell mode, while profile output
+	// omits App Shell-private selectors entirely.
+	profileCSS := configuredSiteCSS
+	if index := strings.Index(profileCSS, ".component-doc-shell__brand-mark"); index >= 0 {
+		profileCSS = profileCSS[:index]
+	}
+	return profileCSS + configuredProfileLayoutCSS + "\n" + pageActionsCSS
+}
+
 func buildConfigured(ctx context.Context, request ConfigRequest, config Config) (Result, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -554,7 +591,7 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 	if err := b.stageSocialImage(config.Site.SocialImage); err != nil {
 		return err
 	}
-	if err := b.addArtifact("margo-assets/site.css", []byte(configuredSiteCSS+"\n"+pageActionsCSS)); err != nil {
+	if err := b.addArtifact("margo-assets/site.css", []byte(configuredSiteStylesheet(b.profileMode))); err != nil {
 		return err
 	}
 	b.dependencies["margo-assets/site.css"] = "margo-assets/site.css"
@@ -586,6 +623,10 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 	}
 	if b.shellMode {
 		if err := b.stageGoshtosoComponentDocShellAssets(); err != nil {
+			return err
+		}
+	} else if b.profileMode {
+		if err := b.stageGoshtosoNavigationAssets(); err != nil {
 			return err
 		}
 	}
@@ -714,9 +755,13 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	if err != nil {
 		return err
 	}
+	fragment = addProfileLayoutHook(fragment, prepared.page.Layout)
 	page := prepared.page
 	iconURL, _ := relativeSitePath(path.Dir(page.Output), b.config.Site.Icon)
-	head := b.renderPageHead(page, iconURL, dependencyBytes)
+	head, err := b.renderPageHead(page, iconURL, dependencyBytes)
+	if err != nil {
+		return err
+	}
 	body := `<a class="margo-skip-link" href="#margo-document">Skip to content</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
 	rewritten, err := b.rewriteHTML(ctx, source, markup)
@@ -823,14 +868,49 @@ func (b *builder) bindingsForPage(prepared configuredPage) (map[string][]ssg.Are
 	if err := add("document", schema.BindingDefaults["document"], "", string(prepared.article)); err != nil {
 		return nil, err
 	}
-	if err := add("navigation", schema.BindingDefaults["navigation"], "", b.navigationFragment(prepared.page)); err != nil {
-		return nil, err
-	}
-	if err := add("breadcrumbs", schema.BindingDefaults["breadcrumbs"], "", b.breadcrumbFragment(prepared.page)); err != nil {
-		return nil, err
-	}
-	if err := add("pagination", schema.BindingDefaults["pagination"], "after-article", b.paginationFragment(prepared.page)); err != nil {
-		return nil, err
+	if b.profileMode {
+		siteNavigation, siteNavigationErr := b.siteNavigationFragment(prepared.page)
+		if siteNavigationErr != nil {
+			return nil, siteNavigationErr
+		}
+		if err := add("site_navigation", "top-nav", "", siteNavigation); err != nil {
+			return nil, err
+		}
+		profileDocs := false
+		for _, area := range schema.Areas {
+			if area.ID == "left-nav" {
+				profileDocs = true
+				break
+			}
+		}
+		if profileDocs {
+			familyNavigation, familyNavigationErr := b.familyNavigationFragment(prepared.page)
+			if familyNavigationErr != nil {
+				return nil, familyNavigationErr
+			}
+			if err := add("navigation", "left-nav", "", familyNavigation); err != nil {
+				return nil, err
+			}
+			if err := add("breadcrumbs", schema.BindingDefaults["breadcrumbs"], "", b.breadcrumbFragment(prepared.page)); err != nil {
+				return nil, err
+			}
+			pagination := b.paginationFragment(prepared.page)
+			if pagination != "" {
+				if err := add("pagination", schema.BindingDefaults["pagination"], "after-article", pagination); err != nil {
+					return nil, err
+				}
+			}
+		}
+	} else {
+		if err := add("navigation", schema.BindingDefaults["navigation"], "", b.navigationFragment(prepared.page)); err != nil {
+			return nil, err
+		}
+		if err := add("breadcrumbs", schema.BindingDefaults["breadcrumbs"], "", b.breadcrumbFragment(prepared.page)); err != nil {
+			return nil, err
+		}
+		if err := add("pagination", schema.BindingDefaults["pagination"], "after-article", b.paginationFragment(prepared.page)); err != nil {
+			return nil, err
+		}
 	}
 	if b.config.Theme.AllowSwitchTheme {
 		label := localizedLabel(prepared.page.Locale, "theme")
@@ -917,9 +997,13 @@ func (b *builder) localeHomeOutput(page Page) string {
 
 func (b *builder) paginationFragment(page Page) string {
 	localePages := make([]Page, 0, len(b.configPages))
-	for _, candidate := range b.configPages {
-		if candidate.Locale == page.Locale {
-			localePages = append(localePages, candidate)
+	if b.profileMode {
+		localePages = b.familyPages(page)
+	} else {
+		for _, candidate := range b.configPages {
+			if candidate.Locale == page.Locale {
+				localePages = append(localePages, candidate)
+			}
 		}
 	}
 	index := -1
@@ -928,6 +1012,9 @@ func (b *builder) paginationFragment(page Page) string {
 			index = i
 			break
 		}
+	}
+	if b.profileMode && (index < 0 || len(localePages) < 2) {
+		return ""
 	}
 	var builder strings.Builder
 	builder.WriteString(`<nav class="margo-pagination" aria-label="` + stdhtml.EscapeString(localizedLabel(page.Locale, "article_navigation")) + `"><ul>`)
@@ -953,7 +1040,7 @@ func (b *builder) localeFragment(page Page) string {
 	return builder.String()
 }
 
-func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []byte) string {
+func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []byte) (string, error) {
 	var builder strings.Builder
 	builder.WriteString(`<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="` + stdhtml.EscapeString(iconURL) + `"><title>` + stdhtml.EscapeString(page.Title) + `</title><meta name="description" content="` + stdhtml.EscapeString(page.Description) + `"><link rel="canonical" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
 	builder.WriteString(`<meta property="og:url" content="` + stdhtml.EscapeString(page.Canonical) + `"><meta property="og:type" content="website"><meta property="og:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta property="og:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta property="og:site_name" content="` + stdhtml.EscapeString(b.config.Site.Name) + `"><meta property="og:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta property="og:image:type" content="` + stdhtml.EscapeString(b.socialMediaType) + `"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
@@ -980,7 +1067,15 @@ func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []by
 		builder.WriteString(`<link rel="stylesheet" href="/` + stdhtml.EscapeString(strings.TrimPrefix(css.CSSURL, "/")) + `">`)
 	}
 	builder.WriteString(string(dependencyBytes))
-	return builder.String()
+	goshtosoDependencies, err := b.configuredGoshtosoDependencyBytes()
+	if err != nil {
+		return "", err
+	}
+	if bytes.Contains(dependencyBytes, []byte(`data-margo-requirement="goshtoso.styles"`)) {
+		goshtosoDependencies = withoutGoshtosoStylesheet(goshtosoDependencies)
+	}
+	builder.WriteString(string(goshtosoDependencies))
+	return builder.String(), nil
 }
 
 func (b *builder) themeBootstrap() string {
@@ -1208,7 +1303,7 @@ func (b *builder) documentStyleDigest() string {
 	_, _ = hash.Write([]byte(frameHash))
 	_, _ = hash.Write([]byte(b.config.Theme.Name))
 	_, _ = hash.Write([]byte(b.config.Theme.ColorMode))
-	styles := map[string][]byte{"margo-assets/site.css": []byte(configuredSiteCSS + "\n" + pageActionsCSS)}
+	styles := map[string][]byte{"margo-assets/site.css": []byte(configuredSiteStylesheet(b.profileMode))}
 	for _, theme := range b.config.Themes {
 		if theme.Name == b.config.Theme.Name {
 			if asset, ok := b.assets[theme.CSSURL]; ok {
