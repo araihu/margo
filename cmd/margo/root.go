@@ -23,6 +23,7 @@ type Dependencies struct {
 	WorkingDirectory string
 	EngineProbe      engines.Probe
 	NextExecutionID  func() margo.ExecutionID
+	ServeSite        serveFunc
 	Build            BuildInfo
 }
 
@@ -50,6 +51,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 		newCheckCommand(deps),
 		newHTMLCommand(deps),
 		newSiteCommand(deps),
+		newServeCommand(deps),
 		newPDFCommand(deps),
 		newDeckCommand(deps),
 		newDoctorCommand(deps),
@@ -84,6 +86,9 @@ func normalizeDependencies(deps Dependencies) Dependencies {
 	}
 	if deps.NextExecutionID == nil {
 		deps.NextExecutionID = randomExecutionID
+	}
+	if deps.ServeSite == nil {
+		deps.ServeSite = defaultServeFunc(deps)
 	}
 	return deps
 }
