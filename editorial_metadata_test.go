@@ -72,6 +72,24 @@ margo:
 	}
 }
 
+func TestEditorialFrontmatterAcceptsSiteLayoutPreference(t *testing.T) {
+	doc, err := New().Compile(context.Background(), Source{
+		Name:    "landing.md",
+		Content: []byte("---\nmargo:\n  site:\n    layout: landing\n---\n# Landing\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.Metadata().Margo.Site.Layout; got != "landing" {
+		t.Fatalf("layout = %q, want landing", got)
+	}
+	metadata := doc.Metadata()
+	metadata.Margo.Site.Layout = "mutated"
+	if got := doc.Metadata().Margo.Site.Layout; got != "landing" {
+		t.Fatalf("layout clone = %q, want landing", got)
+	}
+}
+
 func TestEditorialFrontmatterRejectsInvalidMetadata(t *testing.T) {
 	tests := []struct {
 		name    string

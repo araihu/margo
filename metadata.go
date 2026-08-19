@@ -20,6 +20,11 @@ type Metadata struct {
 type DocumentPreferences struct {
 	Page    *PagePreference
 	Actions *PageActions
+	Site    *SitePreference
+}
+
+type SitePreference struct {
+	Layout string
 }
 
 // PDFMode selects how a site's PDF action is fulfilled.
@@ -84,6 +89,10 @@ func (m Metadata) clone() Metadata {
 	if m.Margo.Actions != nil {
 		actions := *m.Margo.Actions
 		m.Margo.Actions = &actions
+	}
+	if m.Margo.Site != nil {
+		site := *m.Margo.Site
+		m.Margo.Site = &site
 	}
 	if len(m.Additional) > 0 {
 		m.Additional = cloneStringAnyMap(m.Additional)
