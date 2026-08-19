@@ -7,6 +7,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -488,6 +492,7 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		b.assets[assetPath] = asset
 		b.assetBytes += int64(len(data))
 	}
+	setImageIntrinsicDimensions(node, asset.content)
 	if b.request.Assets == AssetsInline {
 		node.Attr[index].Val = "data:" + asset.mediaType + ";base64," + base64.StdEncoding.EncodeToString(asset.content)
 		return nil
@@ -496,6 +501,20 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		return err
 	}
 	return nil
+}
+
+func setImageIntrinsicDimensions(node *html.Node, content []byte) {
+	if attributeIndex(node, "width") >= 0 || attributeIndex(node, "height") >= 0 {
+		return
+	}
+	config, _, err := image.DecodeConfig(bytes.NewReader(content))
+	if err != nil || config.Width <= 0 || config.Height <= 0 {
+		return
+	}
+	node.Attr = append(node.Attr,
+		html.Attribute{Key: "width", Val: fmt.Sprint(config.Width)},
+		html.Attribute{Key: "height", Val: fmt.Sprint(config.Height)},
+	)
 }
 
 func (b *builder) addArtifact(name string, content []byte) error {

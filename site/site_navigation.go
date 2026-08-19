@@ -27,7 +27,7 @@ import (
 // remains the owner of its internal markup and responsive behavior.
 func (b *builder) siteNavigationFragment(page Page) (string, error) {
 	searchConfig := b.siteSearchConfig(page.Locale)
-	brand := templ.Raw(`<span class="margo-site-brand"><img src="` + stdhtml.EscapeString(relativeAssetPath(path.Dir(page.Output), b.config.Site.Logo)) + `" alt="` + stdhtml.EscapeString(b.config.Site.Name) + `"><span>` + stdhtml.EscapeString(b.config.Site.Name) + `</span></span>`)
+	brand := templ.Raw(`<span class="margo-site-brand"><img src="` + stdhtml.EscapeString(relativeAssetPath(path.Dir(page.Output), b.config.Site.Logo)) + `" alt=""><span>` + stdhtml.EscapeString(b.config.Site.Name) + `</span></span>`)
 	secondaryLinks := make([]navbar.SecondaryLink, 0, len(b.config.Navigation.Families))
 	for _, family := range b.config.Navigation.Families {
 		overview, ok := b.familyOverviewPage(page, family)
@@ -99,7 +99,127 @@ func (b *builder) siteNavigationFragment(page Page) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(markup), nil
+	return string(hardenSearchMarkup(markup, searchConfig)), nil
+}
+
+func hardenSearchMarkup(markup []byte, config search.Config) []byte {
+	root, err := html.ParseFragment(bytes.NewReader(markup), &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"})
+	if err != nil {
+		return markup
+	}
+	id := configID(config)
+	fieldID := id + "-input"
+	resultsID := id + "-results"
+	statusID := id + "-status"
+	var field, modal, input, listbox *html.Node
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			if hasAttribute(node, "data-search-field") && attributeValue(node, "data-search-id") == id {
+				field = node
+			}
+			if hasAttribute(node, "data-search-modal") && attributeValue(node, "data-search-id") == id {
+				modal = node
+			}
+			if attributeValue(node, "id") == fieldID {
+				input = node
+			}
+			if node.Data == "div" && attributeValue(node, "role") == "listbox" && modal != nil {
+				listbox = node
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	for _, node := range root {
+		walk(node)
+	}
+	if field == nil || modal == nil || input == nil || listbox == nil {
+		return markup
+	}
+	setHTMLAttribute(input, "role", "combobox")
+	setHTMLAttribute(input, "aria-controls", resultsID)
+	setHTMLAttribute(input, "aria-autocomplete", "list")
+	setHTMLAttribute(input, "aria-haspopup", "listbox")
+	setHTMLAttribute(input, "aria-expanded", "false")
+	setHTMLAttribute(listbox, "id", resultsID)
+	setHTMLAttribute(listbox, "aria-live", "off")
+	setHTMLAttribute(modal, "data-margo-search-a11y", "true")
+	setHTMLAttribute(field, "data-margo-search-a11y", "true")
+	for index, child := range childElements(listbox) {
+		if child.Type != html.ElementNode || attributeValue(child, "role") != "option" {
+			continue
+		}
+		if attributeValue(child, "id") == "" {
+			setHTMLAttribute(child, "id", fmt.Sprintf("%s-result-%d", id, index))
+		}
+		setHTMLAttribute(child, "aria-selected", "false")
+	}
+	if firstElementByAttribute(modal, "data-margo-search-status") == nil {
+		status := &html.Node{Type: html.ElementNode, DataAtom: atom.P, Data: "p", Attr: []html.Attribute{
+			{Key: "id", Val: statusID},
+			{Key: "class", Val: "margo-search-status"},
+			{Key: "data-margo-search-status", Val: ""},
+			{Key: "role", Val: "status"},
+			{Key: "aria-live", Val: "polite"},
+			{Key: "aria-atomic", Val: "true"},
+		}}
+		modal.AppendChild(status)
+	}
+	if firstElementByAttribute(modal, "data-margo-search-clear") == nil {
+		clear := &html.Node{Type: html.ElementNode, DataAtom: atom.Button, Data: "button", Attr: []html.Attribute{
+			{Key: "type", Val: "button"},
+			{Key: "class", Val: "margo-search-clear"},
+			{Key: "data-margo-search-clear", Val: ""},
+			{Key: "aria-label", Val: "Clear search"},
+			{Key: "x-cloak", Val: ""},
+			{Key: "x-show", Val: "query.trim().length > 0"},
+		}}
+		clear.AppendChild(&html.Node{Type: html.TextNode, Data: "Clear"})
+		container := input.Parent
+		if container != nil {
+			container.InsertBefore(clear, input.NextSibling)
+		}
+	}
+	var output bytes.Buffer
+	for _, node := range root {
+		if err := html.Render(&output, node); err != nil {
+			return markup
+		}
+	}
+	return output.Bytes()
+}
+
+func configID(config search.Config) string {
+	if strings.TrimSpace(config.ID) == "" {
+		return "search"
+	}
+	return strings.TrimSpace(config.ID)
+}
+
+func hasAttribute(node *html.Node, key string) bool {
+	return attributeIndex(node, key) >= 0
+}
+
+func childElements(node *html.Node) []*html.Node {
+	children := make([]*html.Node, 0)
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		children = append(children, child)
+	}
+	return children
+}
+
+func firstElementByAttribute(root *html.Node, key string) *html.Node {
+	if root.Type == html.ElementNode && hasAttribute(root, key) {
+		return root
+	}
+	for child := root.FirstChild; child != nil; child = child.NextSibling {
+		if found := firstElementByAttribute(child, key); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 // familyNavigationFragment renders only the active family's local pages.

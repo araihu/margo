@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -304,13 +305,308 @@ func waitForFamilyRouteScript(family, route string) string {
 })()`, family, route, route, family)
 }
 
+type landingGeometryState struct {
+	Display             string  `json:"display"`
+	GridColumns         string  `json:"gridColumns"`
+	GridAreas           string  `json:"gridAreas"`
+	FrameLeft           float64 `json:"frameLeft"`
+	FrameRight          float64 `json:"frameRight"`
+	MainLeft            float64 `json:"mainLeft"`
+	MainRight           float64 `json:"mainRight"`
+	BrandLabelRight     float64 `json:"brandLabelRight"`
+	SearchLeft          float64 `json:"searchLeft"`
+	SearchRight         float64 `json:"searchRight"`
+	SearchWidth         float64 `json:"searchWidth"`
+	RepositoryLeft      float64 `json:"repositoryLeft"`
+	ImageWidth          float64 `json:"imageWidth"`
+	ImageHeight         float64 `json:"imageHeight"`
+	ImageAspectRatio    float64 `json:"imageAspectRatio"`
+	ImageCSSAspectRatio string  `json:"imageCSSAspectRatio"`
+	ImageObjectFit      string  `json:"imageObjectFit"`
+	CTAExists           bool    `json:"ctaExists"`
+	CTAInViewport       bool    `json:"ctaInViewport"`
+	CTATop              float64 `json:"ctaTop"`
+	CTAHeight           float64 `json:"ctaHeight"`
+	ShowcaseWrapper     bool    `json:"showcaseWrapper"`
+}
+
+const landingGeometryScript = `(() => {
+  const rect = (node) => {
+    if (!node) return { left: 0, right: 0, top: 0, width: 0, height: 0 };
+    const value = node.getBoundingClientRect();
+    return { left: value.left, right: value.right, top: value.top, width: value.width, height: value.height };
+  };
+  const frame = document.querySelector('[data-margo-layout="landing"].margo-frame--top-main-footer');
+  const main = document.querySelector('[data-margo-area="main-content"]');
+  const brand = document.querySelector('[data-margo-global-navigation] .margo-site-brand');
+  const brandLabel = brand && brand.lastElementChild;
+  const search = document.querySelector('[data-search-field] button');
+  const repository = [...document.querySelectorAll('[data-margo-global-navigation] a')].find((link) => link.textContent.trim() === 'Repository');
+  const image = document.querySelector('[data-margo-layout="landing"] img[alt^="Margo mascot"]');
+  const cta = document.querySelector('[data-margo-layout="landing"] .margo-document a');
+  const frameRect = rect(frame);
+  const mainRect = rect(main);
+  const imageRect = rect(image);
+  const ctaRect = rect(cta);
+  const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0, 900);
+  const style = frame ? getComputedStyle(frame) : {};
+  const imageStyle = image ? getComputedStyle(image) : {};
+  return {
+    display: style.display || '',
+    gridColumns: style.gridTemplateColumns || '',
+    gridAreas: style.gridTemplateAreas || '',
+    frameLeft: frameRect.left,
+    frameRight: frameRect.right,
+    mainLeft: mainRect.left,
+    mainRight: mainRect.right,
+    brandLabelRight: rect(brandLabel).right,
+    searchLeft: rect(search).left,
+    searchRight: rect(search).right,
+    searchWidth: rect(search).width,
+    repositoryLeft: rect(repository).left,
+    imageWidth: imageRect.width,
+    imageHeight: imageRect.height,
+    imageAspectRatio: imageRect.height ? imageRect.width / imageRect.height : 0,
+    imageCSSAspectRatio: imageStyle.aspectRatio || '',
+    imageObjectFit: imageStyle.objectFit || '',
+    ctaExists: !!cta,
+    ctaInViewport: !!cta && ctaRect.height > 0 && ctaRect.top < viewportHeight && ctaRect.top + ctaRect.height > 0,
+    ctaTop: ctaRect.top,
+    ctaHeight: ctaRect.height,
+    showcaseWrapper: !!document.querySelector('[data-margo-showcase-article="true"] > article.margo-document'),
+  };
+})()`
+
+func TestLandingProfileVisualGeometry(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+	server := layoutProfileBrowserServer(t)
+	defer server.Close()
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 90*time.Second)
+	defer cancel()
+	for _, width := range []int64{390, 719, 720, 900, 1280, 1775} {
+		var state landingGeometryState
+		if err := chromedp.Run(ctx,
+			chromedp.EmulateViewport(width, 900),
+			chromedp.Navigate(server.URL+"/"),
+			chromedp.WaitVisible(`[data-margo-layout="landing"].margo-frame--top-main-footer`, chromedp.ByQuery),
+			chromedp.Evaluate(landingGeometryScript, &state),
+		); err != nil {
+			t.Fatalf("landing geometry at %dpx failed: %v", width, err)
+		}
+		if state.Display != "grid" || strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 1 {
+			t.Fatalf("landing at %dpx did not use one grid track: %+v", width, state)
+		}
+		if !strings.Contains(state.GridAreas, `"top-nav"`) || !strings.Contains(state.GridAreas, `"main-content"`) || !strings.Contains(state.GridAreas, `"footer"`) {
+			t.Fatalf("landing at %dpx grid areas = %q, want top-nav/main-content/footer", width, state.GridAreas)
+		}
+		if state.MainLeft < state.FrameLeft-1 || state.MainRight > state.FrameRight+1 {
+			t.Fatalf("landing at %dpx main content escapes frame: %+v", width, state)
+		}
+		if state.BrandLabelRight > state.SearchLeft+1 {
+			t.Fatalf("landing at %dpx child brand content collides with search: %+v", width, state)
+		}
+		if state.RepositoryLeft > 1 && state.SearchRight > state.RepositoryLeft+1 {
+			t.Fatalf("landing at %dpx search collides with Repository: %+v", width, state)
+		}
+		if width < 480 && state.SearchWidth > 48 {
+			t.Fatalf("landing at %dpx search did not collapse at the content breakpoint: %+v", width, state)
+		}
+		if state.ImageWidth > 386 || state.ImageAspectRatio < 1.28 || state.ImageAspectRatio > 1.38 || state.ImageCSSAspectRatio != "4 / 3" || state.ImageObjectFit != "cover" {
+			t.Fatalf("landing at %dpx hero geometry = %+v, want compact 4:3 cover", width, state)
+		}
+		if !state.CTAExists || !state.CTAInViewport || state.CTAHeight <= 0 || !state.ShowcaseWrapper {
+			t.Fatalf("landing at %dpx first-viewport CTA/wrapper = %+v", width, state)
+		}
+	}
+}
+
+type docsGeometryState struct {
+	Display       string  `json:"display"`
+	GridColumns   string  `json:"gridColumns"`
+	GridAreas     string  `json:"gridAreas"`
+	LeftNavWidth  float64 `json:"leftNavWidth"`
+	MainWidth     float64 `json:"mainWidth"`
+	RightNavWidth float64 `json:"rightNavWidth"`
+}
+
+const docsGeometryScript = `(() => {
+  const frame = document.querySelector('[data-margo-layout="docs"].margo-frame--top-left-main-right-footer');
+  const rect = (node) => node ? node.getBoundingClientRect() : { width: 0 };
+  const style = frame ? getComputedStyle(frame) : {};
+  return {
+    display: style.display || '',
+    gridColumns: style.gridTemplateColumns || '',
+    gridAreas: style.gridTemplateAreas || '',
+    leftNavWidth: rect(document.querySelector('[data-margo-area="left-nav"]')).width,
+    mainWidth: rect(document.querySelector('[data-margo-area="main-content"]')).width,
+    rightNavWidth: rect(document.querySelector('[data-margo-area="right-nav"]')).width,
+  };
+})()`
+
+func TestDocsProfileGridTemplate(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+	server := layoutProfileBrowserServer(t)
+	defer server.Close()
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 90*time.Second)
+	defer cancel()
+	for _, width := range []int64{719, 720, 900, 1280, 1775} {
+		var state docsGeometryState
+		if err := chromedp.Run(ctx,
+			chromedp.EmulateViewport(width, 900),
+			chromedp.Navigate(server.URL+"/module/"),
+			chromedp.WaitVisible(`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`, chromedp.ByQuery),
+			chromedp.Evaluate(docsGeometryScript, &state),
+		); err != nil {
+			t.Fatalf("docs geometry at %dpx failed: %v", width, err)
+		}
+		if state.Display != "grid" {
+			t.Fatalf("docs at %dpx display = %q, want grid: %+v", width, state.Display, state)
+		}
+		if width < 720 {
+			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 1 {
+				t.Fatalf("docs at %dpx did not collapse to one grid track: %+v", width, state)
+			}
+			continue
+		}
+		if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 3 || !strings.Contains(state.GridAreas, `"left-nav main-content right-nav"`) {
+			t.Fatalf("docs at %dpx did not retain three-column grid: %+v", width, state)
+		}
+		if state.LeftNavWidth <= 0 || state.MainWidth <= 0 || state.RightNavWidth <= 0 {
+			t.Fatalf("docs at %dpx grid tracks have no rendered geometry: %+v", width, state)
+		}
+	}
+}
+
+type searchSemanticsState struct {
+	Role             string `json:"role"`
+	Controls         string `json:"controls"`
+	Expanded         string `json:"expanded"`
+	ActiveDescendant string `json:"activeDescendant"`
+	ActiveOptionID   string `json:"activeOptionID"`
+	SelectedCount    int    `json:"selectedCount"`
+	Status           string `json:"status"`
+	ClearVisible     bool   `json:"clearVisible"`
+	FocusReturned    bool   `json:"focusReturned"`
+}
+
+const searchSemanticsScript = `(() => {
+  const input = document.querySelector('[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]');
+  const trigger = document.querySelector('[data-search-field][data-margo-search-a11y="true"] button');
+  const listbox = input && document.getElementById(input.getAttribute('aria-controls'));
+  const selected = listbox ? [...listbox.querySelectorAll('[role="option"][aria-selected="true"]')] : [];
+  const clear = document.querySelector('[data-margo-search-clear]');
+  return {
+    role: input?.getAttribute('role') || '',
+    controls: input?.getAttribute('aria-controls') || '',
+    expanded: input?.getAttribute('aria-expanded') || '',
+    activeDescendant: input?.getAttribute('aria-activedescendant') || '',
+    activeOptionID: selected[0]?.id || '',
+    selectedCount: selected.length,
+    status: document.querySelector('[data-margo-search-status]')?.textContent || '',
+    clearVisible: !!clear && getComputedStyle(clear).display !== 'none' && !clear.hidden,
+    focusReturned: !!trigger && document.activeElement === trigger,
+  };
+})()`
+
+func TestProfileSearchSemanticsAndFocusReturn(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+	server := layoutProfileBrowserServer(t)
+	defer server.Close()
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 60*time.Second)
+	defer cancel()
+	var state searchSemanticsState
+	if err := chromedp.Run(ctx,
+		chromedp.EmulateViewport(390, 844),
+		chromedp.Navigate(server.URL+"/"),
+		chromedp.WaitVisible(`[data-margo-layout="landing"]`, chromedp.ByQuery),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.Click(`[data-search-field][data-margo-search-a11y="true"] button`, chromedp.ByQuery),
+		chromedp.WaitVisible(`[data-search-modal][data-margo-search-a11y="true"]`, chromedp.ByQuery),
+		chromedp.SendKeys(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, "Tour", chromedp.ByQuery),
+		chromedp.Sleep(120*time.Millisecond),
+		chromedp.Evaluate(searchSemanticsScript, &state),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if state.Role != "combobox" || state.Controls != "margo-site-search-results" || state.Expanded != "true" || state.SelectedCount != 1 || state.ActiveDescendant != state.ActiveOptionID || state.Status == "" || !state.ClearVisible {
+		t.Fatalf("search semantics after query = %+v", state)
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.KeyEvent(kb.ArrowDown),
+		chromedp.Sleep(80*time.Millisecond),
+		chromedp.Evaluate(searchSemanticsScript, &state),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if state.SelectedCount != 1 || state.ActiveDescendant != state.ActiveOptionID {
+		t.Fatalf("search active option desynchronized after ArrowDown = %+v", state)
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.Click(`[data-margo-search-clear]`, chromedp.ByQuery),
+		chromedp.Sleep(80*time.Millisecond),
+		chromedp.SendKeys(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, "not-a-real-page", chromedp.ByQuery),
+		chromedp.Sleep(120*time.Millisecond),
+		chromedp.Evaluate(searchSemanticsScript, &state),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if state.Status != "No matching pages." || state.SelectedCount != 0 || state.ActiveDescendant != "" {
+		t.Fatalf("search no-result state = %+v", state)
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.KeyEvent(kb.Escape),
+		chromedp.Sleep(400*time.Millisecond),
+		chromedp.Evaluate(searchSemanticsScript, &state),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if !state.FocusReturned {
+		t.Fatalf("search Escape did not return focus to trigger = %+v", state)
+	}
+}
+
 func layoutProfileBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `# Tour
 
-Choose a documentation family: [Module](module/index.md) or [CLI](cli/index.md).
+Publish one Markdown source in the format your project needs.
+
+**Choose a starting path:** [Start with the CLI](cli/index.md) or [embed the Go module](module/index.md).
+
+![Margo mascot preparing a document](margo-mascot.png)
 `)
+	mascot, err := os.ReadFile(filepath.Join("..", "showcase", "content", "margo-mascot.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "margo-mascot.png"), mascot, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), `# Module
 
 Module documentation overview.

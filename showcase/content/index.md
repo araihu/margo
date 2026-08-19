@@ -8,12 +8,16 @@ language: en
 
 Publish one Markdown source in the format your project needs.
 
-![Margo mascot preparing a document](margo-mascot.png)
-
 Margo compiles ordinary Markdown into a semantic document, then projects it to
 standalone HTML, linked sites, PDFs, or experimental presentation decks. Use the
 CLI for a publishing workflow, or import the Go module when your application
 owns composition and delivery.
+
+**Choose a starting path:** [Start with the CLI](cli/index.md) for a publishing
+workflow, or [embed the Go module](module/index.md) when your application owns
+composition and delivery.
+
+![Margo mascot preparing a document](margo-mascot.png)
 
 ## One source, several projections
 
@@ -91,8 +95,8 @@ and publication as separate lifecycle actions.
 - A presentation system that requires a stable deck contract today; deck output
   remains experimental.
 
-## Continue with the technical guides
+## Choose your next step
 
-Start with the [Module guide](module/index.md) to embed Margo in a Go project,
-or read the [CLI guide](cli/index.md) for commands, configuration, policies,
-and operational boundaries.
+If Margo fits your workflow, [start with the CLI guide](cli/index.md) for
+commands, configuration, policies, and operational boundaries. If your Go
+application owns composition and delivery, [continue with the Module guide](module/index.md).

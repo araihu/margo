@@ -88,11 +88,14 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 .margo-area--top-nav nav, .margo-area--left-nav nav, .margo-area--right-nav nav { min-block-size: 2.75rem; }
 .margo-area--top-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
 .margo-area--top-nav > nav { flex: 1 1 auto; }
+.margo-area--top-nav > [data-navbar-shell="true"] { flex: 1 1 100%; inline-size: 100%; min-inline-size: 0; }
 [data-margo-sticky="true"] { position: sticky; z-index: 2; }
 [data-margo-sticky="true"][data-margo-sticky-edge="block-start"] { inset-block-start: var(--margo-sticky-offset, 0); }
 [data-margo-sticky="true"][data-margo-sticky-edge="block-end"] { inset-block-end: var(--margo-sticky-offset, 0); }
 .margo-site-brand { display: inline-flex; align-items: center; gap: 0.5rem; min-block-size: 2.75rem; font-weight: 700; color: var(--margo-text-strong); text-decoration: none; }
+.margo-site-brand { inline-size: max-content; min-inline-size: max-content; max-inline-size: none; flex: 0 0 auto; white-space: nowrap; }
 .margo-site-brand img { max-block-size: 2rem; max-inline-size: 10rem; }
+.margo-site-navbar { inline-size: 100%; min-inline-size: 0; }
 .margo-breadcrumbs ol, .margo-pagination ul, .margo-locale-controls ul { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
 .margo-pagination { margin-block-start: 2rem; padding-block-start: 1rem; border-block-start: 1px solid var(--margo-outline); }
 .margo-showcase-article .margo-pagination ul { justify-content: space-between; column-gap: 2rem; row-gap: 0.75rem; }
@@ -153,7 +156,13 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 // configuredProfileLayoutCSS is consumer-owned semantic presentation for
 // layout-profile pages. It deliberately names only Margo frame/layout hooks;
 // Goshtoso component internals and App Shell-private selectors stay opaque.
-const configuredProfileLayoutCSS = `[data-margo-layout="landing"] .margo-area--main-content { max-inline-size: none; }
+const configuredProfileLayoutCSS = `[data-margo-layout="landing"].margo-frame--top-main-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "top-nav" "main-content" "footer";
+  justify-content: stretch;
+}
+[data-margo-layout="landing"] .margo-area--main-content { max-inline-size: none; }
 [data-margo-layout="landing"] .margo-showcase-article { inline-size: 100%; max-inline-size: none; }
 [data-margo-layout="landing"] .margo-document { max-inline-size: 100%; }
 [data-margo-layout="landing"] .margo-area--top-nav { gap: 0; }
@@ -176,8 +185,25 @@ const configuredProfileLayoutCSS = `[data-margo-layout="landing"] .margo-area--m
 [data-margo-layout="docs"] .margo-site-family-links,
 [data-margo-layout="landing"] .margo-area--top-nav > *,
 [data-margo-layout="docs"] .margo-area--top-nav > * { min-inline-size: 0; max-inline-size: 100%; }
+[data-margo-layout="landing"] .margo-site-navbar > div:first-of-type,
+[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type { min-inline-size: 0; flex: 1 1 auto; }
+[data-margo-layout="landing"] .margo-site-navbar > div:first-of-type > a,
+[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > a { inline-size: max-content; max-inline-size: none; flex: 0 0 auto; min-inline-size: max-content; }
+[data-margo-layout="landing"] .margo-site-brand,
+[data-margo-layout="docs"] .margo-site-brand { display: contents; }
+[data-margo-layout="landing"] .margo-site-brand img,
+[data-margo-layout="docs"] .margo-site-brand img { margin-inline-end: 0.5rem; vertical-align: middle; }
+[data-margo-layout="landing"] .margo-site-navbar > div:first-of-type > .margo-site-search,
+[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > .margo-site-search { inline-size: clamp(11rem, 26vw, 18rem); min-inline-size: 0; flex: 0 1 auto; }
 [data-margo-layout="landing"] .margo-site-family-links,
 [data-margo-layout="docs"] .margo-site-family-links { flex: 1 1 100%; }
+[data-margo-layout="landing"] .margo-search-clear,
+[data-margo-layout="docs"] .margo-search-clear { min-block-size: 2rem; border: 0; padding: 0.25rem 0.5rem; color: var(--margo-text); background: transparent; font-size: 0.875rem; white-space: nowrap; }
+[data-margo-layout="landing"] .margo-search-clear:hover,
+[data-margo-layout="landing"] .margo-search-clear:focus-visible,
+[data-margo-layout="docs"] .margo-search-clear:hover,
+[data-margo-layout="docs"] .margo-search-clear:focus-visible { color: var(--margo-text-strong); background: var(--margo-surface-alt); }
+.margo-search-status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 @media (width < 30rem) {
   [data-margo-layout="landing"] .margo-site-search,
   [data-margo-layout="docs"] .margo-site-search { width: 2.75rem; flex: 0 0 2.75rem; }
@@ -724,6 +750,12 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 		return err
 	}
 	b.dependencies[pageActionsScriptPath] = pageActionsScriptPath
+	if b.profileMode {
+		if err := b.addArtifact(profileInteractionScriptPath, []byte(profileInteractionScript)); err != nil {
+			return err
+		}
+		b.dependencies[profileInteractionScriptPath] = profileInteractionScriptPath
+	}
 	for _, theme := range config.Themes {
 		if strings.HasPrefix(theme.CSSURL, "https://") {
 			return diagnostic("site.remote_resource", "remote theme CSS is not vendorized by this offline builder", "Copy the stylesheet into the site source tree.", theme.CSSURL)
@@ -990,7 +1022,13 @@ func (b *builder) bindingsForPage(prepared configuredPage) (map[string][]ssg.Are
 		bindings[area] = append(bindings[area], binding)
 		return nil
 	}
-	if err := add("document", schema.BindingDefaults["document"], "", string(prepared.article)); err != nil {
+	documentFragment := string(prepared.article)
+	if b.profileMode {
+		// Profile pages share one public article hook. Landing owns a wider
+		// canvas while docs retain their reading measure through profile CSS.
+		documentFragment = `<div class="margo-showcase-article" data-margo-showcase-article="true">` + documentFragment + `</div>`
+	}
+	if err := add("document", schema.BindingDefaults["document"], "", documentFragment); err != nil {
 		return nil, err
 	}
 	if b.profileMode {
@@ -1200,6 +1238,9 @@ func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []by
 	builder.WriteString(b.themeBootstrap())
 	builder.WriteString(`<link rel="stylesheet" href="/margo-assets/site.css">`)
 	builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(pageActionsScriptPath) + `"></script>`)
+	if b.profileMode {
+		builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(profileInteractionScriptPath) + `"></script>`)
+	}
 	for _, theme := range b.config.Themes {
 		media := "not all"
 		if theme.Name == b.config.Theme.Name {
