@@ -132,7 +132,10 @@ func TestLayoutBrowser(t *testing.T) {
 					if state.ColorMode != colorMode {
 						t.Fatalf("color mode = %q, want %q: %+v", state.ColorMode, colorMode, state)
 					}
-					if state.Sidebar != cell.sidebar || state.TOCArea != cell.tocArea || state.Pagination != cell.pagination || state.TOC != cell.tocArea || state.TOCVisible != cell.tocArea || (cell.tocArea && state.TOCLinks == 0) {
+					wantSidebarVisible := cell.sidebar && viewport.width >= 640
+					wantTOCVisible := cell.tocArea && viewport.width >= 880
+					wantTOCSummary := cell.tocArea && viewport.width < 880
+					if state.Sidebar != cell.sidebar || state.SidebarVisible != wantSidebarVisible || state.TOCArea != cell.tocArea || state.Pagination != cell.pagination || state.TOC != cell.tocArea || state.TOCVisible != wantTOCVisible || state.TOCSummaryVisible != wantTOCSummary || (cell.tocArea && state.TOCLinks == 0) {
 						t.Fatalf("%s chrome presence = %+v, want sidebar=%t toc-area=%t pagination=%t and a usable docs TOC", cell.name, state, cell.sidebar, cell.tocArea, cell.pagination)
 					}
 					if cell.layout == "landing" {
@@ -161,6 +164,93 @@ func TestLayoutBrowser(t *testing.T) {
 			}
 		}
 	}
+
+	t.Run("612px mobile docs shell", func(t *testing.T) {
+		var state struct {
+			NavbarRight       float64 `json:"navbarRight"`
+			TriggerLeft       float64 `json:"triggerLeft"`
+			TriggerRight      float64 `json:"triggerRight"`
+			TriggerWidth      float64 `json:"triggerWidth"`
+			TriggerHeight     float64 `json:"triggerHeight"`
+			LeftActionsRight  float64 `json:"leftActionsRight"`
+			SidebarDisplay    string  `json:"sidebarDisplay"`
+			DrawerPosition    string  `json:"drawerPosition"`
+			DrawerBottom      float64 `json:"drawerBottom"`
+			DrawerOpen        bool    `json:"drawerOpen"`
+			SummaryVisible    bool    `json:"summaryVisible"`
+			TOCVisible        bool    `json:"tocVisible"`
+			MobileMenuVisible bool    `json:"mobileMenuVisible"`
+			MobileLinkCount   int     `json:"mobileLinkCount"`
+			MobileActiveCount int     `json:"mobileActiveCount"`
+		}
+		readState := `(() => {
+			const visible = (node) => !!node && getComputedStyle(node).display !== 'none' && node.getClientRects().length > 0;
+			const nav = document.querySelector('[data-margo-global-navigation="true"]');
+			const trigger = nav?.querySelector('[data-margo-mobile-menu-trigger="true"]');
+			const left = nav?.firstElementChild;
+			const sidebar = document.querySelector('[data-margo-area="left-nav"]');
+			const drawerArea = document.querySelector('[data-margo-area="right-nav"]');
+			const drawer = drawerArea?.querySelector('[data-margo-toc-drawer="true"]');
+			const summary = drawer?.querySelector('[data-margo-toc-summary="true"]');
+			const toc = drawer?.querySelector('[data-margo-toc="true"]');
+			const mobileMenu = nav?.querySelector('[data-margo-mobile-menu="true"]');
+			const mobileLinks = [...(mobileMenu?.querySelectorAll('[data-margo-family-page-link]') || [])];
+			const rect = (node) => node?.getBoundingClientRect() || {left: 0, right: 0, width: 0, height: 0, bottom: 0};
+			return {
+				navbarRight: rect(nav).right,
+				triggerLeft: rect(trigger).left,
+				triggerRight: rect(trigger).right,
+				triggerWidth: rect(trigger).width,
+				triggerHeight: rect(trigger).height,
+				leftActionsRight: rect(left).right,
+				sidebarDisplay: sidebar ? getComputedStyle(sidebar).display : '',
+				drawerPosition: drawerArea ? getComputedStyle(drawerArea).position : '',
+				drawerBottom: innerHeight - rect(drawerArea).bottom,
+				drawerOpen: !!drawer?.open,
+				summaryVisible: visible(summary),
+				tocVisible: visible(toc),
+				mobileMenuVisible: visible(mobileMenu),
+				mobileLinkCount: mobileLinks.length,
+				mobileActiveCount: mobileLinks.filter((link) => link.getAttribute('aria-current') === 'page').length,
+			};
+		})()`
+		if err := chromedp.Run(ctx,
+			chromedp.EmulateViewport(612, 790),
+			chromedp.Navigate(server.URL+"/cli/"),
+			chromedp.WaitVisible(`[data-margo-layout="docs"]`, chromedp.ByQuery),
+			chromedp.Evaluate(readState, &state),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if state.TriggerWidth < 44 || state.TriggerHeight < 44 || state.TriggerRight > state.NavbarRight+1 || state.TriggerLeft < state.LeftActionsRight-1 {
+			t.Fatalf("612px mobile trigger is misplaced or overlapping: %+v", state)
+		}
+		if state.SidebarDisplay != "none" || state.DrawerPosition != "fixed" || state.DrawerBottom > 1 || state.DrawerOpen || !state.SummaryVisible || state.TOCVisible {
+			t.Fatalf("612px collapsed sidebar/TOC state = %+v", state)
+		}
+		if err := chromedp.Run(ctx,
+			chromedp.Click(`[data-margo-mobile-menu-trigger="true"]`, chromedp.ByQuery),
+			chromedp.WaitVisible(`[data-margo-mobile-menu="true"]`, chromedp.ByQuery),
+			chromedp.Evaluate(readState, &state),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if !state.MobileMenuVisible || state.MobileLinkCount < 2 || state.MobileActiveCount != 1 {
+			t.Fatalf("612px mobile menu lacks active-family pages: %+v", state)
+		}
+		if err := chromedp.Run(ctx,
+			chromedp.Click(`[data-margo-mobile-menu-trigger="true"]`, chromedp.ByQuery),
+			chromedp.Click(`[data-margo-toc-summary="true"]`, chromedp.ByQuery),
+			chromedp.WaitVisible(`[data-margo-toc="true"]`, chromedp.ByQuery),
+			chromedp.Click(`[data-margo-toc-link]`, chromedp.ByQuery),
+			chromedp.Evaluate(readState, &state),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if state.DrawerOpen || state.TOCVisible {
+			t.Fatalf("TOC drawer remained open after link selection: %+v", state)
+		}
+	})
 
 	t.Run("normal navigation updates and clears docs state", func(t *testing.T) {
 		errorMu.Lock()
@@ -220,11 +310,13 @@ type layoutBrowserState struct {
 	ColorMode                  string  `json:"colorMode"`
 	FamilyNavigation           bool    `json:"familyNavigation"`
 	Sidebar                    bool    `json:"sidebar"`
+	SidebarVisible             bool    `json:"sidebarVisible"`
 	SidebarLinkCount           int     `json:"sidebarLinkCount"`
 	SidebarForeignLinkCount    int     `json:"sidebarForeignLinkCount"`
 	TOCArea                    bool    `json:"tocArea"`
 	TOC                        bool    `json:"toc"`
 	TOCVisible                 bool    `json:"tocVisible"`
+	TOCSummaryVisible          bool    `json:"tocSummaryVisible"`
 	TOCLinks                   int     `json:"tocLinks"`
 	Breadcrumbs                bool    `json:"breadcrumbs"`
 	Pagination                 bool    `json:"pagination"`
@@ -305,11 +397,13 @@ const layoutBrowserStateScript = `(() => {
 		colorMode: document.documentElement.dataset.colorMode || "",
 		familyNavigation: !!document.querySelector('[data-margo-family-navigation="true"]'),
 		sidebar: !!sidebar,
+		sidebarVisible: visible(sidebar),
 		sidebarLinkCount: sidebarLinks.length,
 		sidebarForeignLinkCount: sidebarLinks.filter((link) => !isFamilyPath(link)).length,
 		tocArea: !!document.querySelector('[data-margo-area="right-nav"]'),
 		toc: !!toc,
 		tocVisible: visible(toc),
+		tocSummaryVisible: visible(document.querySelector('[data-margo-toc-summary="true"]')),
 		tocLinks: document.querySelectorAll('[data-margo-area="right-nav"] [data-margo-toc-link]').length,
 		breadcrumbs: !!document.querySelector('[data-margo-area="main-content"] .margo-breadcrumbs, [aria-label="Breadcrumbs"]'),
 		pagination: !!pagination,
@@ -558,15 +652,24 @@ func TestDocsLayoutGridTemplate(t *testing.T) {
 		if state.Display != "grid" {
 			t.Fatalf("docs at %dpx display = %q, want grid: %+v", width, state.Display, state)
 		}
-		if width < 880 {
+		if width < 640 {
 			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 1 {
 				t.Fatalf("docs at %dpx did not collapse to one grid track: %+v", width, state)
 			}
-			if !strings.Contains(state.GridAreas, `"top-nav"`) || !strings.Contains(state.GridAreas, `"left-nav"`) || !strings.Contains(state.GridAreas, `"main-content"`) || !strings.Contains(state.GridAreas, `"right-nav"`) {
-				t.Fatalf("docs at %dpx missing stacked navigation/content areas: %+v", width, state)
+			if !strings.Contains(state.GridAreas, `"top-nav"`) || !strings.Contains(state.GridAreas, `"main-content"`) || strings.Contains(state.GridAreas, "left-nav") || strings.Contains(state.GridAreas, "right-nav") {
+				t.Fatalf("docs at %dpx has wrong mobile grid areas: %+v", width, state)
 			}
 			if state.MainWidth < 320 {
 				t.Fatalf("docs at %dpx stacked content is not usable: %+v", width, state)
+			}
+			continue
+		}
+		if width < 880 {
+			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 2 || !strings.Contains(state.GridAreas, `"left-nav main-content"`) || strings.Contains(state.GridAreas, "right-nav") {
+				t.Fatalf("docs at %dpx did not use coherent two-column tablet grid: %+v", width, state)
+			}
+			if state.LeftNavWidth <= 0 || state.MainWidth < 320 {
+				t.Fatalf("docs at %dpx tablet tracks are not usable: %+v", width, state)
 			}
 			continue
 		}

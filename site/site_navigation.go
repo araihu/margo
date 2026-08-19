@@ -29,6 +29,7 @@ func (b *builder) siteNavigationFragment(page Page) (string, error) {
 	searchConfig := b.siteSearchConfig(page.Locale)
 	brand := templ.Raw(`<span class="margo-site-brand"><img src="` + stdhtml.EscapeString(relativeAssetPath(path.Dir(page.Output), b.config.Site.Logo)) + `" alt=""><span>` + stdhtml.EscapeString(b.config.Site.Name) + `</span></span>`)
 	secondary := b.familySecondaryNavigation(page)
+	primaryLinks := b.familyPrimaryNavigation(page)
 
 	var repositoryAction templ.Component
 	if repository := strings.TrimSpace(b.config.Site.RepositoryURL); repository != "" {
@@ -58,6 +59,7 @@ func (b *builder) siteNavigationFragment(page Page) (string, error) {
 		if err := navbar.Navbar(navbar.Config{
 			Brand:     brand,
 			BrandHref: b.siteHomeHref(page),
+			Links:     primaryLinks,
 			Actions:   actions,
 			Secondary: secondary,
 			NavClass:  "margo-site-navbar",
@@ -71,7 +73,61 @@ func (b *builder) siteNavigationFragment(page Page) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	markup = hardenNavbarMarkup(markup)
 	return string(hardenSearchMarkup(markup, searchConfig)), nil
+}
+
+// familyPrimaryNavigation gives Goshtoso's mobile menu the same active-family
+// destinations as the docs sidebar. CSS suppresses this duplicate projection
+// in the desktop action region while preserving the component's mobile menu.
+func (b *builder) familyPrimaryNavigation(page Page) []navbar.NavLink {
+	pages := b.familyPages(page)
+	links := make([]navbar.NavLink, 0, len(pages))
+	for _, candidate := range pages {
+		links = append(links, navbar.NavLink{
+			Label:  candidate.Title,
+			Href:   b.sitePageHref(candidate),
+			Active: candidate.Source == page.Source,
+			LinkAttrs: templ.Attributes{
+				"data-margo-family-page-link": candidate.Source,
+			},
+		})
+	}
+	return links
+}
+
+func hardenNavbarMarkup(markup []byte) []byte {
+	root, err := html.ParseFragment(bytes.NewReader(markup), &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"})
+	if err != nil {
+		return markup
+	}
+	for _, node := range root {
+		navigation := firstElementByAttribute(node, "data-margo-global-navigation")
+		if navigation == nil {
+			continue
+		}
+		for child := navigation.FirstChild; child != nil; child = child.NextSibling {
+			if child.Type != html.ElementNode {
+				continue
+			}
+			if child.Data == "button" && strings.Contains(attributeValue(child, "x-bind:aria-label"), "mobile menu") {
+				setHTMLAttribute(child, "data-margo-mobile-menu-trigger", "true")
+			}
+			if child.Data == "ul" && attributeValue(child, "x-show") == "mobileMenuIsOpen" {
+				setHTMLAttribute(child, "data-margo-mobile-menu", "true")
+			}
+			if child.Data == "div" && firstElementByAttribute(child, "data-margo-family-page-link") != nil {
+				setHTMLAttribute(child, "data-margo-navbar-desktop-actions", "true")
+			}
+		}
+	}
+	var output bytes.Buffer
+	for _, node := range root {
+		if err := html.Render(&output, node); err != nil {
+			return markup
+		}
+	}
+	return output.Bytes()
 }
 
 func (b *builder) familySecondaryNavigation(page Page) *navbar.SecondaryConfig {
@@ -296,11 +352,11 @@ func (b *builder) tocFragment(article []byte, locale string) string {
 	}
 	label := localizedLabel(locale, "toc")
 	var builder strings.Builder
-	builder.WriteString(`<nav class="margo-toc" aria-label="` + stdhtml.EscapeString(label) + `" data-margo-toc="true"><p class="margo-toc-title">` + stdhtml.EscapeString(label) + `</p><ol data-margo-toc-list="true">`)
+	builder.WriteString(`<details class="margo-toc-drawer" data-margo-toc-drawer="true"><summary data-margo-toc-summary="true">` + stdhtml.EscapeString(label) + `</summary><nav class="margo-toc" aria-label="` + stdhtml.EscapeString(label) + `" data-margo-toc="true"><ol data-margo-toc-list="true">`)
 	for _, item := range headings {
 		builder.WriteString(`<li data-margo-toc-level="` + stdhtml.EscapeString(fmt.Sprint(item.level)) + `"><a data-margo-toc-link="` + stdhtml.EscapeString(item.id) + `" href="#` + stdhtml.EscapeString(item.id) + `">` + stdhtml.EscapeString(item.label) + `</a></li>`)
 	}
-	builder.WriteString(`</ol></nav>`)
+	builder.WriteString(`</ol></nav></details>`)
 	return builder.String()
 }
 

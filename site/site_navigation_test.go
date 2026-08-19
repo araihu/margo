@@ -138,6 +138,57 @@ func TestSiteNavigationFamilyNavbarUsesConfiguredOrder(t *testing.T) {
 	}
 }
 
+func TestSiteNavigationExposesActiveFamilyPagesToMobileNavbar(t *testing.T) {
+	b := typedFamilyNavigationBuilder()
+	overview := Page{Source: "module/index.md", Output: "module/index.html", Locale: "en", Family: "module", Layout: "docs", Title: "Module"}
+	guide := Page{Source: "module/guide.md", Output: "module/guide.html", Locale: "en", Family: "module", Layout: "docs", Title: "Guide"}
+	b.configPages = []Page{guide, overview}
+	b.docsFamilies = []docsFamily{{ID: "module", Locale: "en", Overview: overview}}
+
+	markup, err := b.siteNavigationFragment(guide)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`data-margo-mobile-menu-trigger="true"`,
+		`data-margo-mobile-menu="true"`,
+		`data-margo-navbar-desktop-actions="true"`,
+		`data-margo-family-page-link="module/index.md"`,
+		`data-margo-family-page-link="module/guide.md"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("navbar missing mobile family navigation hook %q: %s", want, markup)
+		}
+	}
+	if got := strings.Count(markup, `data-margo-family-page-link="module/guide.md"`); got != 2 {
+		t.Fatalf("active page link rendered %d times, want desktop/mobile projections: %s", got, markup)
+	}
+	if got := strings.Count(markup, `aria-current="page"`); got != 2 {
+		t.Fatalf("active page state rendered %d times, want desktop/mobile projections: %s", got, markup)
+	}
+}
+
+func TestTOCFragmentUsesOneNativeResponsiveDrawer(t *testing.T) {
+	b := typedFamilyNavigationBuilder()
+	markup := b.tocFragment([]byte(`<article><h1 id="overview">Overview</h1><h2 id="install">Install</h2></article>`), "en")
+
+	for _, want := range []string{
+		`<details class="margo-toc-drawer" data-margo-toc-drawer="true">`,
+		`<summary data-margo-toc-summary="true">On this page</summary>`,
+		`<nav class="margo-toc" aria-label="On this page" data-margo-toc="true">`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("TOC missing responsive drawer semantic %q: %s", want, markup)
+		}
+	}
+	if got := strings.Count(markup, `data-margo-toc-link=`); got != 2 {
+		t.Fatalf("TOC link count = %d, want one projection of each heading: %s", got, markup)
+	}
+	if strings.Contains(markup, `class="margo-toc-title"`) {
+		t.Fatalf("TOC retained duplicate rail title inside drawer: %s", markup)
+	}
+}
+
 func TestSiteNavigationFamilyNavbarSuppressesSingleEffectiveFamily(t *testing.T) {
 	b := typedFamilyNavigationBuilder()
 	module := Page{Source: "module/index.md", Output: "module/index.html", Locale: "en", Family: "module", Layout: "docs", Title: "Module Overview"}

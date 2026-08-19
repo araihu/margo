@@ -112,9 +112,9 @@ theme:
 		overflow    string
 	}{
 		{width: 1440, name: "wide", columns: 3, threeColumn: true},
-		{width: 720, name: "stacked-tablet", columns: 1, stacked: true, overflow: "clip"},
+		{width: 720, name: "two-column-tablet", columns: 2, twoColumn: true, overflow: "clip"},
 		{width: 900, name: "mid", columns: 3, threeColumn: true},
-		{width: 390, name: "narrow", columns: 1, stacked: true, overflow: "clip"},
+		{width: 390, name: "narrow", columns: 1, overflow: "clip"},
 	} {
 		var state frameState
 		if err := chromedp.Run(ctx,
@@ -143,7 +143,7 @@ theme:
 		if state.Display != "grid" || state.ColumnCount != viewport.columns {
 			t.Fatalf("%s viewport frame geometry = %+v, want display grid with %d columns", viewport.name, state, viewport.columns)
 		}
-		hasTwoColumnAreas := state.ColumnCount == 2 && strings.Contains(state.GridAreas, `"left-nav main-content"`) && strings.Contains(state.GridAreas, `"right-nav right-nav"`)
+		hasTwoColumnAreas := state.ColumnCount == 2 && strings.Contains(state.GridAreas, `"left-nav main-content"`) && !strings.Contains(state.GridAreas, "right-nav")
 		if viewport.threeColumn != state.HasThreeColumnAreas || viewport.twoColumn != hasTwoColumnAreas || viewport.stacked != state.HasStackedAreaRows {
 			t.Fatalf("%s viewport grid areas = %+v", viewport.name, state)
 		}

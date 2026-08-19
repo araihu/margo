@@ -171,6 +171,14 @@ const docsNavigationScript = `(function () {
 
   function scan() {
     document.querySelectorAll('[data-search-modal][data-margo-search-a11y="true"]').forEach(init);
+    document.querySelectorAll('[data-margo-toc-drawer="true"]').forEach(function (drawer) {
+      if (drawer.dataset.margoTocReady === "true") return;
+      drawer.dataset.margoTocReady = "true";
+      drawer.addEventListener("click", function (event) {
+        if (!event.target.closest || !event.target.closest("[data-margo-toc-link]")) return;
+        drawer.open = false;
+      });
+    });
   }
 
   document.addEventListener("DOMContentLoaded", scan);

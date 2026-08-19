@@ -511,8 +511,11 @@ theme:
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav`,
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content`,
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav`,
-		`@media (max-width: 879px)`,
-		`grid-template-areas: "top-nav" "left-nav" "main-content" "right-nav" "footer";`,
+		`@media (max-width: 639px)`,
+		`grid-template-areas: "top-nav" "main-content" "footer";`,
+		`@media (min-width: 640px) and (max-width: 879px)`,
+		`grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);`,
+		`grid-template-areas: "top-nav top-nav" "left-nav main-content" "footer footer";`,
 		`overflow-x: clip`,
 	} {
 		if !strings.Contains(styles, required) {
@@ -658,12 +661,28 @@ theme:
 	styles := string(configArtifact(t, result, configuredDocsStylePath))
 	for _, required := range []string{
 		`[data-margo-layout="docs"] .margo-area--top-nav > *`,
-		`@media (width < 30rem)`,
+		`@media (max-width: 639px)`,
+		`[data-margo-mobile-menu-trigger="true"]`,
+		`[data-margo-mobile-menu="true"]`,
+		`[data-margo-layout="docs"] .margo-area--left-nav { display: none; }`,
+		`@media (min-width: 640px) and (max-width: 879px)`,
+		`grid-template-areas: "top-nav top-nav" "left-nav main-content" "footer footer";`,
+		`[data-margo-toc-drawer="true"]`,
+		`position: fixed`,
+		`inset-block-end: 0`,
+		`@media (min-width: 880px)`,
+		`[data-margo-toc-summary="true"] { display: none; }`,
 		`[data-margo-layout="docs"] .margo-site-search`,
 		`[data-margo-layout="docs"] .margo-site-repository`,
 	} {
 		if !strings.Contains(styles, required) {
 			t.Fatalf("docs stylesheet missing mobile chrome constraint %q: %s", required, styles)
+		}
+	}
+	script := string(configArtifact(t, result, docsNavigationScriptPath))
+	for _, required := range []string{`[data-margo-toc-drawer="true"]`, `[data-margo-toc-link]`, `drawer.open = false`} {
+		if !strings.Contains(script, required) {
+			t.Fatalf("docs interaction script missing TOC drawer behavior %q: %s", required, script)
 		}
 	}
 }
