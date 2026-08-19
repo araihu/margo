@@ -1066,9 +1066,6 @@ func (b *builder) bindingsForPage(prepared configuredPage) (map[string][]ssg.Are
 			if err := add("navigation", "left-nav", "", familyNavigation); err != nil {
 				return nil, err
 			}
-			if err := add("breadcrumbs", schema.BindingDefaults["breadcrumbs"], "", b.breadcrumbFragment(prepared.page)); err != nil {
-				return nil, err
-			}
 			if err := add("toc", schema.BindingDefaults["toc"], "", b.tocFragment(prepared.article, prepared.page.Locale)); err != nil {
 				return nil, err
 			}

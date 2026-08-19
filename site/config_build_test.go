@@ -682,6 +682,9 @@ theme:
 	}
 	for name, family := range map[string]string{"Module": "Module", "CLI": "CLI"} {
 		page := pages[name]
+		if strings.Contains(page, `margo-breadcrumbs`) || strings.Contains(page, `aria-label="Breadcrumbs"`) {
+			t.Fatalf("%s renders a breadcrumb in the profile docs chrome: %s", name, page)
+		}
 		for _, required := range []string{
 			`data-margo-layout="docs"`,
 			`id="left-nav"`,
