@@ -5,6 +5,8 @@
 Approved in chat on 2026-08-19. This design replaces the layout-profile and
 source-prefix family model added earlier on `docs/expansion`.
 
+Visual companion: [configuration cascade and expected outputs](2026-08-19-layout-cascade-and-shell-ownership-visual-guide.html).
+
 ## Goal
 
 Keep Margo's no-config directory build as a plain Markdown-to-HTML tree
