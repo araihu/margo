@@ -48,3 +48,29 @@ func TestProfilePageHeadEmitsGoshtosoStylesheetOnceWithoutDocumentStyle(t *testi
 		t.Fatalf("profile-only page head emits Goshtoso stylesheet %d times, want one: %s", got, head)
 	}
 }
+
+func TestGithubRepositoryActionRendersAccessibleIconLink(t *testing.T) {
+	markup, err := renderComponentBytes(githubRepositoryAction("https://github.com/araihu/margo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(markup)
+	for _, want := range []string{
+		`data-margo-repository-link="true"`,
+		`href="https://github.com/araihu/margo"`,
+		`target="_blank"`,
+		`rel="noopener noreferrer"`,
+		`aria-label="Repository"`,
+		`title="Repository"`,
+		`<svg`,
+		`aria-hidden="true"`,
+		`class="sr-only">Repository</span>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("repository action missing %q: %s", want, html)
+		}
+	}
+	if strings.Contains(html, `>Repository</a>`) {
+		t.Fatalf("repository action exposes visible text link: %s", html)
+	}
+}

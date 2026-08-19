@@ -538,13 +538,13 @@ theme:
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`,
 		`grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem);`,
 		`grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";`,
-		`@media (min-width: 800px) and (max-width: 1199px)`,
-		`grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);`,
-		`grid-template-areas: "top-nav top-nav" "left-nav main-content" "right-nav right-nav" "footer footer";`,
+		`@media (min-width: 880px) and (max-width: 1199px)`,
+		`grid-template-columns: minmax(9rem, 11rem) minmax(0, 1fr) minmax(9rem, 11rem);`,
+		`grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";`,
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav`,
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content`,
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav`,
-		`@media (max-width: 799px)`,
+		`@media (max-width: 879px)`,
 		`grid-template-areas: "top-nav" "left-nav" "main-content" "right-nav" "footer";`,
 		`overflow-x: clip`,
 	} {
@@ -664,6 +664,12 @@ theme:
 		if strings.Count(page, `aria-current="location"`) != 1 || !strings.Contains(page, `data-margo-family-navigation="true"`) {
 			t.Fatalf("%s global family state is not semantic: %s", name, page)
 		}
+		if !strings.Contains(page, `data-margo-repository-link="true"`) || !strings.Contains(page, `aria-label="Repository"`) || !strings.Contains(page, `<svg`) {
+			t.Fatalf("%s repository action is not an accessible icon link: %s", name, page)
+		}
+		if strings.Contains(page, `>Repository</a>`) {
+			t.Fatalf("%s repository action still exposes the old text link: %s", name, page)
+		}
 		if strings.Contains(page, "component-doc-shell") || strings.Contains(page, "componentdocshell") {
 			t.Fatalf("%s profile output leaks App Shell-private markup: %s", name, page)
 		}
@@ -703,6 +709,8 @@ theme:
 		`@media (width < 30rem)`,
 		`[data-margo-layout="landing"] .margo-site-search`,
 		`[data-margo-layout="docs"] .margo-site-search`,
+		`[data-margo-layout="landing"] .margo-site-repository`,
+		`[data-margo-layout="docs"] .margo-site-repository`,
 	} {
 		if !strings.Contains(styles, required) {
 			t.Fatalf("profile stylesheet missing mobile chrome constraint %q: %s", required, styles)

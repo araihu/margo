@@ -126,7 +126,7 @@ theme:
 	}{
 		{width: 1440, name: "wide", columns: 3, threeColumn: true},
 		{width: 720, name: "stacked-tablet", columns: 1, stacked: true, overflow: "clip"},
-		{width: 900, name: "mid", columns: 2, twoColumn: true},
+		{width: 900, name: "mid", columns: 3, threeColumn: true},
 		{width: 390, name: "narrow", columns: 1, stacked: true, overflow: "clip"},
 	} {
 		var state frameState

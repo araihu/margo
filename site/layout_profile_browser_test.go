@@ -321,6 +321,7 @@ type landingGeometryState struct {
 	SearchRight          float64 `json:"searchRight"`
 	SearchWidth          float64 `json:"searchWidth"`
 	RepositoryLeft       float64 `json:"repositoryLeft"`
+	RepositoryIcon       bool    `json:"repositoryIcon"`
 	ImageWidth           float64 `json:"imageWidth"`
 	ImageHeight          float64 `json:"imageHeight"`
 	ImageAspectRatio     float64 `json:"imageAspectRatio"`
@@ -344,7 +345,7 @@ const landingGeometryScript = `(() => {
   const brand = document.querySelector('[data-margo-global-navigation] .margo-site-brand');
   const brandLabel = brand && brand.lastElementChild;
   const search = document.querySelector('[data-search-field] button');
-  const repository = [...document.querySelectorAll('[data-margo-global-navigation] a')].find((link) => link.textContent.trim() === 'Repository');
+  const repository = document.querySelector('[data-margo-global-navigation] [data-margo-repository-link="true"]');
   const searchContainer = document.querySelector('[data-margo-global-navigation] .margo-site-search');
   const image = document.querySelector('[data-margo-layout="landing"] img[alt^="Margo mascot"]');
   const cta = document.querySelector('[data-margo-layout="landing"] .margo-document a');
@@ -371,6 +372,7 @@ const landingGeometryScript = `(() => {
     searchRight: rect(search).right,
     searchWidth: rect(search).width,
     repositoryLeft: rect(repository).left,
+    repositoryIcon: !!repository && repository.getAttribute('aria-label') === 'Repository' && !!repository.querySelector('svg[aria-hidden="true"]'),
     imageWidth: imageRect.width,
     imageHeight: imageRect.height,
     imageAspectRatio: imageRect.height ? imageRect.width / imageRect.height : 0,
@@ -424,6 +426,9 @@ func TestLandingProfileVisualGeometry(t *testing.T) {
 		}
 		if state.RepositoryLeft > 1 && state.SearchRight > state.RepositoryLeft+1 {
 			t.Fatalf("landing at %dpx search collides with Repository: %+v", width, state)
+		}
+		if !state.RepositoryIcon {
+			t.Fatalf("landing at %dpx repository link is not an accessible GitHub icon: %+v", width, state)
 		}
 		if width < 480 && state.SearchWidth > 48 {
 			t.Fatalf("landing at %dpx search did not collapse at the content breakpoint: %+v", width, state)
@@ -488,7 +493,7 @@ func TestDocsProfileGridTemplate(t *testing.T) {
 	defer cancelBrowser()
 	ctx, cancel := context.WithTimeout(browserContext, 90*time.Second)
 	defer cancel()
-	for _, width := range []int64{719, 720, 799, 800, 900, 1100, 1200, 1280, 1775} {
+	for _, width := range []int64{719, 720, 799, 800, 879, 880, 884, 900, 1100, 1200, 1280, 1775} {
 		var state docsGeometryState
 		if err := chromedp.Run(ctx,
 			chromedp.EmulateViewport(width, 900),
@@ -501,7 +506,7 @@ func TestDocsProfileGridTemplate(t *testing.T) {
 		if state.Display != "grid" {
 			t.Fatalf("docs at %dpx display = %q, want grid: %+v", width, state.Display, state)
 		}
-		if width < 800 {
+		if width < 880 {
 			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 1 {
 				t.Fatalf("docs at %dpx did not collapse to one grid track: %+v", width, state)
 			}
@@ -513,20 +518,11 @@ func TestDocsProfileGridTemplate(t *testing.T) {
 			}
 			continue
 		}
-		if width < 1200 {
-			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 2 || !strings.Contains(state.GridAreas, `"left-nav main-content"`) || !strings.Contains(state.GridAreas, `"right-nav right-nav"`) {
-				t.Fatalf("docs at %dpx did not use the readable two-column grid: %+v", width, state)
-			}
-			if state.LeftNavWidth <= 0 || state.MainWidth < 320 || state.RightNavWidth <= 0 {
-				t.Fatalf("docs at %dpx grid tracks lack a usable reading column: %+v", width, state)
-			}
-		} else {
-			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 3 || !strings.Contains(state.GridAreas, `"left-nav main-content right-nav"`) {
-				t.Fatalf("docs at %dpx did not retain three-column grid: %+v", width, state)
-			}
-			if state.LeftNavWidth <= 0 || state.MainWidth < 320 || state.RightNavWidth <= 0 {
-				t.Fatalf("docs at %dpx grid tracks lack a usable reading column: %+v", width, state)
-			}
+		if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 3 || !strings.Contains(state.GridAreas, `"left-nav main-content right-nav"`) {
+			t.Fatalf("docs at %dpx did not retain three-column grid: %+v", width, state)
+		}
+		if state.LeftNavWidth <= 0 || state.MainWidth < 320 || state.RightNavWidth <= 0 {
+			t.Fatalf("docs at %dpx grid tracks lack a usable reading column: %+v", width, state)
 		}
 		if state.HeadingWidth < 180 || state.LeadWidth < 220 || state.HeadingFontSize > 64 || state.LeadFontSize > 32 {
 			t.Fatalf("docs at %dpx typography or page-heading geometry is not readable: %+v", width, state)
