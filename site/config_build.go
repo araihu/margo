@@ -170,6 +170,24 @@ const configuredProfileLayoutCSS = `[data-margo-layout="landing"] .margo-area--m
 [data-margo-layout="docs"] .margo-site-family-links a,
 [data-margo-layout="landing"] .margo-site-search button,
 [data-margo-layout="docs"] .margo-site-search button { min-block-size: 2.75rem; }
+[data-margo-layout="landing"] .margo-area--top-nav > nav,
+[data-margo-layout="docs"] .margo-area--top-nav > nav,
+[data-margo-layout="landing"] .margo-site-family-links,
+[data-margo-layout="docs"] .margo-site-family-links,
+[data-margo-layout="landing"] .margo-area--top-nav > *,
+[data-margo-layout="docs"] .margo-area--top-nav > * { min-inline-size: 0; max-inline-size: 100%; }
+[data-margo-layout="landing"] .margo-site-family-links,
+[data-margo-layout="docs"] .margo-site-family-links { flex: 1 1 100%; }
+@media (width < 30rem) {
+  [data-margo-layout="landing"] .margo-site-search,
+  [data-margo-layout="docs"] .margo-site-search { width: 2.75rem; flex: 0 0 2.75rem; }
+  [data-margo-layout="landing"] .margo-site-search button,
+  [data-margo-layout="docs"] .margo-site-search button { width: 2.75rem; min-width: 2.75rem; padding-inline: 0; justify-content: center; }
+  [data-margo-layout="landing"] .margo-site-search button > span,
+  [data-margo-layout="docs"] .margo-site-search button > span,
+  [data-margo-layout="landing"] .margo-site-search button > kbd,
+  [data-margo-layout="docs"] .margo-site-search button > kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+}
 @media (min-width: 720px) {
   [data-margo-layout="docs"].margo-frame--top-left-main-right-footer {
     grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem);

@@ -573,6 +573,121 @@ theme:
 	}
 }
 
+func TestBuildConfigRendersProfileSemanticChromePresenceAndAbsence(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Tour\n\nChoose a documentation family.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule overview.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nModule detail.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI overview.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "guide.md"), "# CLI guide\n\nCLI detail.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Profile semantic fixture.
+  repository_url: https://github.com/araihu/margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview.
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+navigation:
+  mode: file-tree
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+    - id: cli
+      label: CLI
+      source: cli
+      overview: cli/index.md
+      layout: docs
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: system
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := map[string]string{
+		"Tour":   string(configArtifact(t, result, "index.html")),
+		"Module": string(configArtifact(t, result, "module/index.html")),
+		"CLI":    string(configArtifact(t, result, "cli/index.html")),
+	}
+	for name, page := range pages {
+		if strings.Count(page, `aria-current="location"`) != 1 || !strings.Contains(page, `data-margo-family-navigation="true"`) {
+			t.Fatalf("%s global family state is not semantic: %s", name, page)
+		}
+		if strings.Contains(page, "component-doc-shell") || strings.Contains(page, "componentdocshell") {
+			t.Fatalf("%s profile output leaks App Shell-private markup: %s", name, page)
+		}
+	}
+	tour := pages["Tour"]
+	for _, forbidden := range []string{`data-margo-layout="docs"`, `id="left-nav"`, `id="right-nav"`, `aria-label="sidebar navigation"`, `class="margo-pagination"`, `data-toc-heading`} {
+		if strings.Contains(tour, forbidden) {
+			t.Fatalf("Tour unexpectedly contains %q: %s", forbidden, tour)
+		}
+	}
+	for name, family := range map[string]string{"Module": "Module", "CLI": "CLI"} {
+		page := pages[name]
+		for _, required := range []string{
+			`data-margo-layout="docs"`,
+			`id="left-nav"`,
+			`aria-label="sidebar navigation"`,
+			`data-sidebar-section="` + family + `"`,
+			`aria-current="page"`,
+			`class="margo-pagination"`,
+			`id="right-nav"`,
+		} {
+			if !strings.Contains(page, required) {
+				t.Fatalf("%s missing semantic profile output %q: %s", name, required, page)
+			}
+		}
+		if strings.Contains(page, `id="right-nav"><nav`) || strings.Contains(page, `data-toc-heading`) {
+			t.Fatalf("%s unexpectedly renders a TOC payload: %s", name, page)
+		}
+	}
+	styles := string(configArtifact(t, result, "margo-assets/site.css"))
+	for _, required := range []string{
+		`[data-margo-layout="landing"] .margo-area--top-nav > *`,
+		`[data-margo-layout="docs"] .margo-area--top-nav > *`,
+		`@media (width < 30rem)`,
+		`[data-margo-layout="landing"] .margo-site-search`,
+		`[data-margo-layout="docs"] .margo-site-search`,
+	} {
+		if !strings.Contains(styles, required) {
+			t.Fatalf("profile stylesheet missing mobile chrome constraint %q: %s", required, styles)
+		}
+	}
+}
+
 func TestBuildConfigRendersLocaleScopedFamilySearch(t *testing.T) {
 	root := t.TempDir()
 	for _, localePrefix := range []string{"", "pt-BR"} {
