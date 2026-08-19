@@ -313,6 +313,148 @@ locales:
 	}
 }
 
+func TestGoshtosoShellRepeatedBrandNavigationKeepsPageActionsClosed(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), `---
+title: Home
+margo:
+  actions:
+    markdown: true
+---
+# Home
+
+A shell page with page actions.
+`)
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: showcase
+assets: local
+site:
+  name: Margo
+  description: A browser fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo browser fixture.
+shell:
+  builtin: componentdocshell
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifacts := make(map[string][]byte, len(result.Artifacts))
+	for _, artifact := range result.Artifacts {
+		artifacts["/"+strings.TrimPrefix(artifact.Path, "/")] = artifact.Content
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("HX-Request") == "true" {
+			time.Sleep(150 * time.Millisecond)
+		}
+		artifactPath := request.URL.Path
+		if artifactPath == "/" {
+			artifactPath = "/index.html"
+		}
+		content, ok := artifacts[artifactPath]
+		if !ok {
+			http.NotFound(writer, request)
+			return
+		}
+		writer.Header().Set("Content-Type", siteBrowserContentType(artifactPath))
+		_, _ = writer.Write(content)
+	}))
+	defer server.Close()
+
+	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 25*time.Second)
+	defer cancel()
+
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL+"/"),
+		chromedp.WaitVisible(`.component-doc-shell__brand`, chromedp.ByQuery),
+		chromedp.Evaluate(`(async () => {
+			const deadline = Date.now() + 5000;
+			while (Date.now() < deadline) {
+				if (document.querySelector('[aria-label="More page actions"]')?.getAttribute('aria-expanded') === 'false') return true;
+				await new Promise((resolve) => setTimeout(resolve, 25));
+			}
+			throw new Error('page actions did not initialize');
+		})()`, nil),
+		chromedp.Evaluate(`(async () => {
+			const button = document.querySelector('[aria-label="More page actions"]');
+			button.click();
+			const deadline = Date.now() + 5000;
+			while (Date.now() < deadline) {
+				if (button.getAttribute('aria-expanded') === 'true') return true;
+				await new Promise((resolve) => setTimeout(resolve, 25));
+			}
+			throw new Error('page actions did not open');
+		})()`, nil),
+		chromedp.Evaluate(`(() => {
+			window.__margoBrandNavigations = 0;
+			window.addEventListener('componentdocshell:navigated', () => window.__margoBrandNavigations += 1);
+		})()`, nil),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.DoubleClick(`.component-doc-shell__brand`, chromedp.ByQuery),
+		chromedp.Sleep(800*time.Millisecond),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	var state struct {
+		MainRegions             int    `json:"mainRegions"`
+		PopoverRoots            int    `json:"popoverRoots"`
+		InitializedPopoverRoots int    `json:"initializedPopoverRoots"`
+		VisiblePopovers         int    `json:"visiblePopovers"`
+		Navigations             int    `json:"navigations"`
+		Expanded                string `json:"expanded"`
+		PanelStyle              string `json:"panelStyle"`
+		PanelCloaked            bool   `json:"panelCloaked"`
+		PopoverOpen             bool   `json:"popoverOpen"`
+		BrandUsesHTMX           bool   `json:"brandUsesHTMX"`
+	}
+	if err := chromedp.Run(ctx, chromedp.Evaluate(`(() => {
+		const roots = [...document.querySelectorAll('[data-popover-root]')];
+		const panels = [...document.querySelectorAll('[data-popover-panel]')];
+		return {
+			mainRegions: document.querySelectorAll('#main-content').length,
+			popoverRoots: roots.length,
+			initializedPopoverRoots: roots.filter((root) => root._x_dataStack?.length > 0).length,
+			visiblePopovers: panels.filter((panel) => getComputedStyle(panel).display !== 'none' && panel.getClientRects().length > 0).length,
+			navigations: window.__margoBrandNavigations,
+			expanded: document.querySelector('[aria-label="More page actions"]')?.getAttribute('aria-expanded') || '',
+			panelStyle: panels[0]?.getAttribute('style') || '',
+			panelCloaked: panels[0]?.hasAttribute('x-cloak') || false,
+			popoverOpen: roots[0]?._x_dataStack?.some((state) => state.isOpen || state.openedWithKeyboard) || false,
+			brandUsesHTMX: document.querySelector('.component-doc-shell__brand')?.hasAttribute('hx-get') || false,
+		};
+	})()`, &state)); err != nil {
+		t.Fatal(err)
+	}
+	if state.MainRegions != 1 || state.PopoverRoots != 1 || state.InitializedPopoverRoots != 1 || state.VisiblePopovers != 0 || state.BrandUsesHTMX {
+		t.Fatalf("repeated brand navigation left duplicate or open page actions: %+v", state)
+	}
+}
+
 func TestMargoThemeLeavesLeadCodeStatic(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {

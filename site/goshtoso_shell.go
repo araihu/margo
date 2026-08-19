@@ -746,7 +746,7 @@ func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source So
 		if node.Type == html.ElementNode && node.Data == "div" && attributeValue(node, "id") == "componentdocshell-sidebar-content" {
 			setHTMLAttribute(node, "hx-swap-oob", "outerHTML:#componentdocshell-sidebar-content")
 		}
-		if node.Type == html.ElementNode && node.Data == "a" {
+		if node.Type == html.ElementNode && node.Data == "a" && !hasClass(node, "component-doc-shell__brand") {
 			if index := attributeIndex(node, "href"); index >= 0 {
 				value := node.Attr[index].Val
 				parsed, err := url.Parse(value)
