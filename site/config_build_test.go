@@ -393,14 +393,14 @@ theme:
 		}
 	}
 	for _, required := range []string{
-		`[data-margo-layout="docs"] .margo-frame--top-left-main-right-footer`,
+		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`,
 		`grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem);`,
 		`grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";`,
 		`@media (min-width: 720px) and (max-width: 1099px)`,
 		`grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) minmax(10rem, 14rem);`,
-		`[data-margo-layout="docs"] .margo-area--left-nav`,
-		`[data-margo-layout="docs"] .margo-area--main-content`,
-		`[data-margo-layout="docs"] .margo-area--right-nav`,
+		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav`,
+		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content`,
+		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav`,
 		`@media (max-width: 719px)`,
 		`grid-template-areas: "top-nav" "left-nav" "main-content" "right-nav" "footer";`,
 		`overflow-x: clip`,
@@ -408,6 +408,9 @@ theme:
 		if !strings.Contains(styles, required) {
 			t.Fatalf("profile stylesheet missing responsive docs rail contract %s", required)
 		}
+	}
+	if strings.Contains(styles, `[data-margo-layout="docs"] .margo-frame--top-left-main-right-footer`) {
+		t.Fatalf("profile stylesheet scopes the docs frame as a descendant instead of the frame element")
 	}
 	if strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "componentdocshell") {
 		t.Fatalf("profile stylesheet leaks App Shell-private selectors")
