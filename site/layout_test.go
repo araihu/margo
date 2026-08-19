@@ -225,6 +225,135 @@ func TestLayoutCascadePreservesKindBuckets(t *testing.T) {
 	}
 }
 
+func TestLayoutDocsFamilyDefaultsIncludeDefault(t *testing.T) {
+	cascade, err := resolveSiteLayout(LayoutConfig{
+		Kind:    LayoutDocs,
+		Default: map[string]any{"families": []any{"module", "cli"}},
+	}, "site.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := cascade.resolved().Values["families"], []any{"default", "module", "cli"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("families = %#v, want %#v", got, want)
+	}
+}
+
+func TestLayoutDocsFamilySelectionRequiresCentralDeclaration(t *testing.T) {
+	tests := []struct {
+		name    string
+		apply   func(layoutCascade) error
+		source  string
+		pointer string
+	}{
+		{
+			name: "site default",
+			apply: func(layoutCascade) error {
+				_, err := resolveSiteLayout(LayoutConfig{
+					Kind: LayoutDocs,
+					Default: map[string]any{
+						"families": []any{"module"},
+						"family":   "missing",
+					},
+				}, "site.yaml")
+				return err
+			},
+			source:  "site.yaml",
+			pointer: "/layout/default/family",
+		},
+		{
+			name: "site values",
+			apply: func(layoutCascade) error {
+				_, err := resolveSiteLayout(LayoutConfig{
+					Kind:    LayoutDocs,
+					Default: map[string]any{"families": []any{"module"}},
+					Values:  map[string]any{"family": "missing"},
+				}, "site.yaml")
+				return err
+			},
+			source:  "site.yaml",
+			pointer: "/layout/values/family",
+		},
+		{
+			name: "directory patch",
+			apply: func(cascade layoutCascade) error {
+				_, err := cascade.apply(LayoutPatch{
+					Values: map[string]any{"family": "missing"},
+					Source: "module/_layout.yaml",
+					Base:   "/",
+				})
+				return err
+			},
+			source:  "module/_layout.yaml",
+			pointer: "/values/family",
+		},
+		{
+			name: "Markdown patch",
+			apply: func(cascade layoutCascade) error {
+				_, err := cascade.apply(LayoutPatch{
+					Values: map[string]any{"family": "missing"},
+					Source: "guide.md",
+					Base:   "/layout",
+				})
+				return err
+			},
+			source:  "guide.md",
+			pointer: "/layout/values/family",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cascade, err := resolveSiteLayout(LayoutConfig{
+				Kind:    LayoutDocs,
+				Default: map[string]any{"families": []any{"module"}},
+			}, "site.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			requirePresentationDiagnostic(t, test.apply(cascade), "site.family_undeclared", test.source, test.pointer)
+		})
+	}
+}
+
+func TestLayoutDocsFamilyDeclarationsAreSiteDefaultOnly(t *testing.T) {
+	tests := []struct {
+		name    string
+		patch   LayoutPatch
+		pointer string
+	}{
+		{
+			name: "directory patch",
+			patch: LayoutPatch{
+				Values: map[string]any{"families": []any{"default", "module"}},
+				Source: "module/_layout.yaml",
+				Base:   "/",
+			},
+			pointer: "/values/families",
+		},
+		{
+			name: "Markdown patch",
+			patch: LayoutPatch{
+				Values: map[string]any{"families": []any{"default", "module"}},
+				Source: "guide.md",
+				Base:   "/layout",
+			},
+			pointer: "/layout/values/families",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cascade, err := resolveSiteLayout(LayoutConfig{Kind: LayoutDocs}, "site.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = cascade.apply(test.patch)
+			requirePresentationDiagnostic(t, err, "site.layout_value_invalid", test.patch.Source, test.pointer)
+		})
+	}
+}
+
 func requirePresentationDiagnostic(t *testing.T, err error, code, source, pointer string) {
 	t.Helper()
 	if err == nil {

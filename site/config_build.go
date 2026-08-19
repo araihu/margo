@@ -375,7 +375,7 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	}
 	b := &builder{
 		request: requestToSiteRequest(request, sourceDir, sources, assets), config: &config,
-		configDir: configDir, sourceDir: sourceDir, frame: frame, frameSchema: schema,
+		configSource: absoluteConfig, configDir: configDir, sourceDir: sourceDir, frame: frame, frameSchema: schema,
 		frameHash: frameHash, frameValues: frameValues, profileMode: profileMode, presentations: presentations, layoutName: frameName, shellMode: shellMode,
 		shellName: shellName, shellAssetPrefix: shellAssetPrefix,
 		layoutPatches: append([]LayoutPatch(nil), inputs.Patches...),
@@ -715,6 +715,9 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 		b.configured[b.configPages[index].Source] = prepared
 	}
 	if b.config.Layout != nil {
+		if err := b.buildDocsFamilies(siteLayout); err != nil {
+			return err
+		}
 		identity, err := configuredSiteLayoutIdentity(siteLayout, b.layoutPatches, b.configured)
 		if err != nil {
 			return err
@@ -722,6 +725,82 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 		b.siteManifest.LayoutSchemaHash = identity
 	}
 	return nil
+}
+
+func (b *builder) buildDocsFamilies(siteLayout ResolvedLayout) error {
+	familyIDs := docsFamilyIDs(siteLayout)
+	if siteLayout.Kind != LayoutDocs {
+		for _, page := range b.configPages {
+			if page.Layout == string(LayoutDocs) {
+				familyIDs = docsFamilyIDs(b.configured[page.Source].layout)
+				break
+			}
+		}
+	}
+
+	b.docsFamilies = nil
+	for familyIndex, familyID := range familyIDs {
+		byLocale := make(map[string][]Page)
+		for _, page := range b.configPages {
+			if page.Layout != string(LayoutDocs) || page.Family != familyID {
+				continue
+			}
+			byLocale[page.Locale] = append(byLocale[page.Locale], page)
+		}
+		if familyID != "default" && len(byLocale) == 0 {
+			return presentationSourceDiagnostic(newPresentationDiagnostic(
+				"site.family_empty",
+				fmt.Sprintf("docs family %q has no docs page", familyID),
+				"Add a docs page selecting this family or remove the declaration.",
+				fmt.Sprintf("/layout/default/families/%d", familyIndex),
+			), b.configSource)
+		}
+
+		locales := make([]string, 0, len(byLocale))
+		for locale := range byLocale {
+			locales = append(locales, locale)
+		}
+		sort.Strings(locales)
+		for _, locale := range locales {
+			b.docsFamilies = append(b.docsFamilies, docsFamily{
+				ID:       familyID,
+				Locale:   locale,
+				Overview: docsFamilyOverview(byLocale[locale]),
+			})
+		}
+	}
+	return nil
+}
+
+func docsFamilyIDs(layout ResolvedLayout) []string {
+	raw, ok := layout.Values["families"]
+	if !ok {
+		return []string{"default"}
+	}
+	values, ok := layoutListValues(raw)
+	if !ok || len(values) == 0 {
+		return []string{"default"}
+	}
+	ids := make([]string, 0, len(values))
+	for _, value := range values {
+		id, ok := value.(string)
+		if ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func docsFamilyOverview(pages []Page) Page {
+	if len(pages) == 0 {
+		return Page{}
+	}
+	for _, page := range pages {
+		if strings.EqualFold(path.Base(page.Source), "index.md") {
+			return page
+		}
+	}
+	return pages[0]
 }
 
 func configuredPageLayoutIdentity(source string, layout ResolvedLayout, patchSources []string) (string, error) {
@@ -1395,7 +1474,8 @@ func (b *builder) localeHomeOutput(page Page) string {
 
 func (b *builder) paginationFragment(page Page) string {
 	localePages := make([]Page, 0, len(b.configPages))
-	if b.profileMode {
+	familyScoped := b.profileMode || (b.config.Layout != nil && page.Layout == string(LayoutDocs))
+	if familyScoped {
 		localePages = b.familyPages(page)
 	} else {
 		for _, candidate := range b.configPages {
@@ -1411,7 +1491,7 @@ func (b *builder) paginationFragment(page Page) string {
 			break
 		}
 	}
-	if b.profileMode && (index < 0 || len(localePages) < 2) {
+	if familyScoped && (index < 0 || len(localePages) < 2) {
 		return ""
 	}
 	var builder strings.Builder
@@ -1419,7 +1499,7 @@ func (b *builder) paginationFragment(page Page) string {
 	if index > 0 {
 		previous := localePages[index-1]
 		href := relativeAssetPath(path.Dir(page.Output), previous.Output)
-		if b.profileMode {
+		if familyScoped {
 			href = b.sitePageHref(previous)
 		}
 		builder.WriteString(`<li><a rel="prev" href="` + stdhtml.EscapeString(href) + `">Previous: ` + stdhtml.EscapeString(previous.Title) + `</a></li>`)
@@ -1427,7 +1507,7 @@ func (b *builder) paginationFragment(page Page) string {
 	if index >= 0 && index+1 < len(localePages) {
 		next := localePages[index+1]
 		href := relativeAssetPath(path.Dir(page.Output), next.Output)
-		if b.profileMode {
+		if familyScoped {
 			href = b.sitePageHref(next)
 		}
 		builder.WriteString(`<li><a rel="next" href="` + stdhtml.EscapeString(href) + `">Next: ` + stdhtml.EscapeString(next.Title) + `</a></li>`)

@@ -28,25 +28,7 @@ import (
 func (b *builder) siteNavigationFragment(page Page) (string, error) {
 	searchConfig := b.siteSearchConfig(page.Locale)
 	brand := templ.Raw(`<span class="margo-site-brand"><img src="` + stdhtml.EscapeString(relativeAssetPath(path.Dir(page.Output), b.config.Site.Logo)) + `" alt=""><span>` + stdhtml.EscapeString(b.config.Site.Name) + `</span></span>`)
-	secondaryLinks := make([]navbar.SecondaryLink, 0, len(b.config.Navigation.Families))
-	for _, family := range b.config.Navigation.Families {
-		overview, ok := b.familyOverviewPage(page, family)
-		if !ok {
-			continue
-		}
-		current := navbar.SecondaryCurrentNone
-		if family.ID == page.Family {
-			current = navbar.SecondaryCurrentLocation
-		}
-		secondaryLinks = append(secondaryLinks, navbar.SecondaryLink{
-			Label:   family.Label,
-			Href:    b.sitePageHref(overview),
-			Current: current,
-			LinkAttrs: templ.Attributes{
-				"data-margo-family-link": family.ID,
-			},
-		})
-	}
+	secondary := b.familySecondaryNavigation(page)
 
 	var repositoryAction templ.Component
 	if repository := strings.TrimSpace(b.config.Site.RepositoryURL); repository != "" {
@@ -77,15 +59,9 @@ func (b *builder) siteNavigationFragment(page Page) (string, error) {
 			Brand:     brand,
 			BrandHref: b.siteHomeHref(page),
 			Actions:   actions,
-			Secondary: &navbar.SecondaryConfig{
-				Links:      secondaryLinks,
-				AriaLabel:  "Documentation families",
-				Scrollable: true,
-				RootClass:  "margo-site-family-links",
-				RootAttrs:  templ.Attributes{"data-margo-family-navigation": "true"},
-			},
-			NavClass: "margo-site-navbar",
-			NavAttrs: templ.Attributes{"data-margo-global-navigation": "true"},
+			Secondary: secondary,
+			NavClass:  "margo-site-navbar",
+			NavAttrs:  templ.Attributes{"data-margo-global-navigation": "true"},
 		}).Render(ctx, writer); err != nil {
 			return err
 		}
@@ -96,6 +72,58 @@ func (b *builder) siteNavigationFragment(page Page) (string, error) {
 		return "", err
 	}
 	return string(hardenSearchMarkup(markup, searchConfig)), nil
+}
+
+func (b *builder) familySecondaryNavigation(page Page) *navbar.SecondaryConfig {
+	secondaryLinks := make([]navbar.SecondaryLink, 0)
+	if b.config.Layout != nil {
+		families := b.docsFamiliesForLocale(page.Locale)
+		if page.Layout != string(LayoutDocs) || len(families) <= 1 {
+			return nil
+		}
+		secondaryLinks = make([]navbar.SecondaryLink, 0, len(families))
+		for _, family := range families {
+			current := navbar.SecondaryCurrentNone
+			if family.ID == page.Family {
+				current = navbar.SecondaryCurrentLocation
+			}
+			secondaryLinks = append(secondaryLinks, navbar.SecondaryLink{
+				Label:   family.Overview.Title,
+				Href:    b.sitePageHref(family.Overview),
+				Current: current,
+				LinkAttrs: templ.Attributes{
+					"data-margo-family-link": family.ID,
+				},
+			})
+		}
+	} else {
+		secondaryLinks = make([]navbar.SecondaryLink, 0, len(b.config.Navigation.Families))
+		for _, family := range b.config.Navigation.Families {
+			overview, ok := b.familyOverviewPage(page, family)
+			if !ok {
+				continue
+			}
+			current := navbar.SecondaryCurrentNone
+			if family.ID == page.Family {
+				current = navbar.SecondaryCurrentLocation
+			}
+			secondaryLinks = append(secondaryLinks, navbar.SecondaryLink{
+				Label:   family.Label,
+				Href:    b.sitePageHref(overview),
+				Current: current,
+				LinkAttrs: templ.Attributes{
+					"data-margo-family-link": family.ID,
+				},
+			})
+		}
+	}
+	return &navbar.SecondaryConfig{
+		Links:      secondaryLinks,
+		AriaLabel:  "Documentation families",
+		Scrollable: true,
+		RootClass:  "margo-site-family-links",
+		RootAttrs:  templ.Attributes{"data-margo-family-navigation": "true"},
+	}
 }
 
 func githubRepositoryAction(repository string) templ.Component {
@@ -238,10 +266,16 @@ func (b *builder) familyNavigationFragment(page Page) (string, error) {
 		})
 	}
 	familyLabel := page.Family
-	for _, family := range b.config.Navigation.Families {
-		if family.ID == page.Family {
-			familyLabel = family.Label
-			break
+	if b.config.Layout != nil {
+		if family, ok := b.docsFamily(page.Locale, page.Family); ok {
+			familyLabel = family.Overview.Title
+		}
+	} else {
+		for _, family := range b.config.Navigation.Families {
+			if family.ID == page.Family {
+				familyLabel = family.Label
+				break
+			}
 		}
 	}
 	component := sidebar.Sidebar(sidebar.Config{
@@ -353,7 +387,7 @@ func (b *builder) siteSearchConfig(locale string) search.Config {
 func (b *builder) familyPages(page Page) []Page {
 	pages := make([]Page, 0, len(b.configPages))
 	for _, candidate := range b.configPages {
-		if candidate.Locale == page.Locale && candidate.Family == page.Family {
+		if candidate.Locale == page.Locale && candidate.Family == page.Family && (b.config.Layout == nil || candidate.Layout == string(LayoutDocs)) {
 			pages = append(pages, candidate)
 		}
 	}
@@ -362,6 +396,13 @@ func (b *builder) familyPages(page Page) []Page {
 	})
 	if len(pages) < 2 {
 		return pages
+	}
+	if b.config.Layout != nil {
+		family, ok := b.docsFamily(page.Locale, page.Family)
+		if !ok {
+			return pages
+		}
+		return moveFamilyOverviewFirst(pages, family.Overview.Source)
 	}
 	family, ok := b.familyConfig(page.Family)
 	if !ok {
@@ -381,6 +422,41 @@ func (b *builder) familyPages(page Page) []Page {
 		pages[0] = overview
 	}
 	return pages
+}
+
+func moveFamilyOverviewFirst(pages []Page, overviewSource string) []Page {
+	overviewIndex := -1
+	for index, candidate := range pages {
+		if candidate.Source == overviewSource {
+			overviewIndex = index
+			break
+		}
+	}
+	if overviewIndex > 0 {
+		overview := pages[overviewIndex]
+		copy(pages[1:overviewIndex+1], pages[0:overviewIndex])
+		pages[0] = overview
+	}
+	return pages
+}
+
+func (b *builder) docsFamiliesForLocale(locale string) []docsFamily {
+	families := make([]docsFamily, 0, len(b.docsFamilies))
+	for _, family := range b.docsFamilies {
+		if family.Locale == locale {
+			families = append(families, family)
+		}
+	}
+	return families
+}
+
+func (b *builder) docsFamily(locale, id string) (docsFamily, bool) {
+	for _, family := range b.docsFamilies {
+		if family.Locale == locale && family.ID == id {
+			return family, true
+		}
+	}
+	return docsFamily{}, false
 }
 
 func (b *builder) familyConfig(id string) (FamilyConfig, bool) {

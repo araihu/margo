@@ -1731,6 +1731,98 @@ Docs page.
 	})
 }
 
+func TestBuildConfigFamilyIndexUsesDocsPagesAndConfiguredOrder(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Tour
+
+Landing page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "a.md"), "# Module A\n\nFirst route.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "z", "index.md"), "# Module Overview\n\nIndex route.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "a.md"), "# CLI Overview\n\nCLI route.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [module, cli]
+`)
+
+	b := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	if got, want := len(b.docsFamilies), 2; got != want {
+		t.Fatalf("docs family count = %d, want %d: %+v", got, want, b.docsFamilies)
+	}
+	want := []struct {
+		id       string
+		locale   string
+		overview string
+		label    string
+	}{
+		{id: "module", locale: "en", overview: "module/z/index.md", label: "Module Overview"},
+		{id: "cli", locale: "en", overview: "cli/a.md", label: "CLI Overview"},
+	}
+	for index, expected := range want {
+		family := b.docsFamilies[index]
+		if family.ID != expected.id || family.Locale != expected.locale || family.Overview.Source != expected.overview || family.Overview.Title != expected.label {
+			t.Fatalf("docs family %d = %+v, want %+v", index, family, expected)
+		}
+	}
+}
+
+func TestBuildConfigFamilyRejectsDeclaredFamilyWithoutDocsPage(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Tour
+
+Landing page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nDocs page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [module, cli]
+`)
+	configPath := filepath.Join(root, "site.yaml")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: configPath})
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatalf("empty family returned partial result: %+v", result)
+	}
+	requirePresentationDiagnostic(t, err, "site.family_empty", configPath, "/layout/default/families/2")
+}
+
+func TestBuildConfigFamilyAllowsUnusedImplicitDefault(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Tour
+
+Landing page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nDocs page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [module]
+`)
+
+	b := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	if got, want := len(b.docsFamilies), 1; got != want || b.docsFamilies[0].ID != "module" {
+		t.Fatalf("docs families = %+v, want only module", b.docsFamilies)
+	}
+}
+
 func TestBuildConfigFrontmatterPreflightReturnsNoArtifacts(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
@@ -1853,6 +1945,7 @@ func preflightTypedLayoutBuild(t *testing.T, configPath string) *builder {
 	b := &builder{
 		request:       requestToSiteRequest(ConfigRequest{Compiler: margo.New()}, sourceDir, inputs.Sources, AssetMode(config.Assets)),
 		config:        &config,
+		configSource:  configPath,
 		configDir:     configDir,
 		sourceDir:     sourceDir,
 		layoutPatches: inputs.Patches,

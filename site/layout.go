@@ -295,12 +295,26 @@ func resolveSiteLayout(config LayoutConfig, source string) (layoutCascade, error
 	if err != nil {
 		return layoutCascade{}, presentationSourceDiagnostic(err, source)
 	}
+	if config.Kind == LayoutDocs {
+		defaultValues, err = normalizeDocsFamilyDeclarations(defaultValues, "/layout/default/families")
+		if err != nil {
+			return layoutCascade{}, presentationSourceDiagnostic(err, source)
+		}
+	}
 	overrideValues, err := entry.validateValues(config.Values, layoutValueOverride, "/layout/values")
 	if err != nil {
 		return layoutCascade{}, presentationSourceDiagnostic(err, source)
 	}
 
 	values := mergeLayoutValues(builtinValues, defaultValues)
+	if config.Kind == LayoutDocs {
+		if err := validateDocsFamilySelection(defaultValues, values, "/layout/default/family"); err != nil {
+			return layoutCascade{}, presentationSourceDiagnostic(err, source)
+		}
+		if err := validateDocsFamilySelection(overrideValues, values, "/layout/values/family"); err != nil {
+			return layoutCascade{}, presentationSourceDiagnostic(err, source)
+		}
+	}
 	values = mergeLayoutValues(values, overrideValues)
 	return layoutCascade{
 		registry: registry,
@@ -348,9 +362,71 @@ func (cascade layoutCascade) apply(patch LayoutPatch) (layoutCascade, error) {
 	if err != nil {
 		return layoutCascade{}, presentationSourceDiagnostic(err, patch.Source)
 	}
+	if kind == LayoutDocs {
+		if err := validateDocsFamilySelection(normalized, values, appendLayoutPointer(appendLayoutPointer(base, "values"), "family")); err != nil {
+			return layoutCascade{}, presentationSourceDiagnostic(err, patch.Source)
+		}
+	}
 	next.active = kind
 	next.buckets[kind] = mergeLayoutValues(values, normalized)
 	return next, nil
+}
+
+func normalizeDocsFamilyDeclarations(values map[string]any, pointer string) (map[string]any, error) {
+	raw, configured := values["families"]
+	if !configured {
+		return values, nil
+	}
+	families, _ := layoutListValues(raw)
+	seen := make(map[string]int, len(families))
+	normalized := []any{"default"}
+	for index, value := range families {
+		family := strings.TrimSpace(value.(string))
+		itemPointer := appendLayoutPointer(pointer, fmt.Sprint(index))
+		if family == "" {
+			return nil, newPresentationDiagnostic(
+				"site.family_invalid",
+				"family identifier must not be empty",
+				"Declare a stable non-empty family identifier.",
+				itemPointer,
+			)
+		}
+		if previous, exists := seen[family]; exists {
+			return nil, newPresentationDiagnostic(
+				"site.family_duplicate",
+				fmt.Sprintf("family %q is declared more than once (entries %d and %d)", family, previous, index),
+				"Declare each family once.",
+				itemPointer,
+			)
+		}
+		seen[family] = index
+		if family != "default" {
+			normalized = append(normalized, family)
+		}
+	}
+	values["families"] = normalized
+	return values, nil
+}
+
+func validateDocsFamilySelection(selection, declarations map[string]any, pointer string) error {
+	raw, explicit := selection["family"]
+	if !explicit {
+		return nil
+	}
+	family := strings.TrimSpace(raw.(string))
+	declared, _ := layoutListValues(declarations["families"])
+	for _, candidate := range declared {
+		if candidate == family {
+			selection["family"] = family
+			return nil
+		}
+	}
+	return newPresentationDiagnostic(
+		"site.family_undeclared",
+		fmt.Sprintf("docs family %q is not declared", family),
+		"Declare the family in layout.default.families before selecting it.",
+		pointer,
+	)
 }
 
 func (cascade layoutCascade) clone() layoutCascade {

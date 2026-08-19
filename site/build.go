@@ -105,6 +105,7 @@ type Result struct {
 type builder struct {
 	request          Request
 	config           *Config
+	configSource     string
 	configDir        string
 	sourceDir        string
 	siteManifest     SiteManifest
@@ -122,6 +123,7 @@ type builder struct {
 	layoutPatches    []LayoutPatch
 	configured       map[string]configuredPage
 	configPages      []Page
+	docsFamilies     []docsFamily
 	sources          map[string]Source
 	outputs          map[string]string
 	artifacts        map[string][]byte
@@ -133,6 +135,14 @@ type builder struct {
 	assetBytes       int64
 	pdfEngine        pdf.Engine
 	pdfInstances     *margo.InstanceAllocator
+}
+
+// docsFamily is derived from completed docs pages. Config owns only ordered
+// identifiers; the overview page owns the public label and href.
+type docsFamily struct {
+	ID       string
+	Locale   string
+	Overview Page
 }
 
 type cachedAsset struct {
