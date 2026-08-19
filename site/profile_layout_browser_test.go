@@ -84,6 +84,8 @@ theme:
 		}
 		if artifactPath == "" || artifactPath == "/" {
 			artifactPath = "/index.html"
+		} else if strings.HasSuffix(artifactPath, "/") {
+			artifactPath += "index.html"
 		}
 		content, ok := artifacts[artifactPath]
 		if !ok {
@@ -128,7 +130,7 @@ theme:
 		var state frameState
 		if err := chromedp.Run(ctx,
 			chromedp.EmulateViewport(viewport.width, 844),
-			chromedp.Navigate(server.URL+"/docs/module/index.html"),
+			chromedp.Navigate(server.URL+"/docs/module/"),
 			chromedp.WaitVisible(`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`, chromedp.ByQuery),
 			chromedp.Evaluate(`(() => {
 				const frame = document.querySelector('[data-margo-layout="docs"].margo-frame--top-left-main-right-footer');

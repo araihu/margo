@@ -257,12 +257,22 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	landing := string(artifacts["index.html"])
 	module := string(artifacts["module/index.html"])
 	cli := string(artifacts["cli/index.html"])
+	for name, page := range map[string]string{
+		"Tour":   landing,
+		"Module": module,
+		"CLI":    cli,
+	} {
+		route := map[string]string{"Tour": "https://margo.araihu.com/", "Module": "https://margo.araihu.com/module/", "CLI": "https://margo.araihu.com/cli/"}[name]
+		if !strings.Contains(page, `<link rel="canonical" href="`+route+`"`) {
+			t.Fatalf("%s canonical does not expose public route %q: %s", name, route, page)
+		}
+	}
 	for name, page := range map[string]string{"Tour": landing, "Module": module, "CLI": cli} {
 		if strings.Count(page, "<h1") != 1 {
 			t.Fatalf("%s h1 count = %d", name, strings.Count(page, "<h1"))
 		}
 	}
-	for _, required := range []string{`href="module/index.html"`, `href="cli/index.html"`, `One source, several projections`} {
+	for _, required := range []string{`href="/module/"`, `href="/cli/"`, `One source, several projections`} {
 		if !strings.Contains(landing, required) {
 			t.Fatalf("Tour missing %q", required)
 		}
@@ -296,7 +306,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	if strings.Count(sitemap, "<url>") != 3 {
 		t.Fatalf("sitemap URL count = %d, want 3: %s", strings.Count(sitemap, "<url>"), sitemap)
 	}
-	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/index.html", "https://margo.araihu.com/cli/index.html"} {
+	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"} {
 		if !strings.Contains(sitemap, "<loc>"+route+"</loc>") {
 			t.Fatalf("sitemap missing %q", route)
 		}
@@ -305,6 +315,11 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	for _, title := range []string{"[Margo]", "[Go module]", "[CLI workflows]"} {
 		if !strings.Contains(llms, title) {
 			t.Fatalf("llms.txt missing %q: %s", title, llms)
+		}
+	}
+	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"} {
+		if !strings.Contains(llms, route) {
+			t.Fatalf("llms.txt missing public route %q: %s", route, llms)
 		}
 	}
 	for _, retired := range []string{"charts.html", "decks.html", "determinism.html", "html.html", "markdown.html", "mermaid.html", "pdf.html", "policy.html", "site.html"} {
@@ -503,8 +518,8 @@ theme:
 			}
 			last = index
 		}
-		for _, route := range []string{"index.html", "module/index.html", "cli/index.html"} {
-			if !strings.Contains(page, `data-search-href="/docs/`+route+`"`) && !(route == "index.html" && strings.Contains(page, `data-search-href="/docs/"`)) {
+		for _, route := range []string{"/docs/", "/docs/module/", "/docs/cli/"} {
+			if !strings.Contains(page, `data-search-href="`+route+`"`) {
 				t.Fatalf("%s global search missing %s: %s", source, route, page)
 			}
 		}
@@ -553,6 +568,9 @@ theme:
 	}
 	for source, family := range map[string]string{"module/index.md": "Module", "cli/index.md": "CLI"} {
 		page := pages[source]
+		if got := strings.Count(page, "assets/styles.css"); got != 1 {
+			t.Fatalf("%s emits Goshtoso stylesheet %d times, want exactly once: %s", source, got, page)
+		}
 		leftStart := strings.Index(page, `id="left-nav"`)
 		leftEnd := strings.Index(page[leftStart:], `</div>`)
 		if leftStart < 0 || leftEnd < 0 {
@@ -670,8 +688,11 @@ theme:
 				t.Fatalf("%s missing semantic profile output %q: %s", name, required, page)
 			}
 		}
-		if strings.Contains(page, `id="right-nav"><nav`) || strings.Contains(page, `data-toc-heading`) {
-			t.Fatalf("%s unexpectedly renders a TOC payload: %s", name, page)
+		if !strings.Contains(page, `data-margo-toc="true"`) || !strings.Contains(page, `data-margo-toc-link=`) {
+			t.Fatalf("%s is missing a usable Margo-owned TOC payload: %s", name, page)
+		}
+		if strings.Contains(page, `data-toc-heading`) || strings.Contains(page, `component-doc-shell`) {
+			t.Fatalf("%s TOC leaks private App Shell semantics: %s", name, page)
 		}
 	}
 	styles := string(configArtifact(t, result, "margo-assets/site.css"))
@@ -692,7 +713,7 @@ func TestBuildConfigRendersLocaleScopedFamilySearch(t *testing.T) {
 	root := t.TempDir()
 	for _, localePrefix := range []string{"", "pt-BR"} {
 		prefix := filepath.Join(root, "docs", localePrefix)
-		writeConfigFile(t, filepath.Join(prefix, "index.md"), "# Tour\n\nTour documentation.\n")
+		writeConfigFile(t, filepath.Join(prefix, "index.md"), "# Tour\n\nTour documentation. [Module](module/index.md).\n")
 		writeConfigFile(t, filepath.Join(prefix, "module", "index.md"), "# Module\n\nModule documentation.\n")
 		writeConfigFile(t, filepath.Join(prefix, "cli", "index.md"), "# CLI\n\nCLI documentation.\n")
 	}
@@ -755,23 +776,30 @@ theme:
 	for _, fixture := range []struct {
 		name        string
 		artifact    string
+		landing     string
 		localRoutes []string
 		otherRoutes []string
 	}{
 		{
 			name:        "English",
 			artifact:    "module/index.html",
-			localRoutes: []string{"/docs/", "/docs/module/index.html", "/docs/cli/index.html"},
-			otherRoutes: []string{"/docs/pt-br/index.html", "/docs/pt-br/module/index.html", "/docs/pt-br/cli/index.html"},
+			landing:     "index.html",
+			localRoutes: []string{"/docs/", "/docs/module/", "/docs/cli/"},
+			otherRoutes: []string{"/docs/pt-br/", "/docs/pt-br/module/", "/docs/pt-br/cli/"},
 		},
 		{
 			name:        "Portuguese",
 			artifact:    "pt-br/module/index.html",
-			localRoutes: []string{"/docs/pt-br/index.html", "/docs/pt-br/module/index.html", "/docs/pt-br/cli/index.html"},
-			otherRoutes: []string{"/docs/", "/docs/module/index.html", "/docs/cli/index.html"},
+			landing:     "pt-br/index.html",
+			localRoutes: []string{"/docs/pt-br/", "/docs/pt-br/module/", "/docs/pt-br/cli/"},
+			otherRoutes: []string{"/docs/", "/docs/module/", "/docs/cli/"},
 		},
 	} {
 		page := string(configArtifact(t, result, fixture.artifact))
+		canonical := `rel="canonical" href="https://margo.example` + fixture.localRoutes[1] + `"`
+		if !strings.Contains(page, canonical) {
+			t.Fatalf("%s canonical missing public route %s: %s", fixture.name, canonical, page)
+		}
 		for _, route := range fixture.localRoutes {
 			if !strings.Contains(page, `data-search-href="`+route+`"`) {
 				t.Fatalf("%s search missing same-locale route %s: %s", fixture.name, route, page)
@@ -782,7 +810,121 @@ theme:
 				t.Fatalf("%s search leaked other-locale route %s: %s", fixture.name, route, page)
 			}
 		}
+		for _, family := range []struct {
+			id   string
+			href string
+		}{
+			{id: "tour", href: fixture.localRoutes[0]},
+			{id: "module", href: fixture.localRoutes[1]},
+			{id: "cli", href: fixture.localRoutes[2]},
+		} {
+			link := `data-margo-family-link="` + family.id + `" href="` + family.href + `"`
+			if !strings.Contains(page, link) {
+				t.Fatalf("%s global family navigation missing locale-owned overview %s: %s", fixture.name, link, page)
+			}
+		}
+		landing := string(configArtifact(t, result, fixture.landing))
+		if !strings.Contains(landing, `href="`+fixture.localRoutes[1]+`"`) {
+			t.Fatalf("%s rewritten Markdown link missing public route %s: %s", fixture.name, fixture.localRoutes[1], landing)
+		}
 	}
+	sitemap := string(configArtifact(t, result, SitemapPath))
+	for _, route := range []string{"https://margo.example/docs/module/", "https://margo.example/docs/pt-br/module/"} {
+		if !strings.Contains(sitemap, `<loc>`+route+`</loc>`) {
+			t.Fatalf("localized sitemap missing public route %s: %s", route, sitemap)
+		}
+	}
+}
+
+func TestBuildConfigRejectsMissingConfiguredFamilyOverview(t *testing.T) {
+	root := t.TempDir()
+	writeProfileOverviewFixture(t, root, map[string]string{
+		"index.md":        "# Tour\n\nTour documentation.\n",
+		"module/guide.md": "# Module guide\n\nModule detail.\n",
+	}, []string{"en"})
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatalf("failed build returned partial result: %+v", result)
+	}
+	diagnostic := presentationDiagnostic(t, err)
+	if diagnostic.Code != "site.family_overview_missing" || diagnostic.Pointer != "/navigation/families/1/overview" || diagnostic.Source != "module/index.md" {
+		t.Fatalf("diagnostic = %+v", diagnostic)
+	}
+}
+
+func TestBuildConfigRejectsLocaleIncompleteFamilyOverview(t *testing.T) {
+	root := t.TempDir()
+	writeProfileOverviewFixture(t, root, map[string]string{
+		"index.md":              "# Tour\n\nTour documentation.\n",
+		"module/index.md":       "# Module\n\nModule documentation.\n",
+		"pt-BR/index.md":        "# Tour\n\nDocumentação.\n",
+		"pt-BR/module/guide.md": "# Guia do módulo\n\nDetalhes.\n",
+	}, []string{"en", "pt-BR"})
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatalf("failed build returned partial result: %+v", result)
+	}
+	diagnostic := presentationDiagnostic(t, err)
+	if diagnostic.Code != "site.family_overview_locale_incomplete" || diagnostic.Pointer != "/navigation/families/1/overview" || diagnostic.Source != "module/index.md" {
+		t.Fatalf("diagnostic = %+v", diagnostic)
+	}
+	if !strings.Contains(diagnostic.Message, "pt-BR") {
+		t.Fatalf("diagnostic message = %q", diagnostic.Message)
+	}
+}
+
+func writeProfileOverviewFixture(t *testing.T, root string, pages map[string]string, supported []string) {
+	t.Helper()
+	for source, content := range pages {
+		writeConfigFile(t, filepath.Join(root, "docs", filepath.FromSlash(source)), content)
+	}
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+navigation:
+  mode: file-tree
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+locales:
+  default: en
+  supported: [`+strings.Join(supported, ", ")+`]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
 }
 
 func TestBuildConfigPageLayoutOverrideWinsOverFamily(t *testing.T) {

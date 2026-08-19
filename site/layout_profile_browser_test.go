@@ -137,8 +137,8 @@ func TestLayoutProfileBrowser(t *testing.T) {
 					if state.ColorMode != colorMode {
 						t.Fatalf("color mode = %q, want %q: %+v", state.ColorMode, colorMode, state)
 					}
-					if state.Sidebar != cell.sidebar || state.TOCArea != cell.tocArea || state.Pagination != cell.pagination || state.TOC {
-						t.Fatalf("%s chrome presence = %+v, want sidebar=%t toc-area=%t pagination=%t and no TOC payload", cell.name, state, cell.sidebar, cell.tocArea, cell.pagination)
+					if state.Sidebar != cell.sidebar || state.TOCArea != cell.tocArea || state.Pagination != cell.pagination || state.TOC != cell.tocArea || (cell.tocArea && state.TOCLinks == 0) {
+						t.Fatalf("%s chrome presence = %+v, want sidebar=%t toc-area=%t pagination=%t and a usable docs TOC", cell.name, state, cell.sidebar, cell.tocArea, cell.pagination)
 					}
 					if state.MobileTriggerCount != boolToInt(viewport.width == 390) || state.MobileTriggerVisible != (viewport.width == 390) {
 						t.Fatalf("mobile trigger state = %+v focus=%+v, want count/visibility for width %d", state, focusState, viewport.width)
@@ -166,9 +166,9 @@ func TestLayoutProfileBrowser(t *testing.T) {
 			chromedp.Navigate(server.URL+"/"),
 			chromedp.WaitVisible(`[data-margo-layout="landing"]`, chromedp.ByQuery),
 			chromedp.Click(`[data-margo-family-link="module"]`, chromedp.ByQuery),
-			chromedp.Evaluate(waitForFamilyRouteScript("module", "/module/index.html"), nil),
+			chromedp.Evaluate(waitForFamilyRouteScript("module", "/module/"), nil),
 			chromedp.Click(`[data-margo-family-link="cli"]`, chromedp.ByQuery),
-			chromedp.Evaluate(waitForFamilyRouteScript("cli", "/cli/index.html"), nil),
+			chromedp.Evaluate(waitForFamilyRouteScript("cli", "/cli/"), nil),
 			chromedp.Click(`[data-margo-family-link="tour"]`, chromedp.ByQuery),
 			chromedp.Evaluate(waitForFamilyRouteScript("tour", "/"), nil),
 		); err != nil {
@@ -192,6 +192,7 @@ type layoutProfileBrowserState struct {
 	Sidebar              bool    `json:"sidebar"`
 	TOCArea              bool    `json:"tocArea"`
 	TOC                  bool    `json:"toc"`
+	TOCLinks             int     `json:"tocLinks"`
 	Pagination           bool    `json:"pagination"`
 	MobileTriggerCount   int     `json:"mobileTriggerCount"`
 	MobileTriggerVisible bool    `json:"mobileTriggerVisible"`
@@ -248,7 +249,8 @@ const layoutProfileBrowserStateScript = `(() => {
 		colorMode: document.documentElement.dataset.colorMode || "",
 		sidebar: !!document.querySelector('[data-margo-area="left-nav"] nav[aria-label="sidebar navigation"]'),
 		tocArea: !!document.querySelector('[data-margo-area="right-nav"]'),
-		toc: !!document.querySelector('[data-margo-area="right-nav"] nav'),
+		toc: !!document.querySelector('[data-margo-area="right-nav"] [data-margo-toc="true"]'),
+		tocLinks: document.querySelectorAll('[data-margo-area="right-nav"] [data-margo-toc-link]').length,
     pagination: !!document.querySelector('[data-margo-area="main-content"] .margo-pagination'),
     mobileTriggerCount: mobileTriggers.filter(visible).length,
     mobileTriggerVisible: mobileTriggers.some(visible),

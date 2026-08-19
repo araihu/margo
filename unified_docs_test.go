@@ -1,6 +1,7 @@
 package margo
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -42,6 +43,9 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		"The `docs`",
 		"layout provides family-local navigation",
 		"Tour at `/`, Module at `/module/`, and CLI at",
+		"static artifacts remain `module/index.html` and `cli/index.html`",
+		"public links, canonicals, search, family navigation, sitemap, `llms.txt`",
+		"base-path and locale prefixes",
 		"Retired Tour feature routes",
 		"return HTTP 404",
 		"produce no artifacts",
@@ -74,6 +78,49 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 			t.Fatalf("README retains removed embed contract %q", stale)
 		}
 	}
+}
+
+func TestDocumentSchemaPublishesSiteLayoutPrecedenceContract(t *testing.T) {
+	data, err := os.ReadFile("schema/v1/document.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(data, &schema); err != nil {
+		t.Fatal(err)
+	}
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("document schema has no properties object")
+	}
+	margoProperty, ok := properties["margo"].(map[string]any)
+	if !ok {
+		t.Fatal("document schema has no margo property")
+	}
+	margoProperties, ok := margoProperty["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("margo schema has no properties object")
+	}
+	siteProperty, ok := margoProperties["site"].(map[string]any)
+	if !ok {
+		t.Fatal("margo schema has no site property")
+	}
+	want := "page margo.site.layout, then active family's layout, then layouts.default"
+	for name, property := range map[string]map[string]any{"site": siteProperty, "layout": sitePropertyProperties(siteProperty)} {
+		got, _ := property["x-margo-precedence"].(string)
+		if got != want {
+			t.Fatalf("%s precedence = %q, want %q", name, got, want)
+		}
+		if strings.Contains(got, "CLI") || strings.Contains(got, "API") {
+			t.Fatalf("%s precedence delegates authority to CLI/API: %q", name, got)
+		}
+	}
+}
+
+func sitePropertyProperties(siteProperty map[string]any) map[string]any {
+	properties, _ := siteProperty["properties"].(map[string]any)
+	layout, _ := properties["layout"].(map[string]any)
+	return layout
 }
 
 func TestPDFEngineMatrixSeparatesEvidenceFromVersionPolicy(t *testing.T) {

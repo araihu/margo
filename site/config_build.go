@@ -346,6 +346,9 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	if err != nil {
 		return Result{}, err
 	}
+	if err := b.validateConfiguredFamilyOverviews(ordered); err != nil {
+		return Result{}, err
+	}
 	if err := b.preflightConfigured(ctx, ordered); err != nil {
 		return Result{}, err
 	}
@@ -579,6 +582,75 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 	return nil
 }
 
+// validateConfiguredFamilyOverviews enforces the publication contract before
+// any page is rendered. A configured family link must always resolve: the
+// declared overview source must exist, and every locale represented by that
+// family must have the same overview route.
+func (b *builder) validateConfiguredFamilyOverviews(sources []Source) error {
+	if !b.profileMode || len(b.config.Navigation.Families) == 0 {
+		return nil
+	}
+	for index, family := range b.config.Navigation.Families {
+		representedLocales := make(map[string]struct{})
+		overviewFound := false
+		for _, source := range sources {
+			resolved, err := resolveFamily(source.Path, b.config.Locales, b.config.Navigation.Families)
+			if err != nil {
+				return err
+			}
+			if resolved.ID != family.ID {
+				continue
+			}
+			locale, _ := sourceLocale(source.Path, b.config.Locales)
+			representedLocales[locale] = struct{}{}
+			if strings.EqualFold(source.Path, family.Overview) {
+				overviewFound = true
+			}
+		}
+		pointer := fmt.Sprintf("/navigation/families/%d/overview", index)
+		if !overviewFound {
+			return presentationSourceDiagnostic(newPresentationDiagnostic(
+				"site.family_overview_missing",
+				fmt.Sprintf("family %q overview %q was not discovered", family.ID, family.Overview),
+				"Add the configured overview Markdown source before building the site.",
+				pointer,
+			), family.Overview)
+		}
+		overviewRoute := routeKey(family.Overview, b.config.Locales)
+		locales := make([]string, 0, len(representedLocales))
+		for locale := range representedLocales {
+			locales = append(locales, locale)
+		}
+		sort.Strings(locales)
+		for _, locale := range locales {
+			found := false
+			for _, source := range sources {
+				candidateLocale, _ := sourceLocale(source.Path, b.config.Locales)
+				if candidateLocale != locale || routeKey(source.Path, b.config.Locales) != overviewRoute {
+					continue
+				}
+				resolved, err := resolveFamily(source.Path, b.config.Locales, b.config.Navigation.Families)
+				if err != nil {
+					return err
+				}
+				if resolved.ID == family.ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return presentationSourceDiagnostic(newPresentationDiagnostic(
+					"site.family_overview_locale_incomplete",
+					fmt.Sprintf("family %q has pages in locale %q but no overview for that locale", family.ID, locale),
+					"Add the configured overview route under the locale directory.",
+					pointer,
+				), family.Overview)
+			}
+		}
+	}
+	return nil
+}
+
 func routeKey(source string, locales LocaleConfig) string {
 	_, rest := sourceLocale(source, locales)
 	return outputPath(rest)
@@ -615,17 +687,21 @@ func routeDescription(plainText, title, siteName string) string {
 }
 
 func (b *builder) pageURL(page Page) string {
-	route := "/" + page.Output
 	home := b.config.Site.Home
 	if home == "" {
 		home = "index.md"
 	}
-	if page.Source == home && page.Locale == b.config.Locales.Default {
+	route := "/" + page.Output
+	if b.profileMode {
+		route = b.publicOutputPath(page.Output, page.Source == home && page.Locale == b.config.Locales.Default)
+	} else if page.Source == home && page.Locale == b.config.Locales.Default {
 		route = "/"
 	}
-	basePath := normalizedBasePath(b.config.BasePath)
-	if basePath != "/" {
-		route = basePath + route
+	if !b.profileMode {
+		basePath := normalizedBasePath(b.config.BasePath)
+		if basePath != "/" {
+			route = strings.TrimSuffix(basePath, "/") + route
+		}
 	}
 	return strings.TrimSuffix(b.config.Site.BaseURL, "/") + route
 }
@@ -807,7 +883,7 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	fragment = addProfileLayoutHook(fragment, prepared.page.Layout)
 	page := prepared.page
 	iconURL, _ := relativeSitePath(path.Dir(page.Output), b.config.Site.Icon)
-	head, err := b.renderPageHead(page, iconURL, dependencyBytes)
+	head, err := b.renderPageHead(page, iconURL, dependencyBytes, prepared.result.Requirements())
 	if err != nil {
 		return err
 	}
@@ -943,6 +1019,9 @@ func (b *builder) bindingsForPage(prepared configuredPage) (map[string][]ssg.Are
 			if err := add("breadcrumbs", schema.BindingDefaults["breadcrumbs"], "", b.breadcrumbFragment(prepared.page)); err != nil {
 				return nil, err
 			}
+			if err := add("toc", schema.BindingDefaults["toc"], "", b.tocFragment(prepared.article, prepared.page.Locale)); err != nil {
+				return nil, err
+			}
 			pagination := b.paginationFragment(prepared.page)
 			if pagination != "" {
 				if err := add("pagination", schema.BindingDefaults["pagination"], "after-article", pagination); err != nil {
@@ -1016,10 +1095,14 @@ func (b *builder) breadcrumbFragment(page Page) string {
 			current = page.Title
 		}
 	}
+	homeHref := relativeAssetPath(path.Dir(page.Output), b.localeHomeOutput(page))
+	if b.profileMode {
+		homeHref = b.siteHomeHref(page)
+	}
 	markup, err := renderComponentBytes(breadcrumbs.Breadcrumbs(breadcrumbs.Config{
 		Items: []breadcrumbs.Item{{
 			Label: localizedLabel(page.Locale, "home"),
-			Href:  relativeAssetPath(path.Dir(page.Output), b.localeHomeOutput(page)),
+			Href:  homeHref,
 		}},
 		Current:   current,
 		Separator: breadcrumbs.Chevron,
@@ -1069,11 +1152,19 @@ func (b *builder) paginationFragment(page Page) string {
 	builder.WriteString(`<nav class="margo-pagination" aria-label="` + stdhtml.EscapeString(localizedLabel(page.Locale, "article_navigation")) + `"><ul>`)
 	if index > 0 {
 		previous := localePages[index-1]
-		builder.WriteString(`<li><a rel="prev" href="` + stdhtml.EscapeString(relativeAssetPath(path.Dir(page.Output), previous.Output)) + `">Previous: ` + stdhtml.EscapeString(previous.Title) + `</a></li>`)
+		href := relativeAssetPath(path.Dir(page.Output), previous.Output)
+		if b.profileMode {
+			href = b.sitePageHref(previous)
+		}
+		builder.WriteString(`<li><a rel="prev" href="` + stdhtml.EscapeString(href) + `">Previous: ` + stdhtml.EscapeString(previous.Title) + `</a></li>`)
 	}
 	if index >= 0 && index+1 < len(localePages) {
 		next := localePages[index+1]
-		builder.WriteString(`<li><a rel="next" href="` + stdhtml.EscapeString(relativeAssetPath(path.Dir(page.Output), next.Output)) + `">Next: ` + stdhtml.EscapeString(next.Title) + `</a></li>`)
+		href := relativeAssetPath(path.Dir(page.Output), next.Output)
+		if b.profileMode {
+			href = b.sitePageHref(next)
+		}
+		builder.WriteString(`<li><a rel="next" href="` + stdhtml.EscapeString(href) + `">Next: ` + stdhtml.EscapeString(next.Title) + `</a></li>`)
 	}
 	builder.WriteString(`</ul></nav>`)
 	return builder.String()
@@ -1083,13 +1174,17 @@ func (b *builder) localeFragment(page Page) string {
 	var builder strings.Builder
 	builder.WriteString(`<nav class="margo-locale-controls" aria-label="` + stdhtml.EscapeString(localizedLabel(page.Locale, "language")) + `"><ul>`)
 	for _, alternate := range page.Alternates {
-		builder.WriteString(`<li><a hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(b.relativeAlternate(page.Output, alternate.URL)) + `">` + stdhtml.EscapeString(alternate.Locale) + `</a></li>`)
+		href := b.relativeAlternate(page.Output, alternate.URL)
+		if b.profileMode {
+			href = b.publicAlternatePath(alternate.URL)
+		}
+		builder.WriteString(`<li><a hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(alternate.Locale) + `</a></li>`)
 	}
 	builder.WriteString(`</ul></nav>`)
 	return builder.String()
 }
 
-func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []byte) (string, error) {
+func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []byte, requirements margo.HTMLRequirements) (string, error) {
 	var builder strings.Builder
 	builder.WriteString(`<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="` + stdhtml.EscapeString(iconURL) + `"><title>` + stdhtml.EscapeString(page.Title) + `</title><meta name="description" content="` + stdhtml.EscapeString(page.Description) + `"><link rel="canonical" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
 	builder.WriteString(`<meta property="og:url" content="` + stdhtml.EscapeString(page.Canonical) + `"><meta property="og:type" content="website"><meta property="og:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta property="og:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta property="og:site_name" content="` + stdhtml.EscapeString(b.config.Site.Name) + `"><meta property="og:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta property="og:image:type" content="` + stdhtml.EscapeString(b.socialMediaType) + `"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
@@ -1120,9 +1215,7 @@ func (b *builder) renderPageHead(page Page, iconURL string, dependencyBytes []by
 	if err != nil {
 		return "", err
 	}
-	if bytes.Contains(dependencyBytes, []byte(`data-margo-requirement="goshtoso.styles"`)) {
-		goshtosoDependencies = withoutGoshtosoStylesheet(goshtosoDependencies)
-	}
+	goshtosoDependencies = withoutGoshtosoStylesheet(goshtosoDependencies, requirements)
 	builder.WriteString(string(goshtosoDependencies))
 	return builder.String(), nil
 }
@@ -1312,11 +1405,19 @@ func (b *builder) relativeAlternate(fromOutput, absolute string) string {
 	return relativeAssetPath(path.Dir(fromOutput), target)
 }
 
+func (b *builder) publicAlternatePath(absolute string) string {
+	parsed, err := url.Parse(absolute)
+	if err != nil || parsed.Path == "" {
+		return absolute
+	}
+	return parsed.Path
+}
+
 func localizedLabel(locale, key string) string {
 	if strings.EqualFold(locale, "pt-BR") {
-		return map[string]string{"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo", "home": "Início", "language": "Idioma", "theme": "Tema"}[key]
+		return map[string]string{"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo", "home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página"}[key]
 	}
-	return map[string]string{"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home", "language": "Language", "theme": "Theme"}[key]
+	return map[string]string{"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home", "language": "Language", "theme": "Theme", "toc": "On this page"}[key]
 }
 
 func openGraphLocale(locale string) string {

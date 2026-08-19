@@ -3,8 +3,10 @@ package site
 import (
 	"bytes"
 	"context"
+	"fmt"
 	stdhtml "html"
 	"io"
+	"net/url"
 	"path"
 	"sort"
 	"strings"
@@ -15,6 +17,9 @@ import (
 	"github.com/araihu/goshtoso/components/navbar"
 	"github.com/araihu/goshtoso/components/search"
 	"github.com/araihu/goshtoso/components/sidebar"
+	margo "github.com/araihu/margo"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // siteNavigationFragment renders Margo's public site chrome for a configured
@@ -131,6 +136,60 @@ func (b *builder) familyNavigationFragment(page Page) (string, error) {
 	return string(markup), nil
 }
 
+// tocFragment builds a Margo-owned table of contents from the already-rendered
+// article. The renderer owns deterministic heading IDs; this fragment only
+// projects those public IDs into links and never depends on App Shell markup.
+func (b *builder) tocFragment(article []byte, locale string) string {
+	root, err := html.ParseFragment(bytes.NewReader(article), &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"})
+	if err != nil {
+		return ""
+	}
+	type heading struct {
+		level int
+		id    string
+		label string
+	}
+	headings := make([]heading, 0)
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode && len(node.Data) == 2 && node.Data[0] == 'h' && node.Data[1] >= '1' && node.Data[1] <= '6' {
+			id := strings.TrimSpace(attributeValue(node, "id"))
+			label := strings.Join(strings.Fields(htmlText(node)), " ")
+			if id != "" && label != "" {
+				headings = append(headings, heading{level: int(node.Data[1] - '0'), id: id, label: label})
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	for _, node := range root {
+		walk(node)
+	}
+	if len(headings) == 0 {
+		return ""
+	}
+	label := localizedLabel(locale, "toc")
+	var builder strings.Builder
+	builder.WriteString(`<nav class="margo-toc" aria-label="` + stdhtml.EscapeString(label) + `" data-margo-toc="true"><p class="margo-toc-title">` + stdhtml.EscapeString(label) + `</p><ol data-margo-toc-list="true">`)
+	for _, item := range headings {
+		builder.WriteString(`<li data-margo-toc-level="` + stdhtml.EscapeString(fmt.Sprint(item.level)) + `"><a data-margo-toc-link="` + stdhtml.EscapeString(item.id) + `" href="#` + stdhtml.EscapeString(item.id) + `">` + stdhtml.EscapeString(item.label) + `</a></li>`)
+	}
+	builder.WriteString(`</ol></nav>`)
+	return builder.String()
+}
+
+func htmlText(node *html.Node) string {
+	if node.Type == html.TextNode {
+		return node.Data
+	}
+	var builder strings.Builder
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		builder.WriteString(htmlText(child))
+	}
+	return builder.String()
+}
+
 func (b *builder) siteSearchConfig(locale string) search.Config {
 	locale = strings.TrimSpace(locale)
 	if locale == "" {
@@ -150,7 +209,7 @@ func (b *builder) siteSearchConfig(locale string) search.Config {
 			Path:        b.sitePageHref(page),
 			Section:     page.Family,
 			Scope:       page.Family,
-			Keywords:    []string{page.Source, page.Output},
+			Keywords:    []string{page.Source, b.sitePageHref(page)},
 		})
 	}
 	return search.Config{
@@ -234,15 +293,7 @@ func (b *builder) sitePageHref(page Page) string {
 }
 
 func (b *builder) siteOutputHref(output string, home bool) string {
-	route := "/" + strings.TrimPrefix(output, "/")
-	if home {
-		route = "/"
-	}
-	basePath := normalizedBasePath(b.config.BasePath)
-	if basePath != "/" {
-		route = strings.TrimSuffix(basePath, "/") + route
-	}
-	return route
+	return b.publicOutputPath(output, home)
 }
 
 // stageGoshtosoNavigationAssets stages the public Goshtoso runtime required
@@ -272,20 +323,56 @@ func (b *builder) configuredGoshtosoDependencyBytes() ([]byte, error) {
 	return renderComponentBytes(head.Dependencies(head.WithLocalRuntime()))
 }
 
-func withoutGoshtosoStylesheet(markup []byte) []byte {
-	start := bytes.Index(markup, []byte(`<link rel="stylesheet"`))
-	if start < 0 {
+func withoutGoshtosoStylesheet(markup []byte, requirements margo.HTMLRequirements) []byte {
+	styles := make(map[string]struct{})
+	identities := make(map[string]struct{})
+	for _, requirement := range requirements.List() {
+		if requirement.Kind != margo.HTMLStylesheet {
+			continue
+		}
+		identities[requirement.ID] = struct{}{}
+		if value := canonicalResourceURL(requirement.LocalURL); value != "" {
+			styles[value] = struct{}{}
+		}
+	}
+	root, err := html.ParseFragment(bytes.NewReader(markup), &html.Node{Type: html.ElementNode, DataAtom: atom.Head, Data: "head"})
+	if err != nil {
 		return markup
 	}
-	relativeEnd := bytes.Index(markup[start:], []byte(`/>`))
-	if relativeEnd < 0 {
-		return markup
+	var output bytes.Buffer
+	for _, node := range root {
+		if node.Type == html.ElementNode && node.Data == "link" && strings.EqualFold(attributeValue(node, "rel"), "stylesheet") {
+			identity := attributeValue(node, "data-margo-requirement")
+			resource := canonicalResourceURL(attributeValue(node, "href"))
+			if _, sameIdentity := identities[identity]; sameIdentity {
+				continue
+			}
+			if _, sameResource := styles[resource]; sameResource {
+				continue
+			}
+		}
+		if err := html.Render(&output, node); err != nil {
+			return markup
+		}
 	}
-	end := start + relativeEnd + len([]byte(`/>`))
-	result := make([]byte, 0, len(markup)-(end-start))
-	result = append(result, markup[:start]...)
-	result = append(result, markup[end:]...)
-	return result
+	return output.Bytes()
+}
+
+func canonicalResourceURL(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return value
+	}
+	parsed.Fragment = ""
+	if parsed.Path != "" {
+		parsed.Path = path.Clean("/" + strings.TrimPrefix(parsed.Path, "/"))
+		parsed.RawPath = ""
+	}
+	return parsed.String()
 }
 
 func addProfileLayoutHook(fragment []byte, layout string) []byte {

@@ -233,7 +233,10 @@ table of contents, breadcrumbs, pagination, or page-action toolbar. The `docs`
 layout provides family-local navigation, document context, and scoped
 pagination when neighbors exist. The Margo showcase publishes exactly three
 Markdown-generated routes: Tour at `/`, Module at `/module/`, and CLI at
-`/cli/`. The former root feature pages are retired. Retired Tour feature routes
+`/cli/`. The static artifacts remain `module/index.html` and `cli/index.html`,
+but public links, canonicals, search, family navigation, sitemap, `llms.txt`,
+and rewritten Markdown use those directory routes, including base-path and locale prefixes.
+The former root feature pages are retired. Retired Tour feature routes
 return HTTP 404, produce no artifacts, and have no redirect or hidden
 compatibility page.
 

@@ -218,13 +218,13 @@
           "additionalProperties": false,
           "examples": [{"layout": "landing"}],
           "x-margo-targets": ["site"],
-          "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
+          "x-margo-precedence": "page margo.site.layout, then active family's layout, then layouts.default",
           "properties": {
             "layout": {
               "description": "Preferred site layout identifier.",
               "type": "string",
               "x-margo-targets": ["site"],
-              "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default"
+              "x-margo-precedence": "page margo.site.layout, then active family's layout, then layouts.default"
             }
           },
           "default": {}

@@ -420,11 +420,18 @@ func (b *builder) rewriteLink(source Source, node *html.Node) error {
 	if !exists {
 		return diagnostic("site.link_missing", fmt.Sprintf("Markdown link target %q does not exist", target), "Add the target document or correct the relative link.", source.Path)
 	}
-	relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), b.pageOutput(targetSource.Path))
-	if err != nil {
-		return err
+	// Configured sites publish directory routes for index artifacts. The
+	// in-memory legacy builder has no public site configuration, so it retains
+	// its artifact-relative link contract.
+	if b.profileMode {
+		parsed.Path = b.publicPagePath(targetSource.Path)
+	} else {
+		relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), b.pageOutput(targetSource.Path))
+		if err != nil {
+			return err
+		}
+		parsed.Path = relative
 	}
-	parsed.Path = relative
 	parsed.RawPath = ""
 	node.Attr[index].Val = parsed.String()
 	b.references = append(b.references, siteReference{source: source.Path, target: b.pageOutput(targetSource.Path), fragment: parsed.Fragment})
@@ -631,6 +638,46 @@ func relativeSitePath(fromDirectory, target string) (string, error) {
 		return "", err
 	}
 	return filepath.ToSlash(relative), nil
+}
+
+// publicRoutePath projects an artifact path into its public URL identity.
+// Directory index artifacts remain index.html on disk but are advertised at
+// the directory route, so one page has one canonical public identity.
+func publicRoutePath(output string) string {
+	output = strings.TrimPrefix(path.Clean(strings.TrimSpace(output)), "/")
+	if output == "." || output == "" {
+		return "/"
+	}
+	if path.Base(output) == "index.html" {
+		directory := path.Dir(output)
+		if directory == "." || directory == "" {
+			return "/"
+		}
+		return "/" + strings.Trim(directory, "/") + "/"
+	}
+	return "/" + output
+}
+
+func (b *builder) publicOutputPath(output string, home bool) string {
+	route := publicRoutePath(output)
+	if home {
+		route = "/"
+	}
+	basePath := normalizedBasePath("")
+	if b.config != nil {
+		basePath = normalizedBasePath(b.config.BasePath)
+	}
+	if basePath != "/" {
+		route = strings.TrimSuffix(basePath, "/") + route
+	}
+	return route
+}
+
+func (b *builder) publicPagePath(source string) string {
+	output := b.pageOutput(source)
+	locale, _ := sourceLocale(source, b.config.Locales)
+	home := source == b.config.Site.Home && locale == b.config.Locales.Default
+	return b.publicOutputPath(output, home)
 }
 
 func diagnostic(code, message, hint, source string) error {
