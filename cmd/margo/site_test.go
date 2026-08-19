@@ -96,6 +96,96 @@ site:
 	}
 }
 
+func TestSiteCommandProfileManifestIncludesLayoutIdentity(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "docs", "index.md"), "# Tour\n\nChoose a documentation path.\n")
+	writeSiteFixture(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule overview.\n")
+	writeSiteFixture(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI overview.\n")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+offline: true
+site:
+  name: Margo
+  description: Profile-mode documentation.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo profile preview
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+navigation:
+  mode: file-tree
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+    - id: cli
+      label: CLI
+      source: cli
+      overview: cli/index.md
+      layout: docs
+locales:
+  default: en
+  supported: [en]
+`)
+
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo()})
+	command.SetArgs([]string{"site", filepath.Join(root, "site.yaml"), "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("profile site config: %v\nstderr: %s", err, stderr.String())
+	}
+	manifest := readSiteFixture(t, filepath.Join(root, "dist", "margo-manifest.json"))
+	var document struct {
+		LayoutSchemaHash string      `json:"layoutSchemaHash"`
+		Routes           []site.Page `json:"routes"`
+	}
+	if err := json.Unmarshal([]byte(manifest), &document); err != nil {
+		t.Fatalf("profile manifest: %v: %s", err, manifest)
+	}
+	if document.LayoutSchemaHash == "" || document.LayoutSchemaHash == "legacy" {
+		t.Fatalf("profile layoutSchemaHash = %q, want non-empty non-legacy value", document.LayoutSchemaHash)
+	}
+	want := map[string]struct {
+		family string
+		layout string
+	}{
+		"index.md":        {family: "tour", layout: "landing"},
+		"module/index.md": {family: "module", layout: "docs"},
+		"cli/index.md":    {family: "cli", layout: "docs"},
+	}
+	if len(document.Routes) != len(want) {
+		t.Fatalf("profile routes = %+v", document.Routes)
+	}
+	for _, route := range document.Routes {
+		expected, ok := want[route.Source]
+		if !ok || route.Family != expected.family || route.Layout != expected.layout {
+			t.Fatalf("profile route = %+v, want identities %+v", route, want)
+		}
+	}
+}
+
 func TestSiteCommandPublishesInteractiveEmbedAndPolicyIdentity(t *testing.T) {
 	input := t.TempDir()
 	output := filepath.Join(t.TempDir(), "published")
