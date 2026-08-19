@@ -4,11 +4,13 @@ go 1.26.5
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/araihu/goshtoso v0.2.0
+	github.com/araihu/goshtoso v0.2.5
 	github.com/araihu/goshtoso-app-shells v0.1.6
 	github.com/araihu/goshtoso-charts v0.0.2
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327
 	github.com/chromedp/chromedp v0.14.2
+	github.com/cli/browser v1.3.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
@@ -26,12 +28,10 @@ require (
 	github.com/araihu/muamba v0.0.5 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
-	github.com/cli/browser v1.3.0 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.16.0 // indirect
-	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-analyze/bulk v0.1.4 // indirect
 	github.com/go-analyze/charts v0.6.0 // indirect
 	github.com/go-echarts/go-echarts/v2 v2.7.2 // indirect

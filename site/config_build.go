@@ -125,11 +125,15 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 .margo-showcase-article .margo-document blockquote { margin-block-start: 1.25rem; margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
 .margo-showcase-article .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
 .component-doc-shell__brand-mark { display: none !important; }
-.margo-shell-topnav { order: 1; display: flex; align-items: center; gap: 0.25rem; margin-inline: 0.5rem; }
-.margo-shell-topnav a { min-block-size: auto; padding: 0.5rem 0.75rem; color: inherit; text-decoration: none; border-radius: 0.375rem; }
-.margo-shell-topnav a:hover, .margo-shell-topnav a:focus-visible { background: var(--margo-surface-alt); color: var(--margo-text-strong); }
-#componentdocshell-dark-mode { order: 2; }
-.component-doc-shell__repository { order: 3; }
+.margo-shell-search { width: clamp(11rem, 26vw, 18rem); min-width: 0; flex: 0 1 auto; }
+.margo-shell-search-trigger { min-block-size: 2.75rem; }
+@media (width < 30rem) {
+  .component-doc-shell__brand-mark { display: grid !important; }
+  .margo-shell-search { width: 2.75rem; flex: 0 0 2.75rem; }
+  .margo-shell-search-trigger { width: 2.75rem; min-width: 2.75rem; padding-inline: 0; justify-content: center; }
+  .margo-shell-search-trigger > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+  .margo-shell-search-trigger > kbd { display: none; }
+}
 .component-doc-shell__main { view-transition-name: margo-main-content; transition: opacity 160ms ease, transform 160ms ease; }
 .component-doc-shell__main.htmx-swapping { opacity: 0; transform: translateY(0.35rem); }
 .component-doc-shell__main.htmx-settling { animation: margo-main-content-enter 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }

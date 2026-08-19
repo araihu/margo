@@ -224,7 +224,7 @@ locales:
 	}
 	for _, required := range []string{
 		`component-doc-shell__header`, `component-doc-shell__sidebar`, `component-doc-shell__toc`,
-		`margo-shell-topnav`, `href="/markdown.html"`, `margo-assets/goshtoso/shell.js`,
+		`margo-shell-search`, `href="/markdown.html"`, `margo-assets/goshtoso/shell.js`,
 		`assets/js/goshtoso.min.js`, `component-doc-shell__brand-badge`, `v0.0.5`,
 		`component-doc-shell__repository`, `https://github.com/araihu/margo`,
 		`hx-get="/markdown.html"`, `hx-select="#main-content"`, `hx-target="#main-content"`,
@@ -244,6 +244,20 @@ locales:
 		if !strings.Contains(page, required) {
 			t.Fatalf("shell page missing %q: %s", required, page)
 		}
+	}
+	document, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	searchField := configElementByID(document, "margo-doc-search")
+	if searchField == nil || !configNodeHasAncestorClass(searchField, "component-doc-shell__controls") {
+		t.Fatalf("search field is not in the shell header controls: %s", page)
+	}
+	if configNodeHasAncestorClass(searchField, "component-doc-shell__sidebar") {
+		t.Fatalf("search field remains in the shell sidebar: %s", page)
+	}
+	if strings.Contains(page, `margo-shell-topnav`) {
+		t.Fatalf("shell still renders the removed primary-link navigation: %s", page)
 	}
 	searchModalIndex := strings.Index(page, `id="margo-doc-search-dialog"`)
 	mainEndIndex := strings.Index(page, `</main>`)
@@ -315,9 +329,7 @@ locales:
 	}
 	styles := string(configArtifact(t, result, "margo-assets/site.css"))
 	for _, required := range []string{
-		".margo-shell-topnav { order: 1;",
-		"#componentdocshell-dark-mode { order: 2; }",
-		".component-doc-shell__repository { order: 3; }",
+		".margo-shell-search {",
 		".component-doc-shell__brand-mark { display: none !important; }",
 		".margo-showcase-article .margo-pagination ul { justify-content: space-between; column-gap: 2rem; row-gap: 0.75rem; }",
 		".margo-showcase-article .margo-pagination a { color: var(--margo-accent);",
@@ -330,11 +342,43 @@ locales:
 			t.Fatalf("shell ordering CSS missing %q: %s", required, styles)
 		}
 	}
+	if strings.Contains(styles, ".margo-shell-search { order:") {
+		t.Fatalf("search uses CSS order instead of matching header DOM order: %s", styles)
+	}
+	for _, reordered := range []string{"#componentdocshell-dark-mode { order:", ".component-doc-shell__repository { order:"} {
+		if strings.Contains(styles, reordered) {
+			t.Fatalf("header utility uses CSS order instead of matching DOM order %q: %s", reordered, styles)
+		}
+	}
+	if strings.Contains(styles, ".margo-shell-topnav") {
+		t.Fatalf("site stylesheet still contains removed top navigation rules: %s", styles)
+	}
 	for _, forbidden := range []string{"\nbutton, a {", "\nbutton {", "\n:focus-visible {"} {
 		if strings.Contains(styles, forbidden) {
 			t.Fatalf("shell CSS leaks an unscoped control rule %q: %s", forbidden, styles)
 		}
 	}
+}
+
+func configElementByID(root *html.Node, id string) *html.Node {
+	if root.Type == html.ElementNode && attributeValue(root, "id") == id {
+		return root
+	}
+	for child := root.FirstChild; child != nil; child = child.NextSibling {
+		if found := configElementByID(child, id); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func configNodeHasAncestorClass(node *html.Node, className string) bool {
+	for parent := node.Parent; parent != nil; parent = parent.Parent {
+		if hasClass(parent, className) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestBuildConfigRendersInlineShellDependenciesWithBasePath(t *testing.T) {

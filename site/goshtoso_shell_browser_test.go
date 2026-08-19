@@ -203,10 +203,43 @@ locales:
 		ViewportHeight float64 `json:"viewportHeight"`
 		InsideSidebar  bool    `json:"insideSidebar"`
 	}
+	var triggerState struct {
+		InsideHeader   bool      `json:"insideHeader"`
+		InsideSidebar  bool      `json:"insideSidebar"`
+		Left           float64   `json:"left"`
+		Right          float64   `json:"right"`
+		Width          float64   `json:"width"`
+		BrandWidth     float64   `json:"brandWidth"`
+		ViewportWidth  float64   `json:"viewportWidth"`
+		FocusableLefts []float64 `json:"focusableLefts"`
+	}
 
 	if err := chromedp.Run(ctx,
+		chromedp.EmulateViewport(390, 844),
 		chromedp.Navigate(server.URL+"/"),
 		chromedp.WaitVisible(`[data-search-field] button`, chromedp.ByQuery),
+		chromedp.Evaluate(`(() => {
+			const field = document.querySelector('[data-search-field]');
+			const rect = field?.getBoundingClientRect();
+			const brandRect = document.querySelector('.component-doc-shell__brand')?.getBoundingClientRect();
+			const focusableLefts = Array.from(document.querySelectorAll('.component-doc-shell__header button, .component-doc-shell__header a'))
+				.filter((element) => {
+					const bounds = element.getBoundingClientRect();
+					const style = getComputedStyle(element);
+					return bounds.width > 0 && bounds.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+				})
+				.map((element) => element.getBoundingClientRect().left);
+			return {
+				insideHeader: !!field?.closest('.component-doc-shell__controls'),
+				insideSidebar: !!field?.closest('#componentdocshell-sidebar-content'),
+				left: rect?.left || 0,
+				right: rect?.right || 0,
+				width: rect?.width || 0,
+				brandWidth: brandRect?.width || 0,
+				viewportWidth: window.innerWidth,
+				focusableLefts,
+			};
+		})()`, &triggerState),
 		chromedp.Evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", {key: "k", ctrlKey: true, bubbles: true}))`, nil),
 		chromedp.WaitVisible(`#margo-doc-search-dialog`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
@@ -247,6 +280,17 @@ locales:
 	if modalState.InsideSidebar || modalState.Width < modalState.ViewportWidth-2 || modalState.Height < modalState.ViewportHeight-2 {
 		t.Fatalf("search modal is not full viewport: %+v", modalState)
 	}
+	if !triggerState.InsideHeader || triggerState.InsideSidebar || triggerState.Left < 0 || triggerState.Right > triggerState.ViewportWidth || triggerState.Width < 44 || triggerState.Width > 48 {
+		t.Fatalf("search trigger is not a viewport-contained header control: %+v", triggerState)
+	}
+	if triggerState.BrandWidth < 32 {
+		t.Fatalf("mobile home link has no visible brand geometry: %+v", triggerState)
+	}
+	for index := 1; index < len(triggerState.FocusableLefts); index++ {
+		if triggerState.FocusableLefts[index] < triggerState.FocusableLefts[index-1] {
+			t.Fatalf("header DOM focus order disagrees with visual order: %+v", triggerState)
+		}
+	}
 
 	var state struct {
 		Path       string `json:"path"`
@@ -266,6 +310,187 @@ locales:
 	}
 	if state.Path != "/guide.html" || state.Navigation != "navigate" || state.Shortcut != "⌘ K" {
 		t.Fatalf("search state = %+v, want guide navigation with visible shortcut", state)
+	}
+}
+
+func TestGoshtosoShellRepeatedBrandNavigationKeepsPageActionsClosed(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), `---
+title: Home
+margo:
+  actions:
+    markdown: true
+---
+# Home
+
+A shell page with page actions.
+`)
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: showcase
+assets: local
+site:
+  name: Margo
+  description: A browser fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo browser fixture.
+shell:
+  builtin: componentdocshell
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifacts := make(map[string][]byte, len(result.Artifacts))
+	for _, artifact := range result.Artifacts {
+		artifacts["/"+strings.TrimPrefix(artifact.Path, "/")] = artifact.Content
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("HX-Request") == "true" {
+			time.Sleep(150 * time.Millisecond)
+		}
+		artifactPath := request.URL.Path
+		if artifactPath == "/" {
+			artifactPath = "/index.html"
+		}
+		content, ok := artifacts[artifactPath]
+		if !ok {
+			http.NotFound(writer, request)
+			return
+		}
+		writer.Header().Set("Content-Type", siteBrowserContentType(artifactPath))
+		_, _ = writer.Write(content)
+	}))
+	defer server.Close()
+
+	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 25*time.Second)
+	defer cancel()
+
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL+"/"),
+		chromedp.WaitVisible(`.component-doc-shell__brand`, chromedp.ByQuery),
+		chromedp.Evaluate(`(async () => {
+			const deadline = Date.now() + 5000;
+			while (Date.now() < deadline) {
+				if (document.querySelector('[aria-label="More page actions"]')?.getAttribute('aria-expanded') === 'false') return true;
+				await new Promise((resolve) => setTimeout(resolve, 25));
+			}
+			throw new Error('page actions did not initialize');
+		})()`, nil),
+		chromedp.Evaluate(`(async () => {
+			const button = document.querySelector('[aria-label="More page actions"]');
+			button.click();
+			const deadline = Date.now() + 5000;
+			while (Date.now() < deadline) {
+				if (button.getAttribute('aria-expanded') === 'true') return true;
+				await new Promise((resolve) => setTimeout(resolve, 25));
+			}
+			throw new Error('page actions did not open');
+		})()`, nil),
+		chromedp.Evaluate(`(() => {
+			window.__margoBrandNavigations = 0;
+			window.addEventListener('componentdocshell:navigated', () => window.__margoBrandNavigations += 1);
+		})()`, nil),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.DoubleClick(`.component-doc-shell__brand`, chromedp.ByQuery),
+		chromedp.Sleep(800*time.Millisecond),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	var state struct {
+		MainRegions             int    `json:"mainRegions"`
+		PopoverRoots            int    `json:"popoverRoots"`
+		InitializedPopoverRoots int    `json:"initializedPopoverRoots"`
+		VisiblePopovers         int    `json:"visiblePopovers"`
+		Navigations             int    `json:"navigations"`
+		Expanded                string `json:"expanded"`
+		PanelStyle              string `json:"panelStyle"`
+		PanelCloaked            bool   `json:"panelCloaked"`
+		PopoverOpen             bool   `json:"popoverOpen"`
+		BrandUsesHTMX           bool   `json:"brandUsesHTMX"`
+	}
+	if err := chromedp.Run(ctx, chromedp.Evaluate(`(() => {
+		const roots = [...document.querySelectorAll('[data-popover-root]')];
+		const panels = [...document.querySelectorAll('[data-popover-panel]')];
+		return {
+			mainRegions: document.querySelectorAll('#main-content').length,
+			popoverRoots: roots.length,
+			initializedPopoverRoots: roots.filter((root) => root._x_dataStack?.length > 0).length,
+			visiblePopovers: panels.filter((panel) => getComputedStyle(panel).display !== 'none' && panel.getClientRects().length > 0).length,
+			navigations: window.__margoBrandNavigations,
+			expanded: document.querySelector('[aria-label="More page actions"]')?.getAttribute('aria-expanded') || '',
+			panelStyle: panels[0]?.getAttribute('style') || '',
+			panelCloaked: panels[0]?.hasAttribute('x-cloak') || false,
+			popoverOpen: roots[0]?._x_dataStack?.some((state) => state.isOpen || state.openedWithKeyboard) || false,
+			brandUsesHTMX: document.querySelector('.component-doc-shell__brand')?.hasAttribute('hx-get') || false,
+		};
+	})()`, &state)); err != nil {
+		t.Fatal(err)
+	}
+	if state.MainRegions != 1 || state.PopoverRoots != 1 || state.InitializedPopoverRoots != 1 || state.VisiblePopovers != 0 || state.BrandUsesHTMX {
+		t.Fatalf("repeated brand navigation left duplicate or open page actions: %+v", state)
+	}
+}
+
+func TestMargoThemeLeavesLeadCodeStatic(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+	themeCSS, err := os.ReadFile(filepath.Join("..", "themes", "margo.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/margo.css" {
+			writer.Header().Set("Content-Type", "text/css; charset=utf-8")
+			_, _ = writer.Write(themeCSS)
+			return
+		}
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = writer.Write([]byte(`<!doctype html><html data-theme="margo"><head><link rel="stylesheet" href="/margo.css"></head><body><article class="margo-document"><p class="margo-document__lead">The <code>margo</code> command</p></article></body></html>`))
+	}))
+	defer server.Close()
+
+	allocatorContext, cancelAllocator := chromedp.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 15*time.Second)
+	defer cancel()
+	var animationName string
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL),
+		chromedp.WaitVisible(`.margo-document__lead code`, chromedp.ByQuery),
+		chromedp.Evaluate(`getComputedStyle(document.querySelector('.margo-document__lead code'), '::after').animationName`, &animationName),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if animationName != "none" {
+		t.Fatalf("lead code pseudo-element animation = %q, want none", animationName)
 	}
 }
 

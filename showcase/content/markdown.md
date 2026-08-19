@@ -10,11 +10,11 @@ margo:
 
 # Markdown compiler
 
-Margo starts with ordinary Markdown. The root package exposes a small pipeline:
-compile a source document, render it for a target, and choose the final HTML
-shape at the host boundary.
+Start with ordinary Markdown. Margo compiles the source into a semantic
+document, renders it for a target, then lets the host choose the final page
+shape.
 
-## The Go path
+## Compile in Go
 
 ```go
 compiler := margo.New()
@@ -38,9 +38,8 @@ if err != nil {
 }
 ```
 
-The compiler owns Markdown parsing and document semantics. The application still
-owns where a page lives, how navigation is composed, and which assets are
-served.
+The compiler owns Markdown parsing and document semantics. The application owns
+routes, navigation, assets, and publication.
 
 ## The authoring surface
 
@@ -55,16 +54,15 @@ language: en
 Write headings, links, tables, code, images, and Mermaid diagrams as Markdown.
 ```
 
-Ordinary local images, tables, Mermaid, and code do not require a policy file.
-Privileged raw HTML and iframe embeds are a separate, explicitly authorized
-surface; see [Policy](policy.md).
+Local images, tables, Mermaid, and code work without a policy file. Raw HTML and
+iframe embeds require explicit host authorization; see [Policy](policy.md).
 
-## Why this is useful
+## Use the compiled document
 
-- The same source can feed HTML, a site, a PDF, or a deck.
-- Metadata can travel with the document and still be overridden by an explicit
-  API or CLI option.
-- `margo.Check` can run before rendering when a workflow needs compatibility
-  findings without producing an artifact.
+- Render one source as HTML, a site, a PDF, or an experimental deck.
+- Carry metadata with the document, then override it through an explicit API or
+  CLI option.
+- Run `margo.Check` for compatibility findings without producing an artifact.
 
-The result is a content pipeline that is easy to embed and easy to inspect.
+These boundaries keep authoring input independent from application-owned
+presentation and delivery.

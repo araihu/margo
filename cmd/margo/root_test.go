@@ -19,7 +19,7 @@ func TestRootHelpListsCompleteSurface(t *testing.T) {
 	if err := cmd.ExecuteContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"check", "html", "site", "pdf", "deck", "doctor", "version", "help", "completion"} {
+	for _, name := range []string{"check", "html", "site", "serve", "pdf", "deck", "doctor", "version", "help", "completion"} {
 		if !strings.Contains(stdout.String(), name) {
 			t.Fatalf("help missing %q", name)
 		}
