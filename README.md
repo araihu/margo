@@ -167,6 +167,82 @@ from the file and also produce `sitemap.xml` and `llms.txt`. The configured
 output defaults to `dist` when omitted. See
 [`showcase.yaml`](showcase.yaml) for a complete configuration.
 
+### Semantic layouts and documentation families
+
+Configured sites can opt into semantic page layouts and documentation families.
+The page chooses a semantic name such as `landing` or `docs`; trusted site
+configuration maps that name to a frame implementation. Page content never
+names a raw frame, shell, executable command, or Go module. Site chrome owns the
+brand, global family navigation, search, controls, and footer, while the
+selected layout controls the page's structural presentation.
+
+The configuration shape is:
+
+```yaml
+layouts:
+  default: docs
+  profiles:
+    landing:
+      frame:
+        builtin: top-main-footer
+    docs:
+      frame:
+        builtin: top-left-main-right-footer
+
+navigation:
+  mode: file-tree
+  families:
+    - id: tour
+      label: Tour
+      source: .
+      overview: index.md
+      layout: landing
+    - id: module
+      label: Module
+      source: module
+      overview: module/index.md
+      layout: docs
+    - id: cli
+      label: CLI
+      source: cli
+      overview: cli/index.md
+      layout: docs
+```
+
+`layouts.default` must name an entry in `layouts.profiles`. A page can request
+an allowlisted profile with the closed Margo site preference:
+
+```yaml
+---
+margo:
+  site:
+    layout: landing
+---
+```
+
+Layout precedence is page `margo.site.layout`, then the active family's `layout`,
+then `layouts.default`. An unknown name is a preflight error; Margo
+does not silently fall back. A family source is matched against the
+locale-independent Markdown path with a most-specific, segment-aware source
+prefix, so `cli` matches `cli/index.md` but not `client/index.md`. Family
+declaration order controls global navigation order; search, `sitemap.xml`, and
+`llms.txt` include every configured family.
+
+The `landing` layout is for a conversion-oriented page: it has no sidebar,
+table of contents, breadcrumbs, pagination, or page-action toolbar. The `docs`
+layout provides family-local navigation, document context, and scoped
+pagination when neighbors exist. The Margo showcase publishes exactly three
+Markdown-generated routes: Tour at `/`, Module at `/module/`, and CLI at
+`/cli/`. The former root feature pages are retired. Retired Tour feature routes
+return HTTP 404, produce no artifacts, and have no redirect or hidden
+compatibility page.
+
+Sites without `layouts` and `navigation.families` retain their existing frame or
+shell behavior, including legacy top-level `frame` and `shell` configuration.
+Existing `componentdocshell` consumers remain supported.
+The new layout-profile mode is mutually exclusive with those top-level
+presentation authorities.
+
 ### Add page actions
 
 Pages can opt into source and download controls through frontmatter:

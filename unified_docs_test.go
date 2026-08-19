@@ -30,6 +30,23 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		"Its defaults are HTML to stdout, `--engine auto`, A4, portrait, and zero", "margins. PDF decks require",
 		"historical submodule tags", "docs/decisions/0001-unified-module-and-cli.md",
 		"docs/testing/pdf-engine-matrix.md",
+		"semantic page layouts and documentation families",
+		"layouts:\n  default: docs\n  profiles:",
+		"navigation:\n  mode: file-tree\n  families:",
+		"margo:\n  site:\n    layout: landing",
+		"page `margo.site.layout`",
+		"active family's `layout`",
+		"`layouts.default`",
+		"most-specific, segment-aware source",
+		"The `landing` layout is for",
+		"The `docs`",
+		"layout provides family-local navigation",
+		"Tour at `/`, Module at `/module/`, and CLI at",
+		"Retired Tour feature routes",
+		"return HTTP 404",
+		"produce no artifacts",
+		"Sites without `layouts` and `navigation.families` retain their existing frame or",
+		"Existing `componentdocshell` consumers remain supported",
 	} {
 		if !strings.Contains(readme, required) {
 			t.Fatalf("README missing %q", required)
