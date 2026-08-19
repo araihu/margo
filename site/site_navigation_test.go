@@ -12,7 +12,7 @@ func TestWithoutGoshtosoStylesheetDeduplicatesByRequirementIdentity(t *testing.T
 	markup := []byte(`<link rel="stylesheet" href="assets/styles.css"/><script src="assets/goshtoso.js"></script>`)
 	requirements := margo.HTMLRequirements{}
 	if got := string(withoutGoshtosoStylesheet(markup, requirements)); strings.Count(got, "styles.css") != 1 {
-		t.Fatalf("profile-only stylesheet count = %d, want one: %s", strings.Count(got, "styles.css"), got)
+		t.Fatalf("layout-only stylesheet count = %d, want one: %s", strings.Count(got, "styles.css"), got)
 	}
 
 	compiler := margo.New()

@@ -559,7 +559,7 @@ theme:
 	}
 }
 
-func TestBuildConfigRendersProfileSemanticChromePresenceAndAbsence(t *testing.T) {
+func TestBuildConfigRendersLayoutSemanticChromePresenceAndAbsence(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nChoose a documentation family.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule overview.\n")
@@ -575,7 +575,7 @@ source: docs
 assets: local
 site:
   name: Margo
-  description: Profile semantic fixture.
+  description: Layout semantic fixture.
   repository_url: https://github.com/araihu/margo
   base_url: https://margo.example
   home: index.md
@@ -1566,9 +1566,18 @@ Landing page.
 	}
 }
 
-func TestBuildConfigFamilyRejectsDeclaredFamilyWithoutDocsPage(t *testing.T) {
-	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+func TestBuildConfigFamilyEmptyDiagnosticUsesDeclarationIndex(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		families string
+		pointer  string
+	}{
+		{name: "implicit default", families: "[module, cli]", pointer: "/layout/default/families/1"},
+		{name: "explicit default", families: "[default, module, cli]", pointer: "/layout/default/families/2"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
 layout:
   kind: landing
 ---
@@ -1576,20 +1585,22 @@ layout:
 
 Landing page.
 `)
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nDocs page.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
-	writeTypedLayoutBuildConfig(t, root, `layout:
+			writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nDocs page.\n")
+			writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+			writeTypedLayoutBuildConfig(t, root, `layout:
   kind: docs
   default:
-    families: [module, cli]
+    families: `+test.families+`
 `)
-	configPath := filepath.Join(root, "site.yaml")
+			configPath := filepath.Join(root, "site.yaml")
 
-	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: configPath})
-	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
-		t.Fatalf("empty family returned partial result: %+v", result)
+			result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: configPath})
+			if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+				t.Fatalf("empty family returned partial result: %+v", result)
+			}
+			requirePresentationDiagnostic(t, err, "site.family_empty", configPath, test.pointer)
+		})
 	}
-	requirePresentationDiagnostic(t, err, "site.family_empty", configPath, "/layout/default/families/2")
 }
 
 func TestBuildConfigFamilyAllowsUnusedImplicitDefault(t *testing.T) {
@@ -1990,6 +2001,65 @@ theme:
 			}
 		}
 	})
+}
+
+func TestBuildConfigNonDocsLayoutsExcludeGoshtosoStylesAndPreserveTableSort(t *testing.T) {
+	for _, kind := range []LayoutKind{LayoutLanding, LayoutArticle} {
+		for _, assets := range []string{string(AssetsLocal), string(AssetsInline)} {
+			t.Run(string(kind)+"/"+assets, func(t *testing.T) {
+				root := t.TempDir()
+				writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Example\n\n| Name | Value |\n| --- | --- |\n| Margo | Site |\n")
+				copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+				copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+				writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: `+assets+`
+site:
+  name: Margo
+  description: Non-docs dependency fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: `+string(kind)+`
+`)
+
+				result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+				if err != nil {
+					t.Fatal(err)
+				}
+				page := string(configArtifact(t, result, "index.html"))
+				for _, forbidden := range []string{
+					`data-margo-requirement="goshtoso.styles"`,
+					"assets/styles.css",
+					"tailwindcss v4.3.3",
+					"--font-sans: -apple-system",
+				} {
+					if strings.Contains(page, forbidden) {
+						t.Fatalf("%s %s page contains Goshtoso stylesheet signature %q", kind, assets, forbidden)
+					}
+				}
+				if artifactExists(result, "assets/styles.css") {
+					t.Fatalf("%s %s build staged Goshtoso stylesheet", kind, assets)
+				}
+				for _, artifact := range result.Artifacts {
+					if strings.Contains(string(artifact.Content), "tailwindcss v4.3.3") || strings.Contains(string(artifact.Content), "--font-sans: -apple-system") {
+						t.Fatalf("%s %s artifact %q contains Goshtoso stylesheet bytes", kind, assets, artifact.Path)
+					}
+				}
+				if !strings.Contains(page, `data-margo-requirement="margo.table-sort"`) {
+					t.Fatalf("%s %s page lost semantic table-sort dependency: %s", kind, assets, page)
+				}
+				if assets == string(AssetsLocal) && !artifactExists(result, "margo-assets/table-sort.js") {
+					t.Fatalf("%s local build did not stage table-sort runtime", kind)
+				}
+			})
+		}
+	}
 }
 
 func preflightTypedLayoutBuild(t *testing.T, configPath string) *builder {

@@ -36,6 +36,8 @@ type Config struct {
 	Themes     []ThemeConfig            `yaml:"themes"`
 	CustomCSS  []CSSConfig              `yaml:"custom_css"`
 	Theme      ThemeSelection           `yaml:"theme"`
+
+	familySourceIndexes map[string]int
 }
 
 type SiteConfig struct {
@@ -158,10 +160,8 @@ func (config *Config) validate() error {
 			return diagnostic("site.base_path_invalid", err.Error(), "Use / or a normalized path such as /docs.", "")
 		}
 	}
-	if config.Site.BaseURL != "" {
-		if err := validateOrigin(config.Site.BaseURL); err != nil {
-			return diagnostic("site.base_url_invalid", err.Error(), "Use an absolute HTTPS origin without a path.", "")
-		}
+	if err := validateOrigin(config.Site.BaseURL); err != nil {
+		return diagnostic("site.base_url_invalid", err.Error(), "Use an absolute HTTPS origin without a path.", "")
 	}
 	if config.Site.Version != "" && (strings.ContainsAny(config.Site.Version, "\x00\r\n") || len([]byte(config.Site.Version)) > 64) {
 		return diagnostic("site.version_invalid", "site.version is empty, too long, or contains control characters", "Use a concise release or development label.", "site.version")
@@ -199,6 +199,7 @@ func (config *Config) validate() error {
 		if config.Frame != nil || config.Shell != nil {
 			return newPresentationDiagnostic("site.layout_conflict", "layout cannot be combined with frame or shell", "Remove frame or shell when using typed layout.", "/layout")
 		}
+		config.familySourceIndexes = declaredFamilySourceIndexes(config.Layout)
 		if err := validateSiteLayout(config.Layout); err != nil {
 			return err
 		}
@@ -273,6 +274,28 @@ func (config *Config) validate() error {
 		}
 	}
 	return nil
+}
+
+func declaredFamilySourceIndexes(layout *LayoutConfig) map[string]int {
+	if layout == nil || layout.Kind != LayoutDocs {
+		return nil
+	}
+	families, ok := layoutListValues(layout.Default["families"])
+	if !ok {
+		return nil
+	}
+	indexes := make(map[string]int, len(families))
+	for index, value := range families {
+		family, ok := value.(string)
+		if !ok {
+			continue
+		}
+		family = strings.TrimSpace(family)
+		if _, exists := indexes[family]; !exists {
+			indexes[family] = index
+		}
+	}
+	return indexes
 }
 
 func validateSiteLayout(layout *LayoutConfig) error {

@@ -743,11 +743,15 @@ func (b *builder) buildDocsFamilies(siteLayout ResolvedLayout) error {
 			byLocale[page.Locale] = append(byLocale[page.Locale], page)
 		}
 		if familyID != "default" && len(byLocale) == 0 {
+			sourceIndex := familyIndex
+			if declaredIndex, ok := b.config.familySourceIndexes[familyID]; ok {
+				sourceIndex = declaredIndex
+			}
 			return presentationSourceDiagnostic(newPresentationDiagnostic(
 				"site.family_empty",
 				fmt.Sprintf("docs family %q has no docs page", familyID),
 				"Add a docs page selecting this family or remove the declaration.",
-				fmt.Sprintf("/layout/default/families/%d", familyIndex),
+				fmt.Sprintf("/layout/default/families/%d", sourceIndex),
 			), b.configSource)
 		}
 
@@ -1298,15 +1302,20 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 	if b.request.Assets == AssetsInline {
 		mode = margo.HTMLDependenciesInline
 	}
-	if err := b.stageChartIconSprite(prepared.result.Requirements()); err != nil {
+	requirements := prepared.result.Requirements()
+	if err := b.stageChartIconSprite(requirements); err != nil {
 		return nil, err
 	}
-	requirements, err := margo.RenderHTMLDependencies(prepared.result.Requirements(), mode)
+	dependencies, err := margo.RenderHTMLDependencies(requirements, mode)
 	if err != nil {
 		return nil, err
 	}
+	excludeGoshtosoStyles := prepared.layout.Kind == LayoutLanding || prepared.layout.Kind == LayoutArticle
 	if b.request.Assets == AssetsLocal {
-		for _, requirement := range prepared.result.Requirements().List() {
+		for _, requirement := range requirements.List() {
+			if excludeGoshtosoStyles && requirement.ID == "goshtoso.styles" {
+				continue
+			}
 			assetPath := strings.TrimPrefix(requirement.LocalURL, "/")
 			if assetPath == "" || len(requirement.Inline.Content) == 0 {
 				continue
@@ -1317,7 +1326,31 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 			b.dependencies[strings.ToLower(assetPath)] = assetPath
 		}
 	}
-	return renderComponentBytes(requirements)
+	dependencyBytes, err := renderComponentBytes(dependencies)
+	if err != nil {
+		return nil, err
+	}
+	if excludeGoshtosoStyles {
+		dependencyBytes = withoutRenderedRequirement(dependencyBytes, "goshtoso.styles")
+	}
+	return dependencyBytes, nil
+}
+
+func withoutRenderedRequirement(markup []byte, requirementID string) []byte {
+	nodes, err := html.ParseFragment(bytes.NewReader(markup), &html.Node{Type: html.ElementNode, DataAtom: atom.Head, Data: "head"})
+	if err != nil {
+		return markup
+	}
+	var output bytes.Buffer
+	for _, node := range nodes {
+		if node.Type == html.ElementNode && attributeValue(node, "data-margo-requirement") == requirementID {
+			continue
+		}
+		if err := html.Render(&output, node); err != nil {
+			return markup
+		}
+	}
+	return output.Bytes()
 }
 
 func (b *builder) resolvedBindingsForPage(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {

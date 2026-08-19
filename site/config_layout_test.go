@@ -14,6 +14,7 @@ source: docs
 output: dist
 site:
   name: Example
+  base_url: https://margo.example
   logo: assets/logo.svg
   icon: assets/icon.svg
   social_image:
@@ -181,6 +182,25 @@ func TestLoadConfigRejectsTypedLayoutMixedWithLegacySelection(t *testing.T) {
 	}
 }
 
+func TestLoadConfigRejectsMissingBaseURL(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "site.yaml")
+	writeConfigFile(t, filename, `version: 1
+source: docs
+site:
+  name: Example
+  logo: assets/logo.svg
+  icon: assets/icon.svg
+  social_image:
+    path: assets/social.png
+    alt: Example documentation preview
+layout:
+  kind: docs
+`)
+
+	_, err := LoadConfig(filename)
+	requirePresentationDiagnostic(t, err, "site.base_url_invalid", filename, "")
+}
+
 func writeLayoutConfig(t *testing.T, extra string) string {
 	t.Helper()
 	filename := filepath.Join(t.TempDir(), "site.yaml")
@@ -188,6 +208,7 @@ func writeLayoutConfig(t *testing.T, extra string) string {
 source: docs
 site:
   name: Example
+  base_url: https://margo.example
   logo: assets/logo.svg
   icon: assets/icon.svg
   social_image:
