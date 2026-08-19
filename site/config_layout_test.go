@@ -168,9 +168,6 @@ func TestLoadConfigRejectsTypedLayoutMixedWithLegacySelection(t *testing.T) {
 	}{
 		{name: "frame", legacy: "frame:\n  builtin: top-main-footer\n"},
 		{name: "shell", legacy: "shell:\n  builtin: componentdocshell\n"},
-		{name: "profiles", legacy: "layouts: {}\n"},
-		{name: "families", legacy: "navigation:\n  families:\n    - id: docs\n"},
-		{name: "explicit empty families", legacy: "navigation:\n  families: []\n"},
 	}
 
 	for _, test := range tests {

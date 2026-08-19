@@ -20,8 +20,9 @@ func TestProfileDocsFrameResponsiveComputedStyles(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Tour\n\nTour documentation.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nTour documentation.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
@@ -38,28 +39,14 @@ site:
   social_image:
     path: assets/social.jpg
     alt: Margo preview
-layouts:
-  default: docs
-  profiles:
-    landing:
-      frame:
-        builtin: top-main-footer
-    docs:
-      frame:
-        builtin: top-left-main-right-footer
+layout:
+  kind: docs
+  default:
+    families: [module]
+  values:
+    family: default
 navigation:
   mode: file-tree
-  families:
-    - id: tour
-      label: Tour
-      source: .
-      overview: index.md
-      layout: landing
-    - id: module
-      label: Module
-      source: module
-      overview: module/index.md
-      layout: docs
 locales:
   default: en
   supported: [en]

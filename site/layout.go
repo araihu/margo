@@ -548,7 +548,7 @@ func layoutValuesIdentity(kind LayoutKind, values map[string]any) (string, error
 		return "", fmt.Errorf("site.layout_identity: %w", err)
 	}
 	hash := sha256.New()
-	_, _ = hash.Write([]byte("margo.site.layout-values/v1\x00"))
+	_, _ = hash.Write([]byte("margo.site.typed-layout-values/v1\x00"))
 	_, _ = hash.Write([]byte(kind))
 	_, _ = hash.Write([]byte{0})
 	_, _ = hash.Write(canonical.Bytes())

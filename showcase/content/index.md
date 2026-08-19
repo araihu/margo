@@ -2,6 +2,8 @@
 title: Margo
 description: A visual guide to Margo's Markdown compiler, Go module, and publishing CLI.
 language: en
+layout:
+  kind: landing
 ---
 
 # Margo

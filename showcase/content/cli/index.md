@@ -56,7 +56,7 @@ source paths, and remediation hints for CI.
 
 ## Configuration and policy layering
 
-`site.yaml` owns source/output paths, frame profiles, navigation, themes, base
+`site.yaml` owns source/output paths, typed layouts, navigation, themes, base
 paths, canonical identity, and artifact staging. Document frontmatter carries
 closed metadata and publication actions. Explicit CLI or API options take
 precedence where the contract allows it; host policy remains authoritative for

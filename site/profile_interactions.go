@@ -1,12 +1,12 @@
 package site
 
-const profileInteractionScriptPath = "margo-assets/site-navigation.js"
+const docsNavigationScriptPath = "margo-assets/site-navigation.js"
 
-// profileInteractionScript supplements the public Goshtoso search component
-// with profile-owned combobox state. Goshtoso continues to own rendering,
+// docsNavigationScript supplements the public Goshtoso search component with
+// docs-owned combobox state. Goshtoso continues to own rendering,
 // filtering, navigation, and dialog focus trapping; this script only mirrors
 // the state into ARIA and restores the invoking trigger after close.
-const profileInteractionScript = `(function () {
+const docsNavigationScript = `(function () {
   "use strict";
 
   var states = new WeakMap();

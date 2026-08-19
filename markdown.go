@@ -157,12 +157,6 @@ func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, er
 				metadata.Margo.Actions.PDFMode = PDFMode(value)
 			}
 		}
-		if siteValues, ok := margoValues["site"].(map[string]any); ok {
-			metadata.Margo.Site = &SitePreference{}
-			if value, ok := siteValues["layout"].(string); ok {
-				metadata.Margo.Site.Layout = value
-			}
-		}
 	}
 	known := map[string]struct{}{
 		"title": {}, "description": {}, "language": {}, "slug": {}, "authors": {},

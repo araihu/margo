@@ -170,63 +170,57 @@ output defaults to `dist` when omitted. See
 ### Semantic layouts and documentation families
 
 Configured sites can opt into semantic page layouts and documentation families.
-The page chooses a semantic name such as `landing` or `docs`; trusted site
-configuration maps that name to a frame implementation. Page content never
-names a raw frame, shell, executable command, or Go module. Site chrome owns the
-brand, global family navigation, search, controls, and footer, while the
-selected layout controls the page's structural presentation.
+The site selects one trusted layout kind: `article`, `landing`, or `docs`.
+Page content never names a raw frame, shell, executable command, or Go module.
+Only `docs` owns navigation chrome, search, sidebars, tables of contents,
+pagination, and documentation families.
 
 The configuration shape is:
 
 ```yaml
-layouts:
-  default: docs
-  profiles:
-    landing:
-      frame:
-        builtin: top-main-footer
-    docs:
-      frame:
-        builtin: top-left-main-right-footer
-
-navigation:
-  mode: file-tree
-  families:
-    - id: tour
-      label: Tour
-      source: .
-      overview: index.md
-      layout: landing
-    - id: module
-      label: Module
-      source: module
-      overview: module/index.md
-      layout: docs
-    - id: cli
-      label: CLI
-      source: cli
-      overview: cli/index.md
-      layout: docs
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+    sidebar: true
+    toc: true
+    content:
+      layout: article
+  values:
+    family: default
 ```
 
-`layouts.default` must name an entry in `layouts.profiles`. A page can request
-an allowlisted profile with the closed Margo site preference:
+`layout.default` declares site-only defaults for the selected kind.
+`layout.values` applies the site-level override patch. A directory can select a
+declared docs family in `_layout.yaml`:
+
+```yaml
+values:
+  family: module
+```
+
+The reserved `_layout.yaml` file is discovered from the source root through the
+page's nearest directory and is never published. A Markdown page can apply the
+final patch through top-level frontmatter:
 
 ```yaml
 ---
-margo:
-  site:
-    layout: landing
+layout:
+  kind: landing
 ---
 ```
 
-Layout precedence is page `margo.site.layout`, then the active family's `layout`,
-then `layouts.default`. An unknown name is a preflight error; Margo
-does not silently fall back. A family source is matched against the
-locale-independent Markdown path with a most-specific, segment-aware source
-prefix, so `cli` matches `cli/index.md` but not `client/index.md`. Family
-declaration order controls global navigation order; search, `sitemap.xml`, and
-`llms.txt` include every configured family.
+Resolution order is site defaults, directory patches from root to nearest, then
+Markdown frontmatter. Within one kind, maps merge recursively, scalars replace,
+and arrays replace completely. Changing `kind` creates a typed boundary: values
+from another kind do not cross it. Unknown kinds, properties, values, or docs
+families fail in preflight before artifacts are emitted.
+
+Docs families are declared centrally by `layout.default.families`. Directory
+and Markdown patches can select a family but cannot declare one. `default`
+always exists, family order controls secondary navigation, and non-default
+families must own at least one docs page. Landing and article pages have no
+family identity.
 
 The `landing` layout is for a conversion-oriented page: it has no sidebar,
 table of contents, breadcrumbs, pagination, or page-action toolbar. The `docs`
@@ -240,11 +234,9 @@ The former root feature pages are retired. Retired Tour feature routes
 return HTTP 404, produce no artifacts, and have no redirect or hidden
 compatibility page.
 
-Sites without `layouts` and `navigation.families` retain their existing frame or
-shell behavior, including legacy top-level `frame` and `shell` configuration.
-Existing `componentdocshell` consumers remain supported.
-The new layout-profile mode is mutually exclusive with those top-level
-presentation authorities.
+Sites without `layout` retain existing top-level `frame` or `shell` behavior.
+Existing `componentdocshell` consumers remain supported. Typed `layout` is
+mutually exclusive with those top-level presentation authorities.
 
 ### Add page actions
 

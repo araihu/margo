@@ -211,23 +211,6 @@
             }
           },
           "default": {}
-        },
-        "site": {
-          "description": "Optional site layout preference for the rendered document.",
-          "type": "object",
-          "additionalProperties": false,
-          "examples": [{"layout": "landing"}],
-          "x-margo-targets": ["site"],
-          "x-margo-precedence": "page margo.site.layout, then active family's layout, then layouts.default",
-          "properties": {
-            "layout": {
-              "description": "Preferred site layout identifier.",
-              "type": "string",
-              "x-margo-targets": ["site"],
-              "x-margo-precedence": "page margo.site.layout, then active family's layout, then layouts.default"
-            }
-          },
-          "default": {}
         }
       },
       "default": {}

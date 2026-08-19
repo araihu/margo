@@ -34,18 +34,17 @@ func TestWithoutGoshtosoStylesheetDeduplicatesByRequirementIdentity(t *testing.T
 	}
 }
 
-func TestProfilePageHeadEmitsGoshtosoStylesheetOnceWithoutDocumentStyle(t *testing.T) {
+func TestDocsPageHeadEmitsGoshtosoStylesheetOnceWithoutDocumentStyle(t *testing.T) {
 	builder := &builder{
-		profileMode: true,
-		config:      &Config{Site: SiteConfig{Name: "Margo", BaseURL: "https://margo.example"}},
+		config: &Config{Layout: &LayoutConfig{Kind: LayoutDocs}, Site: SiteConfig{Name: "Margo", BaseURL: "https://margo.example"}},
 	}
 	page := Page{Title: "Home", Description: "Margo docs", Canonical: "https://margo.example/"}
-	head, err := builder.renderPageHead(page, "", nil, margo.HTMLRequirements{})
+	head, err := builder.renderPageHeadForLayout(page, ResolvedLayout{Kind: LayoutDocs, dependencies: layoutDependencies{goshtosoNavigation: true}}, "", nil, margo.HTMLRequirements{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.Count(head, "styles.css"); got != 1 {
-		t.Fatalf("profile-only page head emits Goshtoso stylesheet %d times, want one: %s", got, head)
+		t.Fatalf("docs page head emits Goshtoso stylesheet %d times, want one: %s", got, head)
 	}
 }
 
@@ -156,7 +155,6 @@ func TestSiteNavigationFamilyNavbarSuppressesSingleEffectiveFamily(t *testing.T)
 
 func typedFamilyNavigationBuilder() *builder {
 	return &builder{
-		profileMode: true,
 		config: &Config{
 			Layout:  &LayoutConfig{Kind: LayoutDocs},
 			Site:    SiteConfig{Name: "Margo", BaseURL: "https://margo.example", Home: "index.md", Logo: "assets/logo.svg"},

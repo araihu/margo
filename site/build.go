@@ -113,8 +113,6 @@ type builder struct {
 	frameSchema      ssg.FrameSchema
 	frameHash        string
 	frameValues      ssg.Values
-	profileMode      bool
-	presentations    map[string]PagePresentation
 	layoutName       string
 	shellMode        bool
 	shellName        string
@@ -705,7 +703,7 @@ func (b *builder) publicOutputPath(output string, home bool) string {
 }
 
 func (b *builder) usesPublicRoutes() bool {
-	return b.profileMode || b.config != nil && b.config.Layout != nil
+	return b.config != nil && b.config.Layout != nil
 }
 
 func (b *builder) publicPagePath(source string) string {

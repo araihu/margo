@@ -22,8 +22,8 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-// siteNavigationFragment renders Margo's public site chrome for a configured
-// profile page. The component owns only semantic navigation data; Goshtoso
+// siteNavigationFragment renders Margo's public site chrome for a docs layout.
+// The component owns only semantic navigation data; Goshtoso
 // remains the owner of its internal markup and responsive behavior.
 func (b *builder) siteNavigationFragment(page Page) (string, error) {
 	searchConfig := b.siteSearchConfig(page.Locale)
@@ -75,47 +75,24 @@ func (b *builder) siteNavigationFragment(page Page) (string, error) {
 }
 
 func (b *builder) familySecondaryNavigation(page Page) *navbar.SecondaryConfig {
-	secondaryLinks := make([]navbar.SecondaryLink, 0)
-	if b.config.Layout != nil {
-		families := b.docsFamiliesForLocale(page.Locale)
-		if page.Layout != string(LayoutDocs) || len(families) <= 1 {
-			return nil
+	families := b.docsFamiliesForLocale(page.Locale)
+	if page.Layout != string(LayoutDocs) || len(families) <= 1 {
+		return nil
+	}
+	secondaryLinks := make([]navbar.SecondaryLink, 0, len(families))
+	for _, family := range families {
+		current := navbar.SecondaryCurrentNone
+		if family.ID == page.Family {
+			current = navbar.SecondaryCurrentLocation
 		}
-		secondaryLinks = make([]navbar.SecondaryLink, 0, len(families))
-		for _, family := range families {
-			current := navbar.SecondaryCurrentNone
-			if family.ID == page.Family {
-				current = navbar.SecondaryCurrentLocation
-			}
-			secondaryLinks = append(secondaryLinks, navbar.SecondaryLink{
-				Label:   family.Overview.Title,
-				Href:    b.sitePageHref(family.Overview),
-				Current: current,
-				LinkAttrs: templ.Attributes{
-					"data-margo-family-link": family.ID,
-				},
-			})
-		}
-	} else {
-		secondaryLinks = make([]navbar.SecondaryLink, 0, len(b.config.Navigation.Families))
-		for _, family := range b.config.Navigation.Families {
-			overview, ok := b.familyOverviewPage(page, family)
-			if !ok {
-				continue
-			}
-			current := navbar.SecondaryCurrentNone
-			if family.ID == page.Family {
-				current = navbar.SecondaryCurrentLocation
-			}
-			secondaryLinks = append(secondaryLinks, navbar.SecondaryLink{
-				Label:   family.Label,
-				Href:    b.sitePageHref(overview),
-				Current: current,
-				LinkAttrs: templ.Attributes{
-					"data-margo-family-link": family.ID,
-				},
-			})
-		}
+		secondaryLinks = append(secondaryLinks, navbar.SecondaryLink{
+			Label:   family.Overview.Title,
+			Href:    b.sitePageHref(family.Overview),
+			Current: current,
+			LinkAttrs: templ.Attributes{
+				"data-margo-family-link": family.ID,
+			},
+		})
 	}
 	return &navbar.SecondaryConfig{
 		Links:      secondaryLinks,
@@ -266,17 +243,8 @@ func (b *builder) familyNavigationFragment(page Page) (string, error) {
 		})
 	}
 	familyLabel := page.Family
-	if b.config.Layout != nil {
-		if family, ok := b.docsFamily(page.Locale, page.Family); ok {
-			familyLabel = family.Overview.Title
-		}
-	} else {
-		for _, family := range b.config.Navigation.Families {
-			if family.ID == page.Family {
-				familyLabel = family.Label
-				break
-			}
-		}
+	if family, ok := b.docsFamily(page.Locale, page.Family); ok {
+		familyLabel = family.Overview.Title
 	}
 	component := sidebar.Sidebar(sidebar.Config{
 		Sections: []sidebar.Section{{
@@ -387,7 +355,7 @@ func (b *builder) siteSearchConfig(locale string) search.Config {
 func (b *builder) familyPages(page Page) []Page {
 	pages := make([]Page, 0, len(b.configPages))
 	for _, candidate := range b.configPages {
-		if candidate.Locale == page.Locale && candidate.Family == page.Family && (b.config.Layout == nil || candidate.Layout == string(LayoutDocs)) {
+		if candidate.Locale == page.Locale && candidate.Family == page.Family && candidate.Layout == string(LayoutDocs) {
 			pages = append(pages, candidate)
 		}
 	}
@@ -397,31 +365,11 @@ func (b *builder) familyPages(page Page) []Page {
 	if len(pages) < 2 {
 		return pages
 	}
-	if b.config.Layout != nil {
-		family, ok := b.docsFamily(page.Locale, page.Family)
-		if !ok {
-			return pages
-		}
-		return moveFamilyOverviewFirst(pages, family.Overview.Source)
-	}
-	family, ok := b.familyConfig(page.Family)
+	family, ok := b.docsFamily(page.Locale, page.Family)
 	if !ok {
 		return pages
 	}
-	overviewRoute := routeKey(family.Overview, b.config.Locales)
-	overviewIndex := -1
-	for index, candidate := range pages {
-		if routeKey(candidate.Source, b.config.Locales) == overviewRoute {
-			overviewIndex = index
-			break
-		}
-	}
-	if overviewIndex > 0 {
-		overview := pages[overviewIndex]
-		copy(pages[1:overviewIndex+1], pages[0:overviewIndex])
-		pages[0] = overview
-	}
-	return pages
+	return moveFamilyOverviewFirst(pages, family.Overview.Source)
 }
 
 func moveFamilyOverviewFirst(pages []Page, overviewSource string) []Page {
@@ -459,25 +407,6 @@ func (b *builder) docsFamily(locale, id string) (docsFamily, bool) {
 	return docsFamily{}, false
 }
 
-func (b *builder) familyConfig(id string) (FamilyConfig, bool) {
-	for _, family := range b.config.Navigation.Families {
-		if family.ID == id {
-			return family, true
-		}
-	}
-	return FamilyConfig{}, false
-}
-
-func (b *builder) familyOverviewPage(page Page, family FamilyConfig) (Page, bool) {
-	overviewRoute := routeKey(family.Overview, b.config.Locales)
-	for _, candidate := range b.configPages {
-		if candidate.Locale == page.Locale && routeKey(candidate.Source, b.config.Locales) == overviewRoute {
-			return candidate, true
-		}
-	}
-	return Page{}, false
-}
-
 func (b *builder) siteHomeHref(page Page) string {
 	output := b.localeHomeOutput(page)
 	if page.Locale == b.config.Locales.Default {
@@ -496,7 +425,7 @@ func (b *builder) siteOutputHref(output string, home bool) string {
 }
 
 // stageGoshtosoNavigationAssets stages the public Goshtoso runtime required
-// by navbar, sidebar, and search. The profile path never imports demo/private
+// by navbar, sidebar, and search. The docs path never imports demo/private
 // App Shell assets.
 func (b *builder) stageGoshtosoNavigationAssets() error {
 	handler := goshtosoassets.Handler()
@@ -621,7 +550,7 @@ func canonicalResourceURL(value string) string {
 	return parsed.String()
 }
 
-func addProfileLayoutHook(fragment []byte, layout string) []byte {
+func addLayoutKindHook(fragment []byte, layout string) []byte {
 	if strings.TrimSpace(layout) == "" {
 		return fragment
 	}

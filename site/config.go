@@ -20,25 +20,22 @@ import (
 
 // Config is the v1 declarative documentation-site configuration.
 type Config struct {
-	Version        int              `yaml:"version"`
-	Source         string           `yaml:"source"`
-	Output         string           `yaml:"output"`
-	Assets         string           `yaml:"assets"`
-	Offline        *bool            `yaml:"offline"`
-	BasePath       string           `yaml:"base_path"`
-	Site           SiteConfig       `yaml:"site"`
-	Layout         *LayoutConfig    `yaml:"layout"`
-	Frame          *LayoutSelection `yaml:"frame"`
-	Shell          *LayoutSelection `yaml:"shell"`
-	Layouts        LayoutProfiles   `yaml:"layouts"`
-	layoutsPresent bool
-	familiesKeySet bool
-	Locales        LocaleConfig             `yaml:"locales"`
-	Navigation     NavigationConfig         `yaml:"navigation"`
-	Bindings       map[string]BindingConfig `yaml:"bindings"`
-	Themes         []ThemeConfig            `yaml:"themes"`
-	CustomCSS      []CSSConfig              `yaml:"custom_css"`
-	Theme          ThemeSelection           `yaml:"theme"`
+	Version    int                      `yaml:"version"`
+	Source     string                   `yaml:"source"`
+	Output     string                   `yaml:"output"`
+	Assets     string                   `yaml:"assets"`
+	Offline    *bool                    `yaml:"offline"`
+	BasePath   string                   `yaml:"base_path"`
+	Site       SiteConfig               `yaml:"site"`
+	Layout     *LayoutConfig            `yaml:"layout"`
+	Frame      *LayoutSelection         `yaml:"frame"`
+	Shell      *LayoutSelection         `yaml:"shell"`
+	Locales    LocaleConfig             `yaml:"locales"`
+	Navigation NavigationConfig         `yaml:"navigation"`
+	Bindings   map[string]BindingConfig `yaml:"bindings"`
+	Themes     []ThemeConfig            `yaml:"themes"`
+	CustomCSS  []CSSConfig              `yaml:"custom_css"`
+	Theme      ThemeSelection           `yaml:"theme"`
 }
 
 type SiteConfig struct {
@@ -79,9 +76,8 @@ type LocaleConfig struct {
 }
 
 type NavigationConfig struct {
-	Mode     string         `yaml:"mode"`
-	Exclude  []string       `yaml:"exclude"`
-	Families []FamilyConfig `yaml:"families"`
+	Mode    string   `yaml:"mode"`
+	Exclude []string `yaml:"exclude"`
 }
 
 type BindingConfig struct {
@@ -126,8 +122,6 @@ func LoadConfig(filename string) (Config, error) {
 	if err := decoder.Decode(&config); err != nil {
 		return Config{}, diagnostic("site.config_invalid", err.Error(), "Correct site.yaml and rebuild.", filename)
 	}
-	config.layoutsPresent = yamlKeyPresent(data, "layouts")
-	config.familiesKeySet = yamlKeyPresent(data, "navigation", "families")
 	var trailing any
 	if err := decoder.Decode(&trailing); err == nil {
 		return Config{}, diagnostic("site.config_invalid", "site.yaml contains more than one YAML document", "Keep one configuration document.", filename)
@@ -138,31 +132,6 @@ func LoadConfig(filename string) (Config, error) {
 		return Config{}, attachConfigPath(err, filename)
 	}
 	return config, nil
-}
-
-func yamlKeyPresent(data []byte, keys ...string) bool {
-	var document yaml.Node
-	if err := yaml.Unmarshal(data, &document); err != nil || len(document.Content) == 0 {
-		return false
-	}
-	node := document.Content[0]
-	for _, wanted := range keys {
-		if node.Kind != yaml.MappingNode {
-			return false
-		}
-		found := false
-		for index := 0; index+1 < len(node.Content); index += 2 {
-			if node.Content[index].Value == wanted {
-				node = node.Content[index+1]
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return len(keys) > 0
 }
 
 func (config *Config) validate() error {
@@ -226,24 +195,11 @@ func (config *Config) validate() error {
 		offline := true
 		config.Offline = &offline
 	}
-	legacyPresentationMode := config.Layouts.Default != "" || len(config.Layouts.Profiles) > 0 || len(config.Navigation.Families) > 0
-	legacyPresentationMode = legacyPresentationMode || config.layoutsPresent || config.familiesKeySet
 	if config.Layout != nil {
-		if config.Frame != nil || config.Shell != nil || legacyPresentationMode {
-			return newPresentationDiagnostic("site.layout_conflict", "layout cannot be combined with legacy frame, shell, layouts, or navigation families", "Remove the legacy layout selection.", "/layout")
+		if config.Frame != nil || config.Shell != nil {
+			return newPresentationDiagnostic("site.layout_conflict", "layout cannot be combined with frame or shell", "Remove frame or shell when using typed layout.", "/layout")
 		}
 		if err := validateSiteLayout(config.Layout); err != nil {
-			return err
-		}
-	}
-	if legacyPresentationMode {
-		if config.Frame != nil || config.Shell != nil {
-			return newPresentationDiagnostic("site.layout_conflict", "layouts cannot be combined with top-level frame or shell", "Remove layouts or select one legacy top-level layout.", "/layouts")
-		}
-		if err := validateLayoutProfiles(&config.Layouts); err != nil {
-			return err
-		}
-		if err := validateFamilyConfigs(&config.Layouts, &config.Navigation); err != nil {
 			return err
 		}
 	}
@@ -409,130 +365,6 @@ func validateLayoutSelection(selection LayoutSelection, shell bool) error {
 		return diagnostic("site.layout_values_invalid", "componentdocshell does not expose builtin structural values", "Remove shell.values or use a frame with published option paths.", "shell.values")
 	}
 	return nil
-}
-
-func validateLayoutProfiles(layouts *LayoutProfiles) error {
-	if layouts == nil {
-		return nil
-	}
-	layouts.Default = strings.TrimSpace(layouts.Default)
-	if layouts.Default == "" {
-		return newPresentationDiagnostic("site.layout_default_required", "layouts.default is required when layout profiles are configured", "Set layouts.default to one of layouts.profiles.", "/layouts/default")
-	}
-	if len(layouts.Profiles) == 0 {
-		return newPresentationDiagnostic("site.layout_profiles_required", "layouts.profiles must declare at least one profile", "Declare a built-in frame under layouts.profiles.", "/layouts/profiles")
-	}
-	normalized := make(map[string]LayoutProfile, len(layouts.Profiles))
-	for rawName, profile := range layouts.Profiles {
-		name := strings.TrimSpace(rawName)
-		if name == "" {
-			return newPresentationDiagnostic("site.layout_profile_invalid", "layout profile names must not be empty", "Use a non-empty semantic profile name.", "/layouts/profiles")
-		}
-		if _, exists := normalized[name]; exists {
-			return newPresentationDiagnostic("site.layout_profile_duplicate", fmt.Sprintf("layout profile %q is declared more than once after trimming", name), "Use one name per layout profile.", "/layouts/profiles")
-		}
-		normalized[name] = profile
-		selection := profile.Frame
-		pointer := "/layouts/profiles/" + name + "/frame"
-		if err := validateLayoutSelection(selection, false); err != nil {
-			return pointerDiagnostic(err, pointer)
-		}
-		if selection.Builtin == "" {
-			return newPresentationDiagnostic("site.layout_unavailable", fmt.Sprintf("layout profile %q must select a builtin frame", name), "Use frame.builtin; external frame distributions are not supported in profile mode.", pointer)
-		}
-		if selection.Command != "" || selection.GoModule != nil {
-			return newPresentationDiagnostic("site.layout_unavailable", fmt.Sprintf("layout profile %q uses an unsupported external frame distribution", name), "Use frame.builtin; external frame distributions are not supported in profile mode.", pointer)
-		}
-	}
-	layouts.Profiles = normalized
-	if _, exists := layouts.Profiles[layouts.Default]; !exists {
-		return newPresentationDiagnostic("site.layout_unknown", fmt.Sprintf("layouts.default %q is not declared in layouts.profiles", layouts.Default), "Set layouts.default to a declared profile name.", "/layouts/default")
-	}
-	return nil
-}
-
-func validateFamilyConfigs(layouts *LayoutProfiles, navigation *NavigationConfig) error {
-	if navigation == nil {
-		return nil
-	}
-	seenIDs := make(map[string]int, len(navigation.Families))
-	seenRoots := make(map[string]int, len(navigation.Families))
-	for index := range navigation.Families {
-		family := &navigation.Families[index]
-		family.ID = strings.TrimSpace(family.ID)
-		family.Label = strings.TrimSpace(family.Label)
-		family.Layout = strings.TrimSpace(family.Layout)
-		if family.ID == "" {
-			return newPresentationDiagnostic("site.family_invalid", "family id is required", "Declare a stable non-empty family id.", fmt.Sprintf("/navigation/families/%d/id", index))
-		}
-		if previous, exists := seenIDs[family.ID]; exists {
-			return newPresentationDiagnostic("site.family_duplicate", fmt.Sprintf("family id %q is declared more than once (entries %d and %d)", family.ID, previous, index), "Use one id per navigation family.", fmt.Sprintf("/navigation/families/%d/id", index))
-		}
-		seenIDs[family.ID] = index
-		if family.Label == "" {
-			return newPresentationDiagnostic("site.family_label_required", fmt.Sprintf("family %q label is required", family.ID), "Declare the human-readable family label.", fmt.Sprintf("/navigation/families/%d/label", index))
-		}
-		root, err := normalizeFamilySource(family.Source)
-		if err != nil {
-			return newPresentationDiagnostic("site.family_source_invalid", fmt.Sprintf("family %q source is invalid: %v", family.ID, err), "Use a normalized relative directory such as . or module.", fmt.Sprintf("/navigation/families/%d/source", index))
-		}
-		family.Source = root
-		if previous, exists := seenRoots[root]; exists {
-			return newPresentationDiagnostic("site.family_source_duplicate", fmt.Sprintf("family source %q is declared more than once (entries %d and %d)", root, previous, index), "Use one family per normalized source prefix.", fmt.Sprintf("/navigation/families/%d/source", index))
-		}
-		seenRoots[root] = index
-		if family.Overview == "" {
-			return newPresentationDiagnostic("site.family_overview_required", fmt.Sprintf("family %q overview is required", family.ID), "Declare the overview Markdown source inside the family root.", fmt.Sprintf("/navigation/families/%d/overview", index))
-		}
-		overview, valid := validSourcePath(family.Overview)
-		if !valid || !familyRootMatches(root, overview) {
-			return newPresentationDiagnostic("site.family_overview_invalid", fmt.Sprintf("family %q overview %q must be a normalized Markdown path inside source %q", family.ID, family.Overview, root), "Use a Markdown overview below the configured family source root.", fmt.Sprintf("/navigation/families/%d/overview", index))
-		}
-		family.Overview = overview
-		if family.Layout != "" {
-			if _, exists := layouts.Profiles[family.Layout]; !exists {
-				return newPresentationDiagnostic("site.layout_unknown", fmt.Sprintf("family %q selects unknown layout profile %q", family.ID, family.Layout), "Set family.layout to a declared layouts.profiles name.", fmt.Sprintf("/navigation/families/%d/layout", index))
-			}
-		}
-	}
-	return nil
-}
-
-func normalizeFamilySource(value string) (string, error) {
-	if value == "" {
-		return "", fmt.Errorf("source is required")
-	}
-	if strings.TrimSpace(value) != value || strings.HasPrefix(value, "/") || strings.ContainsAny(value, "\\\x00\r\n") {
-		return "", fmt.Errorf("source must be a normalized relative directory")
-	}
-	for _, segment := range strings.Split(value, "/") {
-		if segment == ".." {
-			return "", fmt.Errorf("source must not contain parent path segments")
-		}
-	}
-	cleaned := path.Clean(value)
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || cleaned == "" {
-		return "", fmt.Errorf("source must not escape the site root")
-	}
-	if cleaned == "." {
-		return ".", nil
-	}
-	if !validConfigPath(cleaned) {
-		return "", fmt.Errorf("source must be a normalized relative directory")
-	}
-	return cleaned, nil
-}
-
-func pointerDiagnostic(err error, pointer string) error {
-	var diagnosticError *margo.DiagnosticError
-	if errors.As(err, &diagnosticError) && pointer != "" {
-		for index := range diagnosticError.Diagnostics {
-			if diagnosticError.Diagnostics[index].Pointer == "" {
-				diagnosticError.Diagnostics[index].Pointer = pointer
-			}
-		}
-	}
-	return err
 }
 
 func validateLocales(config LocaleConfig) error {

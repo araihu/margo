@@ -63,18 +63,10 @@ func TestFrontmatterRejectsUnknownMargoFieldAtSourcePosition(t *testing.T) {
 	}
 }
 
-func TestFrontmatterRejectsUnknownMargoSiteField(t *testing.T) {
+func TestFrontmatterRejectsRemovedMargoSiteField(t *testing.T) {
 	_, err := New().Compile(context.Background(), Source{Name: "typo.md", Content: []byte("---\nmargo:\n  site:\n    mystery: true\n---\n# Typo")})
 	diagnostic := unwrapDiagnostic(err)
-	if diagnostic == nil || diagnostic.Diagnostics[0].Code != "frontmatter.schema_invalid" || diagnostic.Diagnostics[0].Pointer != "/margo/site" {
-		t.Fatalf("diagnostic = %#v, error = %v", diagnostic, err)
-	}
-}
-
-func TestFrontmatterRejectsNonStringSiteLayout(t *testing.T) {
-	_, err := New().Compile(context.Background(), Source{Name: "layout.md", Content: []byte("---\nmargo:\n  site:\n    layout: 42\n---\n# Layout")})
-	diagnostic := unwrapDiagnostic(err)
-	if diagnostic == nil || diagnostic.Diagnostics[0].Code != "frontmatter.schema_invalid" || diagnostic.Diagnostics[0].Pointer != "/margo/site/layout" {
+	if diagnostic == nil || diagnostic.Diagnostics[0].Code != "frontmatter.schema_invalid" || diagnostic.Diagnostics[0].Pointer != "/margo" {
 		t.Fatalf("diagnostic = %#v, error = %v", diagnostic, err)
 	}
 }

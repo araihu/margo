@@ -32,13 +32,13 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		"historical submodule tags", "docs/decisions/0001-unified-module-and-cli.md",
 		"docs/testing/pdf-engine-matrix.md",
 		"semantic page layouts and documentation families",
-		"layouts:\n  default: docs\n  profiles:",
-		"navigation:\n  mode: file-tree\n  families:",
-		"margo:\n  site:\n    layout: landing",
-		"page `margo.site.layout`",
-		"active family's `layout`",
-		"`layouts.default`",
-		"most-specific, segment-aware source",
+		"layout:\n  kind: docs\n  default:",
+		"`layout.default.families`",
+		"`_layout.yaml`",
+		"site defaults, directory patches from root to nearest",
+		"maps merge recursively",
+		"Changing `kind` creates a typed boundary",
+		"Landing and article pages have no",
 		"The `landing` layout is for",
 		"The `docs`",
 		"layout provides family-local navigation",
@@ -49,7 +49,7 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		"Retired Tour feature routes",
 		"return HTTP 404",
 		"produce no artifacts",
-		"Sites without `layouts` and `navigation.families` retain their existing frame or",
+		"Sites without `layout` retain existing top-level `frame` or `shell` behavior.",
 		"Existing `componentdocshell` consumers remain supported",
 	} {
 		if !strings.Contains(readme, required) {
@@ -80,7 +80,7 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 	}
 }
 
-func TestDocumentSchemaPublishesSiteLayoutPrecedenceContract(t *testing.T) {
+func TestDocumentSchemaOmitsRemovedSiteLayoutPreference(t *testing.T) {
 	data, err := os.ReadFile("schema/v1/document.json")
 	if err != nil {
 		t.Fatal(err)
@@ -101,26 +101,9 @@ func TestDocumentSchemaPublishesSiteLayoutPrecedenceContract(t *testing.T) {
 	if !ok {
 		t.Fatal("margo schema has no properties object")
 	}
-	siteProperty, ok := margoProperties["site"].(map[string]any)
-	if !ok {
-		t.Fatal("margo schema has no site property")
+	if _, exists := margoProperties["site"]; exists {
+		t.Fatal("document schema retains removed margo.site layout preference")
 	}
-	want := "page margo.site.layout, then active family's layout, then layouts.default"
-	for name, property := range map[string]map[string]any{"site": siteProperty, "layout": sitePropertyProperties(siteProperty)} {
-		got, _ := property["x-margo-precedence"].(string)
-		if got != want {
-			t.Fatalf("%s precedence = %q, want %q", name, got, want)
-		}
-		if strings.Contains(got, "CLI") || strings.Contains(got, "API") {
-			t.Fatalf("%s precedence delegates authority to CLI/API: %q", name, got)
-		}
-	}
-}
-
-func sitePropertyProperties(siteProperty map[string]any) map[string]any {
-	properties, _ := siteProperty["properties"].(map[string]any)
-	layout, _ := properties["layout"].(map[string]any)
-	return layout
 }
 
 func TestPDFEngineMatrixSeparatesEvidenceFromVersionPolicy(t *testing.T) {
