@@ -20,22 +20,23 @@ import (
 
 // Config is the v1 declarative documentation-site configuration.
 type Config struct {
-	Version    int                      `yaml:"version"`
-	Source     string                   `yaml:"source"`
-	Output     string                   `yaml:"output"`
-	Assets     string                   `yaml:"assets"`
-	Offline    *bool                    `yaml:"offline"`
-	BasePath   string                   `yaml:"base_path"`
-	Site       SiteConfig               `yaml:"site"`
-	Frame      *LayoutSelection         `yaml:"frame"`
-	Shell      *LayoutSelection         `yaml:"shell"`
-	Layouts    LayoutProfiles           `yaml:"layouts"`
-	Locales    LocaleConfig             `yaml:"locales"`
-	Navigation NavigationConfig         `yaml:"navigation"`
-	Bindings   map[string]BindingConfig `yaml:"bindings"`
-	Themes     []ThemeConfig            `yaml:"themes"`
-	CustomCSS  []CSSConfig              `yaml:"custom_css"`
-	Theme      ThemeSelection           `yaml:"theme"`
+	Version        int              `yaml:"version"`
+	Source         string           `yaml:"source"`
+	Output         string           `yaml:"output"`
+	Assets         string           `yaml:"assets"`
+	Offline        *bool            `yaml:"offline"`
+	BasePath       string           `yaml:"base_path"`
+	Site           SiteConfig       `yaml:"site"`
+	Frame          *LayoutSelection `yaml:"frame"`
+	Shell          *LayoutSelection `yaml:"shell"`
+	Layouts        LayoutProfiles   `yaml:"layouts"`
+	layoutsPresent bool
+	Locales        LocaleConfig             `yaml:"locales"`
+	Navigation     NavigationConfig         `yaml:"navigation"`
+	Bindings       map[string]BindingConfig `yaml:"bindings"`
+	Themes         []ThemeConfig            `yaml:"themes"`
+	CustomCSS      []CSSConfig              `yaml:"custom_css"`
+	Theme          ThemeSelection           `yaml:"theme"`
 }
 
 type SiteConfig struct {
@@ -123,6 +124,7 @@ func LoadConfig(filename string) (Config, error) {
 	if err := decoder.Decode(&config); err != nil {
 		return Config{}, diagnostic("site.config_invalid", err.Error(), "Correct site.yaml and rebuild.", filename)
 	}
+	config.layoutsPresent = yamlTopLevelKey(data, "layouts")
 	var trailing any
 	if err := decoder.Decode(&trailing); err == nil {
 		return Config{}, diagnostic("site.config_invalid", "site.yaml contains more than one YAML document", "Keep one configuration document.", filename)
@@ -133,6 +135,23 @@ func LoadConfig(filename string) (Config, error) {
 		return Config{}, attachConfigPath(err, filename)
 	}
 	return config, nil
+}
+
+func yamlTopLevelKey(data []byte, wanted string) bool {
+	var document yaml.Node
+	if err := yaml.Unmarshal(data, &document); err != nil || len(document.Content) == 0 {
+		return false
+	}
+	root := document.Content[0]
+	if root.Kind != yaml.MappingNode {
+		return false
+	}
+	for index := 0; index+1 < len(root.Content); index += 2 {
+		if root.Content[index].Value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func (config *Config) validate() error {
@@ -195,6 +214,7 @@ func (config *Config) validate() error {
 		config.Offline = &offline
 	}
 	presentationMode := config.Layouts.Default != "" || len(config.Layouts.Profiles) > 0 || len(config.Navigation.Families) > 0
+	presentationMode = presentationMode || config.layoutsPresent
 	if presentationMode {
 		if config.Frame != nil || config.Shell != nil {
 			return newPresentationDiagnostic("site.layout_conflict", "layouts cannot be combined with top-level frame or shell", "Remove layouts or select one legacy top-level layout.", "/layouts")
@@ -424,8 +444,10 @@ func normalizeFamilySource(value string) (string, error) {
 	if strings.TrimSpace(value) != value || strings.HasPrefix(value, "/") || strings.ContainsAny(value, "\\\x00\r\n") {
 		return "", fmt.Errorf("source must be a normalized relative directory")
 	}
-	if value == ".." || strings.HasPrefix(value, "../") || strings.Contains(value, "/../") {
-		return "", fmt.Errorf("source must not contain parent path segments")
+	for _, segment := range strings.Split(value, "/") {
+		if segment == ".." {
+			return "", fmt.Errorf("source must not contain parent path segments")
+		}
 	}
 	cleaned := path.Clean(value)
 	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || cleaned == "" {

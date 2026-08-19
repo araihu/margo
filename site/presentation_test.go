@@ -2,6 +2,7 @@ package site
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -121,6 +122,52 @@ func TestValidateRejectsLayoutsWithTopLevelFrame(t *testing.T) {
 	}
 }
 
+func TestLoadConfigTreatsExplicitEmptyLayoutsAsProfileMode(t *testing.T) {
+	root := t.TempDir()
+	filename := filepath.Join(root, "site.yaml")
+	writeConfigFile(t, filename, `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/icon.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layouts: {}
+`)
+	_, err := LoadConfig(filename)
+	diagnostic := presentationDiagnostic(t, err)
+	if diagnostic.Code != "site.layout_default_required" || diagnostic.Pointer != "/layouts/default" {
+		t.Fatalf("diagnostic = %+v", diagnostic)
+	}
+}
+
+func TestLoadConfigRejectsExplicitEmptyLayoutsWithLegacyFrame(t *testing.T) {
+	root := t.TempDir()
+	filename := filepath.Join(root, "site.yaml")
+	writeConfigFile(t, filename, `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/icon.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+frame:
+  builtin: top-main-footer
+layouts: {}
+`)
+	_, err := LoadConfig(filename)
+	diagnostic := presentationDiagnostic(t, err)
+	if diagnostic.Code != "site.layout_conflict" || diagnostic.Pointer != "/layouts" {
+		t.Fatalf("diagnostic = %+v", diagnostic)
+	}
+}
+
 func TestValidateRejectsLayoutProfileWithoutBuiltinFrame(t *testing.T) {
 	config := validPresentationConfig()
 	config.Layouts = LayoutProfiles{Default: "docs", Profiles: map[string]LayoutProfile{"docs": {}}}
@@ -190,6 +237,12 @@ func TestValidateRejectsInvalidFamilySourceAndOverview(t *testing.T) {
 	diagnostic = presentationDiagnostic(t, config.validate())
 	if diagnostic.Code != "site.family_source_invalid" || diagnostic.Pointer != "/navigation/families/0/source" {
 		t.Fatalf("parent source diagnostic = %+v", diagnostic)
+	}
+
+	config.Navigation.Families[0].Source = "docs/.."
+	diagnostic = presentationDiagnostic(t, config.validate())
+	if diagnostic.Code != "site.family_source_invalid" || diagnostic.Pointer != "/navigation/families/0/source" {
+		t.Fatalf("terminal parent source diagnostic = %+v", diagnostic)
 	}
 
 	config.Navigation.Families[0].Source = "docs"
