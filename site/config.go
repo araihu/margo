@@ -32,6 +32,7 @@ type Config struct {
 	Shell          *LayoutSelection `yaml:"shell"`
 	Layouts        LayoutProfiles   `yaml:"layouts"`
 	layoutsPresent bool
+	familiesKeySet bool
 	Locales        LocaleConfig             `yaml:"locales"`
 	Navigation     NavigationConfig         `yaml:"navigation"`
 	Bindings       map[string]BindingConfig `yaml:"bindings"`
@@ -125,7 +126,8 @@ func LoadConfig(filename string) (Config, error) {
 	if err := decoder.Decode(&config); err != nil {
 		return Config{}, diagnostic("site.config_invalid", err.Error(), "Correct site.yaml and rebuild.", filename)
 	}
-	config.layoutsPresent = yamlTopLevelKey(data, "layouts")
+	config.layoutsPresent = yamlKeyPresent(data, "layouts")
+	config.familiesKeySet = yamlKeyPresent(data, "navigation", "families")
 	var trailing any
 	if err := decoder.Decode(&trailing); err == nil {
 		return Config{}, diagnostic("site.config_invalid", "site.yaml contains more than one YAML document", "Keep one configuration document.", filename)
@@ -138,21 +140,29 @@ func LoadConfig(filename string) (Config, error) {
 	return config, nil
 }
 
-func yamlTopLevelKey(data []byte, wanted string) bool {
+func yamlKeyPresent(data []byte, keys ...string) bool {
 	var document yaml.Node
 	if err := yaml.Unmarshal(data, &document); err != nil || len(document.Content) == 0 {
 		return false
 	}
-	root := document.Content[0]
-	if root.Kind != yaml.MappingNode {
-		return false
-	}
-	for index := 0; index+1 < len(root.Content); index += 2 {
-		if root.Content[index].Value == wanted {
-			return true
+	node := document.Content[0]
+	for _, wanted := range keys {
+		if node.Kind != yaml.MappingNode {
+			return false
+		}
+		found := false
+		for index := 0; index+1 < len(node.Content); index += 2 {
+			if node.Content[index].Value == wanted {
+				node = node.Content[index+1]
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
 		}
 	}
-	return false
+	return len(keys) > 0
 }
 
 func (config *Config) validate() error {
@@ -217,7 +227,7 @@ func (config *Config) validate() error {
 		config.Offline = &offline
 	}
 	legacyPresentationMode := config.Layouts.Default != "" || len(config.Layouts.Profiles) > 0 || len(config.Navigation.Families) > 0
-	legacyPresentationMode = legacyPresentationMode || config.layoutsPresent
+	legacyPresentationMode = legacyPresentationMode || config.layoutsPresent || config.familiesKeySet
 	if config.Layout != nil {
 		if config.Frame != nil || config.Shell != nil || legacyPresentationMode {
 			return newPresentationDiagnostic("site.layout_conflict", "layout cannot be combined with legacy frame, shell, layouts, or navigation families", "Remove the legacy layout selection.", "/layout")
