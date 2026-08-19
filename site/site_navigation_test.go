@@ -175,7 +175,7 @@ func TestTOCFragmentUsesOneNativeResponsiveDrawer(t *testing.T) {
 	for _, want := range []string{
 		`<details class="margo-toc-drawer" data-margo-toc-drawer="true">`,
 		`<summary data-margo-toc-summary="true">On this page</summary>`,
-		`<nav class="margo-toc" aria-label="On this page" data-margo-toc="true">`,
+		`<nav class="margo-toc" aria-label="On this page" data-margo-toc="true"><p class="margo-toc-title" data-margo-toc-title="true">On this page</p>`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("TOC missing responsive drawer semantic %q: %s", want, markup)
@@ -184,8 +184,8 @@ func TestTOCFragmentUsesOneNativeResponsiveDrawer(t *testing.T) {
 	if got := strings.Count(markup, `data-margo-toc-link=`); got != 2 {
 		t.Fatalf("TOC link count = %d, want one projection of each heading: %s", got, markup)
 	}
-	if strings.Contains(markup, `class="margo-toc-title"`) {
-		t.Fatalf("TOC retained duplicate rail title inside drawer: %s", markup)
+	if got := strings.Count(markup, `data-margo-toc-title="true"`); got != 1 {
+		t.Fatalf("desktop rail title count = %d, want one: %s", got, markup)
 	}
 }
 

@@ -179,6 +179,10 @@ func TestLayoutBrowser(t *testing.T) {
 			DrawerOpen        bool    `json:"drawerOpen"`
 			SummaryVisible    bool    `json:"summaryVisible"`
 			TOCVisible        bool    `json:"tocVisible"`
+			TOCTitleVisible   bool    `json:"tocTitleVisible"`
+			ActiveElementID   string  `json:"activeElementID"`
+			ActiveTabIndex    string  `json:"activeTabIndex"`
+			LocationHash      string  `json:"locationHash"`
 			MobileMenuVisible bool    `json:"mobileMenuVisible"`
 			MobileLinkCount   int     `json:"mobileLinkCount"`
 			MobileActiveCount int     `json:"mobileActiveCount"`
@@ -193,6 +197,7 @@ func TestLayoutBrowser(t *testing.T) {
 			const drawer = drawerArea?.querySelector('[data-margo-toc-drawer="true"]');
 			const summary = drawer?.querySelector('[data-margo-toc-summary="true"]');
 			const toc = drawer?.querySelector('[data-margo-toc="true"]');
+			const tocTitle = drawer?.querySelector('[data-margo-toc-title="true"]');
 			const mobileMenu = nav?.querySelector('[data-margo-mobile-menu="true"]');
 			const mobileLinks = [...(mobileMenu?.querySelectorAll('[data-margo-family-page-link]') || [])];
 			const rect = (node) => node?.getBoundingClientRect() || {left: 0, right: 0, width: 0, height: 0, bottom: 0};
@@ -209,6 +214,10 @@ func TestLayoutBrowser(t *testing.T) {
 				drawerOpen: !!drawer?.open,
 				summaryVisible: visible(summary),
 				tocVisible: visible(toc),
+				tocTitleVisible: visible(tocTitle),
+				activeElementID: document.activeElement?.id || '',
+				activeTabIndex: document.activeElement?.getAttribute('tabindex') || '',
+				locationHash: location.hash,
 				mobileMenuVisible: visible(mobileMenu),
 				mobileLinkCount: mobileLinks.length,
 				mobileActiveCount: mobileLinks.filter((link) => link.getAttribute('aria-current') === 'page').length,
@@ -225,7 +234,7 @@ func TestLayoutBrowser(t *testing.T) {
 		if state.TriggerWidth < 44 || state.TriggerHeight < 44 || state.TriggerRight > state.NavbarRight+1 || state.TriggerLeft < state.LeftActionsRight-1 {
 			t.Fatalf("612px mobile trigger is misplaced or overlapping: %+v", state)
 		}
-		if state.SidebarDisplay != "none" || state.DrawerPosition != "fixed" || state.DrawerBottom > 1 || state.DrawerOpen || !state.SummaryVisible || state.TOCVisible {
+		if state.SidebarDisplay != "none" || state.DrawerPosition != "fixed" || state.DrawerBottom > 1 || state.DrawerOpen || !state.SummaryVisible || state.TOCVisible || state.TOCTitleVisible {
 			t.Fatalf("612px collapsed sidebar/TOC state = %+v", state)
 		}
 		if err := chromedp.Run(ctx,
@@ -243,12 +252,35 @@ func TestLayoutBrowser(t *testing.T) {
 			chromedp.Click(`[data-margo-toc-summary="true"]`, chromedp.ByQuery),
 			chromedp.WaitVisible(`[data-margo-toc="true"]`, chromedp.ByQuery),
 			chromedp.Click(`[data-margo-toc-link]`, chromedp.ByQuery),
+			chromedp.Poll(`location.hash && document.activeElement?.id === decodeURIComponent(location.hash.slice(1))`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
 			chromedp.Evaluate(readState, &state),
 		); err != nil {
 			t.Fatal(err)
 		}
-		if state.DrawerOpen || state.TOCVisible {
-			t.Fatalf("TOC drawer remained open after link selection: %+v", state)
+		if state.DrawerOpen || state.TOCVisible || state.ActiveElementID == "" || state.LocationHash != "#"+state.ActiveElementID || state.ActiveTabIndex != "-1" {
+			t.Fatalf("TOC drawer collapse did not transfer focus to target heading: %+v", state)
+		}
+		if err := chromedp.Run(ctx,
+			chromedp.Evaluate(`document.activeElement.blur()`, nil),
+			chromedp.Poll(`!document.querySelector(location.hash)?.hasAttribute('tabindex')`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
+			chromedp.EmulateViewport(880, 790),
+			chromedp.Poll(`document.querySelector('[data-margo-toc-drawer="true"]')?.open === true`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
+			chromedp.Evaluate(readState, &state),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if !state.DrawerOpen || state.SummaryVisible || !state.TOCVisible || !state.TOCTitleVisible {
+			t.Fatalf("880px desktop TOC disclosure semantics = %+v", state)
+		}
+		if err := chromedp.Run(ctx,
+			chromedp.EmulateViewport(612, 790),
+			chromedp.Poll(`document.querySelector('[data-margo-toc-drawer="true"]')?.open === false`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
+			chromedp.Evaluate(readState, &state),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if state.DrawerOpen || !state.SummaryVisible || state.TOCVisible || state.TOCTitleVisible {
+			t.Fatalf("TOC disclosure did not reset when crossing back to mobile: %+v", state)
 		}
 	})
 

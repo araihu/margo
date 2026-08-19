@@ -672,6 +672,7 @@ theme:
 		`inset-block-end: 0`,
 		`@media (min-width: 880px)`,
 		`[data-margo-toc-summary="true"] { display: none; }`,
+		`[data-margo-toc-title="true"] { display: block; }`,
 		`[data-margo-layout="docs"] .margo-site-search`,
 		`[data-margo-layout="docs"] .margo-site-repository`,
 	} {
@@ -680,10 +681,13 @@ theme:
 		}
 	}
 	script := string(configArtifact(t, result, docsNavigationScriptPath))
-	for _, required := range []string{`[data-margo-toc-drawer="true"]`, `[data-margo-toc-link]`, `drawer.open = false`} {
+	for _, required := range []string{`[data-margo-toc-drawer="true"]`, `[data-margo-toc-link]`, `matchMedia("(min-width: 880px)")`, `drawer.open = media.matches`, `target.focus`, `target.removeAttribute("tabindex")`} {
 		if !strings.Contains(script, required) {
 			t.Fatalf("docs interaction script missing TOC drawer behavior %q: %s", required, script)
 		}
+	}
+	if strings.Contains(styles, `[data-margo-toc-drawer="true"] > .margo-toc { display: block !important; }`) {
+		t.Fatalf("desktop TOC force-shows closed disclosure contents: %s", styles)
 	}
 }
 

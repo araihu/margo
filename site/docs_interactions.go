@@ -171,12 +171,44 @@ const docsNavigationScript = `(function () {
 
   function scan() {
     document.querySelectorAll('[data-search-modal][data-margo-search-a11y="true"]').forEach(init);
-    document.querySelectorAll('[data-margo-toc-drawer="true"]').forEach(function (drawer) {
-      if (drawer.dataset.margoTocReady === "true") return;
-      drawer.dataset.margoTocReady = "true";
-      drawer.addEventListener("click", function (event) {
-        if (!event.target.closest || !event.target.closest("[data-margo-toc-link]")) return;
-        drawer.open = false;
+    document.querySelectorAll('[data-margo-toc-drawer="true"]').forEach(initTOCDrawer);
+  }
+
+  function initTOCDrawer(drawer) {
+    if (drawer.dataset.margoTocReady === "true") return;
+    drawer.dataset.margoTocReady = "true";
+    var media = window.matchMedia("(min-width: 880px)");
+    var syncViewport = function () {
+      drawer.open = media.matches;
+    };
+    syncViewport();
+    media.addEventListener("change", syncViewport);
+    drawer.addEventListener("click", function (event) {
+      if (!event.target.closest) return;
+      var link = event.target.closest("[data-margo-toc-link]");
+      if (!link || media.matches) return;
+      drawer.open = false;
+      window.requestAnimationFrame(function () {
+        var hash = new URL(link.href, window.location.href).hash;
+        var target = null;
+        try {
+          target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
+        } catch (_) {
+          target = null;
+        }
+        if (!target) {
+          var summary = drawer.querySelector('[data-margo-toc-summary="true"]');
+          if (summary) summary.focus();
+          return;
+        }
+        var temporaryTabIndex = !target.hasAttribute("tabindex");
+        if (temporaryTabIndex) target.setAttribute("tabindex", "-1");
+        target.focus();
+        if (temporaryTabIndex) {
+          target.addEventListener("blur", function removeTemporaryTabIndex() {
+            target.removeAttribute("tabindex");
+          }, { once: true });
+        }
       });
     });
   }

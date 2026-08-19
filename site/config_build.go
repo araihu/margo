@@ -236,6 +236,7 @@ const configuredDocsCSS = `[data-margo-layout="docs"].margo-frame--top-left-main
 [data-margo-layout="docs"] .margo-site-family-links { flex: 1 1 100%; }
 [data-margo-layout="docs"] [data-margo-toc-drawer="true"] { min-inline-size: 0; }
 [data-margo-layout="docs"] [data-margo-toc-summary="true"] { min-block-size: 2.75rem; padding: 0.65rem 1rem; font-weight: 700; cursor: pointer; }
+[data-margo-layout="docs"] [data-margo-toc-title="true"] { display: none; margin: 0; font-weight: 700; }
 [data-margo-layout="docs"] [data-margo-toc-list="true"] { margin: 0; padding: 0.75rem 1rem 1rem 2rem; }
 [data-margo-layout="docs"] .margo-search-clear { min-block-size: 2rem; border: 0; padding: 0.25rem 0.5rem; color: var(--margo-text); background: transparent; font-size: 0.875rem; white-space: nowrap; }
 [data-margo-layout="docs"] .margo-search-clear:hover,
@@ -273,7 +274,7 @@ const configuredDocsCSS = `[data-margo-layout="docs"].margo-frame--top-left-main
 }
 @media (min-width: 880px) {
   [data-margo-layout="docs"] [data-margo-toc-summary="true"] { display: none; }
-  [data-margo-layout="docs"] [data-margo-toc-drawer="true"] > .margo-toc { display: block !important; }
+  [data-margo-layout="docs"] [data-margo-toc-title="true"] { display: block; }
 }
 @media (min-width: 1200px) {
   [data-margo-layout="docs"].margo-frame--top-left-main-right-footer { grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem); grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer"; justify-content: center; }
