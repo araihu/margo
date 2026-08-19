@@ -179,7 +179,15 @@ const docsNavigationScript = `(function () {
     drawer.dataset.margoTocReady = "true";
     var media = window.matchMedia("(min-width: 880px)");
     var syncViewport = function () {
+      var summary = drawer.querySelector('[data-margo-toc-summary="true"]');
+      var active = document.activeElement;
+      var restoreSummaryFocus = !media.matches && summary && active && active !== summary && drawer.contains(active);
       drawer.open = media.matches;
+      if (restoreSummaryFocus) {
+        window.requestAnimationFrame(function () {
+          summary.focus();
+        });
+      }
     };
     syncViewport();
     media.addEventListener("change", syncViewport);

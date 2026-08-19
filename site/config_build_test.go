@@ -654,6 +654,9 @@ theme:
 		if !strings.Contains(page, `data-margo-toc="true"`) || !strings.Contains(page, `data-margo-toc-link=`) {
 			t.Fatalf("%s is missing a usable Margo-owned TOC payload: %s", name, page)
 		}
+		if !strings.Contains(page, `<details class="margo-toc-drawer" data-margo-toc-drawer="true" open="">`) {
+			t.Fatalf("%s is missing the no-JS desktop TOC fallback: %s", name, page)
+		}
 		if strings.Contains(page, `data-toc-heading`) || strings.Contains(page, `component-doc-shell`) {
 			t.Fatalf("%s TOC leaks private App Shell semantics: %s", name, page)
 		}

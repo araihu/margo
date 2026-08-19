@@ -183,6 +183,7 @@ func TestLayoutBrowser(t *testing.T) {
 			ActiveElementID   string  `json:"activeElementID"`
 			ActiveTabIndex    string  `json:"activeTabIndex"`
 			LocationHash      string  `json:"locationHash"`
+			SummaryFocused    bool    `json:"summaryFocused"`
 			MobileMenuVisible bool    `json:"mobileMenuVisible"`
 			MobileLinkCount   int     `json:"mobileLinkCount"`
 			MobileActiveCount int     `json:"mobileActiveCount"`
@@ -218,6 +219,7 @@ func TestLayoutBrowser(t *testing.T) {
 				activeElementID: document.activeElement?.id || '',
 				activeTabIndex: document.activeElement?.getAttribute('tabindex') || '',
 				locationHash: location.hash,
+				summaryFocused: document.activeElement === summary,
 				mobileMenuVisible: visible(mobileMenu),
 				mobileLinkCount: mobileLinks.length,
 				mobileActiveCount: mobileLinks.filter((link) => link.getAttribute('aria-current') === 'page').length,
@@ -273,13 +275,15 @@ func TestLayoutBrowser(t *testing.T) {
 			t.Fatalf("880px desktop TOC disclosure semantics = %+v", state)
 		}
 		if err := chromedp.Run(ctx,
+			chromedp.Focus(`[data-margo-toc-link]`, chromedp.ByQuery),
+			chromedp.Poll(`document.activeElement?.matches('[data-margo-toc-link]')`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
 			chromedp.EmulateViewport(612, 790),
-			chromedp.Poll(`document.querySelector('[data-margo-toc-drawer="true"]')?.open === false`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
+			chromedp.Poll(`document.querySelector('[data-margo-toc-drawer="true"]')?.open === false && document.activeElement?.matches('[data-margo-toc-summary="true"]')`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
 			chromedp.Evaluate(readState, &state),
 		); err != nil {
 			t.Fatal(err)
 		}
-		if state.DrawerOpen || !state.SummaryVisible || state.TOCVisible || state.TOCTitleVisible {
+		if state.DrawerOpen || !state.SummaryVisible || state.TOCVisible || state.TOCTitleVisible || !state.SummaryFocused {
 			t.Fatalf("TOC disclosure did not reset when crossing back to mobile: %+v", state)
 		}
 	})

@@ -352,7 +352,7 @@ func (b *builder) tocFragment(article []byte, locale string) string {
 	}
 	label := localizedLabel(locale, "toc")
 	var builder strings.Builder
-	builder.WriteString(`<details class="margo-toc-drawer" data-margo-toc-drawer="true"><summary data-margo-toc-summary="true">` + stdhtml.EscapeString(label) + `</summary><nav class="margo-toc" aria-label="` + stdhtml.EscapeString(label) + `" data-margo-toc="true"><p class="margo-toc-title" data-margo-toc-title="true">` + stdhtml.EscapeString(label) + `</p><ol data-margo-toc-list="true">`)
+	builder.WriteString(`<details class="margo-toc-drawer" data-margo-toc-drawer="true" open><summary data-margo-toc-summary="true">` + stdhtml.EscapeString(label) + `</summary><nav class="margo-toc" aria-label="` + stdhtml.EscapeString(label) + `" data-margo-toc="true"><p class="margo-toc-title" data-margo-toc-title="true">` + stdhtml.EscapeString(label) + `</p><ol data-margo-toc-list="true">`)
 	for _, item := range headings {
 		builder.WriteString(`<li data-margo-toc-level="` + stdhtml.EscapeString(fmt.Sprint(item.level)) + `"><a data-margo-toc-link="` + stdhtml.EscapeString(item.id) + `" href="#` + stdhtml.EscapeString(item.id) + `">` + stdhtml.EscapeString(item.label) + `</a></li>`)
 	}

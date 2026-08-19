@@ -173,7 +173,7 @@ func TestTOCFragmentUsesOneNativeResponsiveDrawer(t *testing.T) {
 	markup := b.tocFragment([]byte(`<article><h1 id="overview">Overview</h1><h2 id="install">Install</h2></article>`), "en")
 
 	for _, want := range []string{
-		`<details class="margo-toc-drawer" data-margo-toc-drawer="true">`,
+		`<details class="margo-toc-drawer" data-margo-toc-drawer="true" open>`,
 		`<summary data-margo-toc-summary="true">On this page</summary>`,
 		`<nav class="margo-toc" aria-label="On this page" data-margo-toc="true"><p class="margo-toc-title" data-margo-toc-title="true">On this page</p>`,
 	} {
