@@ -38,7 +38,7 @@ func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatalf("report: %v: %s", err, stdout.String())
 	}
-	if report.SchemaVersion != "margo-site-report/v1" || report.Artifacts < 5 || report.Manifest == "" || len(report.Pages) != 2 {
+	if report.SchemaVersion != "margo-site-report/v1" || report.Manifest == "" || len(report.Pages) != 2 {
 		t.Fatalf("report = %+v", report)
 	}
 	index := readSiteFixture(t, filepath.Join(output, "index.html"))
@@ -46,8 +46,29 @@ func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
 	if !strings.Contains(index, `href="guide/readme.html"`) || !strings.Contains(guide, `href="../index.html#home"`) {
 		t.Fatalf("links not rewritten:\nindex=%s\nguide=%s", index, guide)
 	}
+	for _, document := range []string{index, guide} {
+		for _, forbidden := range []string{
+			"margo-page-actions", "margo-breadcrumbs", "margo-pagination",
+			`id="left-nav"`, `id="right-nav"`, "data-margo-layout", "goshtoso",
+		} {
+			if strings.Contains(document, forbidden) {
+				t.Fatalf("plain site HTML contains %q: %s", forbidden, document)
+			}
+		}
+	}
 	if got := readSiteFixture(t, filepath.Join(output, "assets", "logo.png")); got != "\x89PNG\r\n\x1a\n" {
 		t.Fatalf("logo = %x", got)
+	}
+	if got := readSiteFixture(t, filepath.Join(output, "margo-assets", "document.css")); got == "" {
+		t.Fatal("semantic document stylesheet is empty")
+	}
+	for _, unwanted := range []string{
+		"assets/styles.css", "margo-assets/site.css", "margo-assets/page-actions.css",
+		"margo-assets/page-actions.js", "margo-assets/icons/page-actions.svg",
+	} {
+		if _, err := os.Stat(filepath.Join(output, filepath.FromSlash(unwanted))); !os.IsNotExist(err) {
+			t.Fatalf("plain site unexpectedly publishes %q: %v", unwanted, err)
+		}
 	}
 	manifest := readSiteFixture(t, filepath.Join(output, "margo-manifest.json"))
 	if !strings.Contains(manifest, `"schemaVersion":"margo-site-manifest/v1"`) || !strings.Contains(manifest, `"index.html"`) {
