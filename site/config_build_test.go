@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1606,6 +1607,300 @@ theme:
 	if len(configArtifact(t, result, "themes/custom.tokens.yaml")) == 0 || result.Site.DocumentStyleDigest == "" {
 		t.Fatalf("theme provenance missing: %+v", result.Site)
 	}
+}
+
+func TestBuildConfigLayoutCascadeAppliesSiteRootNearestAndFrontmatter(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Root\n\nRoot page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nNested page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), `---
+layout:
+  values:
+    family: markdown
+    sidebar: true
+---
+# Guide
+
+Markdown-owned page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "_layout.yaml"), `values:
+  family: root
+  sidebar: false
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), `values:
+  family: nested
+  toc: false
+`)
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [default, root, nested, markdown]
+    sidebar: true
+    toc: true
+  values:
+    family: default
+`)
+
+	preflight := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	want := map[string]struct {
+		family  string
+		sidebar bool
+		toc     bool
+		sources []string
+	}{
+		"index.md":        {family: "root", sidebar: false, toc: true, sources: []string{"_layout.yaml"}},
+		"module/index.md": {family: "nested", sidebar: false, toc: false, sources: []string{"_layout.yaml", "module/_layout.yaml"}},
+		"module/guide.md": {family: "markdown", sidebar: true, toc: false, sources: []string{"_layout.yaml", "module/_layout.yaml", "module/guide.md"}},
+	}
+	for source, expected := range want {
+		prepared := preflight.configured[source]
+		if prepared.layout.Kind != LayoutDocs || prepared.layout.Family != expected.family || prepared.page.Layout != "docs" || prepared.page.Family != expected.family {
+			t.Fatalf("%s layout = %+v page = %+v", source, prepared.layout, prepared.page)
+		}
+		if prepared.layout.Values["sidebar"] != expected.sidebar || prepared.layout.Values["toc"] != expected.toc {
+			t.Fatalf("%s values = %#v, want sidebar=%t toc=%t", source, prepared.layout.Values, expected.sidebar, expected.toc)
+		}
+		if !reflect.DeepEqual(prepared.layoutSources, expected.sources) {
+			t.Fatalf("%s sources = %q, want %q", source, prepared.layoutSources, expected.sources)
+		}
+		if prepared.layout.Identity == "" {
+			t.Fatalf("%s layout identity is empty", source)
+		}
+	}
+	if preflight.siteManifest.LayoutSchemaHash == "" {
+		t.Fatal("preflight layout schema hash is empty")
+	}
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Site.LayoutSchemaHash != preflight.siteManifest.LayoutSchemaHash {
+		t.Fatalf("build hash = %q, preflight hash = %q", result.Site.LayoutSchemaHash, preflight.siteManifest.LayoutSchemaHash)
+	}
+	for _, page := range result.Site.Routes {
+		expected := want[page.Source]
+		if page.Layout != "docs" || page.Family != expected.family {
+			t.Fatalf("route = %+v, want docs family %q", page, expected.family)
+		}
+	}
+}
+
+func TestBuildConfigLayoutKindBoundaryRestoresDocsValues(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nLanding page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), `---
+layout:
+  values:
+    sidebar: true
+---
+# Module
+
+Docs page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "_layout.yaml"), "kind: landing\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "kind: docs\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [default, module]
+    sidebar: false
+    toc: false
+  values:
+    family: module
+`)
+
+	b := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	landing := b.configured["index.md"]
+	if landing.layout.Kind != LayoutLanding || landing.page.Layout != "landing" || landing.page.Family != "" || landing.layout.Family != "" {
+		t.Fatalf("landing = layout %+v page %+v", landing.layout, landing.page)
+	}
+	if !reflect.DeepEqual(landing.layout.Values, map[string]any{"content": map[string]any{"layout": "article"}}) {
+		t.Fatalf("landing values leaked docs state: %#v", landing.layout.Values)
+	}
+	docs := b.configured["module/index.md"]
+	if docs.layout.Kind != LayoutDocs || docs.page.Layout != "docs" || docs.page.Family != "module" {
+		t.Fatalf("restored docs = layout %+v page %+v", docs.layout, docs.page)
+	}
+	assertLayoutValues(t, docs.layout.Values, map[string]any{
+		"families": []any{"default", "module"},
+		"family":   "module",
+		"sidebar":  true,
+		"toc":      false,
+		"content":  map[string]any{"layout": "article"},
+	})
+}
+
+func TestBuildConfigFrontmatterPreflightReturnsNoArtifacts(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  values:
+    sidebar: enabled
+---
+# Home
+
+Invalid final patch.
+`)
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/missing-logo.svg
+  icon: assets/missing-icon.svg
+  social_image:
+    path: assets/missing-social.jpg
+    alt: Margo documentation preview
+layout:
+  kind: docs
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatalf("invalid Markdown patch returned partial result: %+v", result)
+	}
+	requirePresentationDiagnostic(t, err, "site.layout_value_invalid", "index.md", "/layout/values/sidebar")
+}
+
+func TestBuildConfigLayoutCascadeIdentityIsDeterministic(t *testing.T) {
+	firstLayout := ResolvedLayout{Kind: LayoutDocs, Values: map[string]any{
+		"sidebar": true,
+		"content": map[string]any{"layout": "article"},
+	}}
+	secondLayout := ResolvedLayout{Kind: LayoutDocs, Values: map[string]any{
+		"content": map[string]any{"layout": "article"},
+		"sidebar": true,
+	}}
+	firstPageIdentity, err := configuredPageLayoutIdentity("guide.md", firstLayout, []string{"_layout.yaml", "guide.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPageIdentity, err := configuredPageLayoutIdentity("guide.md", secondLayout, []string{"_layout.yaml", "guide.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstPageIdentity == "" || firstPageIdentity != secondPageIdentity {
+		t.Fatalf("map order changed page identity: %q != %q", firstPageIdentity, secondPageIdentity)
+	}
+	reversedSourcesIdentity, err := configuredPageLayoutIdentity("guide.md", secondLayout, []string{"guide.md", "_layout.yaml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reversedSourcesIdentity == firstPageIdentity {
+		t.Fatal("ordered patch sources did not affect page identity")
+	}
+
+	firstLayout.Identity = firstPageIdentity
+	secondLayout.Identity = secondPageIdentity
+	firstConfigured := map[string]configuredPage{
+		"z.md": {layout: firstLayout},
+		"a.md": {layout: secondLayout},
+	}
+	secondConfigured := map[string]configuredPage{
+		"a.md": {layout: secondLayout},
+		"z.md": {layout: firstLayout},
+	}
+	firstSiteIdentity, err := configuredSiteLayoutIdentity(firstLayout, nil, firstConfigured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondSiteIdentity, err := configuredSiteLayoutIdentity(secondLayout, nil, secondConfigured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstSiteIdentity == "" || firstSiteIdentity != secondSiteIdentity {
+		t.Fatalf("map order changed site identity: %q != %q", firstSiteIdentity, secondSiteIdentity)
+	}
+}
+
+func TestBuildConfigLayoutCascadeIdentityIncludesDirectoryPatchValues(t *testing.T) {
+	build := func(root string, sidebar bool) string {
+		writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  values:
+    sidebar: true
+---
+# Home
+
+Same final layout.
+`)
+		writeConfigFile(t, filepath.Join(root, "docs", "_layout.yaml"), fmt.Sprintf("values:\n  sidebar: %t\n", sidebar))
+		writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: docs\n")
+		return preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml")).siteManifest.LayoutSchemaHash
+	}
+
+	first := build(t.TempDir(), false)
+	second := build(t.TempDir(), true)
+	if first == second {
+		t.Fatalf("directory patch values did not affect site identity: %q", first)
+	}
+}
+
+func preflightTypedLayoutBuild(t *testing.T, configPath string) *builder {
+	t.Helper()
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configDir := filepath.Dir(configPath)
+	sourceDir := filepath.Join(configDir, filepath.FromSlash(config.Source))
+	inputs, err := discoverConfiguredInputs(context.Background(), sourceDir, config.Navigation.Exclude)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &builder{
+		request:       requestToSiteRequest(ConfigRequest{Compiler: margo.New()}, sourceDir, inputs.Sources, AssetMode(config.Assets)),
+		config:        &config,
+		configDir:     configDir,
+		sourceDir:     sourceDir,
+		layoutPatches: inputs.Patches,
+		configured:    make(map[string]configuredPage),
+		sources:       make(map[string]Source, len(inputs.Sources)),
+		outputs:       make(map[string]string, len(inputs.Sources)),
+		siteManifest: SiteManifest{
+			ConfigVersion: 1,
+			Layout:        "layout:" + string(config.Layout.Kind),
+			BaseURL:       strings.TrimSuffix(config.Site.BaseURL, "/"),
+			BasePath:      normalizedBasePath(config.BasePath),
+		},
+	}
+	ordered, err := b.indexSources()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.preflightConfigured(context.Background(), ordered); err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func writeTypedLayoutBuildConfig(t *testing.T, root, layout string) {
+	t.Helper()
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`+layout)
 }
 
 func configArtifact(t *testing.T, result Result, name string) []byte {

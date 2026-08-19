@@ -6,7 +6,95 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	margo "github.com/araihu/margo"
 )
+
+func TestFrontmatterLayoutPatchUsesMarkdownSourcePointers(t *testing.T) {
+	metadata := margo.Metadata{Additional: map[string]any{
+		"layout": map[string]any{"values": map[string]any{"family": "missing"}},
+	}}
+	patch, err := layoutPatchFromMetadata(metadata, "guide.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if patch.Source != "guide.md" || patch.Base != "/layout" {
+		t.Fatalf("patch = %+v", patch)
+	}
+}
+
+func TestFrontmatterLayoutPatchAcceptsKindOrValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		layout   map[string]any
+		wantKind LayoutKind
+		want     map[string]any
+	}{
+		{name: "kind only", layout: map[string]any{"kind": "landing"}, wantKind: LayoutLanding},
+		{name: "values only", layout: map[string]any{"values": map[string]any{"toc": false}}, want: map[string]any{"toc": false}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			patch, err := layoutPatchFromMetadata(margo.Metadata{Additional: map[string]any{"layout": test.layout}}, "guide.md")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if patch.Kind != test.wantKind || !reflect.DeepEqual(patch.Values, test.want) || patch.Source != "guide.md" || patch.Base != "/layout" {
+				t.Fatalf("patch = %#v, want kind=%q values=%#v", patch, test.wantKind, test.want)
+			}
+		})
+	}
+}
+
+func TestFrontmatterLayoutPatchRejectsInvalidShape(t *testing.T) {
+	tests := []struct {
+		name    string
+		layout  any
+		pointer string
+	}{
+		{name: "non-mapping layout", layout: "landing", pointer: "/layout"},
+		{name: "unknown root property", layout: map[string]any{"profile": "docs"}, pointer: "/layout/profile"},
+		{name: "non-string kind", layout: map[string]any{"kind": true}, pointer: "/layout/kind"},
+		{name: "non-mapping values", layout: map[string]any{"values": false}, pointer: "/layout/values"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := layoutPatchFromMetadata(margo.Metadata{Additional: map[string]any{"layout": test.layout}}, "guide.md")
+			requirePresentationDiagnostic(t, err, "site.layout_patch_invalid", "guide.md", test.pointer)
+		})
+	}
+}
+
+func TestFrontmatterLayoutPatchDefersActiveKindValidation(t *testing.T) {
+	cascade, err := resolveSiteLayout(LayoutConfig{Kind: LayoutDocs}, "site.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		values  map[string]any
+		code    string
+		pointer string
+	}{
+		{name: "unknown value", values: map[string]any{"sidebaar": true}, code: "site.layout_value_unknown", pointer: "/layout/values/sidebaar"},
+		{name: "Markdown family declaration", values: map[string]any{"families": []any{"default", "module"}}, code: "site.layout_value_invalid", pointer: "/layout/values/families"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			patch, patchErr := layoutPatchFromMetadata(margo.Metadata{Additional: map[string]any{
+				"layout": map[string]any{"values": test.values},
+			}}, "guide.md")
+			if patchErr != nil {
+				t.Fatal(patchErr)
+			}
+			_, applyErr := cascade.apply(patch)
+			requirePresentationDiagnostic(t, applyErr, test.code, "guide.md", test.pointer)
+		})
+	}
+}
 
 func TestDiscoverConfiguredInputsSeparatesLayoutPatches(t *testing.T) {
 	root := t.TempDir()

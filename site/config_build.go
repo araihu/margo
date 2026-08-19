@@ -32,12 +32,14 @@ import (
 )
 
 type configuredPage struct {
-	page         Page
-	presentation PagePresentation
-	article      []byte
-	plainText    string
-	result       *margo.HTMLResult
-	document     *margo.Document
+	page          Page
+	layout        ResolvedLayout
+	layoutSources []string
+	presentation  PagePresentation
+	article       []byte
+	plainText     string
+	result        *margo.HTMLResult
+	document      *margo.Document
 }
 
 const configuredSiteCSS = `:root {
@@ -302,6 +304,7 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	locale := config.Locales.Default
 	shellMode := config.Shell != nil
 	profileMode := configUsesLayoutProfiles(config)
+	typedLayoutMode := config.Layout != nil
 	frameName := ""
 	frame := ssg.Frame(nil)
 	schema := ssg.FrameSchema{}
@@ -350,8 +353,12 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 		if err != nil {
 			return Result{}, err
 		}
-		layoutIdentity = "frame:" + frameName
-		layoutSchemaHash = frameHash
+		if typedLayoutMode {
+			layoutIdentity = "layout:" + string(config.Layout.Kind)
+		} else {
+			layoutIdentity = "frame:" + frameName
+			layoutSchemaHash = frameHash
+		}
 	}
 	if request.Compiler == nil {
 		request.Compiler = margo.New()
@@ -371,24 +378,21 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 		configDir: configDir, sourceDir: sourceDir, frame: frame, frameSchema: schema,
 		frameHash: frameHash, frameValues: frameValues, profileMode: profileMode, presentations: presentations, layoutName: frameName, shellMode: shellMode,
 		shellName: shellName, shellAssetPrefix: shellAssetPrefix,
-		configured: make(map[string]configuredPage),
-		sources:    make(map[string]Source, len(sources)), outputs: make(map[string]string, len(sources)),
+		layoutPatches: append([]LayoutPatch(nil), inputs.Patches...),
+		configured:    make(map[string]configuredPage),
+		sources:       make(map[string]Source, len(sources)), outputs: make(map[string]string, len(sources)),
 		artifacts: make(map[string][]byte), artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset),
 		dependencies: make(map[string]string), pdfEngine: request.PDFEngine, pdfInstances: margo.NewInstanceAllocator(),
 		siteManifest: SiteManifest{ConfigVersion: 1, Layout: layoutIdentity, LayoutSchemaHash: layoutSchemaHash, BaseURL: strings.TrimSuffix(config.Site.BaseURL, "/"), BasePath: normalizedBasePath(config.BasePath)},
 	}
-	if err := b.stageConfiguredAssets(config); err != nil {
-		return Result{}, err
-	}
-	b.siteManifest.DocumentStyleDigest = b.documentStyleDigest()
 	ordered, err := b.indexSources()
 	if err != nil {
 		return Result{}, err
 	}
-	if err := b.validateConfiguredFamilyOverviews(ordered); err != nil {
+	if err := b.preflightConfigured(ctx, ordered); err != nil {
 		return Result{}, err
 	}
-	if err := b.preflightConfigured(ctx, ordered); err != nil {
+	if err := b.validateConfiguredFamilyOverviews(ordered); err != nil {
 		return Result{}, err
 	}
 	homeFound := false
@@ -401,6 +405,10 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	if !homeFound {
 		return Result{}, diagnostic("site.home_missing", fmt.Sprintf("configured home %q is not a public default-locale page", config.Site.Home), "Add the home Markdown file or select an existing default-locale route.", config.Site.Home)
 	}
+	if err := b.stageConfiguredAssets(config); err != nil {
+		return Result{}, err
+	}
+	b.siteManifest.DocumentStyleDigest = b.documentStyleDigest()
 	for _, source := range ordered {
 		if err := ctx.Err(); err != nil {
 			return Result{}, err
@@ -569,6 +577,17 @@ func localeDirection(value string) string {
 }
 
 func (b *builder) preflightConfigured(ctx context.Context, sources []Source) error {
+	var siteCascade layoutCascade
+	var siteLayout ResolvedLayout
+	if b.config.Layout != nil {
+		var err error
+		siteCascade, err = resolveSiteLayout(*b.config.Layout, "")
+		if err != nil {
+			return err
+		}
+		siteLayout = siteCascade.resolved()
+	}
+
 	for _, source := range sources {
 		base := filepath.Join(b.sourceDir, filepath.FromSlash(path.Dir(source.Path)))
 		document, err := b.request.Compiler.Compile(ctx, margo.Source{Name: source.Path, Content: source.Content, BaseURL: base})
@@ -608,9 +627,50 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			}
 		}
 		page := Page{Source: source.Path, Output: b.pageOutput(source.Path), Locale: locale, Title: title, Description: description, DocumentDigest: documentPayloadDigest(article), ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
+		resolvedLayout := ResolvedLayout{}
+		layoutSources := []string(nil)
 		presentation := PagePresentation{}
 		family := FamilyConfig{}
-		if b.profileMode {
+		if b.config.Layout != nil {
+			cascade := siteCascade
+			for _, patch := range layoutPatchChain(source.Path, b.layoutPatches) {
+				cascade, err = cascade.apply(patch)
+				if err != nil {
+					return err
+				}
+				layoutSources = append(layoutSources, patch.Source)
+			}
+			markdownPatch, patchErr := layoutPatchFromMetadata(document.Metadata(), source.Path)
+			if patchErr != nil {
+				return patchErr
+			}
+			if markdownPatch.Source != "" {
+				cascade, err = cascade.apply(markdownPatch)
+				if err != nil {
+					return err
+				}
+				layoutSources = append(layoutSources, markdownPatch.Source)
+			}
+			resolvedLayout = cascade.resolved()
+			entry, exists := cascade.registry.lookup(resolvedLayout.Kind)
+			if !exists {
+				return fmt.Errorf("site.layout_missing: resolved layout kind %q is unavailable", resolvedLayout.Kind)
+			}
+			resolvedLayout.Values, err = entry.validateValues(resolvedLayout.Values, layoutValueSiteDefault, "/layout/values")
+			if err != nil {
+				return presentationSourceDiagnostic(err, source.Path)
+			}
+			resolvedLayout.Family = ""
+			if resolvedLayout.Kind == LayoutDocs {
+				resolvedLayout.Family, _ = resolvedLayout.Values["family"].(string)
+				page.Family = resolvedLayout.Family
+			}
+			resolvedLayout.Identity, err = configuredPageLayoutIdentity(source.Path, resolvedLayout, layoutSources)
+			if err != nil {
+				return err
+			}
+			page.Layout = string(resolvedLayout.Kind)
+		} else if b.profileMode {
 			if len(b.config.Navigation.Families) > 0 {
 				family, err = resolveFamily(source.Path, b.config.Locales, b.config.Navigation.Families)
 				if err != nil {
@@ -636,7 +696,7 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			page.Layout = layout
 		}
 		page.Canonical = b.pageURL(page)
-		b.configured[source.Path] = configuredPage{page: page, presentation: presentation, article: article, plainText: result.PlainText(), result: result, document: document}
+		b.configured[source.Path] = configuredPage{page: page, layout: resolvedLayout, layoutSources: layoutSources, presentation: presentation, article: article, plainText: result.PlainText(), result: result, document: document}
 		b.configPages = append(b.configPages, page)
 	}
 	sort.Slice(b.configPages, func(i, j int) bool { return pageRouteLess(b.configPages[i], b.configPages[j]) })
@@ -651,9 +711,132 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			return b.configPages[index].Alternates[left].Locale < b.configPages[index].Alternates[right].Locale
 		})
 		prepared := b.configured[b.configPages[index].Source]
-		b.configured[b.configPages[index].Source] = configuredPage{page: b.configPages[index], presentation: prepared.presentation, article: prepared.article, plainText: prepared.plainText, result: prepared.result, document: prepared.document}
+		prepared.page = b.configPages[index]
+		b.configured[b.configPages[index].Source] = prepared
+	}
+	if b.config.Layout != nil {
+		identity, err := configuredSiteLayoutIdentity(siteLayout, b.layoutPatches, b.configured)
+		if err != nil {
+			return err
+		}
+		b.siteManifest.LayoutSchemaHash = identity
 	}
 	return nil
+}
+
+func configuredPageLayoutIdentity(source string, layout ResolvedLayout, patchSources []string) (string, error) {
+	sources := make([]any, len(patchSources))
+	for index := range patchSources {
+		sources[index] = patchSources[index]
+	}
+	payload := map[string]any{
+		"source":        source,
+		"kind":          string(layout.Kind),
+		"values":        layout.Values,
+		"patch_sources": sources,
+	}
+	var canonical bytes.Buffer
+	if err := writeCanonicalLayoutValue(&canonical, payload); err != nil {
+		return "", fmt.Errorf("site.layout_identity: %w", err)
+	}
+	hash := sha256.New()
+	_, _ = hash.Write([]byte("margo.site.page-layout/v1\x00"))
+	_, _ = hash.Write(canonical.Bytes())
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func configuredSiteLayoutIdentity(siteLayout ResolvedLayout, patches []LayoutPatch, configured map[string]configuredPage) (string, error) {
+	sources := make([]string, 0, len(configured))
+	for source := range configured {
+		sources = append(sources, source)
+	}
+	sort.Strings(sources)
+	pages := make([]any, 0, len(sources))
+	for _, source := range sources {
+		pages = append(pages, map[string]any{
+			"source":   source,
+			"identity": configured[source].layout.Identity,
+		})
+	}
+	orderedPatches := append([]LayoutPatch(nil), patches...)
+	sort.Slice(orderedPatches, func(left, right int) bool { return orderedPatches[left].Source < orderedPatches[right].Source })
+	patchIdentities := make([]any, 0, len(orderedPatches))
+	for _, patch := range orderedPatches {
+		identity, err := json.Marshal(map[string]any{
+			"source": patch.Source,
+			"kind":   string(patch.Kind),
+			"values": patch.Values,
+		})
+		if err != nil {
+			return "", fmt.Errorf("site.layout_identity: %w", err)
+		}
+		patchIdentities = append(patchIdentities, string(identity))
+	}
+	payload := map[string]any{
+		"registry": configuredLayoutRegistryIdentity(builtinLayoutRegistry()),
+		"site": map[string]any{
+			"kind":   string(siteLayout.Kind),
+			"values": siteLayout.Values,
+		},
+		"directory_patches": patchIdentities,
+		"pages":             pages,
+	}
+	var canonical bytes.Buffer
+	if err := writeCanonicalLayoutValue(&canonical, payload); err != nil {
+		return "", fmt.Errorf("site.layout_identity: %w", err)
+	}
+	hash := sha256.New()
+	_, _ = hash.Write([]byte("margo.site.configured-layout/v1\x00"))
+	_, _ = hash.Write(canonical.Bytes())
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func configuredLayoutRegistryIdentity(registry layoutRegistry) []any {
+	entries := make([]any, 0, len(registry.order))
+	for _, kind := range registry.order {
+		entry, exists := registry.lookup(kind)
+		if !exists {
+			continue
+		}
+		entries = append(entries, map[string]any{
+			"kind":     string(kind),
+			"defaults": entry.defaults,
+			"schema":   configuredLayoutSchemaIdentity(entry.schema),
+		})
+	}
+	return entries
+}
+
+func configuredLayoutSchemaIdentity(schema layoutValueSchema) map[string]any {
+	properties := make(map[string]any, len(schema.Properties))
+	for name, property := range schema.Properties {
+		properties[name] = configuredLayoutSchemaIdentity(property)
+	}
+	enums := make([]any, len(schema.Enum))
+	for index := range schema.Enum {
+		enums[index] = schema.Enum[index]
+	}
+	return map[string]any{
+		"type":              configuredLayoutValueTypeIdentity(schema.Type),
+		"properties":        properties,
+		"enum":              enums,
+		"site_default_only": schema.SiteDefaultOnly,
+	}
+}
+
+func configuredLayoutValueTypeIdentity(value layoutValueType) string {
+	switch value {
+	case layoutObject:
+		return "object"
+	case layoutBool:
+		return "boolean"
+	case layoutString:
+		return "string"
+	case layoutStringList:
+		return "string-list"
+	default:
+		return "unknown"
+	}
 }
 
 // validateConfiguredFamilyOverviews enforces the publication contract before

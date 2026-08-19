@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"sort"
 
+	margo "github.com/araihu/margo"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,6 +17,53 @@ const directoryLayoutPatchName = "_layout.yaml"
 type configuredInputs struct {
 	Sources []Source
 	Patches []LayoutPatch
+}
+
+func layoutPatchFromMetadata(metadata margo.Metadata, source string) (LayoutPatch, error) {
+	raw, exists := metadata.Additional["layout"]
+	if !exists {
+		return LayoutPatch{}, nil
+	}
+	values, ok := raw.(map[string]any)
+	if !ok {
+		return LayoutPatch{}, invalidMarkdownLayoutPatch(source, "/layout", "layout must be a mapping")
+	}
+
+	patch := LayoutPatch{Source: source, Base: "/layout"}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		pointer := appendLayoutPointer("/layout", key)
+		switch key {
+		case "kind":
+			kind, ok := values[key].(string)
+			if !ok {
+				return LayoutPatch{}, invalidMarkdownLayoutPatch(source, pointer, "layout kind must be a string")
+			}
+			patch.Kind = LayoutKind(kind)
+		case "values":
+			layoutValues, ok := values[key].(map[string]any)
+			if !ok {
+				return LayoutPatch{}, invalidMarkdownLayoutPatch(source, pointer, "layout values must be a mapping")
+			}
+			patch.Values = mergeLayoutValues(layoutValues, nil)
+		default:
+			return LayoutPatch{}, invalidMarkdownLayoutPatch(source, pointer, fmt.Sprintf("unknown layout patch property %q", key))
+		}
+	}
+	return patch, nil
+}
+
+func invalidMarkdownLayoutPatch(source, pointer, message string) error {
+	return presentationSourceDiagnostic(newPresentationDiagnostic(
+		"site.layout_patch_invalid",
+		message,
+		"Use a layout mapping containing only kind and values.",
+		pointer,
+	), source)
 }
 
 func decodeDirectoryLayoutPatch(source string, data []byte) (LayoutPatch, error) {
