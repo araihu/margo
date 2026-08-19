@@ -186,6 +186,7 @@ Run `margo --help` for the generated command reference. The command surface is:
 margo check INPUT
 margo html INPUT [--output PATH|-] [--force]
 margo site INPUT_DIR --output-dir OUTPUT_DIR [--assets local|inline]
+margo serve [INPUT_DIR|CONFIG] [--host HOST] [--port PORT] [--open]
 margo pdf INPUT --output PATH|- [PDF flags]
 margo deck INPUT [--format html|pdf] [--output PATH|-] [PDF flags]
 margo doctor
@@ -215,6 +216,10 @@ All rendering commands accept `--policy FILE` for a trusted host policy.
 `html` and `pdf` also accept `--title TEXT` and `--lang TAG`.
 `margo schema policy` and `margo schema document` emit the exact embedded
 Draft 2020-12 schema bytes for this Margo version.
+
+`serve` is different from publication commands: it is an explicitly local
+development workflow. The development server is not for production. It has no
+TLS, authentication, authorization, rate limiting, or deployment contract.
 
 ### Check
 
@@ -267,6 +272,28 @@ remain the default in both light and dark site themes; client printing follows
 the active theme. The permalink `#` stays beside the page H1; the action menu
 wraps below it on narrow screens. The generated controls use only same-site
 artifacts, so site generation does not add external AI links.
+
+### Development server
+
+`margo serve [INPUT_DIR|CONFIG] [--host HOST] [--port PORT] [--open]` builds,
+watches, and serves an SSG site from memory with live reload. With no input it
+uses the current directory. A directory containing `site.yaml` automatically
+uses that config; another directory is treated as a recursive Markdown tree
+with Margo's strong site defaults. Pass any explicit `.yaml` or `.yml` config
+path when the file has another name.
+
+The server binds `127.0.0.1` by default. Without `--port`, it tries 8080, 8000, 3000, 1313, and 4000
+in that order. If those are occupied, the operating system selects any available port.
+An explicit `--port` is strict and fails when that port cannot be bound. `--open`
+opens the chosen URL in the default browser. A
+non-loopback `--host` prints a warning because this development server is not
+for production and exposes content without authentication or TLS.
+
+Margo recursively watches Markdown, YAML, CSS, images, and other local assets.
+Successful changes atomically replace the in-memory snapshot and trigger live
+reload in connected browsers. A failed rebuild prints diagnostics, keeps the
+last successful site available, and does not reload the browser. The configured
+output directory is excluded from watching and is never written by `serve`.
 
 ### PDF
 
