@@ -33,7 +33,7 @@ navigation:
 theme:
   builtin: false
   name: margo
-  allow_switch_theme: false
+  allow_switch_theme: true
   color_mode: system
 themes:
   - name: margo
