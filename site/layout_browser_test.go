@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -211,6 +212,9 @@ type landingGeometryState struct {
 	SectionMediaWidth   float64   `json:"sectionMediaWidth"`
 	FitHeadingLeft      float64   `json:"fitHeadingLeft"`
 	FitListLeft         float64   `json:"fitListLeft"`
+	FinalActionTops     []float64 `json:"finalActionTops"`
+	FinalActionLefts    []float64 `json:"finalActionLefts"`
+	FinalActionWidths   []float64 `json:"finalActionWidths"`
 	ArticleCount        int       `json:"articleCount"`
 	Overflow            bool      `json:"overflow"`
 }
@@ -232,6 +236,7 @@ const landingGeometryScript = `(() => {
 	  const fitSection = [...document.querySelectorAll('.margo-landing-section')].find(candidate => candidate.querySelector(':scope > h2')?.textContent.trim() === 'Is Margo a fit?');
 	  const fitHeading = fitSection?.querySelector(':scope > h3');
 	  const fitList = fitHeading?.nextElementSibling;
+	  const finalActions = [...document.querySelectorAll('.margo-landing-section:last-child > ul:last-child a')];
 	  const heroRect = rect(hero);
 	  const copyRect = rect(copy);
 	  const visualRect = rect(visual);
@@ -257,6 +262,9 @@ const landingGeometryScript = `(() => {
 	    sectionMediaWidth: rect(sectionMedia).width,
 	    fitHeadingLeft: rect(fitHeading).left,
 	    fitListLeft: rect(fitList).left,
+	    finalActionTops: finalActions.map(action => rect(action).top),
+	    finalActionLefts: finalActions.map(action => rect(action).left),
+	    finalActionWidths: finalActions.map(action => rect(action).width),
 	    articleCount: document.querySelectorAll('[data-margo-landing-article="true"] > article.margo-document').length,
 	    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
 	  };
@@ -327,6 +335,9 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		}
 		if delta := state.FitListLeft - state.FitHeadingLeft; delta < -1 || delta > 1 {
 			t.Fatalf("landing at %dpx fit list starts %.1fpx from its heading: %+v", width, delta, state)
+		}
+		if len(state.FinalActionTops) != 2 || state.FinalActionTops[1] <= state.FinalActionTops[0] || math.Abs(state.FinalActionLefts[1]-state.FinalActionLefts[0]) > 1 || math.Abs(state.FinalActionWidths[1]-state.FinalActionWidths[0]) > 1 {
+			t.Fatalf("landing at %dpx final actions are not a uniform vertical stack: %+v", width, state)
 		}
 	}
 }
@@ -435,7 +446,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 func layoutBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n\n## Choose your next step\n\n- [Start with the CLI guide](cli/index.md)\n- [Continue with the Module guide](module/index.md)\n")
 	mascot, err := os.ReadFile(filepath.Join("..", "showcase", "content", "margo-mascot.png"))
 	if err != nil {
 		t.Fatal(err)
