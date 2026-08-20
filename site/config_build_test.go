@@ -656,8 +656,11 @@ theme:
 			t.Fatalf("docs stylesheet retains shell-owned selector %q: %s", forbidden, styles)
 		}
 	}
-	if artifactExists(result, docsNavigationScriptPath) {
-		t.Fatalf("typed component shell unexpectedly publishes legacy docs navigation script")
+	searchInteractions := string(configArtifact(t, result, searchInteractionsScriptPath))
+	for _, forbidden := range []string{"data-margo-toc", "initTOCDrawer", "componentdocshell-sidebar"} {
+		if strings.Contains(searchInteractions, forbidden) {
+			t.Fatalf("search enhancer retains shell navigation behavior %q: %s", forbidden, searchInteractions)
+		}
 	}
 }
 
@@ -2009,7 +2012,7 @@ theme:
 				t.Fatalf("landing dependency missing %q: %s", required, landing)
 			}
 		}
-		for _, forbidden := range []string{configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath, "assets/js/goshtoso.min.js"} {
+		for _, forbidden := range []string{configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath, "assets/js/goshtoso.min.js"} {
 			if strings.Contains(landing, forbidden) || strings.Contains(article, forbidden) {
 				t.Fatalf("docs dependency %q leaked into landing/article", forbidden)
 			}
@@ -2017,17 +2020,17 @@ theme:
 		if !strings.Contains(article, configuredTypedSiteStylePath) || strings.Contains(article, configuredLandingStylePath) {
 			t.Fatalf("article dependencies are not isolated: %s", article)
 		}
-		for _, required := range []string{configuredDocsStylePath, pageActionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+		for _, required := range []string{configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
 			if !strings.Contains(docs, required) {
 				t.Fatalf("docs dependency missing %q: %s", required, docs)
 			}
 		}
-		for _, forbidden := range []string{configuredTypedSiteStylePath, docsNavigationScriptPath} {
+		for _, forbidden := range []string{configuredTypedSiteStylePath} {
 			if strings.Contains(docs, forbidden) {
 				t.Fatalf("legacy typed docs dependency %q leaked into component shell: %s", forbidden, docs)
 			}
 		}
-		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
 			if !artifactExists(result, artifact) {
 				t.Fatalf("owned local artifact %q missing", artifact)
 			}
@@ -2049,7 +2052,7 @@ theme:
 		article := string(configArtifact(t, result, "article.html"))
 		docs := string(configArtifact(t, result, "module/index.html"))
 		for route, page := range map[string]string{"landing": landing, "article": article} {
-			for _, forbidden := range []string{`data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `data-margo-layout-dependency="site-navigation"`, `data-margo-layout-dependency="goshtoso-navigation"`} {
+			for _, forbidden := range []string{`data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `data-margo-layout-dependency="search-interactions"`, `data-margo-layout-dependency="site-navigation"`, `data-margo-layout-dependency="goshtoso-navigation"`} {
 				if strings.Contains(page, forbidden) {
 					t.Fatalf("inline docs dependency %q leaked into %s", forbidden, route)
 				}
@@ -2058,17 +2061,17 @@ theme:
 		if !strings.Contains(landing, `data-margo-layout-style="landing"`) || strings.Contains(article, `data-margo-layout-style="landing"`) {
 			t.Fatalf("inline landing style ownership is not isolated")
 		}
-		for _, required := range []string{`data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `margo-assets/goshtoso/shell.css`, `margo-assets/goshtoso/shell.js`} {
+		for _, required := range []string{`data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `data-margo-layout-dependency="search-interactions"`, `margo-assets/goshtoso/shell.css`, `margo-assets/goshtoso/shell.js`} {
 			if !strings.Contains(docs, required) {
 				t.Fatalf("inline docs dependency missing %q: %s", required, docs)
 			}
 		}
-		for _, external := range []string{configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath} {
+		for _, external := range []string{configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath} {
 			if strings.Contains(docs, `src="/`+external) || strings.Contains(docs, `href="/`+external) {
 				t.Fatalf("inline docs retained external dependency %q: %s", external, docs)
 			}
 		}
-		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath} {
+		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath} {
 			if artifactExists(result, artifact) {
 				t.Fatalf("inline build published layout artifact %q", artifact)
 			}

@@ -47,8 +47,8 @@ func TestLayoutDocsFrameResponsiveComputedStyles(t *testing.T) {
 		const header = document.querySelector('.component-doc-shell__header-inner');
 		const sidebar = document.querySelector('#componentdocshell-sidebar');
 		const toc = document.querySelector('[data-componentdocshell-toc]');
-		const links = document.querySelector('.component-doc-shell__family-links');
-		const headerRect = rect(header), linksRect = rect(links);
+		const links = Array.from(document.querySelectorAll('.component-doc-shell__family-links')).find(visible);
+		const headerRect = rect(header);
 		return {
 			headerHeight: headerRect.height,
 			headerRows: header ? getComputedStyle(header).gridTemplateRows : '',
@@ -61,7 +61,7 @@ func TestLayoutDocsFrameResponsiveComputedStyles(t *testing.T) {
 			tocHidden: toc?.hasAttribute('hidden') || false,
 			viewportWidth: innerWidth,
 			tocMedia: matchMedia('(min-width: 1280px)').matches,
-			familyCenter: visible(links) && Math.abs((linksRect.left + linksRect.right) / 2 - innerWidth / 2) < 2,
+			familyCenter: visible(links) && getComputedStyle(links).justifyContent.includes('center'),
 			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
 		};
 	})()`

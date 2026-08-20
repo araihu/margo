@@ -174,6 +174,7 @@ func builtinLayoutRegistry() layoutRegistry {
 			renderer:     layoutRenderDocs,
 			dependencies: layoutDependencies{
 				docsStyles:        true,
+				docsInteractions:  true,
 				componentDocShell: true,
 				pageActions:       true,
 			},

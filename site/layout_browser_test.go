@@ -383,7 +383,7 @@ func layoutBrowserServer(t *testing.T) *httptest.Server {
 	}
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n\n## Module section\n\nDetails.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nGuide.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "---\nlayout:\n  values:\n    toc: true\n    sidebar: true\nmargo:\n  actions:\n    markdown: true\n---\n# CLI\n\nCLI documentation.\n\n## CLI section\n\nDetails.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "---\nlayout:\n  values:\n    toc: true\n    sidebar: true\nmargo:\n  actions:\n    markdown: true\n---\n# CLI\n\nCLI documentation.\n\n## CLI section\n\nDetails.\n\n## CLI workflows\n\nMore details.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "cli", "guide.md"), "# CLI guide\n\nGuide.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")

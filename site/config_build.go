@@ -1050,7 +1050,7 @@ func (b *builder) stageTypedLayoutAssets() error {
 		}
 	}
 	if dependencies.docsInteractions {
-		if err := stage(docsNavigationScriptPath, docsNavigationScript); err != nil {
+		if err := stage(searchInteractionsScriptPath, searchInteractionsScript); err != nil {
 			return err
 		}
 	}
@@ -1680,7 +1680,7 @@ func (b *builder) renderPageHeadForLayout(page Page, layout ResolvedLayout, icon
 				builder.WriteString(`<script data-margo-layout-dependency="page-actions">` + pageActionsScript + `</script>`)
 			}
 			if layout.dependencies.docsInteractions {
-				builder.WriteString(`<script data-margo-layout-dependency="site-navigation">` + docsNavigationScript + `</script>`)
+				builder.WriteString(`<script data-margo-layout-dependency="search-interactions">` + searchInteractionsScript + `</script>`)
 			}
 		} else {
 			if layout.dependencies.siteStyles {
@@ -1696,7 +1696,7 @@ func (b *builder) renderPageHeadForLayout(page Page, layout ResolvedLayout, icon
 				builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(pageActionsScriptPath) + `"></script>`)
 			}
 			if layout.dependencies.docsInteractions {
-				builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(docsNavigationScriptPath) + `"></script>`)
+				builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(searchInteractionsScriptPath) + `"></script>`)
 			}
 		}
 		for _, theme := range b.config.Themes {

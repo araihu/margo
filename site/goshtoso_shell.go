@@ -614,6 +614,10 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 	if err != nil {
 		return err
 	}
+	withSearchModal, err = hardenComponentDocShellSearchDocument(withSearchModal, searchConfig, page.Source)
+	if err != nil {
+		return err
+	}
 	withDependencies, err := injectComponentDocShellPageDependencies(withSearchModal, dependencyBytes, page.Source)
 	if err != nil {
 		return err
@@ -757,9 +761,11 @@ func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 	if b.request.Assets == AssetsInline {
 		builder.WriteString(`<style data-margo-layout-style="docs">` + configuredDocsCSS + `</style>`)
 		builder.WriteString(`<script data-margo-layout-dependency="page-actions">` + pageActionsScript + `</script>`)
+		builder.WriteString(`<script data-margo-layout-dependency="search-interactions">` + searchInteractionsScript + `</script>`)
 	} else {
 		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(configuredDocsStylePath)) + `">`)
 		builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.publicationArtifactHref(pageActionsScriptPath)) + `"></script>`)
+		builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.publicationArtifactHref(searchInteractionsScriptPath)) + `"></script>`)
 	}
 	for _, css := range b.config.CustomCSS {
 		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(strings.TrimPrefix(css.CSSURL, "/"))) + `">`)
@@ -1135,6 +1141,26 @@ func injectComponentDocShellSearchModal(document []byte, config search.Config, c
 	result = append(result, modal.Bytes()...)
 	result = append(result, document[index:]...)
 	return result, nil
+}
+
+func hardenComponentDocShellSearchDocument(document []byte, config search.Config, source string) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report this generated shell defect.", source)
+	}
+	if !hardenSearchNodes([]*html.Node{root}, config) {
+		return nil, diagnostic(
+			"site.html_invalid",
+			"componentdocshell search markup is incomplete",
+			"Keep the Goshtoso search field and modal in the generated document.",
+			source,
+		)
+	}
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report this generated shell defect.", source)
+	}
+	return output.Bytes(), nil
 }
 
 func decorateComponentDocShellHeadings(root *html.Node) {

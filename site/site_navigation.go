@@ -171,6 +171,19 @@ func hardenSearchMarkup(markup []byte, config search.Config) []byte {
 	if err != nil {
 		return markup
 	}
+	if !hardenSearchNodes(root, config) {
+		return markup
+	}
+	var output bytes.Buffer
+	for _, node := range root {
+		if err := html.Render(&output, node); err != nil {
+			return markup
+		}
+	}
+	return output.Bytes()
+}
+
+func hardenSearchNodes(root []*html.Node, config search.Config) bool {
 	id := configID(config)
 	fieldID := id + "-input"
 	resultsID := id + "-results"
@@ -200,7 +213,7 @@ func hardenSearchMarkup(markup []byte, config search.Config) []byte {
 		walk(node)
 	}
 	if field == nil || modal == nil || input == nil || listbox == nil {
-		return markup
+		return false
 	}
 	setHTMLAttribute(input, "role", "combobox")
 	setHTMLAttribute(input, "aria-controls", resultsID)
@@ -246,13 +259,7 @@ func hardenSearchMarkup(markup []byte, config search.Config) []byte {
 			container.InsertBefore(clear, input.NextSibling)
 		}
 	}
-	var output bytes.Buffer
-	for _, node := range root {
-		if err := html.Render(&output, node); err != nil {
-			return markup
-		}
-	}
-	return output.Bytes()
+	return true
 }
 
 func configID(config search.Config) string {
