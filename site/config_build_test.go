@@ -2264,6 +2264,8 @@ theme:
 			t.Fatalf("landing stylesheet ownership is not isolated: %s", styles)
 		} else if !strings.Contains(styles, `.margo-landing-section > .margo-landing-media > img, .margo-landing-section > .margo-landing-media > svg`) || strings.Contains(styles, `.margo-landing-section > .margo-landing-media img`) || strings.Contains(styles, `.margo-landing-section > .margo-landing-media svg`) {
 			t.Fatalf("landing media styles must not resize nested component SVGs: %s", styles)
+		} else if !strings.Contains(styles, `[data-margo-layout="landing"] .goshtoso-charts-expand-panel`) || !strings.Contains(styles, `max-inline-size: min(100%, 36rem)`) || !strings.Contains(styles, `block-size: min(calc(100dvh - 2rem), 36rem)`) || !strings.Contains(styles, `max-block-size: calc(100dvh - 2rem)`) {
+			t.Fatalf("landing chart expansion must stay compact and viewport-safe: %s", styles)
 		}
 		if styles := string(configArtifact(t, result, configuredDocsStylePath)); !strings.Contains(styles, `.margo-showcase-article`) || !strings.Contains(styles, `.margo-pagination`) || strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "margo-frame") {
 			t.Fatalf("docs stylesheet ownership is not isolated: %s", styles)

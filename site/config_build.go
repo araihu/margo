@@ -223,6 +223,7 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
 .margo-landing-section > h3, .margo-landing-section > h3 + ul { inline-size: min(100%, 48rem); max-inline-size: 48rem; }
 .margo-landing-section > .margo-landing-media { max-inline-size: min(100%, 64rem); }
 .margo-landing-section > .margo-landing-media > img, .margo-landing-section > .margo-landing-media > svg { display: block; max-inline-size: 100%; block-size: auto; margin-inline: auto; }
+[data-margo-layout="landing"] .goshtoso-charts-expand-panel { inline-size: min(100%, 36rem); max-inline-size: min(100%, 36rem); block-size: min(calc(100dvh - 2rem), 36rem); max-block-size: calc(100dvh - 2rem); min-inline-size: 0; }
 .margo-landing-section > blockquote { margin-block: 1.25rem; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
 .margo-landing-section:last-child > ul:last-child { display: grid; grid-template-columns: 1fr; gap: 0.75rem; padding: 0; list-style: none; }
 .margo-landing-section:last-child > ul:last-child a { display: flex; align-items: center; min-block-size: 2.75rem; padding: 0.75rem 1rem; border: 1px solid var(--margo-outline); border-radius: 0.75rem; background: var(--margo-surface-alt); color: var(--margo-text-strong); font-weight: 700; text-decoration: none; }
