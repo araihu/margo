@@ -328,7 +328,11 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 		chromedp.Click(`[data-search-field][data-margo-search-a11y="true"] button`, chromedp.ByQuery),
 		chromedp.WaitVisible(`[data-search-modal][data-margo-search-a11y="true"]`, chromedp.ByQuery),
 		chromedp.SendKeys(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, "Module", chromedp.ByQuery),
-		chromedp.Sleep(120*time.Millisecond),
+		chromedp.Poll(`(() => {
+			const input = document.querySelector('[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]');
+			const listbox = input && document.getElementById(input.getAttribute('aria-controls'));
+			return input?.getAttribute('aria-expanded') === 'true' && !!input.getAttribute('aria-activedescendant') && listbox?.querySelectorAll('[role="option"][aria-selected="true"]').length === 1;
+		})()`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(searchSemanticsScript, &state),
 	); err != nil {
 		t.Fatal(err)
@@ -348,9 +352,8 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Click(`[data-margo-search-clear]`, chromedp.ByQuery),
-		chromedp.Sleep(80*time.Millisecond),
 		chromedp.SendKeys(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, "not-a-real-page", chromedp.ByQuery),
-		chromedp.Sleep(120*time.Millisecond),
+		chromedp.Poll(`document.querySelector('[data-margo-search-status]')?.textContent === 'No matching pages.'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(searchSemanticsScript, &state),
 	); err != nil {
 		t.Fatal(err)
@@ -360,7 +363,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.KeyEvent(kb.Escape),
-		chromedp.Sleep(400*time.Millisecond),
+		chromedp.Poll(`document.activeElement === document.querySelector('[data-search-field][data-margo-search-a11y="true"] button')`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(searchSemanticsScript, &state),
 	); err != nil {
 		t.Fatal(err)
