@@ -371,7 +371,7 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 	if err := visit(root); err != nil {
 		return nil, err
 	}
-	if b.shellMode {
+	if b.usesComponentDocShell(source) {
 		decorateComponentDocShellHeadings(root)
 		if err := b.decorateComponentDocShellNavigation(root, source); err != nil {
 			return nil, err
@@ -402,7 +402,14 @@ func (b *builder) rewriteDependency(source Source, node *html.Node) error {
 	if err != nil || !strings.HasPrefix(parsed.Path, "/") {
 		return nil
 	}
-	dependency, exists := b.dependencies[strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))]
+	dependencyKey := strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))
+	dependency, exists := b.dependencies[dependencyKey]
+	if !exists && b.config != nil {
+		basePath := strings.TrimPrefix(normalizedBasePath(b.config.BasePath), "/")
+		if basePath != "" {
+			dependency, exists = b.dependencies[strings.TrimPrefix(dependencyKey, basePath+"/")]
+		}
+	}
 	if !exists {
 		return nil
 	}

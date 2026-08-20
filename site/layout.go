@@ -77,6 +77,7 @@ type layoutDependencies struct {
 	docsStyles         bool
 	docsInteractions   bool
 	goshtosoNavigation bool
+	componentDocShell  bool
 	pageActions        bool
 }
 
@@ -172,11 +173,9 @@ func builtinLayoutRegistry() layoutRegistry {
 			frameProfile: ssg.DocsProfile,
 			renderer:     layoutRenderDocs,
 			dependencies: layoutDependencies{
-				siteStyles:         true,
-				docsStyles:         true,
-				docsInteractions:   true,
-				goshtosoNavigation: true,
-				pageActions:        true,
+				docsStyles:        true,
+				componentDocShell: true,
+				pageActions:       true,
 			},
 			defaults: map[string]any{
 				"families": []any{"default"},

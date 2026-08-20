@@ -409,8 +409,13 @@ theme:
 	if !strings.Contains(landing, `data-margo-frame="main"`) {
 		t.Fatalf("landing frame missing: %s", landing)
 	}
-	if !strings.Contains(docs, `data-margo-frame="top-left-main-right-footer"`) {
-		t.Fatalf("docs frame missing: %s", docs)
+	for _, required := range []string{`class="component-doc-shell`, `id="componentdocshell-sidebar"`, `data-componentdocshell-toc`} {
+		if !strings.Contains(docs, required) {
+			t.Fatalf("docs component shell marker %q missing: %s", required, docs)
+		}
+	}
+	if strings.Contains(docs, `data-margo-frame="top-left-main-right-footer"`) {
+		t.Fatalf("typed docs retained the legacy frame marker: %s", docs)
 	}
 }
 
@@ -467,15 +472,15 @@ theme:
 		if !strings.Contains(page, `data-margo-layout="`) {
 			t.Fatalf("%s missing semantic layout hook: %s", source, page)
 		}
-		if strings.Count(page, `aria-current="location"`) != 1 {
+		if strings.Count(page, `aria-current="location"`) != 2 {
 			t.Fatalf("%s has wrong active family count: %s", source, page)
 		}
 		if strings.Count(page, `data-search-field=""`) != 1 {
 			t.Fatalf("%s renders duplicate global search fields: %s", source, page)
 		}
-		globalStart := strings.Index(page, `data-margo-family-navigation="true"`)
+		globalStart := strings.Index(page, `class="component-doc-shell__family-links"`)
 		if globalStart < 0 {
-			t.Fatalf("%s missing global navigation: %s", source, page)
+			t.Fatalf("%s missing public component shell family navigation: %s", source, page)
 		}
 		globalEnd := strings.Index(page[globalStart:], `</nav>`)
 		if globalEnd < 0 {
@@ -501,32 +506,20 @@ theme:
 		t.Fatalf("landing unexpectedly renders local navigation: %s", landing)
 	}
 	styles := string(configArtifact(t, result, configuredDocsStylePath))
-	for _, required := range []string{
-		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`,
-		`@media (min-width: 880px)`,
-		`grid-template-columns: clamp(9rem, 16vw, 16rem) minmax(0, var(--margo-reading-measure)) clamp(9rem, 16vw, 16rem);`,
-		`grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";`,
-		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav`,
-		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content`,
-		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav`,
-		`@media (max-width: 639px)`,
-		`grid-template-areas: "top-nav" "main-content" "footer";`,
-		`@media (min-width: 640px) and (max-width: 879px)`,
-		`grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);`,
-		`grid-template-areas: "top-nav top-nav" "left-nav main-content" "footer footer";`,
-		`overflow-x: clip`,
-	} {
+	for _, required := range []string{`.margo-showcase-article`, `.margo-pagination`, `.margo-page-actions`} {
 		if !strings.Contains(styles, required) {
-			t.Fatalf("docs stylesheet missing responsive rail contract %s", required)
+			t.Fatalf("docs stylesheet missing Margo-owned article contract %s", required)
 		}
 	}
-	if strings.Contains(styles, `[data-margo-layout="docs"] .margo-frame--top-left-main-right-footer`) {
-		t.Fatalf("docs stylesheet scopes frame as a descendant instead of frame element")
-	}
-	if strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "componentdocshell") {
-		t.Fatalf("docs stylesheet leaks App Shell-private selectors")
+	for _, forbidden := range []string{"margo-frame", "component-doc-shell", "componentdocshell", "grid-template-areas"} {
+		if strings.Contains(styles, forbidden) {
+			t.Fatalf("docs stylesheet retains shell-owned selector %q", forbidden)
+		}
 	}
 	for _, asset := range []string{
+		"margo-assets/goshtoso/shell.css",
+		"margo-assets/goshtoso/shell.js",
+		"margo-assets/goshtoso/margo-scroll-spy.js",
 		"assets/styles.css",
 		"assets/js/goshtoso.min.js",
 		"assets/js/runtime/alpinejs/3.14.9/alpine.min.js",
@@ -537,13 +530,10 @@ theme:
 	}
 	for source, family := range map[string]string{"module/index.md": "Module", "cli/index.md": "CLI"} {
 		page := pages[source]
-		if got := strings.Count(page, "assets/styles.css"); got != 1 {
-			t.Fatalf("%s emits Goshtoso stylesheet %d times, want exactly once: %s", source, got, page)
-		}
-		leftStart := strings.Index(page, `id="left-nav"`)
-		leftEnd := strings.Index(page[leftStart:], `</div>`)
+		leftStart := strings.Index(page, `data-sidebar-section="`+family+`"`)
+		leftEnd := strings.Index(page[leftStart:], `</nav>`)
 		if leftStart < 0 || leftEnd < 0 {
-			t.Fatalf("%s missing family sidebar: %s", source, page)
+			t.Fatalf("%s missing active-family public sidebar: %s", source, page)
 		}
 		left := page[leftStart : leftStart+leftEnd]
 		if !strings.Contains(left, `>`+family+`<`) {
@@ -612,17 +602,17 @@ theme:
 		"CLI":    string(configArtifact(t, result, "cli/index.html")),
 	}
 	for name, page := range map[string]string{"Module": pages["Module"], "CLI": pages["CLI"]} {
-		if strings.Count(page, `aria-current="location"`) != 1 || !strings.Contains(page, `data-margo-family-navigation="true"`) {
-			t.Fatalf("%s global family state is not semantic: %s", name, page)
+		if strings.Count(page, `aria-current="location"`) != 2 || !strings.Contains(page, `id="componentdocshell-family-navigation"`) {
+			t.Fatalf("%s public family navigation state is missing: %s", name, page)
 		}
-		if !strings.Contains(page, `data-margo-repository-link="true"`) || !strings.Contains(page, `aria-label="Repository"`) || !strings.Contains(page, `<svg`) {
+		if !strings.Contains(page, `component-doc-shell__repository`) || !strings.Contains(page, `aria-label="Source repository"`) || !strings.Contains(page, `<svg`) {
 			t.Fatalf("%s repository action is not an accessible icon link: %s", name, page)
 		}
-		if strings.Contains(page, `>Repository</a>`) {
-			t.Fatalf("%s repository action still exposes the old text link: %s", name, page)
+		if strings.Contains(page, `data-margo-repository-link="true"`) {
+			t.Fatalf("%s repository action still uses the removed Margo hook: %s", name, page)
 		}
-		if strings.Contains(page, "component-doc-shell") || strings.Contains(page, "componentdocshell") {
-			t.Fatalf("%s docs output leaks App Shell-private markup: %s", name, page)
+		if !strings.Contains(page, `class="component-doc-shell`) || !strings.Contains(page, `data-componentdocshell-toc`) {
+			t.Fatalf("%s docs output is not rendered by componentdocshell: %s", name, page)
 		}
 	}
 	tour := pages["Tour"]
@@ -638,57 +628,36 @@ theme:
 		}
 		for _, required := range []string{
 			`data-margo-layout="docs"`,
-			`id="left-nav"`,
+			`class="component-doc-shell`,
+			`id="componentdocshell-sidebar"`,
 			`aria-label="sidebar navigation"`,
 			`data-sidebar-section="` + family + `"`,
 			`aria-current="page"`,
 			`class="margo-pagination"`,
-			`id="right-nav"`,
+			`id="componentdocshell-toc"`,
+			`data-componentdocshell-toc`,
 		} {
 			if !strings.Contains(page, required) {
 				t.Fatalf("%s missing semantic docs output %q: %s", name, required, page)
 			}
 		}
-		if !strings.Contains(page, `data-margo-toc="true"`) || !strings.Contains(page, `data-margo-toc-link=`) {
-			t.Fatalf("%s is missing a usable Margo-owned TOC payload: %s", name, page)
-		}
-		if !strings.Contains(page, `<details class="margo-toc-drawer" data-margo-toc-drawer="true" open="">`) {
-			t.Fatalf("%s is missing the no-JS desktop TOC fallback: %s", name, page)
-		}
-		if strings.Contains(page, `data-toc-heading`) || strings.Contains(page, `component-doc-shell`) {
-			t.Fatalf("%s TOC leaks private App Shell semantics: %s", name, page)
+		if strings.Contains(page, `data-margo-toc-drawer`) || strings.Contains(page, `id="right-nav"`) {
+			t.Fatalf("%s retains the removed custom TOC drawer: %s", name, page)
 		}
 	}
 	styles := string(configArtifact(t, result, configuredDocsStylePath))
-	for _, required := range []string{
-		`[data-margo-layout="docs"] .margo-area--top-nav > *`,
-		`@media (max-width: 639px)`,
-		`[data-margo-mobile-menu-trigger="true"]`,
-		`[data-margo-mobile-menu="true"]`,
-		`[data-margo-layout="docs"] .margo-area--left-nav { display: none; }`,
-		`@media (min-width: 640px) and (max-width: 879px)`,
-		`grid-template-areas: "top-nav top-nav" "left-nav main-content" "footer footer";`,
-		`[data-margo-toc-drawer="true"]`,
-		`position: fixed`,
-		`inset-block-end: 0`,
-		`@media (min-width: 880px)`,
-		`[data-margo-toc-summary="true"] { display: none; }`,
-		`[data-margo-toc-title="true"] { display: block; }`,
-		`[data-margo-layout="docs"] .margo-site-search`,
-		`[data-margo-layout="docs"] .margo-site-repository`,
-	} {
+	for _, required := range []string{`.margo-showcase-article`, `.margo-pagination`, `.margo-page-actions`} {
 		if !strings.Contains(styles, required) {
-			t.Fatalf("docs stylesheet missing mobile chrome constraint %q: %s", required, styles)
+			t.Fatalf("docs stylesheet missing article/action constraint %q: %s", required, styles)
 		}
 	}
-	script := string(configArtifact(t, result, docsNavigationScriptPath))
-	for _, required := range []string{`[data-margo-toc-drawer="true"]`, `[data-margo-toc-link]`, `matchMedia("(min-width: 880px)")`, `drawer.open = media.matches`, `target.focus`, `target.removeAttribute("tabindex")`} {
-		if !strings.Contains(script, required) {
-			t.Fatalf("docs interaction script missing TOC drawer behavior %q: %s", required, script)
+	for _, forbidden := range []string{"margo-frame", "data-margo-toc-drawer", "component-doc-shell", "grid-template-areas"} {
+		if strings.Contains(styles, forbidden) {
+			t.Fatalf("docs stylesheet retains shell-owned selector %q: %s", forbidden, styles)
 		}
 	}
-	if strings.Contains(styles, `[data-margo-toc-drawer="true"] > .margo-toc { display: block !important; }`) {
-		t.Fatalf("desktop TOC force-shows closed disclosure contents: %s", styles)
+	if artifactExists(result, docsNavigationScriptPath) {
+		t.Fatalf("typed component shell unexpectedly publishes legacy docs navigation script")
 	}
 }
 
@@ -781,7 +750,7 @@ theme:
 			{id: "module", href: fixture.localRoutes[1]},
 			{id: "cli", href: fixture.localRoutes[2]},
 		} {
-			link := `data-margo-family-link="` + family.id + `" href="` + family.href + `"`
+			link := `class="component-doc-shell__family-link" href="` + family.href + `"`
 			if !strings.Contains(page, link) {
 				t.Fatalf("%s global family navigation missing locale-owned overview %s: %s", fixture.name, link, page)
 			}
@@ -1090,6 +1059,78 @@ locales:
 	for _, forbidden := range []string{"\nbutton, a {", "\nbutton {", "\n:focus-visible {"} {
 		if strings.Contains(styles, forbidden) {
 			t.Fatalf("shell CSS leaks an unscoped control rule %q: %s", forbidden, styles)
+		}
+	}
+}
+
+func TestTypedDocsLayoutUsesComponentDocShellPublicFrame(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nWelcome.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "---\nlayout:\n  values:\n    family: module\n---\n# Module\n\n## Usage\n\nDocs page.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Typed docs shell fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module]
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	docs := string(configArtifact(t, result, "module/index.html"))
+	for _, required := range []string{
+		`class="component-doc-shell`, `id="componentdocshell-sidebar"`,
+		`data-componentdocshell-toc`, `data-margo-layout="docs"`,
+		`margo-assets/goshtoso/shell.css`, `margo-assets/goshtoso/shell.js`,
+	} {
+		if !strings.Contains(docs, required) {
+			t.Fatalf("typed docs output missing %q: %s", required, docs)
+		}
+	}
+	for _, forbidden := range []string{`class="margo-frame`, `data-margo-toc-drawer`, `data-margo-global-navigation`} {
+		if strings.Contains(docs, forbidden) {
+			t.Fatalf("typed docs output retained custom shell marker %q: %s", forbidden, docs)
+		}
+	}
+}
+
+func TestTypedDocsSidebarFalseUsesSemanticComponentShellBridge(t *testing.T) {
+	document := []byte(`<!doctype html><html lang="pt_BR"><body><button class="component-doc-shell__menu-button"></button><div id="componentdocshell-sidebar"></div><div class="component-doc-shell__backdrop"></div><main id="page-scroll"><div id="main-content">content</div></main></body></html>`)
+	got, err := applyTypedComponentDocShellSemantics(document, Page{Locale: "pt-BR"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(got)
+	for _, required := range []string{`lang="pt-BR"`, `dir="ltr"`, `data-margo-layout="docs"`, `data-margo-sidebar="false"`, `id="main-content"`} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("semantic shell bridge missing %q: %s", required, page)
+		}
+	}
+	for _, forbidden := range []string{"component-doc-shell__menu-button", "componentdocshell-sidebar", "component-doc-shell__backdrop"} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("semantic shell bridge retained %q: %s", forbidden, page)
 		}
 	}
 }
@@ -1876,15 +1917,13 @@ Module details.
 	}
 	docs := pages["docs"]
 	for _, required := range []string{
-		`data-margo-frame="top-left-main-right-footer"`,
-		`data-margo-global-navigation="true"`,
-		`data-margo-family-navigation="true"`,
-		`data-margo-family-link="module"`,
-		`data-margo-family-link="cli"`,
-		`id="left-nav"`,
+		`class="component-doc-shell`,
+		`id="componentdocshell-family-navigation"`,
+		`class="component-doc-shell__family-link"`,
+		`id="componentdocshell-sidebar"`,
 		`data-sidebar-section="Module overview"`,
-		`id="right-nav"`,
-		`data-margo-toc="true"`,
+		`id="componentdocshell-toc"`,
+		`data-componentdocshell-toc`,
 		`class="margo-page-actions"`,
 		`class="margo-pagination"`,
 		`rel="next"`,
@@ -1892,6 +1931,11 @@ Module details.
 	} {
 		if !strings.Contains(docs, required) {
 			t.Fatalf("docs chrome missing %q: %s", required, docs)
+		}
+	}
+	for _, forbidden := range []string{`data-margo-frame="top-left-main-right-footer"`, `data-margo-global-navigation="true"`, `data-margo-family-navigation="true"`, `id="left-nav"`, `id="right-nav"`, `data-margo-toc-drawer`} {
+		if strings.Contains(docs, forbidden) {
+			t.Fatalf("docs output retained custom shell marker %q", forbidden)
 		}
 	}
 	if strings.Contains(docs, `>Next: CLI overview</a>`) {
@@ -1973,12 +2017,17 @@ theme:
 		if !strings.Contains(article, configuredTypedSiteStylePath) || strings.Contains(article, configuredLandingStylePath) {
 			t.Fatalf("article dependencies are not isolated: %s", article)
 		}
-		for _, required := range []string{configuredTypedSiteStylePath, configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath, "assets/js/goshtoso.min.js"} {
+		for _, required := range []string{configuredDocsStylePath, pageActionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
 			if !strings.Contains(docs, required) {
 				t.Fatalf("docs dependency missing %q: %s", required, docs)
 			}
 		}
-		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath, "assets/js/goshtoso.min.js"} {
+		for _, forbidden := range []string{configuredTypedSiteStylePath, docsNavigationScriptPath} {
+			if strings.Contains(docs, forbidden) {
+				t.Fatalf("legacy typed docs dependency %q leaked into component shell: %s", forbidden, docs)
+			}
+		}
+		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
 			if !artifactExists(result, artifact) {
 				t.Fatalf("owned local artifact %q missing", artifact)
 			}
@@ -1989,7 +2038,7 @@ theme:
 		if styles := string(configArtifact(t, result, configuredLandingStylePath)); !strings.Contains(styles, `data-margo-layout="landing"`) || strings.Contains(styles, `data-margo-layout="docs"`) || strings.Contains(styles, "component-doc-shell") {
 			t.Fatalf("landing stylesheet ownership is not isolated: %s", styles)
 		}
-		if styles := string(configArtifact(t, result, configuredDocsStylePath)); !strings.Contains(styles, `data-margo-layout="docs"`) || strings.Contains(styles, `data-margo-layout="landing"`) || strings.Contains(styles, "component-doc-shell") {
+		if styles := string(configArtifact(t, result, configuredDocsStylePath)); !strings.Contains(styles, `.margo-showcase-article`) || !strings.Contains(styles, `.margo-pagination`) || strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "margo-frame") {
 			t.Fatalf("docs stylesheet ownership is not isolated: %s", styles)
 		}
 	})
@@ -2009,19 +2058,24 @@ theme:
 		if !strings.Contains(landing, `data-margo-layout-style="landing"`) || strings.Contains(article, `data-margo-layout-style="landing"`) {
 			t.Fatalf("inline landing style ownership is not isolated")
 		}
-		for _, required := range []string{`data-margo-layout-style="site"`, `data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `data-margo-layout-dependency="site-navigation"`, `data-margo-layout-dependency="goshtoso-navigation"`} {
+		for _, required := range []string{`data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `margo-assets/goshtoso/shell.css`, `margo-assets/goshtoso/shell.js`} {
 			if !strings.Contains(docs, required) {
 				t.Fatalf("inline docs dependency missing %q: %s", required, docs)
 			}
 		}
-		for _, external := range []string{"assets/js/goshtoso.min.js", "assets/js/runtime/", configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath} {
+		for _, external := range []string{configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath} {
 			if strings.Contains(docs, `src="/`+external) || strings.Contains(docs, `href="/`+external) {
 				t.Fatalf("inline docs retained external dependency %q: %s", external, docs)
 			}
 		}
-		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath, "assets/js/goshtoso.min.js"} {
+		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, docsNavigationScriptPath} {
 			if artifactExists(result, artifact) {
 				t.Fatalf("inline build published layout artifact %q", artifact)
+			}
+		}
+		for _, artifact := range []string{"margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "margo-assets/goshtoso/margo-scroll-spy.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+			if !artifactExists(result, artifact) {
+				t.Fatalf("inline build did not stage public shell asset %q", artifact)
 			}
 		}
 	})

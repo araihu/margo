@@ -209,87 +209,36 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
 [data-margo-layout="landing"] .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
 `
 
-const configuredDocsCSS = `[data-margo-layout="docs"].margo-frame--top-left-main-right-footer { grid-template-areas: "top-nav" "main-content" "footer"; column-gap: var(--margo-gap); row-gap: 0; }
-[data-margo-layout="docs"] .margo-area--top-nav { grid-area: top-nav; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
-[data-margo-layout="docs"] .margo-area--top-nav > nav,
-[data-margo-layout="docs"] .margo-site-family-links,
-[data-margo-layout="docs"] .margo-area--top-nav > * { inline-size: 100%; min-inline-size: 0; max-inline-size: 100%; }
-[data-margo-layout="docs"] .margo-area--top-nav > [data-navbar-shell="true"] { flex: 1 1 100%; }
-[data-margo-layout="docs"] .margo-site-navbar { inline-size: 100%; min-inline-size: 0; }
-[data-margo-layout="docs"] .margo-area--left-nav { grid-area: left-nav; min-inline-size: 0; overflow-inline: auto; }
-[data-margo-layout="docs"] .margo-area--main-content { grid-area: main-content; max-inline-size: var(--margo-reading-measure); }
-[data-margo-layout="docs"] .margo-area--right-nav { grid-area: right-nav; min-inline-size: 0; padding-inline-start: 0.5rem; }
-[data-margo-layout="docs"] .margo-area--footer { grid-area: footer; }
-[data-margo-layout="docs"] .margo-showcase-article { inline-size: min(100%, var(--margo-reading-measure)); max-inline-size: 100%; margin-inline: auto; padding-block: clamp(1.5rem, 4vw, 4rem); }
-[data-margo-layout="docs"] .margo-page-heading { grid-template-columns: minmax(0, 1fr); }
-[data-margo-layout="docs"] .margo-page-heading__title { grid-column: 1; grid-row: 1; }
-[data-margo-layout="docs"] .margo-document .margo-page-heading > .margo-document__lead { grid-column: 1; grid-row: 2; }
-[data-margo-layout="docs"] .margo-page-actions { grid-column: 1; grid-row: 3; justify-self: start; margin-block-start: 0; }
-[data-margo-layout="docs"] .margo-page-actions [data-popover-panel] { left: 0 !important; right: auto !important; }
-[data-margo-layout="docs"] :where(a, button):focus-visible { outline: 3px solid var(--margo-accent); outline-offset: 2px; }
-[data-margo-layout="docs"] .margo-site-family-links a,
-[data-margo-layout="docs"] .margo-site-search button,
-[data-margo-layout="docs"] [data-margo-mobile-menu-trigger="true"] { min-block-size: 2.75rem; }
-[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type { min-inline-size: 0; flex: 1 1 auto; }
-[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > a { inline-size: auto; max-inline-size: none; flex: 0 0 auto; min-inline-size: max-content; }
-[data-margo-layout="docs"] .margo-site-brand { display: inline-flex; align-items: center; gap: 0.5rem; inline-size: auto; flex: 0 0 auto; min-inline-size: max-content; white-space: nowrap; }
-[data-margo-layout="docs"] .margo-site-brand img { inline-size: 2rem; block-size: 2rem; flex: 0 0 2rem; margin-inline-end: 0; object-fit: contain; vertical-align: middle; }
-[data-margo-layout="docs"] .margo-site-repository { display: inline-flex; align-items: center; justify-content: center; inline-size: 2.75rem; block-size: 2.75rem; color: var(--margo-accent); text-decoration: none; }
-[data-margo-layout="docs"] .margo-site-repository svg { inline-size: 1.5rem; block-size: 1.5rem; }
-[data-margo-layout="docs"] .margo-site-repository:hover,
-[data-margo-layout="docs"] .margo-site-repository:focus-visible { color: var(--margo-text-strong); }
-[data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > .margo-site-search { inline-size: clamp(11rem, 26vw, 18rem); min-inline-size: 0; flex: 0 1 auto; }
-[data-margo-layout="docs"] [data-margo-navbar-desktop-actions="true"] [data-margo-family-page-link] { display: none; }
-[data-margo-layout="docs"] .margo-site-family-links { flex: 1 1 100%; }
-[data-margo-layout="docs"] [data-margo-toc-drawer="true"] { min-inline-size: 0; }
-[data-margo-layout="docs"] [data-margo-toc-summary="true"] { min-block-size: 2.75rem; padding: 0.65rem 1rem; font-weight: 700; cursor: pointer; }
-[data-margo-layout="docs"] [data-margo-toc-title="true"] { display: none; margin: 0; font-weight: 700; }
-[data-margo-layout="docs"] [data-margo-toc-list="true"] { margin: 0; padding: 0.75rem 1rem 1rem 2rem; }
-[data-margo-layout="docs"] .margo-search-clear { min-block-size: 2rem; border: 0; padding: 0.25rem 0.5rem; color: var(--margo-text); background: transparent; font-size: 0.875rem; white-space: nowrap; }
-[data-margo-layout="docs"] .margo-search-clear:hover,
-[data-margo-layout="docs"] .margo-search-clear:focus-visible { color: var(--margo-text-strong); background: var(--margo-surface-alt); }
-[data-margo-layout="docs"] .margo-pagination ul { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem 2rem; margin: 0; padding: 0; list-style: none; }
-[data-margo-layout="docs"] .margo-pagination { margin-block-start: 2rem; padding-block-start: 1rem; border-block-start: 1px solid var(--margo-outline); }
-[data-margo-layout="docs"] .margo-footer { margin-block-start: 1rem; padding-block-start: 1rem; border-block-start: 1px solid var(--margo-outline); }
+// configuredDocsCSS contains only the Margo-owned article and action layer.
+// The Goshtoso component documentation shell owns its frame, responsive
+// navigation, and table-of-contents rail in its published shell stylesheet.
+const configuredDocsCSS = `.margo-showcase-article {
+  inline-size: min(100%, 78ch);
+  max-inline-size: 100%;
+  margin-inline: auto;
+  padding-block: clamp(1.5rem, 4vw, 4rem);
+}
+.margo-showcase-article .margo-document { color: var(--margo-text, var(--color-on-surface, #17202a)); }
+.margo-showcase-article .margo-document a { color: var(--margo-accent, var(--color-primary, #155eef)); }
+.margo-showcase-article .margo-pagination ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.margo-showcase-article .margo-pagination {
+  margin-block-start: 2rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--margo-outline, var(--color-outline, #7b8794));
+}
+.margo-showcase-article .margo-pagination a { font-weight: 600; text-decoration: none; }
+.margo-showcase-article .margo-pagination a:hover,
+.margo-showcase-article .margo-pagination a:focus-visible { text-decoration: underline; }
+.margo-shell-footer { margin: 0; font-size: 0.875rem; }
 .margo-search-status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-@media (width < 30rem) {
-  [data-margo-layout="docs"] .margo-site-navbar > div:first-of-type > .margo-site-search,
-  [data-margo-layout="docs"] .margo-site-search { inline-size: 2.75rem; width: 2.75rem; flex: 0 0 2.75rem; }
-  [data-margo-layout="docs"] .margo-site-search button { width: 2.75rem; min-width: 2.75rem; padding-inline: 0; justify-content: center; }
-  [data-margo-layout="docs"] .margo-site-search button > span,
-  [data-margo-layout="docs"] .margo-site-search button > kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
-}
-@media (max-width: 639px) {
-  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "top-nav" "main-content" "footer"; overflow-x: clip; }
-  [data-margo-layout="docs"] .margo-site-navbar { padding-inline: 0.75rem; }
-  [data-margo-layout="docs"] .margo-site-navbar > div:first-of-type { flex: 1 1 0; }
-  [data-margo-layout="docs"] [data-margo-mobile-menu-trigger="true"] { display: inline-flex; flex: 0 0 2.75rem; inline-size: 2.75rem; block-size: 2.75rem; margin-inline-start: auto; align-items: center; justify-content: center; padding: 0; }
-  [data-margo-layout="docs"] [data-margo-mobile-menu="true"] { inline-size: 100%; }
-  [data-margo-layout="docs"] .margo-area--left-nav { display: none; }
-}
-@media (min-width: 640px) and (max-width: 879px) {
-  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer { display: grid; grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr); grid-template-areas: "top-nav top-nav" "left-nav main-content" "footer footer"; justify-content: center; overflow-x: clip; }
-  [data-margo-layout="docs"] .margo-area--left-nav { display: block; }
-}
-@media (max-width: 879px) {
-  [data-margo-layout="docs"] .margo-showcase-article { inline-size: 100%; }
-  [data-margo-layout="docs"] .margo-area--main-content { min-inline-size: 0; max-inline-size: 100%; padding-block-end: 4.75rem; overflow-inline: hidden; }
-  [data-margo-layout="docs"] .margo-area--right-nav { position: fixed; z-index: 30; inset-inline: 0; inset-block-end: 0; max-inline-size: none; padding: 0; overflow: visible; background: var(--margo-surface); border-block-start: 1px solid var(--margo-outline); box-shadow: 0 -0.4rem 1rem rgb(11 18 32 / 12%); }
-  [data-margo-layout="docs"] [data-margo-toc-drawer="true"] { inline-size: 100%; }
-  [data-margo-layout="docs"] [data-margo-toc-drawer="true"]:not([open]) > .margo-toc { display: none; }
-  [data-margo-layout="docs"] [data-margo-toc-drawer="true"] > .margo-toc { max-block-size: min(60svh, 28rem); overflow-y: auto; overscroll-behavior: contain; }
-}
-@media (min-width: 880px) {
-  [data-margo-layout="docs"] [data-margo-toc-summary="true"] { display: none; }
-  [data-margo-layout="docs"] [data-margo-toc-title="true"] { display: block; }
-}
-@media (min-width: 880px) {
-  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer { grid-template-columns: clamp(9rem, 16vw, 16rem) minmax(0, var(--margo-reading-measure)) clamp(9rem, 16vw, 16rem); grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer"; justify-content: center; }
-  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav,
-  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content,
-  [data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--right-nav { max-inline-size: 100%; }
-}
-@media print { [data-margo-layout="docs"] .margo-area--top-nav, [data-margo-layout="docs"] .margo-area--left-nav, [data-margo-layout="docs"] .margo-area--right-nav, [data-margo-layout="docs"] .margo-area--footer { display: none !important; } }
 ` + pageActionsCSS
 
 func configuredSiteStylesheet() string {
@@ -400,6 +349,10 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 	}
 	if err := b.preflightConfigured(ctx, ordered); err != nil {
 		return Result{}, err
+	}
+	if typedLayoutMode && b.typedComponentDocShell() {
+		b.shellAssetPrefix = componentDocShellAssetPrefix(config.BasePath)
+		b.shellName = "componentdocshell"
 	}
 	homeFound := false
 	for _, page := range b.configPages {
@@ -915,6 +868,7 @@ func configuredLayoutRegistryIdentity(registry layoutRegistry) []any {
 				"docs_styles":         entry.dependencies.docsStyles,
 				"docs_interactions":   entry.dependencies.docsInteractions,
 				"goshtoso_navigation": entry.dependencies.goshtosoNavigation,
+				"component_doc_shell": entry.dependencies.componentDocShell,
 				"page_actions":        entry.dependencies.pageActions,
 			},
 		})
@@ -1064,10 +1018,15 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 }
 
 func (b *builder) stageTypedLayoutAssets() error {
+	dependencies := b.typedLayoutDependencies()
+	if dependencies.componentDocShell {
+		if err := b.stageGoshtosoComponentDocShellAssets(); err != nil {
+			return err
+		}
+	}
 	if b.request.Assets == AssetsInline {
 		return nil
 	}
-	dependencies := b.typedLayoutDependencies()
 	stage := func(name, content string) error {
 		if err := b.addArtifact(name, []byte(content)); err != nil {
 			return err
@@ -1115,6 +1074,7 @@ func (b *builder) typedLayoutDependencies() layoutDependencies {
 		dependencies.docsStyles = dependencies.docsStyles || prepared.layout.dependencies.docsStyles
 		dependencies.docsInteractions = dependencies.docsInteractions || prepared.layout.dependencies.docsInteractions
 		dependencies.goshtosoNavigation = dependencies.goshtosoNavigation || prepared.layout.dependencies.goshtosoNavigation
+		dependencies.componentDocShell = dependencies.componentDocShell || prepared.layout.dependencies.componentDocShell
 		dependencies.pageActions = dependencies.pageActions || prepared.layout.dependencies.pageActions
 	}
 	return dependencies
@@ -1274,6 +1234,9 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 }
 
 func (b *builder) renderResolvedLayoutSource(ctx context.Context, source Source, prepared configuredPage, dependencyBytes []byte) error {
+	if prepared.layout.renderer == layoutRenderDocs {
+		return b.renderResolvedComponentDocShellSource(ctx, source, prepared, dependencyBytes)
+	}
 	bindings, err := b.resolvedBindingsForPage(prepared)
 	if err != nil {
 		return err
@@ -1336,7 +1299,7 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	excludeGoshtosoStyles := prepared.layout.Kind == LayoutLanding || prepared.layout.Kind == LayoutArticle
+	excludeGoshtosoStyles := prepared.layout.Kind == LayoutLanding || prepared.layout.Kind == LayoutArticle || prepared.layout.dependencies.componentDocShell
 	if b.request.Assets == AssetsLocal {
 		for _, requirement := range requirements.List() {
 			if excludeGoshtosoStyles && requirement.ID == "goshtoso.styles" {
@@ -2028,6 +1991,13 @@ func (b *builder) documentStyleDigest() string {
 			manifest := goshtosoassets.DefaultRuntimeManifest()
 			if content, err := readGoshtosoAsset(manifest.Stylesheet.LocalURL); err == nil {
 				styles[strings.TrimPrefix(manifest.Stylesheet.LocalURL, "/")] = content
+			}
+		}
+		if dependencies.componentDocShell {
+			for name, content := range b.artifacts {
+				if strings.HasSuffix(strings.ToLower(name), "/shell.css") {
+					styles[name] = content
+				}
 			}
 		}
 	} else {
