@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	stdhtml "html"
 	"io"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"github.com/a-h/templ"
 	"github.com/araihu/goshtoso-app-shells/componentdocshell"
 	shellassets "github.com/araihu/goshtoso-app-shells/componentdocshell/assets"
+	"github.com/araihu/goshtoso-app-shells/landingshell"
+	landingshellassets "github.com/araihu/goshtoso-app-shells/landingshell/assets"
 	goshtosoassets "github.com/araihu/goshtoso/assets"
 	"github.com/araihu/goshtoso/components/link"
 	"github.com/araihu/goshtoso/components/search"
@@ -23,6 +26,7 @@ import (
 	internalmermaid "github.com/araihu/margo/internal/mermaid"
 	"github.com/araihu/margo/ssg"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 const goshtosoComponentDocShellVersion = "v0.1.6"
@@ -408,6 +412,31 @@ func componentDocShellAssetPrefix(basePath string) string {
 	return strings.TrimSuffix(normalizedBasePath(basePath), "/") + "/margo-assets/goshtoso/"
 }
 
+func landingShellAssetPrefix(basePath string) string {
+	if basePath == "" || basePath == "/" {
+		return "/landingshell/assets/"
+	}
+	return strings.TrimSuffix(normalizedBasePath(basePath), "/") + "/landingshell/assets/"
+}
+
+func (b *builder) usesComponentDocShell(source Source) bool {
+	if b.shellMode {
+		return true
+	}
+	if b.config == nil || b.config.Layout == nil {
+		return false
+	}
+	prepared, ok := b.configured[source.Path]
+	return ok && prepared.layout.renderer == layoutRenderDocs
+}
+
+func (b *builder) typedComponentDocShell() bool {
+	if b.config == nil || b.config.Layout == nil {
+		return false
+	}
+	return b.typedLayoutDependencies().componentDocShell
+}
+
 func componentDocShellSchemaHash(config Config) string {
 	hash := sha256.New()
 	_, _ = hash.Write([]byte(ssg.ShellContract))
@@ -452,6 +481,26 @@ func (b *builder) stageGoshtosoComponentDocShellAssets() error {
 		}
 	}
 
+	return nil
+}
+
+func (b *builder) stageGoshtosoLandingShellAssets() error {
+	prefix := landingShellAssetPrefix(b.config.BasePath)
+	handler := landingshellassets.Handler(prefix)
+	for _, publicURL := range []string{
+		landingshellassets.StylesheetURL(prefix),
+		landingshellassets.ScriptURL(prefix),
+	} {
+		if err := b.stageHandlerAsset(handler, publicURL); err != nil {
+			return err
+		}
+	}
+	return b.stageGoshtosoNavigationAssets()
+}
+
+// stageComponentDocShellScrollSpy preserves the legacy shell mode runtime.
+// Typed docs use the public componentdocshell TOC lifecycle exclusively.
+func (b *builder) stageComponentDocShellScrollSpy() error {
 	publicURL := b.shellAssetPrefix + componentDocShellScrollSpyAssetName
 	parsed, err := url.Parse(publicURL)
 	if err != nil || parsed.Path == "" || !strings.HasPrefix(parsed.Path, "/") {
@@ -552,6 +601,458 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	}
 	b.pages = append(b.pages, page)
 	return nil
+}
+
+// renderResolvedComponentDocShellSource adapts a typed docs page to the
+// published Goshtoso componentdocshell contract. The article, family data,
+// pagination, and page actions remain Margo-owned; the shell owns the frame,
+// responsive navigation, and TOC rail.
+func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, source Source, prepared configuredPage, dependencyBytes []byte) error {
+	page := prepared.page
+	layout := prepared.layout
+	content := `<div class="margo-showcase-article" data-margo-showcase-article="true">` + string(prepared.article) + b.paginationFragment(page) + `</div>`
+	documentTitle := ""
+	if page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
+		documentTitle = page.Title + " — Markdown to durable outputs"
+	}
+	searchConfig := b.typedComponentDocShellSearchConfig(page)
+	shellPage := componentdocshell.Page{
+		Title:         page.Title,
+		DocumentTitle: documentTitle,
+		Description:   page.Description,
+		CanonicalURL:  page.Canonical,
+		SiteName:      b.config.Site.Name,
+		Locale:        openGraphLocale(page.Locale),
+		SocialImage: componentdocshell.SocialImage{
+			URL:      b.socialURL(),
+			MIMEType: b.socialMediaType,
+			Width:    1280,
+			Height:   640,
+			Alt:      b.config.Site.SocialImage.Alt,
+		},
+		ActiveFamily: b.typedComponentDocShellActiveFamily(page),
+		Active:       componentDocShellPageID(b, page),
+		Content:      templ.Raw(content),
+		Head:         templ.Raw(b.renderResolvedComponentDocShellHead(page)),
+		EnableTOC:    resolvedLayoutBool(layout, "toc"),
+	}
+	component := componentdocshell.Layout(b.typedComponentDocShellConfig(page, searchConfig), shellPage)
+	var rendered bytes.Buffer
+	if err := component.Render(ctx, &rendered); err != nil {
+		return err
+	}
+	withSearchModal, err := injectComponentDocShellSearchModal(rendered.Bytes(), searchConfig, ctx, page.Source)
+	if err != nil {
+		return err
+	}
+	withSearchModal, err = hardenComponentDocShellSearchDocument(withSearchModal, searchConfig, page.Source)
+	if err != nil {
+		return err
+	}
+	withDependencies, err := injectComponentDocShellPageDependencies(withSearchModal, dependencyBytes, page.Source)
+	if err != nil {
+		return err
+	}
+	withLayoutHook, err := applyTypedComponentDocShellSemantics(withDependencies, page, resolvedLayoutBool(layout, "sidebar"))
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, withLayoutHook)
+	if err != nil {
+		return err
+	}
+	rewritten, err = b.injectPageActionsForLayout(ctx, rewritten, page, layout)
+	if err != nil {
+		return err
+	}
+	if err := b.addDeclaredPageArtifacts(ctx, source, page, prepared.document); err != nil {
+		return err
+	}
+	if err := validateConfiguredShellDocument(rewritten, page); err != nil {
+		return err
+	}
+	if err := b.addArtifact(page.Output, rewritten); err != nil {
+		return err
+	}
+	b.pages = append(b.pages, page)
+	return nil
+}
+
+func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source Source, prepared configuredPage, dependencyBytes []byte) error {
+	hero, content, err := landingShellSlots(prepared.article)
+	if err != nil {
+		return fmt.Errorf("site.landing_fragment_invalid: %s: %w", prepared.page.Source, err)
+	}
+	page := prepared.page
+	head, err := b.renderResolvedLandingShellHead(page, prepared.layout, dependencyBytes)
+	if err != nil {
+		return err
+	}
+	component := landingshell.Layout(b.typedLandingShellConfig(prepared), landingshell.Page{
+		Title:          page.Title,
+		DocumentTitle:  page.Title,
+		Description:    page.Description,
+		CanonicalURL:   page.Canonical,
+		SocialImageURL: b.socialURL(),
+		Head:           templ.Raw(head),
+		Hero:           templ.Raw(string(hero)),
+		Content:        templ.Raw(string(content)),
+	})
+	var rendered bytes.Buffer
+	if err := component.Render(ctx, &rendered); err != nil {
+		return err
+	}
+	withSemantics, err := applyLandingShellSemantics(rendered.Bytes(), page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, withSemantics)
+	if err != nil {
+		return err
+	}
+	if err := b.addDeclaredPageArtifacts(ctx, source, page, prepared.document); err != nil {
+		return err
+	}
+	if err := validateConfiguredDocument(rewritten, page, nil); err != nil {
+		return err
+	}
+	if err := b.addArtifact(page.Output, rewritten); err != nil {
+		return err
+	}
+	b.pages = append(b.pages, page)
+	return nil
+}
+
+func (b *builder) typedLandingShellConfig(prepared configuredPage) landingshell.Config {
+	page := prepared.page
+	links := b.typedLandingShellLinks(prepared)
+	brand := landingshell.Brand{
+		Name:       b.config.Site.Name,
+		HomeURL:    b.siteHomeHref(page),
+		Logo:       templ.Raw(`<img src="` + stdhtml.EscapeString(b.publicationArtifactHref(b.config.Site.Logo)) + `" alt="">`),
+		FaviconURL: b.publicationArtifactHref(b.config.Site.Icon),
+	}
+	if b.config.Site.Version != "" {
+		brand.Badge = &landingshell.BrandBadge{
+			Label:     b.config.Site.Version,
+			AriaLabel: b.config.Site.Name + " version " + b.config.Site.Version,
+		}
+	}
+	appearance := landingshell.AppearanceConfig{
+		DefaultTheme:          b.config.Theme.Name,
+		InitialColorScheme:    landingShellColorScheme(b.config.Theme.ColorMode),
+		PersistPreferences:    true,
+		DisableDarkModeToggle: !b.config.Theme.AllowSwitchTheme,
+	}
+	for _, theme := range b.config.Themes {
+		if theme.Name == b.config.Theme.Name {
+			appearance.ThemeStylesheets = []string{b.publicationArtifactHref(theme.CSSURL)}
+			break
+		}
+	}
+	config := landingshell.Config{
+		Brand:         brand,
+		Navigation:    links,
+		Appearance:    appearance,
+		Interactions:  landingshell.InteractionConfig{LocalRuntime: true},
+		Footer:        landingshell.Footer{Name: b.config.Site.Name, Meta: []string{b.config.Site.Version}, Links: links},
+		RepositoryURL: b.config.Site.RepositoryURL,
+		AssetPrefix:   landingShellAssetPrefix(b.config.BasePath),
+	}
+	return config
+}
+
+func (b *builder) typedLandingShellLinks(prepared configuredPage) []landingshell.Link {
+	targets := resolvedLayoutStrings(prepared.layout, "navigation")
+	links := make([]landingshell.Link, 0, len(targets))
+	for _, target := range targets {
+		candidate := b.configured[target].page
+		links = append(links, landingshell.Link{Label: candidate.Title, Href: b.sitePageHref(candidate)})
+	}
+	return links
+}
+
+func landingShellSlots(fragment []byte) ([]byte, []byte, error) {
+	transformed, err := transformLandingArticle(fragment)
+	if err != nil {
+		return nil, nil, err
+	}
+	nodes, err := html.ParseFragment(bytes.NewReader(transformed), &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"})
+	if err != nil {
+		return nil, nil, err
+	}
+	var article *html.Node
+	for _, node := range nodes {
+		if node.Type == html.ElementNode && node.Data == "article" && hasClass(node, "margo-document") {
+			article = node
+			break
+		}
+	}
+	if article == nil || article.FirstChild == nil || article.FirstChild.Type != html.ElementNode || !hasClass(article.FirstChild, "margo-landing-hero") {
+		return nil, nil, fmt.Errorf("expected landing hero")
+	}
+	hero := article.FirstChild
+	article.RemoveChild(hero)
+	for index := 0; index < len(article.Attr); index++ {
+		if article.Attr[index].Key == "id" {
+			article.Attr = append(article.Attr[:index], article.Attr[index+1:]...)
+			break
+		}
+	}
+	var heroOutput, contentOutput bytes.Buffer
+	if err := html.Render(&heroOutput, hero); err != nil {
+		return nil, nil, err
+	}
+	contentOutput.WriteString(`<div class="margo-landing-article" data-margo-landing-article="true">`)
+	if err := html.Render(&contentOutput, article); err != nil {
+		return nil, nil, err
+	}
+	contentOutput.WriteString(`</div>`)
+	return heroOutput.Bytes(), contentOutput.Bytes(), nil
+}
+
+func (b *builder) renderResolvedLandingShellHead(page Page, layout ResolvedLayout, dependencyBytes []byte) (string, error) {
+	var builder strings.Builder
+	builder.WriteString(`<meta property="og:site_name" content="` + stdhtml.EscapeString(b.config.Site.Name) + `">`)
+	builder.WriteString(`<meta property="og:image:type" content="` + stdhtml.EscapeString(b.socialMediaType) + `"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
+	builder.WriteString(`<meta name="twitter:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta name="twitter:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta name="twitter:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta name="twitter:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `">`)
+	for _, alternate := range page.Alternates {
+		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(alternate.URL) + `"><meta property="og:locale:alternate" content="` + stdhtml.EscapeString(openGraphLocale(alternate.Locale)) + `">`)
+	}
+	if b.request.Assets == AssetsInline {
+		if layout.dependencies.siteStyles {
+			builder.WriteString(`<style data-margo-layout-style="site">` + configuredTypedSiteCSS + `</style>`)
+		}
+		if layout.dependencies.landingStyles {
+			builder.WriteString(`<style data-margo-layout-style="landing">` + configuredLandingCSS + `</style>`)
+		}
+	} else {
+		if layout.dependencies.siteStyles {
+			builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(configuredTypedSiteStylePath)) + `">`)
+		}
+		if layout.dependencies.landingStyles {
+			builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(configuredLandingStylePath)) + `">`)
+		}
+	}
+	for _, css := range b.config.CustomCSS {
+		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(strings.TrimPrefix(css.CSSURL, "/"))) + `">`)
+	}
+	builder.Write(dependencyBytes)
+	return builder.String(), nil
+}
+
+func applyLandingShellSemantics(document []byte, page Page) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated landing shell defect.", page.Source)
+	}
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			switch {
+			case node.Data == "html":
+				setHTMLAttribute(node, "lang", page.Locale)
+				setHTMLAttribute(node, "dir", localeDirection(page.Locale))
+			case node.Data == "body":
+				setHTMLAttribute(node, "data-margo-layout", "landing")
+			case node.Data == "main":
+				setHTMLAttribute(node, "id", "margo-document")
+			case node.Data == "a" && hasClass(node, "landing-shell__skip"):
+				setHTMLAttribute(node, "href", "#margo-document")
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(root)
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated landing shell defect.", page.Source)
+	}
+	return output.Bytes(), nil
+}
+
+func landingShellColorScheme(value string) landingshell.ColorScheme {
+	switch value {
+	case "light":
+		return landingshell.ColorSchemeLight
+	case "dark":
+		return landingshell.ColorSchemeDark
+	default:
+		return landingshell.ColorSchemeSystem
+	}
+}
+
+func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Config) componentdocshell.Config {
+	items := make([]sidebar.Item, 0, len(b.familyPages(page)))
+	for _, candidate := range b.familyPages(page) {
+		items = append(items, sidebar.Item{
+			ID:    componentDocShellPageID(b, candidate),
+			Label: candidate.Title,
+			Href:  b.sitePageHref(candidate),
+		})
+	}
+	familyTitle := page.Family
+	if family, ok := b.docsFamily(page.Locale, page.Family); ok && family.Overview.Title != "" {
+		familyTitle = family.Overview.Title
+	}
+	families := b.typedComponentDocShellFamilies(page)
+	brand := componentdocshell.Brand{
+		Name:       b.config.Site.Name,
+		HomeURL:    b.siteHomeHref(page),
+		FaviconURL: shellassets.GoshtosoFaviconURL(b.shellAssetPrefix),
+	}
+	if b.config.Site.Version != "" {
+		brand.Badge = &componentdocshell.BrandBadge{
+			Label:     b.config.Site.Version,
+			AriaLabel: b.config.Site.Name + " version " + b.config.Site.Version,
+		}
+	}
+	defaultTheme := "araihu"
+	disableDefaultThemeStylesheet := false
+	var themeStylesheets []string
+	for _, theme := range b.config.Themes {
+		if theme.Name != b.config.Theme.Name {
+			continue
+		}
+		defaultTheme = theme.Name
+		disableDefaultThemeStylesheet = true
+		themeStylesheets = []string{b.publicationArtifactHref(theme.CSSURL)}
+		break
+	}
+	return componentdocshell.Config{
+		Brand: brand,
+		Navigation: componentdocshell.Navigation{
+			Families:          families,
+			Items:             nil,
+			Sections:          []sidebar.Section{{Title: familyTitle, Items: items}},
+			SearchPlaceholder: searchConfig.Placeholder,
+			DisableSearch:     true,
+		},
+		Appearance: componentdocshell.AppearanceConfig{
+			DefaultTheme:                  defaultTheme,
+			InitialColorScheme:            componentDocShellColorScheme(b.config.Theme.ColorMode),
+			PersistPreferences:            true,
+			DisableThemeSelector:          true,
+			DisableDarkModeToggle:         !b.config.Theme.AllowSwitchTheme,
+			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
+			ThemeStylesheets:              themeStylesheets,
+		},
+		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: false, LocalRuntime: true},
+		HeaderActions: componentDocShellSearchWithConfig(searchConfig),
+		Footer:        b.componentDocShellFooter(),
+		RepositoryURL: b.config.Site.RepositoryURL,
+		AssetPrefix:   b.shellAssetPrefix,
+	}
+}
+
+func (b *builder) typedComponentDocShellFamilies(page Page) []componentdocshell.FamilyLink {
+	declared := b.docsFamiliesForLocale(page.Locale)
+	families := make([]componentdocshell.FamilyLink, 0, len(declared))
+	for _, family := range declared {
+		if family.Overview.Source == "" {
+			continue
+		}
+		families = append(families, componentdocshell.FamilyLink{
+			ID:    family.ID,
+			Label: family.Overview.Title,
+			Href:  b.sitePageHref(family.Overview),
+		})
+	}
+	if len(families) <= 1 {
+		return nil
+	}
+	return families
+}
+
+func (b *builder) typedComponentDocShellActiveFamily(page Page) string {
+	if len(b.typedComponentDocShellFamilies(page)) <= 1 {
+		return ""
+	}
+	return page.Family
+}
+
+func (b *builder) typedComponentDocShellSearchConfig(page Page) search.Config {
+	config := b.siteSearchConfig(page.Locale)
+	config.RootClass = "margo-shell-search-control"
+	config.TriggerClass = "margo-shell-search-trigger"
+	return config
+}
+
+func componentDocShellSearchWithConfig(config search.Config) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		if _, err := io.WriteString(writer, `<div class="margo-shell-search">`); err != nil {
+			return err
+		}
+		if err := search.SearchField(config).Render(ctx, writer); err != nil {
+			return err
+		}
+		_, err := io.WriteString(writer, `</div>`)
+		return err
+	})
+}
+
+func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
+	var builder strings.Builder
+	if b.request.Assets == AssetsInline {
+		builder.WriteString(`<style data-margo-layout-style="docs">` + configuredDocsCSS + `</style>`)
+		builder.WriteString(`<script data-margo-layout-dependency="page-actions">` + pageActionsScript + `</script>`)
+		builder.WriteString(`<script data-margo-layout-dependency="search-interactions">` + searchInteractionsScript + `</script>`)
+	} else {
+		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(configuredDocsStylePath)) + `">`)
+		builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.publicationArtifactHref(pageActionsScriptPath)) + `"></script>`)
+		builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.publicationArtifactHref(searchInteractionsScriptPath)) + `"></script>`)
+	}
+	for _, css := range b.config.CustomCSS {
+		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(strings.TrimPrefix(css.CSSURL, "/"))) + `">`)
+	}
+	return builder.String()
+}
+
+// applyTypedComponentDocShellSemantics adds Margo's route hook and bridges the
+// one structural value not exposed by Goshtoso componentdocshell v0.1.6.
+// sidebar=false removes the shell's sidebar controls after rendering; it does
+// not add private shell CSS or recreate the shell's responsive layout.
+func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEnabled bool) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report this generated shell defect.", "")
+	}
+	setDocument := func(node *html.Node) {
+		if node.Type == html.ElementNode && node.Data == "html" {
+			setHTMLAttribute(node, "lang", page.Locale)
+			setHTMLAttribute(node, "dir", localeDirection(page.Locale))
+		}
+		if node.Type == html.ElementNode && node.Data == "body" {
+			setHTMLAttribute(node, "data-margo-layout", "docs")
+			if !sidebarEnabled {
+				setHTMLAttribute(node, "data-margo-sidebar", "false")
+			}
+		}
+	}
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		setDocument(node)
+		for child := node.FirstChild; child != nil; {
+			next := child.NextSibling
+			if !sidebarEnabled && child.Type == html.ElementNode &&
+				((child.Data == "button" && hasClass(child, "component-doc-shell__menu-button")) ||
+					(child.Data == "div" && (attributeValue(child, "id") == "componentdocshell-sidebar" || hasClass(child, "component-doc-shell__backdrop")))) {
+				node.RemoveChild(child)
+				child = next
+				continue
+			}
+			walk(child)
+			child = next
+		}
+	}
+	walk(root)
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated shell defect.", "")
+	}
+	return output.Bytes(), nil
 }
 
 func (b *builder) componentDocShellConfig() componentdocshell.Config {
@@ -722,6 +1223,9 @@ func (b *builder) publicationArtifactHref(filename string) string {
 const componentDocShellNavigationSwap = "outerHTML transition:true swap:160ms settle:240ms"
 
 func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source Source) error {
+	if !b.shellMode {
+		return nil
+	}
 	current, exists := b.configured[source.Path]
 	if !exists {
 		return nil
@@ -737,6 +1241,12 @@ func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source So
 	for _, page := range b.configPages {
 		if page.Locale != current.page.Locale {
 			continue
+		}
+		if !b.shellMode {
+			prepared, ok := b.configured[page.Source]
+			if !ok || prepared.layout.renderer != layoutRenderDocs {
+				continue
+			}
 		}
 		addRoute(b.shellPageHref(page))
 		addRoute(relativeAssetPath(path.Dir(current.page.Output), page.Output))
@@ -870,6 +1380,26 @@ func injectComponentDocShellSearchModal(document []byte, config search.Config, c
 	result = append(result, modal.Bytes()...)
 	result = append(result, document[index:]...)
 	return result, nil
+}
+
+func hardenComponentDocShellSearchDocument(document []byte, config search.Config, source string) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report this generated shell defect.", source)
+	}
+	if !hardenSearchNodes([]*html.Node{root}, config) {
+		return nil, diagnostic(
+			"site.html_invalid",
+			"componentdocshell search markup is incomplete",
+			"Keep the Goshtoso search field and modal in the generated document.",
+			source,
+		)
+	}
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report this generated shell defect.", source)
+	}
+	return output.Bytes(), nil
 }
 
 func decorateComponentDocShellHeadings(root *html.Node) {

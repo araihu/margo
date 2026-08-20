@@ -315,11 +315,7 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	if result == nil || result.Content() == nil {
 		return nil, fmt.Errorf("margo: standalone render requires a result")
 	}
-	prepared, err := relocateStandaloneChartScripts(result)
-	if err != nil {
-		return nil, err
-	}
-	editorial, err := RenderHTML(prepared)
+	editorial, err := RenderHTML(result)
 	if err != nil {
 		return nil, err
 	}
@@ -422,10 +418,10 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 // dependencies in their own lifecycle-controlled region without weakening the
 // fragment policy that rejects executable markup.
 func PrepareHTMLRenderResult(result *RenderResult) (*RenderResult, error) {
-	return relocateStandaloneChartScripts(result)
+	return relocateChartScripts(result)
 }
 
-func relocateStandaloneChartScripts(result *RenderResult) (*RenderResult, error) {
+func relocateChartScripts(result *RenderResult) (*RenderResult, error) {
 	if result == nil || result.Content() == nil {
 		return result, nil
 	}
@@ -452,7 +448,7 @@ func relocateStandaloneChartScripts(result *RenderResult) (*RenderResult, error)
 			return nil
 		}
 		if _, found := htmlAttributeValue(node, "src"); found {
-			return htmlError("html.metadata_invalid", "chart extension script source must be externalized before standalone rendering")
+			return htmlError("html.metadata_invalid", "chart extension script source must be externalized before HTML rendering")
 		}
 		if node.Parent == nil || node.FirstChild == nil || node.FirstChild != node.LastChild || node.FirstChild.Type != nethtml.TextNode {
 			return htmlError("html.metadata_invalid", "chart extension script is malformed")
@@ -469,10 +465,14 @@ func relocateStandaloneChartScripts(result *RenderResult) (*RenderResult, error)
 		if ordinal > 0 {
 			dependency = fmt.Sprintf("margo.charts.inline.%d", ordinal-1)
 		}
+		content := chartScriptBootstrap(slotID, node.FirstChild.Data)
+		digest := sha256.Sum256(content)
+		assetName := "charts-inline-" + hex.EncodeToString(digest[:]) + ".js"
 		scripts = append(scripts, HTMLRequirement{
 			ID: fmt.Sprintf("margo.charts.inline.%d", ordinal), Kind: HTMLScript,
 			LoadAfter: []string{dependency},
-			Inline:    AssetRef{Path: "charts-inline.js", MediaType: "application/javascript", Content: chartScriptBootstrap(slotID, node.FirstChild.Data)},
+			LocalURL:  "/margo-assets/" + assetName,
+			Inline:    AssetRef{Path: assetName, MediaType: "application/javascript", Content: content},
 		})
 		return nil
 	}

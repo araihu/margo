@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -209,6 +210,98 @@ locales:
 	}
 }
 
+func TestBuildConfigLayoutKindsPublishDeclaredMarkdownAndPDFWithoutLeakingActions(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+margo:
+  page:
+    imageOverflow: allow
+  actions:
+    pdf: true
+---
+# Landing export
+
+Landing source remains publishable.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "article.md"), `---
+layout:
+  kind: article
+margo:
+  actions:
+    pdf: true
+---
+# Article export
+
+Article source remains publishable.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), `---
+margo:
+  actions:
+    markdown: true
+---
+# Module docs
+
+Docs keep their toolbar.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Typed page-action fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module]
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{
+		ConfigPath: filepath.Join(root, "site.yaml"),
+		PDFEngine:  siteTestPDFEngine{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for route, output := range map[string]string{"landing": "index.html", "article": "article.html"} {
+		page := string(configArtifact(t, result, output))
+		for _, forbidden := range []string{"margo-page-actions", pageActionsScriptPath, pageActionsIconSpritePath} {
+			if strings.Contains(page, forbidden) {
+				t.Fatalf("%s action UI leaked into %s: %s", forbidden, route, page)
+			}
+		}
+		markdown := pageMarkdownOutput(output)
+		pdfOutput := pagePDFOutput(output)
+		if !artifactExists(result, markdown) || !artifactExists(result, pdfOutput) {
+			t.Fatalf("%s declared artifacts missing: markdown=%t pdf=%t", route, artifactExists(result, markdown), artifactExists(result, pdfOutput))
+		}
+		if route == "landing" && !strings.Contains(page, `data-margo-image-overflow="allow"`) {
+			t.Fatalf("landing lost semantic image-overflow policy: %s", page)
+		}
+	}
+	docs := string(configArtifact(t, result, "module/index.html"))
+	if !strings.Contains(docs, `class="margo-page-actions"`) || !strings.Contains(docs, pageActionsScriptPath) {
+		t.Fatalf("docs page lost its action toolbar or dependency: %s", docs)
+	}
+	if !artifactExists(result, "module/index.md") {
+		t.Fatal("docs Markdown artifact missing")
+	}
+}
+
 func TestBuildConfigEmbedsLocalImagesForPreRenderedPDF(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, root+"/docs/index.md", `---
@@ -266,39 +359,6 @@ locales:
 	}
 	if !artifactExists(result, "mascot.png") {
 		t.Fatalf("site did not retain the local image asset")
-	}
-}
-
-func TestBuildInlineSiteEmbedsPageActionIconSprite(t *testing.T) {
-	result, err := Build(context.Background(), Request{
-		Sources: []Source{{Path: "guide.md", Content: []byte(`---
-title: Guide
-margo:
-  actions:
-    markdown: true
----
-# Guide
-
-The source stays available beside the rendered page.
-`)}},
-		Compiler: margo.New(), Assets: AssetsInline,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := artifactContent(t, result, "guide.html")
-	for _, required := range []string{
-		`href="#heroicons-copy-16-solid-clipboard"`,
-		`href="#heroicons-document-text-16-solid-document-text"`,
-		`<svg xmlns="http://www.w3.org/2000/svg" hidden="" aria-hidden="true">`,
-		`<symbol id="heroicons-copy-16-solid-clipboard"`,
-	} {
-		if !strings.Contains(page, required) {
-			t.Fatalf("inline page action markup missing %q: %s", required, page)
-		}
-	}
-	if strings.Contains(page, pageActionsIconSpritePath) || artifactExists(result, pageActionsIconSpritePath) {
-		t.Fatalf("inline page unexpectedly publishes an external icon sprite: %s", page)
 	}
 }
 

@@ -59,6 +59,11 @@ func RenderHTML(result *RenderResult, options ...HTMLOption) (*HTMLResult, error
 	if result == nil || result.Content() == nil {
 		return nil, htmlError("html.result_required", "render result and content are required")
 	}
+	prepared, err := relocateChartScripts(result)
+	if err != nil {
+		return nil, err
+	}
+	result = prepared
 	config := htmlConfig{}
 	for index, option := range options {
 		if option == nil {

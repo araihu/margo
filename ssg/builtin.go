@@ -82,8 +82,8 @@ func builtinSchema(name string) (FrameSchema, error) {
 	}
 	top := AreaDescriptor{
 		ID: "top-nav", Multiple: true, MaxBindings: 4,
-		MaxBindingsByKind: map[string]int{"navigation": 1, "breadcrumbs": 1, "theme_controls": 1, "locale_controls": 1},
-		Accepts:           []string{"navigation", "breadcrumbs", "theme_controls", "locale_controls"},
+		MaxBindingsByKind: map[string]int{"site_navigation": 1, "navigation": 1, "breadcrumbs": 1, "theme_controls": 1, "locale_controls": 1},
+		Accepts:           []string{"site_navigation", "navigation", "breadcrumbs", "theme_controls", "locale_controls"},
 		Target:            "top-nav", AllowedSwaps: stableSwaps(), Live: "off", Focus: "area", Swap: SwapInnerHTML,
 	}
 	left := AreaDescriptor{
@@ -103,7 +103,7 @@ func builtinSchema(name string) (FrameSchema, error) {
 	}
 	order := map[string][]string{
 		"main-content": {"document", "pagination"},
-		"top-nav":      {"navigation", "breadcrumbs", "theme_controls", "locale_controls"},
+		"top-nav":      {"site_navigation", "navigation", "breadcrumbs", "theme_controls", "locale_controls"},
 		"left-nav":     {"navigation"}, "right-nav": {"toc"}, "footer": {"footer"},
 	}
 	var selected []AreaDescriptor

@@ -1,6 +1,7 @@
 package margo
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -30,6 +31,26 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		"Its defaults are HTML to stdout, `--engine auto`, A4, portrait, and zero", "margins. PDF decks require",
 		"historical submodule tags", "docs/decisions/0001-unified-module-and-cli.md",
 		"docs/testing/pdf-engine-matrix.md",
+		"semantic page layouts and documentation families",
+		"layout:\n  kind: docs\n  default:",
+		"`layout.default.families`",
+		"`_layout.yaml`",
+		"site defaults, directory patches from root to nearest",
+		"maps merge recursively",
+		"Changing `kind` creates a typed boundary",
+		"Landing and article pages have no",
+		"The `landing` layout is for",
+		"The `docs`",
+		"layout provides family-local navigation",
+		"Tour at `/`, Module at `/module/`, and CLI at",
+		"static artifacts remain `module/index.html` and `cli/index.html`",
+		"public links, canonicals, search, family navigation, sitemap, `llms.txt`",
+		"base-path and locale prefixes",
+		"Retired Tour feature routes",
+		"return HTTP 404",
+		"produce no artifacts",
+		"Sites without `layout` retain existing top-level `frame` or `shell` behavior.",
+		"Existing `componentdocshell` consumers remain supported",
 	} {
 		if !strings.Contains(readme, required) {
 			t.Fatalf("README missing %q", required)
@@ -56,6 +77,32 @@ func TestREADMEExplainsUnifiedCLIAndReleaseContract(t *testing.T) {
 		if strings.Contains(readme, stale) {
 			t.Fatalf("README retains removed embed contract %q", stale)
 		}
+	}
+}
+
+func TestDocumentSchemaOmitsRemovedSiteLayoutPreference(t *testing.T) {
+	data, err := os.ReadFile("schema/v1/document.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(data, &schema); err != nil {
+		t.Fatal(err)
+	}
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("document schema has no properties object")
+	}
+	margoProperty, ok := properties["margo"].(map[string]any)
+	if !ok {
+		t.Fatal("document schema has no margo property")
+	}
+	margoProperties, ok := margoProperty["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("margo schema has no properties object")
+	}
+	if _, exists := margoProperties["site"]; exists {
+		t.Fatal("document schema retains removed margo.site layout preference")
 	}
 }
 

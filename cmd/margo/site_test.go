@@ -38,7 +38,7 @@ func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatalf("report: %v: %s", err, stdout.String())
 	}
-	if report.SchemaVersion != "margo-site-report/v1" || report.Artifacts < 5 || report.Manifest == "" || len(report.Pages) != 2 {
+	if report.SchemaVersion != "margo-site-report/v1" || report.Manifest == "" || len(report.Pages) != 2 {
 		t.Fatalf("report = %+v", report)
 	}
 	index := readSiteFixture(t, filepath.Join(output, "index.html"))
@@ -46,8 +46,29 @@ func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
 	if !strings.Contains(index, `href="guide/readme.html"`) || !strings.Contains(guide, `href="../index.html#home"`) {
 		t.Fatalf("links not rewritten:\nindex=%s\nguide=%s", index, guide)
 	}
+	for _, document := range []string{index, guide} {
+		for _, forbidden := range []string{
+			"margo-page-actions", "margo-breadcrumbs", "margo-pagination",
+			`id="left-nav"`, `id="right-nav"`, "data-margo-layout", "goshtoso",
+		} {
+			if strings.Contains(document, forbidden) {
+				t.Fatalf("plain site HTML contains %q: %s", forbidden, document)
+			}
+		}
+	}
 	if got := readSiteFixture(t, filepath.Join(output, "assets", "logo.png")); got != "\x89PNG\r\n\x1a\n" {
 		t.Fatalf("logo = %x", got)
+	}
+	if got := readSiteFixture(t, filepath.Join(output, "margo-assets", "document.css")); got == "" {
+		t.Fatal("semantic document stylesheet is empty")
+	}
+	for _, unwanted := range []string{
+		"assets/styles.css", "margo-assets/site.css", "margo-assets/page-actions.css",
+		"margo-assets/page-actions.js", "margo-assets/icons/page-actions.svg",
+	} {
+		if _, err := os.Stat(filepath.Join(output, filepath.FromSlash(unwanted))); !os.IsNotExist(err) {
+			t.Fatalf("plain site unexpectedly publishes %q: %v", unwanted, err)
+		}
 	}
 	manifest := readSiteFixture(t, filepath.Join(output, "margo-manifest.json"))
 	if !strings.Contains(manifest, `"schemaVersion":"margo-site-manifest/v1"`) || !strings.Contains(manifest, `"index.html"`) {
@@ -92,6 +113,79 @@ site:
 	for _, required := range []string{`"configVersion":1`, `"layout":"frame:top-left-main-footer"`, `"basePath":"/docs"`, `"documentStyleDigest":"`} {
 		if !strings.Contains(manifest, required) {
 			t.Fatalf("config manifest missing %q: %s", required, manifest)
+		}
+	}
+}
+
+func TestSiteCommandTypedLayoutManifestIncludesRouteIdentity(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nChoose a documentation path.\n")
+	writeSiteFixture(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule overview.\n")
+	writeSiteFixture(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI overview.\n")
+	writeSiteFixture(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeSiteFixture(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+offline: true
+site:
+  name: Margo
+  description: Typed-layout documentation.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo layout preview
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+  values:
+    family: default
+navigation:
+  mode: file-tree
+locales:
+  default: en
+  supported: [en]
+`)
+
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo()})
+	command.SetArgs([]string{"site", filepath.Join(root, "site.yaml"), "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("typed layout site config: %v\nstderr: %s", err, stderr.String())
+	}
+	manifest := readSiteFixture(t, filepath.Join(root, "dist", "margo-manifest.json"))
+	var document struct {
+		LayoutSchemaHash string      `json:"layoutSchemaHash"`
+		Routes           []site.Page `json:"routes"`
+	}
+	if err := json.Unmarshal([]byte(manifest), &document); err != nil {
+		t.Fatalf("layout manifest: %v: %s", err, manifest)
+	}
+	if document.LayoutSchemaHash == "" || document.LayoutSchemaHash == "legacy" {
+		t.Fatalf("layoutSchemaHash = %q, want non-empty non-legacy value", document.LayoutSchemaHash)
+	}
+	want := map[string]struct {
+		family string
+		layout string
+	}{
+		"index.md":        {family: "", layout: "landing"},
+		"module/index.md": {family: "module", layout: "docs"},
+		"cli/index.md":    {family: "cli", layout: "docs"},
+	}
+	if len(document.Routes) != len(want) {
+		t.Fatalf("layout routes = %+v", document.Routes)
+	}
+	for _, route := range document.Routes {
+		expected, ok := want[route.Source]
+		if !ok || route.Family != expected.family || route.Layout != expected.layout {
+			t.Fatalf("layout route = %+v, want identities %+v", route, want)
 		}
 	}
 }

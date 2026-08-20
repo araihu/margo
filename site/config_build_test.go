@@ -5,14 +5,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"golang.org/x/net/html"
 )
 
@@ -187,6 +190,726 @@ theme:
 	}
 }
 
+func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime caller unavailable")
+	}
+	root := filepath.Join(filepath.Dir(filename), "..")
+	result, err := BuildConfig(context.Background(), ConfigRequest{
+		ConfigPath: filepath.Join(root, "showcase.yaml"),
+		Compiler: margo.New(margo.WithExtension(charts.Extension(
+			charts.WithExternalizedControlRuntime(true),
+		))),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	htmlRoutes := make([]string, 0)
+	artifacts := make(map[string][]byte, len(result.Artifacts))
+	for _, artifact := range result.Artifacts {
+		artifacts[artifact.Path] = artifact.Content
+		if strings.HasSuffix(artifact.Path, ".html") {
+			htmlRoutes = append(htmlRoutes, artifact.Path)
+		}
+	}
+	sort.Strings(htmlRoutes)
+	if got, want := htmlRoutes, []string{"cli/index.html", "index.html", "module/index.html"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("HTML routes = %v, want exactly %v", got, want)
+	}
+	for _, retired := range []string{"charts", "cli", "decks", "determinism", "html", "markdown", "mermaid", "module", "pdf", "policy", "site"} {
+		if _, exists := artifacts[retired+".html"]; exists {
+			t.Fatalf("retired route artifact %q exists", retired+".html")
+		}
+	}
+	if got, want := len(result.Site.Routes), 3; got != want {
+		t.Fatalf("configured routes = %d, want %d: %+v", got, want, result.Site.Routes)
+	}
+	wantRoutes := map[string]struct {
+		output string
+		family string
+		layout string
+	}{
+		"index.md":        {output: "index.html", family: "", layout: "landing"},
+		"module/index.md": {output: "module/index.html", family: "module", layout: "docs"},
+		"cli/index.md":    {output: "cli/index.html", family: "cli", layout: "docs"},
+	}
+	for _, route := range result.Site.Routes {
+		want, ok := wantRoutes[route.Source]
+		if !ok || route.Output != want.output || route.Family != want.family || route.Layout != want.layout {
+			t.Fatalf("route = %+v, want one of %+v", route, wantRoutes)
+		}
+		if route.Source == "index.md" {
+			if route.Actions != nil {
+				t.Fatalf("Tour unexpectedly has page actions: %+v", route.Actions)
+			}
+		} else if route.Actions == nil || !route.Actions.Markdown || !route.Actions.PDF {
+			t.Fatalf("technical route %q actions = %+v, want Markdown and PDF", route.Source, route.Actions)
+		}
+	}
+	if got, want := result.Site.Layout, "layout:docs"; got != want {
+		t.Fatalf("layout identity = %q, want %q", got, want)
+	}
+	if result.Site.LayoutSchemaHash == "" || result.Site.LayoutSchemaHash == "legacy" {
+		t.Fatalf("layout schema identity = %q", result.Site.LayoutSchemaHash)
+	}
+	for artifact := range artifacts {
+		if artifact == "_layout.yaml" || strings.HasSuffix(artifact, "/_layout.yaml") {
+			t.Fatalf("reserved layout patch emitted as artifact %q", artifact)
+		}
+	}
+
+	landing := string(artifacts["index.html"])
+	module := string(artifacts["module/index.html"])
+	cli := string(artifacts["cli/index.html"])
+	for name, page := range map[string]string{
+		"Tour":   landing,
+		"Module": module,
+		"CLI":    cli,
+	} {
+		route := map[string]string{"Tour": "https://margo.araihu.com/", "Module": "https://margo.araihu.com/module/", "CLI": "https://margo.araihu.com/cli/"}[name]
+		if !strings.Contains(page, `<link rel="canonical" href="`+route+`"`) {
+			t.Fatalf("%s canonical does not expose public route %q: %s", name, route, page)
+		}
+	}
+	for name, page := range map[string]string{"Tour": landing, "Module": module, "CLI": cli} {
+		if strings.Count(page, "<h1") != 1 {
+			t.Fatalf("%s h1 count = %d", name, strings.Count(page, "<h1"))
+		}
+	}
+	for _, required := range []string{`href="/module/"`, `href="/cli/"`, `One source, several projections`} {
+		if !strings.Contains(landing, required) {
+			t.Fatalf("Tour missing %q", required)
+		}
+	}
+	for _, required := range []string{"good fit", "not a fit"} {
+		if !strings.Contains(strings.ToLower(landing), required) {
+			t.Fatalf("Tour missing %q", required)
+		}
+	}
+	for _, required := range []string{"mermaid", "goshtoso-chart", "Margo mascot"} {
+		if !strings.Contains(strings.ToLower(landing), strings.ToLower(required)) {
+			t.Fatalf("Tour missing retained example marker %q", required)
+		}
+	}
+	for _, required := range []string{
+		`class="goshtoso-charts-interactive`,
+		`data-goshtoso-chart-capability="interactive-raster"`,
+		`data-margo-requirement="goshtoso-charts.runtime"`,
+		`Illustrative output mix`,
+		`HTML`,
+		`Deck`,
+	} {
+		if !strings.Contains(landing, required) {
+			t.Fatalf("Tour interactive chart missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"margo-breadcrumbs", "margo-pagination", "margo-page-actions", `id="left-nav"`, `id="right-nav"`, "data-toc-heading"} {
+		if strings.Contains(landing, forbidden) {
+			t.Fatalf("Tour contains forbidden landing markup %q", forbidden)
+		}
+	}
+	for _, required := range []string{"Compiler lifecycle", "Public package map", "Installation and versioning", "Testing"} {
+		if !strings.Contains(module, required) {
+			t.Fatalf("Module outline missing %q", required)
+		}
+	}
+	for _, required := range []string{"Command map", "Configuration and policy layering", "Operational gotchas", "check", "completion"} {
+		if !strings.Contains(cli, required) {
+			t.Fatalf("CLI outline missing %q", required)
+		}
+	}
+	sitemap := string(artifacts[SitemapPath])
+	if strings.Count(sitemap, "<url>") != 3 {
+		t.Fatalf("sitemap URL count = %d, want 3: %s", strings.Count(sitemap, "<url>"), sitemap)
+	}
+	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"} {
+		if !strings.Contains(sitemap, "<loc>"+route+"</loc>") {
+			t.Fatalf("sitemap missing %q", route)
+		}
+	}
+	llms := string(artifacts[LLMSPath])
+	for _, title := range []string{"[Margo]", "[Go module]", "[CLI workflows]"} {
+		if !strings.Contains(llms, title) {
+			t.Fatalf("llms.txt missing %q: %s", title, llms)
+		}
+	}
+	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"} {
+		if !strings.Contains(llms, route) {
+			t.Fatalf("llms.txt missing public route %q: %s", route, llms)
+		}
+	}
+	for _, retired := range []string{"charts.html", "decks.html", "determinism.html", "html.html", "markdown.html", "mermaid.html", "pdf.html", "policy.html", "site.html"} {
+		if strings.Contains(sitemap, retired) || strings.Contains(llms, retired) {
+			t.Fatalf("discovery artifact contains retired route %q", retired)
+		}
+	}
+}
+
+func TestBuildConfigResolvesFamilyLayoutAndPresentationPerPage(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Landing\n\nChoose a path.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI documentation.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+  values:
+    family: default
+navigation:
+  mode: file-tree
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	first, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(first, second) {
+		t.Fatal("configured layout build is not deterministic")
+	}
+	if len(first.Site.Routes) != 3 {
+		t.Fatalf("routes = %+v", first.Site.Routes)
+	}
+	want := map[string]Page{
+		"index.md":        {Family: "", Layout: "landing"},
+		"module/index.md": {Family: "module", Layout: "docs"},
+		"cli/index.md":    {Family: "cli", Layout: "docs"},
+	}
+	for _, page := range first.Site.Routes {
+		expected, ok := want[page.Source]
+		if !ok || page.Family != expected.Family || page.Layout != expected.Layout {
+			t.Fatalf("route %q identity = family %q layout %q, want %+v", page.Source, page.Family, page.Layout, expected)
+		}
+	}
+	if first.Site.Layout != "layout:docs" {
+		t.Fatalf("layout identity = %q", first.Site.Layout)
+	}
+	if first.Site.LayoutSchemaHash == "" || first.Site.LayoutSchemaHash == "legacy" {
+		t.Fatalf("layout schema identity = %q", first.Site.LayoutSchemaHash)
+	}
+	landing := string(configArtifact(t, first, "index.html"))
+	docs := string(configArtifact(t, first, "module/index.html"))
+	if !strings.Contains(landing, `data-margo-frame="main"`) {
+		t.Fatalf("landing frame missing: %s", landing)
+	}
+	for _, required := range []string{`class="component-doc-shell`, `id="componentdocshell-sidebar"`, `data-componentdocshell-toc`} {
+		if !strings.Contains(docs, required) {
+			t.Fatalf("docs component shell marker %q missing: %s", required, docs)
+		}
+	}
+	if strings.Contains(docs, `data-margo-frame="top-left-main-right-footer"`) {
+		t.Fatalf("typed docs retained the legacy frame marker: %s", docs)
+	}
+}
+
+func TestBuildConfigRendersSharedFamilyNavigationAndScopedPagination(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nChoose a path.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI documentation.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+base_path: /docs
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+  values:
+    family: default
+navigation:
+  mode: file-tree
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := map[string]string{
+		"index.md":        string(configArtifact(t, result, "index.html")),
+		"module/index.md": string(configArtifact(t, result, "module/index.html")),
+		"cli/index.md":    string(configArtifact(t, result, "cli/index.html")),
+	}
+	for source, page := range map[string]string{"module/index.md": pages["module/index.md"], "cli/index.md": pages["cli/index.md"]} {
+		if !strings.Contains(page, `data-margo-layout="`) {
+			t.Fatalf("%s missing semantic layout hook: %s", source, page)
+		}
+		if strings.Count(page, `aria-current="location"`) != 2 {
+			t.Fatalf("%s has wrong active family count: %s", source, page)
+		}
+		if strings.Count(page, `data-search-field=""`) != 1 {
+			t.Fatalf("%s renders duplicate global search fields: %s", source, page)
+		}
+		globalStart := strings.Index(page, `class="component-doc-shell__family-links"`)
+		if globalStart < 0 {
+			t.Fatalf("%s missing public component shell family navigation: %s", source, page)
+		}
+		globalEnd := strings.Index(page[globalStart:], `</nav>`)
+		if globalEnd < 0 {
+			t.Fatalf("%s global navigation is not closed: %s", source, page)
+		}
+		global := page[globalStart : globalStart+globalEnd]
+		last := -1
+		for _, label := range []string{"Module", "CLI"} {
+			index := strings.Index(global, ">"+label+"<")
+			if index < 0 || index <= last {
+				t.Fatalf("%s global family order missing %s: %s", source, label, global)
+			}
+			last = index
+		}
+		for _, route := range []string{"/docs/", "/docs/module/", "/docs/cli/"} {
+			if !strings.Contains(page, `data-search-href="`+route+`"`) {
+				t.Fatalf("%s global search missing %s: %s", source, route, page)
+			}
+		}
+		if strings.Contains(global, `hx-get=`) || strings.Contains(global, `hx-target=`) {
+			t.Fatalf("%s typed family navigation bypasses full shell refresh: %s", source, global)
+		}
+	}
+	landing := pages["index.md"]
+	if strings.Contains(landing, `id="left-nav"`) || strings.Contains(landing, `aria-label="sidebar navigation"`) {
+		t.Fatalf("landing unexpectedly renders local navigation: %s", landing)
+	}
+	styles := string(configArtifact(t, result, configuredDocsStylePath))
+	for _, required := range []string{`.margo-showcase-article`, `.margo-pagination`, `.margo-page-actions`} {
+		if !strings.Contains(styles, required) {
+			t.Fatalf("docs stylesheet missing Margo-owned article contract %s", required)
+		}
+	}
+	for _, forbidden := range []string{"margo-frame", "component-doc-shell", "componentdocshell", "grid-template-areas"} {
+		if strings.Contains(styles, forbidden) {
+			t.Fatalf("docs stylesheet retains shell-owned selector %q", forbidden)
+		}
+	}
+	for _, asset := range []string{
+		"margo-assets/goshtoso/shell.css",
+		"margo-assets/goshtoso/shell.js",
+		"assets/styles.css",
+		"assets/js/goshtoso.min.js",
+		"assets/js/runtime/alpinejs/3.14.9/alpine.min.js",
+	} {
+		if len(configArtifact(t, result, asset)) == 0 {
+			t.Fatalf("docs navigation asset %q missing", asset)
+		}
+	}
+	if artifactExists(result, "margo-assets/goshtoso/margo-scroll-spy.js") {
+		t.Fatal("typed docs staged Margo's legacy TOC runtime")
+	}
+	for source, family := range map[string]string{"module/index.md": "Module", "cli/index.md": "CLI"} {
+		page := pages[source]
+		leftStart := strings.Index(page, `data-sidebar-section="`+family+`"`)
+		leftEnd := strings.Index(page[leftStart:], `</nav>`)
+		if leftStart < 0 || leftEnd < 0 {
+			t.Fatalf("%s missing active-family public sidebar: %s", source, page)
+		}
+		left := page[leftStart : leftStart+leftEnd]
+		if !strings.Contains(left, `>`+family+`<`) {
+			t.Fatalf("%s sidebar missing active-family overview: %s", source, left)
+		}
+		for _, other := range []string{"Tour", "Module", "CLI"} {
+			if other != family && strings.Contains(left, `>`+other+`<`) {
+				t.Fatalf("%s sidebar leaked %s: %s", source, other, left)
+			}
+		}
+		if strings.Contains(page, `class="margo-pagination"`) {
+			t.Fatalf("%s renders pagination for one-page family: %s", source, page)
+		}
+	}
+}
+
+func TestBuildConfigRendersLayoutSemanticChromePresenceAndAbsence(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nChoose a documentation family.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule overview.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nModule detail.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI overview.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "guide.md"), "# CLI guide\n\nCLI detail.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Layout semantic fixture.
+  repository_url: https://github.com/araihu/margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview.
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+  values:
+    family: default
+navigation:
+  mode: file-tree
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: system
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := map[string]string{
+		"Tour":   string(configArtifact(t, result, "index.html")),
+		"Module": string(configArtifact(t, result, "module/index.html")),
+		"CLI":    string(configArtifact(t, result, "cli/index.html")),
+	}
+	for name, page := range map[string]string{"Module": pages["Module"], "CLI": pages["CLI"]} {
+		if strings.Count(page, `aria-current="location"`) != 2 || !strings.Contains(page, `id="componentdocshell-family-navigation"`) {
+			t.Fatalf("%s public family navigation state is missing: %s", name, page)
+		}
+		if !strings.Contains(page, `component-doc-shell__repository`) || !strings.Contains(page, `aria-label="Source repository"`) || !strings.Contains(page, `<svg`) {
+			t.Fatalf("%s repository action is not an accessible icon link: %s", name, page)
+		}
+		if strings.Contains(page, `data-margo-repository-link="true"`) {
+			t.Fatalf("%s repository action still uses the removed Margo hook: %s", name, page)
+		}
+		if !strings.Contains(page, `class="component-doc-shell`) || !strings.Contains(page, `data-componentdocshell-toc`) {
+			t.Fatalf("%s docs output is not rendered by componentdocshell: %s", name, page)
+		}
+	}
+	tour := pages["Tour"]
+	for _, forbidden := range []string{`data-margo-layout="docs"`, `id="left-nav"`, `id="right-nav"`, `aria-label="sidebar navigation"`, `class="margo-pagination"`, `data-toc-heading`} {
+		if strings.Contains(tour, forbidden) {
+			t.Fatalf("Tour unexpectedly contains %q: %s", forbidden, tour)
+		}
+	}
+	for name, family := range map[string]string{"Module": "Module", "CLI": "CLI"} {
+		page := pages[name]
+		if strings.Contains(page, `margo-breadcrumbs`) || strings.Contains(page, `aria-label="Breadcrumbs"`) {
+			t.Fatalf("%s renders a breadcrumb in docs chrome: %s", name, page)
+		}
+		for _, required := range []string{
+			`data-margo-layout="docs"`,
+			`class="component-doc-shell`,
+			`id="componentdocshell-sidebar"`,
+			`aria-label="sidebar navigation"`,
+			`data-sidebar-section="` + family + `"`,
+			`aria-current="page"`,
+			`class="margo-pagination"`,
+			`id="componentdocshell-toc"`,
+			`data-componentdocshell-toc`,
+		} {
+			if !strings.Contains(page, required) {
+				t.Fatalf("%s missing semantic docs output %q: %s", name, required, page)
+			}
+		}
+		if strings.Contains(page, `data-margo-toc-drawer`) || strings.Contains(page, `id="right-nav"`) {
+			t.Fatalf("%s retains the removed custom TOC drawer: %s", name, page)
+		}
+	}
+	styles := string(configArtifact(t, result, configuredDocsStylePath))
+	for _, required := range []string{`.margo-showcase-article`, `.margo-pagination`, `.margo-page-actions`} {
+		if !strings.Contains(styles, required) {
+			t.Fatalf("docs stylesheet missing article/action constraint %q: %s", required, styles)
+		}
+	}
+	for _, forbidden := range []string{"margo-frame", "data-margo-toc-drawer", "component-doc-shell", "grid-template-areas"} {
+		if strings.Contains(styles, forbidden) {
+			t.Fatalf("docs stylesheet retains shell-owned selector %q: %s", forbidden, styles)
+		}
+	}
+	searchInteractions := string(configArtifact(t, result, searchInteractionsScriptPath))
+	for _, forbidden := range []string{"data-margo-toc", "initTOCDrawer", "componentdocshell-sidebar"} {
+		if strings.Contains(searchInteractions, forbidden) {
+			t.Fatalf("search enhancer retains shell navigation behavior %q: %s", forbidden, searchInteractions)
+		}
+	}
+}
+
+func TestBuildConfigRendersLocaleScopedFamilySearch(t *testing.T) {
+	root := t.TempDir()
+	for _, localePrefix := range []string{"", "pt-BR"} {
+		prefix := filepath.Join(root, "docs", localePrefix)
+		writeConfigFile(t, filepath.Join(prefix, "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nTour documentation. [Module](module/index.md).\n")
+		writeConfigFile(t, filepath.Join(prefix, "module", "index.md"), "---\nlayout:\n  values:\n    family: module\n---\n# Module\n\nModule documentation.\n")
+		writeConfigFile(t, filepath.Join(prefix, "cli", "index.md"), "---\nlayout:\n  values:\n    family: cli\n---\n# CLI\n\nCLI documentation.\n")
+	}
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+base_path: /docs
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+  values:
+    family: default
+navigation:
+  mode: file-tree
+locales:
+  default: en
+  supported: [en, pt-BR]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fixture := range []struct {
+		name        string
+		artifact    string
+		landing     string
+		localRoutes []string
+		otherRoutes []string
+	}{
+		{
+			name:        "English",
+			artifact:    "module/index.html",
+			landing:     "index.html",
+			localRoutes: []string{"/docs/", "/docs/module/", "/docs/cli/"},
+			otherRoutes: []string{"/docs/pt-br/", "/docs/pt-br/module/", "/docs/pt-br/cli/"},
+		},
+		{
+			name:        "Portuguese",
+			artifact:    "pt-br/module/index.html",
+			landing:     "pt-br/index.html",
+			localRoutes: []string{"/docs/pt-br/", "/docs/pt-br/module/", "/docs/pt-br/cli/"},
+			otherRoutes: []string{"/docs/", "/docs/module/", "/docs/cli/"},
+		},
+	} {
+		page := string(configArtifact(t, result, fixture.artifact))
+		canonical := `rel="canonical" href="https://margo.example` + fixture.localRoutes[1] + `"`
+		if !strings.Contains(page, canonical) {
+			t.Fatalf("%s canonical missing public route %s: %s", fixture.name, canonical, page)
+		}
+		for _, route := range fixture.localRoutes {
+			if !strings.Contains(page, `data-search-href="`+route+`"`) {
+				t.Fatalf("%s search missing same-locale route %s: %s", fixture.name, route, page)
+			}
+		}
+		for _, route := range fixture.otherRoutes {
+			if strings.Contains(page, `data-search-href="`+route+`"`) {
+				t.Fatalf("%s search leaked other-locale route %s: %s", fixture.name, route, page)
+			}
+		}
+		for _, family := range []struct {
+			id   string
+			href string
+		}{
+			{id: "module", href: fixture.localRoutes[1]},
+			{id: "cli", href: fixture.localRoutes[2]},
+		} {
+			link := `class="component-doc-shell__family-link" href="` + family.href + `"`
+			if !strings.Contains(page, link) {
+				t.Fatalf("%s global family navigation missing locale-owned overview %s: %s", fixture.name, link, page)
+			}
+		}
+		landing := string(configArtifact(t, result, fixture.landing))
+		if !strings.Contains(landing, `href="`+fixture.localRoutes[1]+`"`) {
+			t.Fatalf("%s rewritten Markdown link missing public route %s: %s", fixture.name, fixture.localRoutes[1], landing)
+		}
+	}
+	sitemap := string(configArtifact(t, result, SitemapPath))
+	for _, route := range []string{"https://margo.example/docs/module/", "https://margo.example/docs/pt-br/module/"} {
+		if !strings.Contains(sitemap, `<loc>`+route+`</loc>`) {
+			t.Fatalf("localized sitemap missing public route %s: %s", route, sitemap)
+		}
+	}
+}
+
+func TestBuildConfigFrontmatterKindOverrideWinsOverSiteDefault(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nChoose a path.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Module\n\nModule documentation.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, page := range result.Site.Routes {
+		if page.Source == "module/index.md" && (page.Family != "" || page.Layout != "landing") {
+			t.Fatalf("page override identity = %+v", page)
+		}
+	}
+	if page := string(configArtifact(t, result, "module/index.html")); !strings.Contains(page, `data-margo-frame="main"`) {
+		t.Fatalf("page override did not select landing frame: %s", page)
+	}
+}
+
+func TestBuildConfigLayoutPreflightInvalidSelectedKindDoesNotEmitHTML(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nChoose a path.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "---\nlayout:\n  kind: missing\n---\n# Module\n\nModule documentation.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err == nil {
+		t.Fatal("expected invalid page layout diagnostic")
+	}
+	if len(result.Artifacts) != 0 {
+		t.Fatalf("invalid layout kind emitted artifacts: %+v", result.Artifacts)
+	}
+	var diagnosticError *margo.DiagnosticError
+	if !errors.As(err, &diagnosticError) || len(diagnosticError.Diagnostics) != 1 || diagnosticError.Diagnostics[0].Code != "site.layout_unknown" {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestBuildConfigTypedLayoutIdentityMatchesRoutes(t *testing.T) {
+	config := Config{
+		Version: 1, Source: "docs", Output: "dist", Assets: string(AssetsLocal),
+		Site:    SiteConfig{Name: "Margo", BaseURL: "https://margo.example", Home: "index.md"},
+		Locales: LocaleConfig{Default: "en", Supported: []string{"en"}},
+		Theme:   ThemeSelection{Name: "modern", ColorMode: "light"},
+		Layout: &LayoutConfig{Kind: LayoutDocs, Default: map[string]any{
+			"families": []any{"default", "module"},
+		}, Values: map[string]any{"family": "default"}},
+	}
+	siteCascade, err := resolveSiteLayout(*config.Layout, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &builder{
+		request: Request{Compiler: margo.New()}, config: &config, sourceDir: t.TempDir(),
+		layoutPatches: []LayoutPatch{{Source: "module/_layout.yaml", Values: map[string]any{"family": "module"}}},
+		configured:    map[string]configuredPage{},
+	}
+	sources := []Source{
+		{Path: "index.md", Content: []byte("---\nlayout:\n  kind: landing\n---\n# Landing\n\nChoose a path.\n")},
+		{Path: "module/index.md", Content: []byte("# Module\n\nModule documentation.\n")},
+	}
+	if err := b.preflightConfigured(context.Background(), sources); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		family string
+		layout string
+	}{
+		"index.md":        {family: "", layout: "landing"},
+		"module/index.md": {family: "module", layout: "docs"},
+	}
+	for source, expected := range want {
+		prepared, ok := b.configured[source]
+		if !ok {
+			t.Fatalf("configured page %q missing", source)
+		}
+		if prepared.page.Family != expected.family || prepared.page.Layout != expected.layout {
+			t.Fatalf("route %q = family %q layout %q, want family %q layout %q", source, prepared.page.Family, prepared.page.Layout, expected.family, expected.layout)
+		}
+	}
+	if got := siteCascade.resolved().Kind; got != LayoutDocs {
+		t.Fatalf("site layout kind = %q, want docs", got)
+	}
+}
+
 func TestBuildConfigRendersGoshtosoComponentDocShell(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Showcase\n\nA public feature tour.\n\n## A section\n\nA section for the shell TOC.\n")
@@ -353,9 +1076,81 @@ locales:
 	if strings.Contains(styles, ".margo-shell-topnav") {
 		t.Fatalf("site stylesheet still contains removed top navigation rules: %s", styles)
 	}
-	for _, forbidden := range []string{"\nbutton, a {", "\nbutton {", "\n:focus-visible {"} {
+	for _, forbidden := range []string{"\nbutton, a {", "\nbutton {", "\n:focus-visible {", "margo-landing", `data-margo-layout="landing"`, `[alt^=`} {
 		if strings.Contains(styles, forbidden) {
 			t.Fatalf("shell CSS leaks an unscoped control rule %q: %s", forbidden, styles)
+		}
+	}
+}
+
+func TestTypedDocsLayoutUsesComponentDocShellPublicFrame(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nWelcome.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "---\nlayout:\n  values:\n    family: module\n---\n# Module\n\n## Usage\n\nDocs page.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Typed docs shell fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module]
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	docs := string(configArtifact(t, result, "module/index.html"))
+	for _, required := range []string{
+		`class="component-doc-shell`, `id="componentdocshell-sidebar"`,
+		`data-componentdocshell-toc`, `data-margo-layout="docs"`,
+		`margo-assets/goshtoso/shell.css`, `margo-assets/goshtoso/shell.js`,
+	} {
+		if !strings.Contains(docs, required) {
+			t.Fatalf("typed docs output missing %q: %s", required, docs)
+		}
+	}
+	for _, forbidden := range []string{`class="margo-frame`, `data-margo-toc-drawer`, `data-margo-global-navigation`} {
+		if strings.Contains(docs, forbidden) {
+			t.Fatalf("typed docs output retained custom shell marker %q: %s", forbidden, docs)
+		}
+	}
+}
+
+func TestTypedDocsSidebarFalseUsesSemanticComponentShellBridge(t *testing.T) {
+	document := []byte(`<!doctype html><html lang="pt_BR"><body><button class="component-doc-shell__menu-button"></button><div id="componentdocshell-sidebar"></div><div class="component-doc-shell__backdrop"></div><main id="page-scroll"><div id="main-content">content</div></main></body></html>`)
+	got, err := applyTypedComponentDocShellSemantics(document, Page{Locale: "pt-BR"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(got)
+	for _, required := range []string{`lang="pt-BR"`, `dir="ltr"`, `data-margo-layout="docs"`, `data-margo-sidebar="false"`, `id="main-content"`} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("semantic shell bridge missing %q: %s", required, page)
+		}
+	}
+	for _, forbidden := range []string{"component-doc-shell__menu-button", "componentdocshell-sidebar", "component-doc-shell__backdrop"} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("semantic shell bridge retained %q: %s", forbidden, page)
 		}
 	}
 }
@@ -690,6 +1485,949 @@ theme:
 	if len(configArtifact(t, result, "themes/custom.tokens.yaml")) == 0 || result.Site.DocumentStyleDigest == "" {
 		t.Fatalf("theme provenance missing: %+v", result.Site)
 	}
+}
+
+func TestBuildConfigLayoutCascadeAppliesSiteRootNearestAndFrontmatter(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Root\n\nRoot page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nNested page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), `---
+layout:
+  values:
+    family: markdown
+    sidebar: true
+---
+# Guide
+
+Markdown-owned page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "_layout.yaml"), `values:
+  family: root
+  sidebar: false
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), `values:
+  family: nested
+  toc: false
+`)
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [default, root, nested, markdown]
+    sidebar: true
+    toc: true
+  values:
+    family: default
+`)
+
+	preflight := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	want := map[string]struct {
+		family  string
+		sidebar bool
+		toc     bool
+		sources []string
+	}{
+		"index.md":        {family: "root", sidebar: false, toc: true, sources: []string{"_layout.yaml"}},
+		"module/index.md": {family: "nested", sidebar: false, toc: false, sources: []string{"_layout.yaml", "module/_layout.yaml"}},
+		"module/guide.md": {family: "markdown", sidebar: true, toc: false, sources: []string{"_layout.yaml", "module/_layout.yaml", "module/guide.md"}},
+	}
+	for source, expected := range want {
+		prepared := preflight.configured[source]
+		if prepared.layout.Kind != LayoutDocs || prepared.layout.Family != expected.family || prepared.page.Layout != "docs" || prepared.page.Family != expected.family {
+			t.Fatalf("%s layout = %+v page = %+v", source, prepared.layout, prepared.page)
+		}
+		if prepared.layout.Values["sidebar"] != expected.sidebar || prepared.layout.Values["toc"] != expected.toc {
+			t.Fatalf("%s values = %#v, want sidebar=%t toc=%t", source, prepared.layout.Values, expected.sidebar, expected.toc)
+		}
+		if !reflect.DeepEqual(prepared.layoutSources, expected.sources) {
+			t.Fatalf("%s sources = %q, want %q", source, prepared.layoutSources, expected.sources)
+		}
+		if prepared.layout.Identity == "" {
+			t.Fatalf("%s layout identity is empty", source)
+		}
+	}
+	if preflight.siteManifest.LayoutSchemaHash == "" {
+		t.Fatal("preflight layout schema hash is empty")
+	}
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Site.LayoutSchemaHash != preflight.siteManifest.LayoutSchemaHash {
+		t.Fatalf("build hash = %q, preflight hash = %q", result.Site.LayoutSchemaHash, preflight.siteManifest.LayoutSchemaHash)
+	}
+	for _, page := range result.Site.Routes {
+		expected := want[page.Source]
+		if page.Layout != "docs" || page.Family != expected.family {
+			t.Fatalf("route = %+v, want docs family %q", page, expected.family)
+		}
+	}
+}
+
+func TestBuildConfigLayoutKindBoundaryRestoresDocsValues(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Landing\n\nLanding page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), `---
+layout:
+  values:
+    sidebar: true
+---
+# Module
+
+Docs page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "_layout.yaml"), "kind: landing\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "kind: docs\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [default, module]
+    sidebar: false
+    toc: false
+  values:
+    family: module
+`)
+
+	b := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	landing := b.configured["index.md"]
+	if landing.layout.Kind != LayoutLanding || landing.page.Layout != "landing" || landing.page.Family != "" || landing.layout.Family != "" {
+		t.Fatalf("landing = layout %+v page %+v", landing.layout, landing.page)
+	}
+	if !reflect.DeepEqual(landing.layout.Values, map[string]any{"shell": false, "content": map[string]any{"layout": "article"}}) {
+		t.Fatalf("landing values leaked docs state: %#v", landing.layout.Values)
+	}
+	docs := b.configured["module/index.md"]
+	if docs.layout.Kind != LayoutDocs || docs.page.Layout != "docs" || docs.page.Family != "module" {
+		t.Fatalf("restored docs = layout %+v page %+v", docs.layout, docs.page)
+	}
+	assertLayoutValues(t, docs.layout.Values, map[string]any{
+		"families": []any{"default", "module"},
+		"family":   "module",
+		"sidebar":  true,
+		"toc":      false,
+		"content":  map[string]any{"layout": "article"},
+	})
+}
+
+func TestBuildConfigFamilyIndexUsesDocsPagesAndConfiguredOrder(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Tour
+
+Landing page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "a.md"), "# Module A\n\nFirst route.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "z", "index.md"), "# Module Overview\n\nIndex route.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "a.md"), "# CLI Overview\n\nCLI route.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [module, cli]
+`)
+
+	b := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	if got, want := len(b.docsFamilies), 2; got != want {
+		t.Fatalf("docs family count = %d, want %d: %+v", got, want, b.docsFamilies)
+	}
+	want := []struct {
+		id       string
+		locale   string
+		overview string
+		label    string
+	}{
+		{id: "module", locale: "en", overview: "module/z/index.md", label: "Module Overview"},
+		{id: "cli", locale: "en", overview: "cli/a.md", label: "CLI Overview"},
+	}
+	for index, expected := range want {
+		family := b.docsFamilies[index]
+		if family.ID != expected.id || family.Locale != expected.locale || family.Overview.Source != expected.overview || family.Overview.Title != expected.label {
+			t.Fatalf("docs family %d = %+v, want %+v", index, family, expected)
+		}
+	}
+}
+
+func TestBuildConfigFamilyEmptyDiagnosticUsesDeclarationIndex(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		families string
+		pointer  string
+	}{
+		{name: "implicit default", families: "[module, cli]", pointer: "/layout/default/families/1"},
+		{name: "explicit default", families: "[default, module, cli]", pointer: "/layout/default/families/2"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Tour
+
+Landing page.
+`)
+			writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nDocs page.\n")
+			writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+			writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: `+test.families+`
+`)
+			configPath := filepath.Join(root, "site.yaml")
+
+			result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: configPath})
+			if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+				t.Fatalf("empty family returned partial result: %+v", result)
+			}
+			requirePresentationDiagnostic(t, err, "site.family_empty", configPath, test.pointer)
+		})
+	}
+}
+
+func TestBuildConfigFamilyAllowsUnusedImplicitDefault(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Tour
+
+Landing page.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nDocs page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [module]
+`)
+
+	b := preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml"))
+	if got, want := len(b.docsFamilies), 1; got != want || b.docsFamilies[0].ID != "module" {
+		t.Fatalf("docs families = %+v, want only module", b.docsFamilies)
+	}
+}
+
+func TestBuildConfigFrontmatterPreflightReturnsNoArtifacts(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  values:
+    sidebar: enabled
+---
+# Home
+
+Invalid final patch.
+`)
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/missing-logo.svg
+  icon: assets/missing-icon.svg
+  social_image:
+    path: assets/missing-social.jpg
+    alt: Margo documentation preview
+layout:
+  kind: docs
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatalf("invalid Markdown patch returned partial result: %+v", result)
+	}
+	requirePresentationDiagnostic(t, err, "site.layout_value_invalid", "index.md", "/layout/values/sidebar")
+}
+
+func TestBuildConfigPreflightValidatesOrphanDirectoryPatchesDeterministically(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nPublic page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "z", "_layout.yaml"), "values:\n  zeta: true\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "a", "_layout.yaml"), "values:\n  alpha: true\n")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: docs\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err == nil {
+		t.Fatal("expected orphan layout patch diagnostic")
+	}
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatal("invalid orphan patch returned partial result")
+	}
+	requirePresentationDiagnostic(t, err, "site.layout_value_unknown", "a/_layout.yaml", "/values/alpha")
+}
+
+func TestBuildConfigPreflightValidatesOrphanPatchAgainstAncestorKind(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nPublic page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "orphan", "_layout.yaml"), "kind: landing\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "orphan", "nested", "_layout.yaml"), "values:\n  sidebar: false\n")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: docs\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err == nil {
+		t.Fatal("expected ancestor-kind layout patch diagnostic")
+	}
+	if len(result.Artifacts) != 0 || len(result.Pages) != 0 || len(result.Site.Routes) != 0 {
+		t.Fatal("invalid orphan patch returned partial result")
+	}
+	requirePresentationDiagnostic(t, err, "site.layout_value_unknown", "orphan/nested/_layout.yaml", "/values/sidebar")
+}
+
+func TestBuildConfigLayoutCascadeIdentityIsDeterministic(t *testing.T) {
+	firstLayout := ResolvedLayout{Kind: LayoutDocs, Values: map[string]any{
+		"sidebar": true,
+		"content": map[string]any{"layout": "article"},
+	}}
+	secondLayout := ResolvedLayout{Kind: LayoutDocs, Values: map[string]any{
+		"content": map[string]any{"layout": "article"},
+		"sidebar": true,
+	}}
+	firstPageIdentity, err := configuredPageLayoutIdentity("guide.md", firstLayout, []string{"_layout.yaml", "guide.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPageIdentity, err := configuredPageLayoutIdentity("guide.md", secondLayout, []string{"_layout.yaml", "guide.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstPageIdentity == "" || firstPageIdentity != secondPageIdentity {
+		t.Fatalf("map order changed page identity: %q != %q", firstPageIdentity, secondPageIdentity)
+	}
+	reversedSourcesIdentity, err := configuredPageLayoutIdentity("guide.md", secondLayout, []string{"guide.md", "_layout.yaml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reversedSourcesIdentity == firstPageIdentity {
+		t.Fatal("ordered patch sources did not affect page identity")
+	}
+
+	firstLayout.Identity = firstPageIdentity
+	secondLayout.Identity = secondPageIdentity
+	firstConfigured := map[string]configuredPage{
+		"z.md": {layout: firstLayout},
+		"a.md": {layout: secondLayout},
+	}
+	secondConfigured := map[string]configuredPage{
+		"a.md": {layout: secondLayout},
+		"z.md": {layout: firstLayout},
+	}
+	firstSiteIdentity, err := configuredSiteLayoutIdentity(firstLayout, nil, firstConfigured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondSiteIdentity, err := configuredSiteLayoutIdentity(secondLayout, nil, secondConfigured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstSiteIdentity == "" || firstSiteIdentity != secondSiteIdentity {
+		t.Fatalf("map order changed site identity: %q != %q", firstSiteIdentity, secondSiteIdentity)
+	}
+}
+
+func TestBuildConfigLayoutCascadeIdentityIncludesDirectoryPatchValues(t *testing.T) {
+	build := func(root string, sidebar bool) string {
+		writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  values:
+    sidebar: true
+---
+# Home
+
+Same final layout.
+`)
+		writeConfigFile(t, filepath.Join(root, "docs", "_layout.yaml"), fmt.Sprintf("values:\n  sidebar: %t\n", sidebar))
+		writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: docs\n")
+		return preflightTypedLayoutBuild(t, filepath.Join(root, "site.yaml")).siteManifest.LayoutSchemaHash
+	}
+
+	first := build(t.TempDir(), false)
+	second := build(t.TempDir(), true)
+	if first == second {
+		t.Fatalf("directory patch values did not affect site identity: %q", first)
+	}
+}
+
+func TestBuildConfigRendersLayoutKindsWithOwnedChrome(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Landing article
+
+Landing Markdown survives. [Read module docs](module/index.md).
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "article.md"), `---
+layout:
+  kind: article
+---
+# Standalone article
+
+Article Markdown survives.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), `---
+margo:
+  actions:
+    markdown: true
+---
+# Module overview
+
+Module Markdown survives.
+
+## Module section
+
+Module details.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nSecond module page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI overview\n\nCLI family page.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+	writeTypedLayoutBuildConfig(t, root, `layout:
+  kind: docs
+  default:
+    families: [module, cli]
+    sidebar: true
+    toc: true
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := map[string]string{
+		"landing": string(configArtifact(t, result, "index.html")),
+		"article": string(configArtifact(t, result, "article.html")),
+		"docs":    string(configArtifact(t, result, "module/index.html")),
+	}
+	for route, content := range map[string]string{
+		"landing": "Landing Markdown survives.",
+		"article": "Article Markdown survives.",
+		"docs":    "Module Markdown survives.",
+	} {
+		page := pages[route]
+		if !strings.Contains(page, `class="margo-document`) || !strings.Contains(page, content) {
+			t.Fatalf("Markdown article missing from %s: %s", route, page)
+		}
+	}
+	for _, route := range []string{"landing", "article"} {
+		page := pages[route]
+		for _, forbidden := range []string{
+			`data-margo-family-navigation`, `id="left-nav"`, `id="right-nav"`,
+			"margo-breadcrumbs", "margo-pagination", "margo-page-actions",
+			"data-toc-heading", "component-doc-shell",
+		} {
+			if strings.Contains(page, forbidden) {
+				t.Fatalf("%s leaked into %s", forbidden, route)
+			}
+		}
+		for _, forbidden := range []string{`data-margo-global-navigation`, `data-search-field`} {
+			if strings.Contains(page, forbidden) {
+				t.Fatalf("docs navigation %s leaked into %s", forbidden, route)
+			}
+		}
+		if !strings.Contains(page, `data-margo-frame="main"`) {
+			t.Fatalf("%s did not use builtin main frame: %s", route, page)
+		}
+	}
+	docs := pages["docs"]
+	for _, required := range []string{
+		`class="component-doc-shell`,
+		`id="componentdocshell-family-navigation"`,
+		`class="component-doc-shell__family-link"`,
+		`id="componentdocshell-sidebar"`,
+		`data-sidebar-section="Module overview"`,
+		`id="componentdocshell-toc"`,
+		`data-componentdocshell-toc`,
+		`class="margo-page-actions"`,
+		`class="margo-pagination"`,
+		`rel="next"`,
+		`>Next: Module guide</a>`,
+	} {
+		if !strings.Contains(docs, required) {
+			t.Fatalf("docs chrome missing %q: %s", required, docs)
+		}
+	}
+	for _, forbidden := range []string{`data-margo-frame="top-left-main-right-footer"`, `data-margo-global-navigation="true"`, `data-margo-family-navigation="true"`, `id="left-nav"`, `id="right-nav"`, `data-margo-toc-drawer`} {
+		if strings.Contains(docs, forbidden) {
+			t.Fatalf("docs output retained custom shell marker %q", forbidden)
+		}
+	}
+	if strings.Contains(docs, `>Next: CLI overview</a>`) {
+		t.Fatalf("docs pagination crossed family boundary: %s", docs)
+	}
+	if !strings.Contains(pages["landing"], `href="/module/"`) {
+		t.Fatalf("typed Markdown link did not use the public docs route: %s", pages["landing"])
+	}
+	if !strings.Contains(docs, `rel="canonical" href="https://margo.example/module/"`) {
+		t.Fatalf("typed docs canonical does not match its public route: %s", docs)
+	}
+}
+
+func TestBuildConfigLandingGroupsMarkdownIntoSemanticComposition(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Landing
+
+Publish one Markdown source in the format your project needs.
+
+- [Publish with the CLI — standalone publishing workflow](cli/index.md)
+- [Embed the Go module — host-owned composition](module/index.md)
+
+![A document becoming several outputs](hero.png)
+
+## Proof
+
+One source, several projections.
+
+![Several generated outputs](proof.png)
+
+## Trust boundaries
+
+The host keeps authority.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI guide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule guide.\n")
+	copyMargoAsset(t, filepath.Join(root, "docs", "hero.png"), "margo-mascot.png")
+	copyMargoAsset(t, filepath.Join(root, "docs", "proof.png"), "margo-mascot.png")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: landing\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	for _, required := range []string{
+		`<header class="margo-landing-hero">`,
+		`class="margo-landing-hero__copy"`,
+		`class="margo-landing-hero__visual"`,
+		`<section class="margo-landing-section" aria-labelledby="proof">`,
+		`<section class="margo-landing-section" aria-labelledby="trust-boundaries">`,
+		`class="margo-landing-media"`,
+		`href="/cli/"`,
+		`href="/module/"`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("landing composition missing %q: %s", required, page)
+		}
+	}
+	if strings.Count(page, `<article class="margo-document`) != 1 || strings.Count(page, "<h1") != 1 {
+		t.Fatalf("landing must preserve one article and one h1: %s", page)
+	}
+	for _, forbidden := range []string{"component-doc-shell", "margo-breadcrumbs", "margo-pagination", "margo-page-actions", `id="left-nav"`, `id="right-nav"`} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("landing leaked docs chrome %q", forbidden)
+		}
+	}
+}
+
+func TestBuildConfigLandingShellUsesPublicAppShell(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+  values:
+    shell: true
+    navigation: [module/index.md, cli/index.md]
+---
+# Landing
+
+Publish one Markdown source in the format your project needs.
+
+![A document becoming several outputs](hero.png)
+
+## Proof
+
+One source, several projections.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Go module\n\nModule guide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI workflows\n\nCLI guide.\n")
+	copyMargoAsset(t, filepath.Join(root, "docs", "hero.png"), "margo-mascot.png")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+offline: true
+site:
+  name: Margo
+  description: Landing shell fixture.
+  version: v0.0.5
+  repository_url: https://github.com/araihu/margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo landing preview
+layout:
+  kind: article
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  allow_switch_theme: true
+  color_mode: system
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	for _, required := range []string{
+		`class="landing-shell`,
+		`data-margo-layout="landing"`,
+		`class="landing-shell__header`,
+		`class="landing-shell__brand-badge"`,
+		`>v0.0.5</span>`,
+		`href="/module/"`,
+		`>Go module</a>`,
+		`href="/cli/"`,
+		`>CLI workflows</a>`,
+		`id="landingshell-dark-mode"`,
+		`aria-label="Source repository"`,
+		`class="landing-shell__footer"`,
+		`class="landing-shell__container landing-shell__hero-slot"`,
+		`<header class="margo-landing-hero"`,
+		`<section class="margo-landing-section" aria-labelledby="proof">`,
+		`og:image:type`,
+		`twitter:image:alt`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("landing shell missing %q: %s", required, page)
+		}
+	}
+	for _, unique := range []string{"<title>", `rel="canonical"`, `property="og:url"`, `name="twitter:card"`} {
+		if got := strings.Count(page, unique); got != 1 {
+			t.Fatalf("landing shell %q count = %d, want one: %s", unique, got, page)
+		}
+	}
+	for _, artifact := range []string{"landingshell/assets/shell.css", "landingshell/assets/shell.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+		if !artifactExists(result, artifact) {
+			t.Fatalf("landing shell asset %q missing", artifact)
+		}
+	}
+	for _, forbidden := range []string{"component-doc-shell", "componentdocshell", "margo-pagination", "margo-page-actions"} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("landing shell leaked docs chrome %q: %s", forbidden, page)
+		}
+	}
+}
+
+func TestBuildConfigLandingShellRejectsUnknownNavigationTarget(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+  values:
+    shell: true
+    navigation: [missing.md]
+---
+# Landing
+
+Choose a path.
+`)
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: article\n")
+
+	_, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	requirePresentationDiagnostic(t, err, "site.landing_navigation_target_invalid", "index.md", "/layout/values/navigation/0")
+}
+
+func TestBuildConfigLandingSupportsTextOnlyMarkdownWithoutSections(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Text only\n\nA useful landing needs no image or section.\n")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: landing\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	if strings.Count(page, `<article class="margo-document`) != 1 || !strings.Contains(page, `<header class="margo-landing-hero"><div class="margo-landing-hero__copy">`) || !strings.Contains(page, "A useful landing needs no image or section.") {
+		t.Fatalf("text-only landing fallback malformed: %s", page)
+	}
+	if strings.Contains(page, "margo-landing-hero__visual") || strings.Contains(page, "margo-landing-section") {
+		t.Fatalf("text-only landing emitted empty visual or section: %s", page)
+	}
+}
+
+func TestBuildConfigLandingFragmentRejectsMalformedRoot(t *testing.T) {
+	for _, fragment := range []string{
+		`<div class="margo-document"><h1>Wrong element</h1></div>`,
+		`<article class="margo-document"><h1>One</h1></article><article class="margo-document"><h1>Two</h1></article>`,
+	} {
+		if _, err := transformLandingArticle([]byte(fragment)); err == nil {
+			t.Fatalf("malformed landing fragment accepted: %s", fragment)
+		}
+	}
+}
+
+func TestBuildConfigStagesLayoutKindAssetsAndDependencies(t *testing.T) {
+	build := func(t *testing.T, assets string) Result {
+		t.Helper()
+		root := t.TempDir()
+		writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Landing\n\nLanding page.\n")
+		writeConfigFile(t, filepath.Join(root, "docs", "article.md"), "---\nlayout:\n  kind: article\n---\n# Article\n\nArticle page.\n")
+		writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\n## Module section\n\nDocs page.\n")
+		writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI page.\n")
+		writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
+		writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
+		copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+		copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+		writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: `+assets+`
+site:
+  name: Margo
+  description: Typed dependency fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+		result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+
+	localResult := build(t, "local")
+	inlineResult := build(t, "inline")
+	if localResult.Site.DocumentStyleDigest == "" || localResult.Site.DocumentStyleDigest != inlineResult.Site.DocumentStyleDigest {
+		t.Fatalf("asset mode changed typed style identity: local=%q inline=%q", localResult.Site.DocumentStyleDigest, inlineResult.Site.DocumentStyleDigest)
+	}
+
+	t.Run("local", func(t *testing.T) {
+		result := localResult
+		landing := string(configArtifact(t, result, "index.html"))
+		article := string(configArtifact(t, result, "article.html"))
+		docs := string(configArtifact(t, result, "module/index.html"))
+		for _, required := range []string{configuredTypedSiteStylePath, configuredLandingStylePath} {
+			if !strings.Contains(landing, required) {
+				t.Fatalf("landing dependency missing %q: %s", required, landing)
+			}
+		}
+		for _, forbidden := range []string{configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath, "assets/js/goshtoso.min.js"} {
+			if strings.Contains(landing, forbidden) || strings.Contains(article, forbidden) {
+				t.Fatalf("docs dependency %q leaked into landing/article", forbidden)
+			}
+		}
+		if !strings.Contains(article, configuredTypedSiteStylePath) || strings.Contains(article, configuredLandingStylePath) {
+			t.Fatalf("article dependencies are not isolated: %s", article)
+		}
+		for _, required := range []string{configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+			if !strings.Contains(docs, required) {
+				t.Fatalf("docs dependency missing %q: %s", required, docs)
+			}
+		}
+		for _, forbidden := range []string{configuredTypedSiteStylePath} {
+			if strings.Contains(docs, forbidden) {
+				t.Fatalf("legacy typed docs dependency %q leaked into component shell: %s", forbidden, docs)
+			}
+		}
+		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath, "margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+			if !artifactExists(result, artifact) {
+				t.Fatalf("owned local artifact %q missing", artifact)
+			}
+		}
+		if styles := string(configArtifact(t, result, configuredTypedSiteStylePath)); strings.Contains(styles, "data-margo-layout") || strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "margo-page-actions") {
+			t.Fatalf("shared stylesheet contains kind-owned selectors: %s", styles)
+		}
+		if styles := string(configArtifact(t, result, configuredLandingStylePath)); !strings.Contains(styles, `.margo-landing-hero`) || strings.Contains(styles, `[alt^=`) || strings.Contains(styles, `@media (min-width: 56.25rem)`) || strings.Contains(styles, `data-margo-layout="docs"`) || strings.Contains(styles, "component-doc-shell") {
+			t.Fatalf("landing stylesheet ownership is not isolated: %s", styles)
+		} else if !strings.Contains(styles, `.margo-landing-section > .margo-landing-media > img, .margo-landing-section > .margo-landing-media > svg`) || strings.Contains(styles, `.margo-landing-section > .margo-landing-media img`) || strings.Contains(styles, `.margo-landing-section > .margo-landing-media svg`) {
+			t.Fatalf("landing media styles must not resize nested component SVGs: %s", styles)
+		} else if !strings.Contains(styles, `[data-margo-layout="landing"] .goshtoso-charts-expand-panel`) || !strings.Contains(styles, `max-inline-size: min(100%, 36rem)`) || !strings.Contains(styles, `block-size: min(calc(100dvh - 2rem), 36rem)`) || !strings.Contains(styles, `max-block-size: calc(100dvh - 2rem)`) {
+			t.Fatalf("landing chart expansion must stay compact and viewport-safe: %s", styles)
+		}
+		if styles := string(configArtifact(t, result, configuredDocsStylePath)); !strings.Contains(styles, `.margo-showcase-article`) || !strings.Contains(styles, `.margo-pagination`) || strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "margo-frame") {
+			t.Fatalf("docs stylesheet ownership is not isolated: %s", styles)
+		}
+	})
+
+	t.Run("inline", func(t *testing.T) {
+		result := inlineResult
+		landing := string(configArtifact(t, result, "index.html"))
+		article := string(configArtifact(t, result, "article.html"))
+		docs := string(configArtifact(t, result, "module/index.html"))
+		for route, page := range map[string]string{"landing": landing, "article": article} {
+			for _, forbidden := range []string{`data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `data-margo-layout-dependency="search-interactions"`, `data-margo-layout-dependency="site-navigation"`, `data-margo-layout-dependency="goshtoso-navigation"`} {
+				if strings.Contains(page, forbidden) {
+					t.Fatalf("inline docs dependency %q leaked into %s", forbidden, route)
+				}
+			}
+		}
+		if !strings.Contains(landing, `data-margo-layout-style="landing"`) || strings.Contains(article, `data-margo-layout-style="landing"`) {
+			t.Fatalf("inline landing style ownership is not isolated")
+		}
+		for _, required := range []string{`data-margo-layout-style="docs"`, `data-margo-layout-dependency="page-actions"`, `data-margo-layout-dependency="search-interactions"`, `margo-assets/goshtoso/shell.css`, `margo-assets/goshtoso/shell.js`} {
+			if !strings.Contains(docs, required) {
+				t.Fatalf("inline docs dependency missing %q: %s", required, docs)
+			}
+		}
+		for _, external := range []string{configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath} {
+			if strings.Contains(docs, `src="/`+external) || strings.Contains(docs, `href="/`+external) {
+				t.Fatalf("inline docs retained external dependency %q: %s", external, docs)
+			}
+		}
+		for _, artifact := range []string{configuredTypedSiteStylePath, configuredLandingStylePath, configuredDocsStylePath, pageActionsScriptPath, searchInteractionsScriptPath} {
+			if artifactExists(result, artifact) {
+				t.Fatalf("inline build published layout artifact %q", artifact)
+			}
+		}
+		for _, artifact := range []string{"margo-assets/goshtoso/shell.css", "margo-assets/goshtoso/shell.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+			if !artifactExists(result, artifact) {
+				t.Fatalf("inline build did not stage public shell asset %q", artifact)
+			}
+		}
+		if artifactExists(result, "margo-assets/goshtoso/margo-scroll-spy.js") {
+			t.Fatal("inline typed docs staged Margo's legacy TOC runtime")
+		}
+	})
+}
+
+func TestBuildConfigNonDocsLayoutsHonorGoshtosoRequirementsAndPreserveTableSort(t *testing.T) {
+	for _, kind := range []LayoutKind{LayoutLanding, LayoutArticle} {
+		for _, assets := range []string{string(AssetsLocal), string(AssetsInline)} {
+			t.Run(string(kind)+"/"+assets, func(t *testing.T) {
+				root := t.TempDir()
+				writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Example\n\n| Name | Value |\n| --- | --- |\n| Margo | Site |\n")
+				copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+				copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+				writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: `+assets+`
+site:
+  name: Margo
+  description: Non-docs dependency fixture.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo preview
+layout:
+  kind: `+string(kind)+`
+`)
+
+				result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+				if err != nil {
+					t.Fatal(err)
+				}
+				page := string(configArtifact(t, result, "index.html"))
+				if !strings.Contains(page, `data-margo-requirement="goshtoso.styles"`) {
+					t.Fatalf("%s %s page dropped its declared Goshtoso stylesheet requirement: %s", kind, assets, page)
+				}
+				if assets == string(AssetsLocal) {
+					if !strings.Contains(page, "assets/styles.css") || !artifactExists(result, "assets/styles.css") {
+						t.Fatalf("%s local build did not publish its required Goshtoso stylesheet", kind)
+					}
+				} else if !strings.Contains(page, "tailwindcss v4.3.3") {
+					t.Fatalf("%s inline build did not embed its required Goshtoso stylesheet", kind)
+				}
+				if !strings.Contains(page, `data-margo-requirement="margo.table-sort"`) {
+					t.Fatalf("%s %s page lost semantic table-sort dependency: %s", kind, assets, page)
+				}
+				if assets == string(AssetsLocal) && !artifactExists(result, "margo-assets/table-sort.js") {
+					t.Fatalf("%s local build did not stage table-sort runtime", kind)
+				}
+			})
+		}
+	}
+}
+
+func preflightTypedLayoutBuild(t *testing.T, configPath string) *builder {
+	t.Helper()
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configDir := filepath.Dir(configPath)
+	sourceDir := filepath.Join(configDir, filepath.FromSlash(config.Source))
+	inputs, err := discoverConfiguredInputs(context.Background(), sourceDir, config.Navigation.Exclude)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &builder{
+		request:       requestToSiteRequest(ConfigRequest{Compiler: margo.New()}, sourceDir, inputs.Sources, AssetMode(config.Assets)),
+		config:        &config,
+		configSource:  configPath,
+		configDir:     configDir,
+		sourceDir:     sourceDir,
+		layoutPatches: inputs.Patches,
+		configured:    make(map[string]configuredPage),
+		sources:       make(map[string]Source, len(inputs.Sources)),
+		outputs:       make(map[string]string, len(inputs.Sources)),
+		siteManifest: SiteManifest{
+			ConfigVersion: 1,
+			Layout:        "layout:" + string(config.Layout.Kind),
+			BaseURL:       strings.TrimSuffix(config.Site.BaseURL, "/"),
+			BasePath:      normalizedBasePath(config.BasePath),
+		},
+	}
+	ordered, err := b.indexSources()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.preflightConfigured(context.Background(), ordered); err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func writeTypedLayoutBuildConfig(t *testing.T, root, layout string) {
+	t.Helper()
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  description: Margo documentation
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`+layout)
 }
 
 func configArtifact(t *testing.T, result Result, name string) []byte {

@@ -63,6 +63,14 @@ func TestFrontmatterRejectsUnknownMargoFieldAtSourcePosition(t *testing.T) {
 	}
 }
 
+func TestFrontmatterRejectsRemovedMargoSiteField(t *testing.T) {
+	_, err := New().Compile(context.Background(), Source{Name: "typo.md", Content: []byte("---\nmargo:\n  site:\n    mystery: true\n---\n# Typo")})
+	diagnostic := unwrapDiagnostic(err)
+	if diagnostic == nil || diagnostic.Diagnostics[0].Code != "frontmatter.schema_invalid" || diagnostic.Diagnostics[0].Pointer != "/margo" {
+		t.Fatalf("diagnostic = %#v, error = %v", diagnostic, err)
+	}
+}
+
 func TestFrontmatterRejectsInvalidPageMarginPreferences(t *testing.T) {
 	tests := []struct {
 		name    string

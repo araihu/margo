@@ -15,8 +15,16 @@ site:
   social_image:
     path: assets/social/margo-social-v2.jpg
     alt: "Margo showcase: Markdown flowing into HTML, sites, PDFs, and decks."
-shell:
-  builtin: componentdocshell
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+    sidebar: true
+    toc: true
+    content:
+      layout: article
+  values:
+    family: default
 locales:
   default: en
   supported: [en]
@@ -25,7 +33,7 @@ navigation:
 theme:
   builtin: false
   name: margo
-  allow_switch_theme: false
+  allow_switch_theme: true
   color_mode: system
 themes:
   - name: margo

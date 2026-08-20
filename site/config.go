@@ -27,6 +27,7 @@ type Config struct {
 	Offline    *bool                    `yaml:"offline"`
 	BasePath   string                   `yaml:"base_path"`
 	Site       SiteConfig               `yaml:"site"`
+	Layout     *LayoutConfig            `yaml:"layout"`
 	Frame      *LayoutSelection         `yaml:"frame"`
 	Shell      *LayoutSelection         `yaml:"shell"`
 	Locales    LocaleConfig             `yaml:"locales"`
@@ -35,6 +36,8 @@ type Config struct {
 	Themes     []ThemeConfig            `yaml:"themes"`
 	CustomCSS  []CSSConfig              `yaml:"custom_css"`
 	Theme      ThemeSelection           `yaml:"theme"`
+
+	familySourceIndexes map[string]int
 }
 
 type SiteConfig struct {
@@ -192,6 +195,15 @@ func (config *Config) validate() error {
 		offline := true
 		config.Offline = &offline
 	}
+	if config.Layout != nil {
+		if config.Frame != nil || config.Shell != nil {
+			return newPresentationDiagnostic("site.layout_conflict", "layout cannot be combined with frame or shell", "Remove frame or shell when using typed layout.", "/layout")
+		}
+		config.familySourceIndexes = declaredFamilySourceIndexes(config.Layout)
+		if err := validateSiteLayout(config.Layout); err != nil {
+			return err
+		}
+	}
 	if config.Frame != nil && config.Shell != nil {
 		return diagnostic("site.layout_conflict", "frame and shell are mutually exclusive", "Select one layout kind.", "")
 	}
@@ -261,6 +273,68 @@ func (config *Config) validate() error {
 			return diagnostic("site.navigation_invalid", fmt.Sprintf("invalid navigation.exclude pattern %q", pattern), "Use normalized paths such as drafts/**.", "")
 		}
 	}
+	return nil
+}
+
+func declaredFamilySourceIndexes(layout *LayoutConfig) map[string]int {
+	if layout == nil || layout.Kind != LayoutDocs {
+		return nil
+	}
+	families, ok := layoutListValues(layout.Default["families"])
+	if !ok {
+		return nil
+	}
+	indexes := make(map[string]int, len(families))
+	for index, value := range families {
+		family, ok := value.(string)
+		if !ok {
+			continue
+		}
+		family = strings.TrimSpace(family)
+		if _, exists := indexes[family]; !exists {
+			indexes[family] = index
+		}
+	}
+	return indexes
+}
+
+func validateSiteLayout(layout *LayoutConfig) error {
+	if layout == nil {
+		return nil
+	}
+	if _, err := resolveSiteLayout(*layout, ""); err != nil {
+		return err
+	}
+	if layout.Kind != LayoutDocs {
+		return nil
+	}
+
+	if layout.Default == nil {
+		layout.Default = make(map[string]any)
+	}
+	rawFamilies, configured := layout.Default["families"]
+	if !configured {
+		layout.Default["families"] = []any{"default"}
+		return nil
+	}
+	families, _ := layoutListValues(rawFamilies)
+	seen := make(map[string]int, len(families))
+	normalized := make([]any, 0, len(families)+1)
+	for index, value := range families {
+		family := strings.TrimSpace(value.(string))
+		pointer := fmt.Sprintf("/layout/default/families/%d", index)
+		if family == "" {
+			return newPresentationDiagnostic("site.family_invalid", "family identifier must not be empty", "Declare a stable non-empty family identifier.", pointer)
+		}
+		if previous, exists := seen[family]; exists {
+			return newPresentationDiagnostic("site.family_duplicate", fmt.Sprintf("family %q is declared more than once (entries %d and %d)", family, previous, index), "Declare each family once.", pointer)
+		}
+		seen[family] = index
+		if family != "default" {
+			normalized = append(normalized, family)
+		}
+	}
+	layout.Default["families"] = append([]any{"default"}, normalized...)
 	return nil
 }
 
@@ -390,7 +464,7 @@ func validThemeName(value string) bool {
 
 func knownBindingKind(value string) bool {
 	switch value {
-	case "navigation", "breadcrumbs", "pagination", "theme_controls", "locale_controls", "toc", "footer":
+	case "navigation", "site_navigation", "breadcrumbs", "pagination", "theme_controls", "locale_controls", "toc", "footer":
 		return true
 	default:
 		return false

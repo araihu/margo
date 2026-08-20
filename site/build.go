@@ -7,6 +7,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -62,6 +66,8 @@ type Page struct {
 	Source         string             `json:"source"`
 	Output         string             `json:"output"`
 	Locale         string             `json:"locale,omitempty"`
+	Family         string             `json:"family,omitempty"`
+	Layout         string             `json:"layout,omitempty"`
 	Title          string             `json:"title,omitempty"`
 	Description    string             `json:"description,omitempty"`
 	Canonical      string             `json:"canonical,omitempty"`
@@ -99,6 +105,7 @@ type Result struct {
 type builder struct {
 	request          Request
 	config           *Config
+	configSource     string
 	configDir        string
 	sourceDir        string
 	siteManifest     SiteManifest
@@ -111,8 +118,10 @@ type builder struct {
 	shellName        string
 	shellAssetPrefix string
 	socialMediaType  string
+	layoutPatches    []LayoutPatch
 	configured       map[string]configuredPage
 	configPages      []Page
+	docsFamilies     []docsFamily
 	sources          map[string]Source
 	outputs          map[string]string
 	artifacts        map[string][]byte
@@ -124,6 +133,14 @@ type builder struct {
 	assetBytes       int64
 	pdfEngine        pdf.Engine
 	pdfInstances     *margo.InstanceAllocator
+}
+
+// docsFamily is derived from completed docs pages. Config owns only ordered
+// identifiers; the overview page owns the public label and href.
+type docsFamily struct {
+	ID       string
+	Locale   string
+	Overview Page
 }
 
 type cachedAsset struct {
@@ -232,24 +249,23 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	output := b.pageOutput(source.Path)
 	page := Page{Source: source.Path, Output: output, ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
 
-	var componentBytes bytes.Buffer
+	dependencyMode := margo.HTMLDependenciesLocal
 	if b.request.Assets == AssetsInline {
-		component, renderErr := margo.RenderStandalone(rendered)
-		if renderErr != nil {
-			return renderErr
-		}
-		if renderErr = component.Render(ctx, &componentBytes); renderErr != nil {
-			return renderErr
-		}
-	} else {
-		component, renderErr := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{Theme: margo.ThemeModern, ColorMode: margo.ColorModeLight, DependencyMode: margo.HTMLDependenciesLocal})
-		if renderErr != nil {
-			return renderErr
-		}
-		if renderErr = component.Render(ctx, &componentBytes); renderErr != nil {
-			return renderErr
-		}
+		dependencyMode = margo.HTMLDependenciesInline
+	}
+	component, err := margo.RenderHTMLPage(htmlResult, margo.HTMLPageInput{Theme: margo.ThemeModern, ColorMode: margo.ColorModeLight, DependencyMode: dependencyMode})
+	if err != nil {
+		return err
+	}
+	var componentBytes bytes.Buffer
+	if err := component.Render(ctx, &componentBytes); err != nil {
+		return err
+	}
+	if b.request.Assets == AssetsLocal {
 		for _, requirement := range htmlResult.Requirements().List() {
+			if requirement.ID == "goshtoso.styles" {
+				continue
+			}
 			assetPath := strings.TrimPrefix(requirement.LocalURL, "/")
 			if assetPath == "" || len(requirement.Inline.Content) == 0 {
 				continue
@@ -265,10 +281,6 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	}
 
 	rewritten, err := b.rewriteHTML(ctx, source, componentBytes.Bytes())
-	if err != nil {
-		return err
-	}
-	rewritten, err = b.injectPageActions(ctx, rewritten, page)
 	if err != nil {
 		return err
 	}
@@ -332,6 +344,10 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 			if err := b.rewriteDependency(source, node); err != nil {
 				return err
 			}
+			if b.config == nil && attributeValue(node, "data-margo-requirement") == "goshtoso.styles" {
+				node.Parent.RemoveChild(node)
+				return nil
+			}
 			switch node.Data {
 			case "a":
 				if err := b.rewriteLink(source, node); err != nil {
@@ -343,17 +359,19 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 				}
 			}
 		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
+		for child := node.FirstChild; child != nil; {
+			next := child.NextSibling
 			if err := visit(child); err != nil {
 				return err
 			}
+			child = next
 		}
 		return nil
 	}
 	if err := visit(root); err != nil {
 		return nil, err
 	}
-	if b.shellMode {
+	if b.usesComponentDocShell(source) {
 		decorateComponentDocShellHeadings(root)
 		if err := b.decorateComponentDocShellNavigation(root, source); err != nil {
 			return nil, err
@@ -384,7 +402,14 @@ func (b *builder) rewriteDependency(source Source, node *html.Node) error {
 	if err != nil || !strings.HasPrefix(parsed.Path, "/") {
 		return nil
 	}
-	dependency, exists := b.dependencies[strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))]
+	dependencyKey := strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))
+	dependency, exists := b.dependencies[dependencyKey]
+	if !exists && b.config != nil {
+		basePath := strings.TrimPrefix(normalizedBasePath(b.config.BasePath), "/")
+		if basePath != "" {
+			dependency, exists = b.dependencies[strings.TrimPrefix(dependencyKey, basePath+"/")]
+		}
+	}
 	if !exists {
 		return nil
 	}
@@ -416,11 +441,18 @@ func (b *builder) rewriteLink(source Source, node *html.Node) error {
 	if !exists {
 		return diagnostic("site.link_missing", fmt.Sprintf("Markdown link target %q does not exist", target), "Add the target document or correct the relative link.", source.Path)
 	}
-	relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), b.pageOutput(targetSource.Path))
-	if err != nil {
-		return err
+	// Configured sites publish directory routes for index artifacts. The
+	// in-memory legacy builder has no public site configuration, so it retains
+	// its artifact-relative link contract.
+	if b.usesPublicRoutes() {
+		parsed.Path = b.publicPagePath(targetSource.Path)
+	} else {
+		relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), b.pageOutput(targetSource.Path))
+		if err != nil {
+			return err
+		}
+		parsed.Path = relative
 	}
-	parsed.Path = relative
 	parsed.RawPath = ""
 	node.Attr[index].Val = parsed.String()
 	b.references = append(b.references, siteReference{source: source.Path, target: b.pageOutput(targetSource.Path), fragment: parsed.Fragment})
@@ -477,6 +509,7 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		b.assets[assetPath] = asset
 		b.assetBytes += int64(len(data))
 	}
+	setImageIntrinsicDimensions(node, asset.content)
 	if b.request.Assets == AssetsInline {
 		node.Attr[index].Val = "data:" + asset.mediaType + ";base64," + base64.StdEncoding.EncodeToString(asset.content)
 		return nil
@@ -485,6 +518,20 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		return err
 	}
 	return nil
+}
+
+func setImageIntrinsicDimensions(node *html.Node, content []byte) {
+	if attributeIndex(node, "width") >= 0 || attributeIndex(node, "height") >= 0 {
+		return
+	}
+	config, _, err := image.DecodeConfig(bytes.NewReader(content))
+	if err != nil || config.Width <= 0 || config.Height <= 0 {
+		return
+	}
+	node.Attr = append(node.Attr,
+		html.Attribute{Key: "width", Val: fmt.Sprint(config.Width)},
+		html.Attribute{Key: "height", Val: fmt.Sprint(config.Height)},
+	)
 }
 
 func (b *builder) addArtifact(name string, content []byte) error {
@@ -627,6 +674,50 @@ func relativeSitePath(fromDirectory, target string) (string, error) {
 		return "", err
 	}
 	return filepath.ToSlash(relative), nil
+}
+
+// publicRoutePath projects an artifact path into its public URL identity.
+// Directory index artifacts remain index.html on disk but are advertised at
+// the directory route, so one page has one canonical public identity.
+func publicRoutePath(output string) string {
+	output = strings.TrimPrefix(path.Clean(strings.TrimSpace(output)), "/")
+	if output == "." || output == "" {
+		return "/"
+	}
+	if path.Base(output) == "index.html" {
+		directory := path.Dir(output)
+		if directory == "." || directory == "" {
+			return "/"
+		}
+		return "/" + strings.Trim(directory, "/") + "/"
+	}
+	return "/" + output
+}
+
+func (b *builder) publicOutputPath(output string, home bool) string {
+	route := publicRoutePath(output)
+	if home {
+		route = "/"
+	}
+	basePath := normalizedBasePath("")
+	if b.config != nil {
+		basePath = normalizedBasePath(b.config.BasePath)
+	}
+	if basePath != "/" {
+		route = strings.TrimSuffix(basePath, "/") + route
+	}
+	return route
+}
+
+func (b *builder) usesPublicRoutes() bool {
+	return b.config != nil && b.config.Layout != nil
+}
+
+func (b *builder) publicPagePath(source string) string {
+	output := b.pageOutput(source)
+	locale, _ := sourceLocale(source, b.config.Locales)
+	home := source == b.config.Site.Home && locale == b.config.Locales.Default
+	return b.publicOutputPath(output, home)
 }
 
 func diagnostic(code, message, hint, source string) error {

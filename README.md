@@ -167,6 +167,77 @@ from the file and also produce `sitemap.xml` and `llms.txt`. The configured
 output defaults to `dist` when omitted. See
 [`showcase.yaml`](showcase.yaml) for a complete configuration.
 
+### Semantic layouts and documentation families
+
+Configured sites can opt into semantic page layouts and documentation families.
+The site selects one trusted layout kind: `article`, `landing`, or `docs`.
+Page content never names a raw frame, shell, executable command, or Go module.
+Only `docs` owns navigation chrome, search, sidebars, tables of contents,
+pagination, and documentation families.
+
+The configuration shape is:
+
+```yaml
+layout:
+  kind: docs
+  default:
+    families: [module, cli]
+    sidebar: true
+    toc: true
+    content:
+      layout: article
+  values:
+    family: default
+```
+
+`layout.default` declares site-only defaults for the selected kind.
+`layout.values` applies the site-level override patch. A directory can select a
+declared docs family in `_layout.yaml`:
+
+```yaml
+values:
+  family: module
+```
+
+The reserved `_layout.yaml` file is discovered from the source root through the
+page's nearest directory and is never published. A Markdown page can apply the
+final patch through top-level frontmatter:
+
+```yaml
+---
+layout:
+  kind: landing
+---
+```
+
+Resolution order is site defaults, directory patches from root to nearest, then
+Markdown frontmatter. Within one kind, maps merge recursively, scalars replace,
+and arrays replace completely. Changing `kind` creates a typed boundary: values
+from another kind do not cross it. Unknown kinds, properties, values, or docs
+families fail in preflight before artifacts are emitted.
+
+Docs families are declared centrally by `layout.default.families`. Directory
+and Markdown patches can select a family but cannot declare one. `default`
+always exists, family order controls secondary navigation, and non-default
+families must own at least one docs page. Landing and article pages have no
+family identity.
+
+The `landing` layout is for a conversion-oriented page: it has no sidebar,
+table of contents, breadcrumbs, pagination, or page-action toolbar. The `docs`
+layout provides family-local navigation, document context, and scoped
+pagination when neighbors exist. The Margo showcase publishes exactly three
+Markdown-generated routes: Tour at `/`, Module at `/module/`, and CLI at
+`/cli/`. The static artifacts remain `module/index.html` and `cli/index.html`,
+but public links, canonicals, search, family navigation, sitemap, `llms.txt`,
+and rewritten Markdown use those directory routes, including base-path and locale prefixes.
+The former root feature pages are retired. Retired Tour feature routes
+return HTTP 404, produce no artifacts, and have no redirect or hidden
+compatibility page.
+
+Sites without `layout` retain existing top-level `frame` or `shell` behavior.
+Existing `componentdocshell` consumers remain supported. Typed `layout` is
+mutually exclusive with those top-level presentation authorities.
+
 ### Add page actions
 
 Pages can opt into source and download controls through frontmatter:

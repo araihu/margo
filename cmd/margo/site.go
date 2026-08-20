@@ -35,6 +35,7 @@ type siteManifestDocument struct {
 	Policy              string              `json:"policy,omitempty"`
 	ConfigVersion       int                 `json:"configVersion,omitempty"`
 	Layout              string              `json:"layout,omitempty"`
+	LayoutSchemaHash    string              `json:"layoutSchemaHash,omitempty"`
 	BaseURL             string              `json:"baseURL,omitempty"`
 	BasePath            string              `json:"basePath,omitempty"`
 	DocumentStyleDigest string              `json:"documentStyleDigest,omitempty"`
@@ -284,7 +285,7 @@ func marshalSiteManifest(result site.Result, policy string) ([]byte, error) {
 	if err := result.Manifest.Validate(); err != nil {
 		return nil, fmt.Errorf("site.manifest_invalid: %w", err)
 	}
-	document := siteManifestDocument{SchemaVersion: siteManifestSchema, Digest: result.Manifest.Digest(), Policy: policy, ConfigVersion: result.Site.ConfigVersion, Layout: result.Site.Layout, BaseURL: result.Site.BaseURL, BasePath: result.Site.BasePath, DocumentStyleDigest: result.Site.DocumentStyleDigest, Routes: append([]site.Page(nil), result.Site.Routes...), Entries: make([]siteManifestEntry, len(result.Manifest.Entries))}
+	document := siteManifestDocument{SchemaVersion: siteManifestSchema, Digest: result.Manifest.Digest(), Policy: policy, ConfigVersion: result.Site.ConfigVersion, Layout: result.Site.Layout, LayoutSchemaHash: result.Site.LayoutSchemaHash, BaseURL: result.Site.BaseURL, BasePath: result.Site.BasePath, DocumentStyleDigest: result.Site.DocumentStyleDigest, Routes: append([]site.Page(nil), result.Site.Routes...), Entries: make([]siteManifestEntry, len(result.Manifest.Entries))}
 	for index, entry := range result.Manifest.Entries {
 		document.Entries[index] = siteManifestEntry{Path: entry.Path, Digest: entry.Digest.String()}
 	}

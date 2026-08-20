@@ -86,3 +86,128 @@ func TestValidateBindingsRejectsWrongKindAndDuplicateMounts(t *testing.T) {
 		t.Fatalf("wrong kind error = %v", err)
 	}
 }
+
+func TestBuiltinTopMainRendersSiteNavigation(t *testing.T) {
+	frame, err := BuiltinFrame("top-main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, err := frame.Schema(FrameContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := SchemaHash(schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	siteNav, err := NewAreaBinding(hash, "index.html", BindingSpec{
+		Kind: "site_navigation", Area: "top-nav",
+	}, 0, templ.Raw(`<nav aria-label="main navigation">site</nav>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := NewAreaBinding(hash, "index.html", BindingSpec{Kind: "document", Area: "main-content"}, 0, templ.Raw(`<article>home</article>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := frame.Render(FrameInput{SchemaHash: hash, Bindings: map[string][]AreaBinding{
+		"top-nav":      {siteNav},
+		"main-content": {document},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rendered strings.Builder
+	if err := output.Fragment.Render(context.Background(), &rendered); err != nil {
+		t.Fatal(err)
+	}
+	markup := rendered.String()
+	if !strings.Contains(markup, `<nav aria-label="main navigation">site</nav>`) {
+		t.Fatalf("fragment = %s", markup)
+	}
+	if strings.Index(markup, `main navigation`) > strings.Index(markup, `>home<`) {
+		t.Fatalf("site navigation rendered after document: %s", markup)
+	}
+}
+
+func TestBuiltinDocsFrameRendersSiteAndLocalNavigation(t *testing.T) {
+	frame, err := BuiltinFrame("top-left-main-right-footer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, err := frame.Schema(FrameContext{Profile: DocsProfile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := SchemaHash(schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	siteNav, err := NewAreaBinding(hash, "guide.html", BindingSpec{
+		Kind: "site_navigation", Area: "top-nav",
+	}, 0, templ.Raw(`<nav aria-label="site navigation">site</nav>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	localNav, err := NewAreaBinding(hash, "guide.html", BindingSpec{
+		Kind: "navigation", Area: "left-nav",
+	}, 0, templ.Raw(`<nav aria-label="section navigation">section</nav>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := NewAreaBinding(hash, "guide.html", BindingSpec{Kind: "document", Area: "main-content"}, 0, templ.Raw(`<article>guide</article>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := frame.Render(FrameInput{SchemaHash: hash, Bindings: map[string][]AreaBinding{
+		"top-nav":      {siteNav},
+		"left-nav":     {localNav},
+		"main-content": {document},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rendered strings.Builder
+	if err := output.Fragment.Render(context.Background(), &rendered); err != nil {
+		t.Fatal(err)
+	}
+	markup := rendered.String()
+	if !strings.Contains(markup, `site navigation`) || !strings.Contains(markup, `section navigation`) {
+		t.Fatalf("fragment = %s", markup)
+	}
+	if strings.Index(markup, `site navigation`) > strings.Index(markup, `section navigation`) {
+		t.Fatalf("site navigation rendered after local navigation: %s", markup)
+	}
+}
+
+func TestValidateBindingsRejectsSiteNavigationInLeftNav(t *testing.T) {
+	frame, err := BuiltinFrame("top-left-main-right-footer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, err := frame.Schema(FrameContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := SchemaHash(schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	siteNav, err := NewAreaBinding(hash, "guide.html", BindingSpec{
+		Kind: "site_navigation", Area: "left-nav",
+	}, 0, templ.Raw(`<nav>site</nav>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := NewAreaBinding(hash, "guide.html", BindingSpec{Kind: "document", Area: "main-content"}, 0, templ.Raw(`<article>guide</article>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ValidateBindings(schema, map[string][]AreaBinding{
+		"main-content": {document},
+		"left-nav":     {siteNav},
+	})
+	if err == nil || !strings.Contains(err.Error(), `left-nav`) || !strings.Contains(err.Error(), `site_navigation`) {
+		t.Fatalf("error = %v", err)
+	}
+}
