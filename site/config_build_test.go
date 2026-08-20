@@ -2084,7 +2084,7 @@ theme:
 	})
 }
 
-func TestBuildConfigNonDocsLayoutsExcludeGoshtosoStylesAndPreserveTableSort(t *testing.T) {
+func TestBuildConfigNonDocsLayoutsHonorGoshtosoRequirementsAndPreserveTableSort(t *testing.T) {
 	for _, kind := range []LayoutKind{LayoutLanding, LayoutArticle} {
 		for _, assets := range []string{string(AssetsLocal), string(AssetsInline)} {
 			t.Run(string(kind)+"/"+assets, func(t *testing.T) {
@@ -2114,23 +2114,15 @@ layout:
 					t.Fatal(err)
 				}
 				page := string(configArtifact(t, result, "index.html"))
-				for _, forbidden := range []string{
-					`data-margo-requirement="goshtoso.styles"`,
-					"assets/styles.css",
-					"tailwindcss v4.3.3",
-					"--font-sans: -apple-system",
-				} {
-					if strings.Contains(page, forbidden) {
-						t.Fatalf("%s %s page contains Goshtoso stylesheet signature %q", kind, assets, forbidden)
-					}
+				if !strings.Contains(page, `data-margo-requirement="goshtoso.styles"`) {
+					t.Fatalf("%s %s page dropped its declared Goshtoso stylesheet requirement: %s", kind, assets, page)
 				}
-				if artifactExists(result, "assets/styles.css") {
-					t.Fatalf("%s %s build staged Goshtoso stylesheet", kind, assets)
-				}
-				for _, artifact := range result.Artifacts {
-					if strings.Contains(string(artifact.Content), "tailwindcss v4.3.3") || strings.Contains(string(artifact.Content), "--font-sans: -apple-system") {
-						t.Fatalf("%s %s artifact %q contains Goshtoso stylesheet bytes", kind, assets, artifact.Path)
+				if assets == string(AssetsLocal) {
+					if !strings.Contains(page, "assets/styles.css") || !artifactExists(result, "assets/styles.css") {
+						t.Fatalf("%s local build did not publish its required Goshtoso stylesheet", kind)
 					}
+				} else if !strings.Contains(page, "tailwindcss v4.3.3") {
+					t.Fatalf("%s inline build did not embed its required Goshtoso stylesheet", kind)
 				}
 				if !strings.Contains(page, `data-margo-requirement="margo.table-sort"`) {
 					t.Fatalf("%s %s page lost semantic table-sort dependency: %s", kind, assets, page)

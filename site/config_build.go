@@ -1299,7 +1299,10 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	excludeGoshtosoStyles := prepared.layout.Kind == LayoutLanding || prepared.layout.Kind == LayoutArticle || prepared.layout.dependencies.componentDocShell
+	// componentdocshell already owns the Goshtoso stylesheet. Other configured
+	// layouts still need a rendered requirement when their Markdown uses a
+	// Goshtoso-backed component (for example chart controls or code actions).
+	excludeGoshtosoStyles := prepared.layout.dependencies.componentDocShell
 	if b.request.Assets == AssetsLocal {
 		for _, requirement := range requirements.List() {
 			if excludeGoshtosoStyles && requirement.ID == "goshtoso.styles" {
