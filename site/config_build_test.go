@@ -297,6 +297,9 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		`class="goshtoso-charts-interactive`,
 		`data-goshtoso-chart-capability="interactive-raster"`,
 		`data-margo-requirement="goshtoso-charts.runtime"`,
+		`Illustrative output mix`,
+		`HTML`,
+		`Deck`,
 	} {
 		if !strings.Contains(landing, required) {
 			t.Fatalf("Tour interactive chart missing %q", required)

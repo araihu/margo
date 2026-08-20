@@ -50,18 +50,23 @@ live reload; it is not a production server.
 ## Markdown stays expressive
 
 Headings, links, tables, code, images, Mermaid, and optional Goshtoso charts stay
-in Markdown. This chart opts into interactive exploration while its exact-data
-table keeps every value available without interaction:
+in Markdown. This illustrative output mix makes the projection choices visible;
+the exact-data table keeps every value available without interaction:
 
 ```goshtosochart
 schemaVersion: 1
-type: line
+type: doughnut
 renderer: interactive
-title: Weekly signal
-categories: [Mon, Tue, Wed, Thu]
-series:
-  - name: Requests
-    values: [12, 18, 16, 24]
+title: Illustrative output mix
+slices:
+  - name: HTML
+    value: 40
+  - name: Site
+    value: 30
+  - name: PDF
+    value: 20
+  - name: Deck
+    value: 10
 ```
 
 Static SVG remains the default. This example loads the local interactive runtime,
