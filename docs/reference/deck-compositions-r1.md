@@ -158,6 +158,37 @@ section and lead treatments through composition attributes. The fixed logical
 canvas, theme tokens, card padding, print reset, and no-reordering rule remain
 in force.
 
+## Backdrop images
+
+`backgroundImage` reserves one bounded backdrop layer behind the semantic slide
+content. Local assets and approved gradient tokens may use finite
+`backgroundPosition`, `backgroundRepeat`, and `backgroundSize` values:
+
+```markdown
+<!-- backgroundImage: assets/backdrop.svg -->
+<!-- backgroundPosition: top-right -->
+<!-- backgroundSize: cover -->
+<!-- backgroundDecorative: true -->
+```
+
+Decorative backdrops emit `aria-hidden="true"`; informative local images require
+`backgroundAlt` and emit a labeled image role. A slide never relies on a
+backdrop alone for meaning, and the renderer never imports the reference deck's
+backdrop assets.
+
+## Watermark image and opacity (roadmap)
+
+A watermark is host-owned furniture, not slide content. R1 has no authoring
+directive for an image watermark. The planned contract accepts one trusted
+local or embedded brand image plus a bounded theme opacity; arbitrary CSS
+opacity is not part of the input surface.
+
+Screen watermarks remain off by default. When enabled, the image is decorative,
+`aria-hidden="true"`, `pointer-events: none`, and cannot overlap text or
+controls. Print may show it as reserved page furniture, never as an overlay
+that changes reading flow. The renderer does not import the reference deck's
+watermark image.
+
 ## Runtime and PDF identity
 
 The layout task input digest includes the catalog version and, for every
@@ -185,6 +216,59 @@ byte-compatible when no composition identity is supplied.
 Existing `deck.layout_invalid`, `deck.slot_invalid`,
 `deck.layout_slots_required`, and `deck.class_combination_invalid` remain the
 authoritative diagnostics for uncomposed v0.0.1 input.
+
+## Icon reference syntax (roadmap)
+
+The media system reserves a compact inline token for icons:
+
+```markdown
+Mês/ano :icon-name-here
+```
+
+`icon-name-here` is a lower-kebab symbol resolved from the embedded Goshtoso
+catalog or from an explicitly declared iconpack. The eventual renderer must
+emit an accessible inline SVG, preserve source text order, and fail closed for
+unknown or ambiguous symbols. This is a roadmap contract; R1 does not yet
+resolve icon tokens or import an iconpack.
+
+## Pagination position and icon placement (roadmap)
+
+Margo pins the page ordinal to the bottom-right corner on every paginated
+slide. The reference template may show an ordinal in the top-right corner, but
+that placement is not imported into the Margo contract. An optional icon token
+joins the same bottom-right cluster, immediately before or after the integer:
+
+```text
+before: :icon-name-here 6
+after:  6 :icon-name-here
+```
+
+`before` and `after` are explicit placement values; the renderer must not infer
+placement from language, direction, or theme. Decorative icons stay hidden from
+assistive technology; informative icons require an accessible label. R1 emits
+the numeric ordinal in the bottom-right only, so icon attachment remains
+roadmap work.
+
+## Confidentiality badge (roadmap)
+
+Confidentiality is host-owned chrome. When configured, render the Goshtoso
+`badge.Badge` component immediately before the numeric ordinal in the same
+bottom-right cluster; do not create a parallel badge primitive in Margo:
+
+```go
+badge.Badge(badge.Config{
+    Label:      "Confidencial",
+    Tone:       badge.ToneWarning,
+    Appearance: badge.AppearanceSoft,
+    Size:       badge.SizeSM,
+})
+```
+
+The visible label remains the accessible status; any lock icon is decorative
+and must be hidden from assistive technology. If the host cannot load Goshtoso
+Badge, the fallback is the same plain-text label, never an icon-only seal. R1
+does not expose an author-authored badge directive or import the reference
+seal.
 
 ## Fixtures and review
 

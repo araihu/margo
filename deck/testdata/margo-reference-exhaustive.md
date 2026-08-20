@@ -440,8 +440,9 @@ Descriptor, screen task, print task e PDF evidence carregam a mesma identidade c
 | Recurso | Regra Margo |
 | --- | --- |
 | Imagem informativa | alt obrigatorio e ordem de leitura preservada |
+| Imagem como backdrop | `backgroundImage` em camada unica atras do conteudo semantico |
 | Fundo decorativo | `backgroundDecorative: true` e alt vazio |
-| Fundo informativo | asset local, posicao e crop finitos |
+| Fundo informativo | asset local, posicao, repeticao e crop finitos |
 | Fonte externa | bloqueada por padrao |
 | Asset externo | nao importado nem versionado |
 
@@ -587,6 +588,8 @@ Source order vence qualquer aparencia de grid.
 | Gauge / radial progress | Adicionar | familia chart ausente |
 | Cycle / ring process | Parcial | topologia exige boundary |
 | Video playback | Deferir | PDF precisa poster + link |
+| Watermark image + opacity | Deferir | furniture de host, sem sobreposicao |
+| Selo de sigilo + ordinal | Deferir | Goshtoso Badge antes do ordinal inferior |
 | PPTX round-trip | Deferir | fora do contrato HTML/PDF |
 
 ---
@@ -683,7 +686,10 @@ Planejado para assets previsiveis, nao para copiar o template corporativo:
 
 - aspect ratio, crop mode, focal point e safe area;
 - registry de assets vendor-neutral;
-- icon refs, poster e video link;
+- icon refs com `:icon-name-here`, poster e video link;
+- exemplo inline: `Mês/ano :icon-name-here`;
+- `icon-name-here` resolve contra o catalogo Goshtoso embutido ou iconpack declarado;
+- ordinal + icon: cluster bottom-right, `before` / `after`, posicao explicita;
 - alt, decorative e provenance em cada asset informativo.
 
 ---
