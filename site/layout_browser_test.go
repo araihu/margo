@@ -209,6 +209,8 @@ type landingGeometryState struct {
 	SectionWidth        float64   `json:"sectionWidth"`
 	SectionTextWidth    float64   `json:"sectionTextWidth"`
 	SectionMediaWidth   float64   `json:"sectionMediaWidth"`
+	FitHeadingLeft      float64   `json:"fitHeadingLeft"`
+	FitListLeft         float64   `json:"fitListLeft"`
 	ArticleCount        int       `json:"articleCount"`
 	Overflow            bool      `json:"overflow"`
 }
@@ -227,6 +229,9 @@ const landingGeometryScript = `(() => {
 	  const section = document.querySelector('.margo-landing-section');
 	  const sectionText = section?.querySelector(':scope > p:not(.margo-landing-media)');
 	  const sectionMedia = section?.querySelector(':scope > .margo-landing-media');
+	  const fitSection = [...document.querySelectorAll('.margo-landing-section')].find(candidate => candidate.querySelector(':scope > h2')?.textContent.trim() === 'Is Margo a fit?');
+	  const fitHeading = fitSection?.querySelector(':scope > h3');
+	  const fitList = fitHeading?.nextElementSibling;
 	  const heroRect = rect(hero);
 	  const copyRect = rect(copy);
 	  const visualRect = rect(visual);
@@ -250,6 +255,8 @@ const landingGeometryScript = `(() => {
 	    sectionWidth: rect(section).width,
 	    sectionTextWidth: rect(sectionText).width,
 	    sectionMediaWidth: rect(sectionMedia).width,
+	    fitHeadingLeft: rect(fitHeading).left,
+	    fitListLeft: rect(fitList).left,
 	    articleCount: document.querySelectorAll('[data-margo-landing-article="true"] > article.margo-document').length,
 	    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
 	  };
@@ -317,6 +324,9 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		}
 		if !fixture.heroStacked && (state.HeroWidth < float64(width)*0.72 || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
 			t.Fatalf("landing at %dpx canvas/reading measure = %+v", width, state)
+		}
+		if delta := state.FitListLeft - state.FitHeadingLeft; delta < -1 || delta > 1 {
+			t.Fatalf("landing at %dpx fit list starts %.1fpx from its heading: %+v", width, delta, state)
 		}
 	}
 }
@@ -425,7 +435,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 func layoutBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n")
 	mascot, err := os.ReadFile(filepath.Join("..", "showcase", "content", "margo-mascot.png"))
 	if err != nil {
 		t.Fatal(err)
