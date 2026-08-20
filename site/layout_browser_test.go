@@ -121,15 +121,16 @@ func TestLayoutBrowserTourIsOutsideDocsShell(t *testing.T) {
 	ctx, cancel := context.WithTimeout(browserContext, 45*time.Second)
 	defer cancel()
 	var state struct {
-		Layout      string `json:"layout"`
-		Heading     string `json:"heading"`
-		Shell       bool   `json:"shell"`
-		Sidebar     bool   `json:"sidebar"`
-		TOC         bool   `json:"toc"`
-		FamilyNav   bool   `json:"familyNav"`
-		Pagination  bool   `json:"pagination"`
-		PageActions bool   `json:"pageActions"`
-		Overflow    bool   `json:"overflow"`
+		Layout       string `json:"layout"`
+		Heading      string `json:"heading"`
+		LandingShell bool   `json:"landingShell"`
+		DocsShell    bool   `json:"docsShell"`
+		Sidebar      bool   `json:"sidebar"`
+		TOC          bool   `json:"toc"`
+		FamilyNav    bool   `json:"familyNav"`
+		Pagination   bool   `json:"pagination"`
+		PageActions  bool   `json:"pageActions"`
+		Overflow     bool   `json:"overflow"`
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.EmulateViewport(390, 844),
@@ -137,8 +138,9 @@ func TestLayoutBrowserTourIsOutsideDocsShell(t *testing.T) {
 		chromedp.WaitVisible(`[data-margo-layout="landing"]`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => ({
 			layout: document.querySelector('[data-margo-layout]')?.dataset.margoLayout || '',
-			heading: document.querySelector('article.margo-document h1')?.textContent.trim() || '',
-			shell: !!document.querySelector('.component-doc-shell'),
+			heading: document.querySelector('main h1')?.textContent.trim() || '',
+			landingShell: !!document.querySelector('.landing-shell'),
+			docsShell: !!document.querySelector('.component-doc-shell'),
 			sidebar: !!document.querySelector('#componentdocshell-sidebar'),
 			toc: !!document.querySelector('[data-componentdocshell-toc]'),
 			familyNav: !!document.querySelector('.component-doc-shell__family-navigation'),
@@ -149,7 +151,7 @@ func TestLayoutBrowserTourIsOutsideDocsShell(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if state.Layout != "landing" || state.Heading != "Tour" || state.Shell || state.Sidebar || state.TOC || state.FamilyNav || state.Pagination || state.PageActions || state.Overflow {
+	if state.Layout != "landing" || state.Heading != "Tour" || !state.LandingShell || state.DocsShell || state.Sidebar || state.TOC || state.FamilyNav || state.Pagination || state.PageActions || state.Overflow {
 		t.Fatalf("Tour leaked docs shell chrome: %+v", state)
 	}
 }
@@ -193,6 +195,12 @@ func TestLayoutBrowserCrossFamilyNavigationRefreshesShell(t *testing.T) {
 }
 
 type landingGeometryState struct {
+	HeaderWidth         float64   `json:"headerWidth"`
+	HeaderHeight        float64   `json:"headerHeight"`
+	FooterWidth         float64   `json:"footerWidth"`
+	VisibleHeaderLinks  int       `json:"visibleHeaderLinks"`
+	ThemeControlVisible bool      `json:"themeControlVisible"`
+	RepositoryVisible   bool      `json:"repositoryVisible"`
 	HeroWidth           float64   `json:"heroWidth"`
 	CopyTop             float64   `json:"copyTop"`
 	CopyRight           float64   `json:"copyRight"`
@@ -222,11 +230,15 @@ type landingGeometryState struct {
 }
 
 const landingGeometryScript = `(() => {
-  const rect = (node) => {
+	  const rect = (node) => {
     if (!node) return { left: 0, right: 0, top: 0, width: 0, height: 0 };
     const value = node.getBoundingClientRect();
     return { left: value.left, right: value.right, top: value.top, width: value.width, height: value.height };
-  };
+	  };
+	  const visible = (node) => !!node && getComputedStyle(node).display !== 'none' && rect(node).width > 0 && rect(node).height > 0;
+	  const header = document.querySelector('.landing-shell__header');
+	  const footer = document.querySelector('.landing-shell__footer');
+	  const headerLinks = [...document.querySelectorAll('.landing-shell__navigation > .landing-shell__nav-link')];
 	  const hero = document.querySelector('.margo-landing-hero');
 	  const copy = document.querySelector('.margo-landing-hero__copy');
 	  const visual = document.querySelector('.margo-landing-hero__visual');
@@ -246,6 +258,12 @@ const landingGeometryScript = `(() => {
 	  const imageRect = rect(image);
 	  const imageStyle = image ? getComputedStyle(image) : {};
 	  return {
+	    headerWidth: rect(header).width,
+	    headerHeight: rect(header).height,
+	    footerWidth: rect(footer).width,
+	    visibleHeaderLinks: headerLinks.filter(visible).length,
+	    themeControlVisible: visible(document.querySelector('#landingshell-dark-mode')),
+	    repositoryVisible: visible(document.querySelector('.landing-shell__navigation > [aria-label="Source repository"]')),
 	    heroWidth: heroRect.width,
 	    copyTop: copyRect.top,
 	    copyRight: copyRect.right,
@@ -298,8 +316,8 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		{name: "narrow-edge", width: 719, heroStacked: true, actionsStacked: true},
 		{name: "intermediate", width: 720, heroStacked: true, actionsStacked: true},
 		{name: "compact-wide", width: 900, actionsStacked: true},
-		{name: "wide", width: 1493},
-		{name: "max-wide", width: 1775},
+		{name: "wide", width: 1493, actionsStacked: true},
+		{name: "max-wide", width: 1775, actionsStacked: true},
 	} {
 		width := fixture.width
 		height := int64(900)
@@ -310,13 +328,16 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		if err := chromedp.Run(ctx,
 			chromedp.EmulateViewport(width, height),
 			chromedp.Navigate(server.URL+"/"),
-			chromedp.WaitVisible(`[data-margo-layout="landing"].margo-frame--main`, chromedp.ByQuery),
+			chromedp.WaitVisible(`[data-margo-layout="landing"]`, chromedp.ByQuery),
 			chromedp.Evaluate(landingGeometryScript, &state),
 		); err != nil {
 			t.Fatalf("landing geometry at %dpx failed: %v", width, err)
 		}
 		if state.ArticleCount != 1 || state.Overflow {
 			t.Fatalf("landing %s at %dpx composition = %+v, want one article and no overflow", fixture.name, width, state)
+		}
+		if state.HeaderWidth < float64(width)-1 || state.HeaderWidth > float64(width)+1 || state.HeaderHeight < 64 || state.FooterWidth < float64(width)-1 || state.FooterWidth > float64(width)+1 || state.VisibleHeaderLinks != 2 || !state.ThemeControlVisible || !state.RepositoryVisible {
+			t.Fatalf("landing shell %s at %dpx navigation/footer geometry = %+v", fixture.name, width, state)
 		}
 		if (fixture.heroStacked && state.VisualTop < state.CopyBottom-1) || (!fixture.heroStacked && state.VisualLeft < state.CopyRight-1) {
 			t.Fatalf("landing %s at %dpx hero placement = %+v", fixture.name, width, state)
@@ -335,7 +356,7 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		if state.ImageAspectRatio < 1.28 || state.ImageAspectRatio > 1.38 || state.ImageCSSAspectRatio != "4 / 3" || state.ImageObjectFit != "cover" {
 			t.Fatalf("landing at %dpx hero media geometry = %+v", width, state)
 		}
-		if !fixture.heroStacked && (state.HeroWidth < float64(width)*0.72 || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
+		if !fixture.heroStacked && (state.HeroWidth < math.Min(float64(width)*0.72, 1150) || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
 			t.Fatalf("landing at %dpx canvas/reading measure = %+v", width, state)
 		}
 		if delta := state.SectionTextLeft - state.SectionHeadingLeft; delta < -1 || delta > 1 {
@@ -454,7 +475,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 func layoutBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n\n## Choose your next step\n\n- [Start with the CLI guide](cli/index.md)\n- [Continue with the Module guide](module/index.md)\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n  values:\n    shell: true\n    navigation: [module/index.md, cli/index.md]\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n\n## Choose your next step\n\n- [Start with the CLI guide](cli/index.md)\n- [Continue with the Module guide](module/index.md)\n")
 	mascot, err := os.ReadFile(filepath.Join("..", "showcase", "content", "margo-mascot.png"))
 	if err != nil {
 		t.Fatal(err)
@@ -501,6 +522,7 @@ locales:
 theme:
   builtin: true
   name: modern
+  allow_switch_theme: true
   color_mode: system
 `)
 	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})

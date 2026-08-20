@@ -1593,7 +1593,7 @@ Docs page.
 	if landing.layout.Kind != LayoutLanding || landing.page.Layout != "landing" || landing.page.Family != "" || landing.layout.Family != "" {
 		t.Fatalf("landing = layout %+v page %+v", landing.layout, landing.page)
 	}
-	if !reflect.DeepEqual(landing.layout.Values, map[string]any{"content": map[string]any{"layout": "article"}}) {
+	if !reflect.DeepEqual(landing.layout.Values, map[string]any{"shell": false, "content": map[string]any{"layout": "article"}}) {
 		t.Fatalf("landing values leaked docs state: %#v", landing.layout.Values)
 	}
 	docs := b.configured["module/index.md"]
@@ -2027,6 +2027,122 @@ The host keeps authority.
 			t.Fatalf("landing leaked docs chrome %q", forbidden)
 		}
 	}
+}
+
+func TestBuildConfigLandingShellUsesPublicAppShell(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+  values:
+    shell: true
+    navigation: [module/index.md, cli/index.md]
+---
+# Landing
+
+Publish one Markdown source in the format your project needs.
+
+![A document becoming several outputs](hero.png)
+
+## Proof
+
+One source, several projections.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Go module\n\nModule guide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI workflows\n\nCLI guide.\n")
+	copyMargoAsset(t, filepath.Join(root, "docs", "hero.png"), "margo-mascot.png")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+offline: true
+site:
+  name: Margo
+  description: Landing shell fixture.
+  version: v0.0.5
+  repository_url: https://github.com/araihu/margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo landing preview
+layout:
+  kind: article
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  allow_switch_theme: true
+  color_mode: system
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	for _, required := range []string{
+		`class="landing-shell`,
+		`data-margo-layout="landing"`,
+		`class="landing-shell__header`,
+		`class="landing-shell__brand-badge"`,
+		`>v0.0.5</span>`,
+		`href="/module/"`,
+		`>Go module</a>`,
+		`href="/cli/"`,
+		`>CLI workflows</a>`,
+		`id="landingshell-dark-mode"`,
+		`aria-label="Source repository"`,
+		`class="landing-shell__footer"`,
+		`class="landing-shell__container landing-shell__hero-slot"`,
+		`<header class="margo-landing-hero"`,
+		`<section class="margo-landing-section" aria-labelledby="proof">`,
+		`og:image:type`,
+		`twitter:image:alt`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("landing shell missing %q: %s", required, page)
+		}
+	}
+	for _, unique := range []string{"<title>", `rel="canonical"`, `property="og:url"`, `name="twitter:card"`} {
+		if got := strings.Count(page, unique); got != 1 {
+			t.Fatalf("landing shell %q count = %d, want one: %s", unique, got, page)
+		}
+	}
+	for _, artifact := range []string{"landingshell/assets/shell.css", "landingshell/assets/shell.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
+		if !artifactExists(result, artifact) {
+			t.Fatalf("landing shell asset %q missing", artifact)
+		}
+	}
+	for _, forbidden := range []string{"component-doc-shell", "componentdocshell", "margo-pagination", "margo-page-actions"} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("landing shell leaked docs chrome %q: %s", forbidden, page)
+		}
+	}
+}
+
+func TestBuildConfigLandingShellRejectsUnknownNavigationTarget(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+  values:
+    shell: true
+    navigation: [missing.md]
+---
+# Landing
+
+Choose a path.
+`)
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: article\n")
+
+	_, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	requirePresentationDiagnostic(t, err, "site.landing_navigation_target_invalid", "index.md", "/layout/values/navigation/0")
 }
 
 func TestBuildConfigLandingSupportsTextOnlyMarkdownWithoutSections(t *testing.T) {

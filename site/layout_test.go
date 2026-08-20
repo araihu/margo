@@ -200,6 +200,7 @@ func TestLayoutCascadePreservesKindBuckets(t *testing.T) {
 		t.Fatalf("landing kind = %q", landing.Kind)
 	}
 	assertLayoutValues(t, landing.Values, map[string]any{
+		"shell":   false,
 		"content": map[string]any{"layout": "article"},
 	})
 

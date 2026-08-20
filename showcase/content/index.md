@@ -4,6 +4,9 @@ description: A visual guide to Margo's Markdown compiler, Go module, and publish
 language: en
 layout:
   kind: landing
+  values:
+    shell: true
+    navigation: [module/index.md, cli/index.md]
 ---
 
 # Margo

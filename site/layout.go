@@ -74,6 +74,7 @@ func (renderer layoutRenderer) String() string {
 type layoutDependencies struct {
 	siteStyles         bool
 	landingStyles      bool
+	landingShell       bool
 	docsStyles         bool
 	docsInteractions   bool
 	goshtosoNavigation bool
@@ -134,6 +135,14 @@ func builtinLayoutRegistry() layoutRegistry {
 			"content": content(),
 		},
 	}
+	landingSchema := layoutValueSchema{
+		Type: layoutObject,
+		Properties: map[string]layoutValueSchema{
+			"shell":      {Type: layoutBool},
+			"navigation": {Type: layoutStringList},
+			"content":    content(),
+		},
+	}
 	docsSchema := layoutValueSchema{
 		Type: layoutObject,
 		Properties: map[string]layoutValueSchema{
@@ -158,8 +167,8 @@ func builtinLayoutRegistry() layoutRegistry {
 		},
 		LayoutLanding: {
 			kind:      LayoutLanding,
-			defaults:  map[string]any{"content": map[string]any{"layout": "article"}},
-			schema:    articleSchema,
+			defaults:  map[string]any{"shell": false, "content": map[string]any{"layout": "article"}},
+			schema:    landingSchema,
 			frameName: "main",
 			renderer:  layoutRenderLanding,
 			dependencies: layoutDependencies{

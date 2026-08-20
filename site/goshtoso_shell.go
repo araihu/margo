@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	stdhtml "html"
 	"io"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"github.com/a-h/templ"
 	"github.com/araihu/goshtoso-app-shells/componentdocshell"
 	shellassets "github.com/araihu/goshtoso-app-shells/componentdocshell/assets"
+	"github.com/araihu/goshtoso-app-shells/landingshell"
+	landingshellassets "github.com/araihu/goshtoso-app-shells/landingshell/assets"
 	goshtosoassets "github.com/araihu/goshtoso/assets"
 	"github.com/araihu/goshtoso/components/link"
 	"github.com/araihu/goshtoso/components/search"
@@ -23,6 +26,7 @@ import (
 	internalmermaid "github.com/araihu/margo/internal/mermaid"
 	"github.com/araihu/margo/ssg"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 const goshtosoComponentDocShellVersion = "v0.1.6"
@@ -408,6 +412,13 @@ func componentDocShellAssetPrefix(basePath string) string {
 	return strings.TrimSuffix(normalizedBasePath(basePath), "/") + "/margo-assets/goshtoso/"
 }
 
+func landingShellAssetPrefix(basePath string) string {
+	if basePath == "" || basePath == "/" {
+		return "/landingshell/assets/"
+	}
+	return strings.TrimSuffix(normalizedBasePath(basePath), "/") + "/landingshell/assets/"
+}
+
 func (b *builder) usesComponentDocShell(source Source) bool {
 	if b.shellMode {
 		return true
@@ -471,6 +482,20 @@ func (b *builder) stageGoshtosoComponentDocShellAssets() error {
 	}
 
 	return nil
+}
+
+func (b *builder) stageGoshtosoLandingShellAssets() error {
+	prefix := landingShellAssetPrefix(b.config.BasePath)
+	handler := landingshellassets.Handler(prefix)
+	for _, publicURL := range []string{
+		landingshellassets.StylesheetURL(prefix),
+		landingshellassets.ScriptURL(prefix),
+	} {
+		if err := b.stageHandlerAsset(handler, publicURL); err != nil {
+			return err
+		}
+	}
+	return b.stageGoshtosoNavigationAssets()
 }
 
 // stageComponentDocShellScrollSpy preserves the legacy shell mode runtime.
@@ -651,6 +676,212 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 	}
 	b.pages = append(b.pages, page)
 	return nil
+}
+
+func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source Source, prepared configuredPage, dependencyBytes []byte) error {
+	hero, content, err := landingShellSlots(prepared.article)
+	if err != nil {
+		return fmt.Errorf("site.landing_fragment_invalid: %s: %w", prepared.page.Source, err)
+	}
+	page := prepared.page
+	head, err := b.renderResolvedLandingShellHead(page, prepared.layout, dependencyBytes)
+	if err != nil {
+		return err
+	}
+	component := landingshell.Layout(b.typedLandingShellConfig(prepared), landingshell.Page{
+		Title:          page.Title,
+		DocumentTitle:  page.Title,
+		Description:    page.Description,
+		CanonicalURL:   page.Canonical,
+		SocialImageURL: b.socialURL(),
+		Head:           templ.Raw(head),
+		Hero:           templ.Raw(string(hero)),
+		Content:        templ.Raw(string(content)),
+	})
+	var rendered bytes.Buffer
+	if err := component.Render(ctx, &rendered); err != nil {
+		return err
+	}
+	withSemantics, err := applyLandingShellSemantics(rendered.Bytes(), page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, withSemantics)
+	if err != nil {
+		return err
+	}
+	if err := b.addDeclaredPageArtifacts(ctx, source, page, prepared.document); err != nil {
+		return err
+	}
+	if err := validateConfiguredDocument(rewritten, page, nil); err != nil {
+		return err
+	}
+	if err := b.addArtifact(page.Output, rewritten); err != nil {
+		return err
+	}
+	b.pages = append(b.pages, page)
+	return nil
+}
+
+func (b *builder) typedLandingShellConfig(prepared configuredPage) landingshell.Config {
+	page := prepared.page
+	links := b.typedLandingShellLinks(prepared)
+	brand := landingshell.Brand{
+		Name:       b.config.Site.Name,
+		HomeURL:    b.siteHomeHref(page),
+		Logo:       templ.Raw(`<img src="` + stdhtml.EscapeString(b.publicationArtifactHref(b.config.Site.Logo)) + `" alt="">`),
+		FaviconURL: b.publicationArtifactHref(b.config.Site.Icon),
+	}
+	if b.config.Site.Version != "" {
+		brand.Badge = &landingshell.BrandBadge{
+			Label:     b.config.Site.Version,
+			AriaLabel: b.config.Site.Name + " version " + b.config.Site.Version,
+		}
+	}
+	appearance := landingshell.AppearanceConfig{
+		DefaultTheme:          b.config.Theme.Name,
+		InitialColorScheme:    landingShellColorScheme(b.config.Theme.ColorMode),
+		PersistPreferences:    true,
+		DisableDarkModeToggle: !b.config.Theme.AllowSwitchTheme,
+	}
+	for _, theme := range b.config.Themes {
+		if theme.Name == b.config.Theme.Name {
+			appearance.ThemeStylesheets = []string{b.publicationArtifactHref(theme.CSSURL)}
+			break
+		}
+	}
+	config := landingshell.Config{
+		Brand:         brand,
+		Navigation:    links,
+		Appearance:    appearance,
+		Interactions:  landingshell.InteractionConfig{LocalRuntime: true},
+		Footer:        landingshell.Footer{Name: b.config.Site.Name, Meta: []string{b.config.Site.Version}, Links: links},
+		RepositoryURL: b.config.Site.RepositoryURL,
+		AssetPrefix:   landingShellAssetPrefix(b.config.BasePath),
+	}
+	return config
+}
+
+func (b *builder) typedLandingShellLinks(prepared configuredPage) []landingshell.Link {
+	targets := resolvedLayoutStrings(prepared.layout, "navigation")
+	links := make([]landingshell.Link, 0, len(targets))
+	for _, target := range targets {
+		candidate := b.configured[target].page
+		links = append(links, landingshell.Link{Label: candidate.Title, Href: b.sitePageHref(candidate)})
+	}
+	return links
+}
+
+func landingShellSlots(fragment []byte) ([]byte, []byte, error) {
+	transformed, err := transformLandingArticle(fragment)
+	if err != nil {
+		return nil, nil, err
+	}
+	nodes, err := html.ParseFragment(bytes.NewReader(transformed), &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"})
+	if err != nil {
+		return nil, nil, err
+	}
+	var article *html.Node
+	for _, node := range nodes {
+		if node.Type == html.ElementNode && node.Data == "article" && hasClass(node, "margo-document") {
+			article = node
+			break
+		}
+	}
+	if article == nil || article.FirstChild == nil || article.FirstChild.Type != html.ElementNode || !hasClass(article.FirstChild, "margo-landing-hero") {
+		return nil, nil, fmt.Errorf("expected landing hero")
+	}
+	hero := article.FirstChild
+	article.RemoveChild(hero)
+	for index := 0; index < len(article.Attr); index++ {
+		if article.Attr[index].Key == "id" {
+			article.Attr = append(article.Attr[:index], article.Attr[index+1:]...)
+			break
+		}
+	}
+	var heroOutput, contentOutput bytes.Buffer
+	if err := html.Render(&heroOutput, hero); err != nil {
+		return nil, nil, err
+	}
+	contentOutput.WriteString(`<div class="margo-landing-article" data-margo-landing-article="true">`)
+	if err := html.Render(&contentOutput, article); err != nil {
+		return nil, nil, err
+	}
+	contentOutput.WriteString(`</div>`)
+	return heroOutput.Bytes(), contentOutput.Bytes(), nil
+}
+
+func (b *builder) renderResolvedLandingShellHead(page Page, layout ResolvedLayout, dependencyBytes []byte) (string, error) {
+	var builder strings.Builder
+	builder.WriteString(`<meta property="og:site_name" content="` + stdhtml.EscapeString(b.config.Site.Name) + `">`)
+	builder.WriteString(`<meta property="og:image:type" content="` + stdhtml.EscapeString(b.socialMediaType) + `"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
+	builder.WriteString(`<meta name="twitter:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta name="twitter:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta name="twitter:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta name="twitter:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `">`)
+	for _, alternate := range page.Alternates {
+		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(alternate.URL) + `"><meta property="og:locale:alternate" content="` + stdhtml.EscapeString(openGraphLocale(alternate.Locale)) + `">`)
+	}
+	if b.request.Assets == AssetsInline {
+		if layout.dependencies.siteStyles {
+			builder.WriteString(`<style data-margo-layout-style="site">` + configuredTypedSiteCSS + `</style>`)
+		}
+		if layout.dependencies.landingStyles {
+			builder.WriteString(`<style data-margo-layout-style="landing">` + configuredLandingCSS + `</style>`)
+		}
+	} else {
+		if layout.dependencies.siteStyles {
+			builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(configuredTypedSiteStylePath)) + `">`)
+		}
+		if layout.dependencies.landingStyles {
+			builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(configuredLandingStylePath)) + `">`)
+		}
+	}
+	for _, css := range b.config.CustomCSS {
+		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(strings.TrimPrefix(css.CSSURL, "/"))) + `">`)
+	}
+	builder.Write(dependencyBytes)
+	return builder.String(), nil
+}
+
+func applyLandingShellSemantics(document []byte, page Page) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated landing shell defect.", page.Source)
+	}
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			switch {
+			case node.Data == "html":
+				setHTMLAttribute(node, "lang", page.Locale)
+				setHTMLAttribute(node, "dir", localeDirection(page.Locale))
+			case node.Data == "body":
+				setHTMLAttribute(node, "data-margo-layout", "landing")
+			case node.Data == "main":
+				setHTMLAttribute(node, "id", "margo-document")
+			case node.Data == "a" && hasClass(node, "landing-shell__skip"):
+				setHTMLAttribute(node, "href", "#margo-document")
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(root)
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated landing shell defect.", page.Source)
+	}
+	return output.Bytes(), nil
+}
+
+func landingShellColorScheme(value string) landingshell.ColorScheme {
+	switch value {
+	case "light":
+		return landingshell.ColorSchemeLight
+	case "dark":
+		return landingshell.ColorSchemeDark
+	default:
+		return landingshell.ColorSchemeSystem
+	}
 }
 
 func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Config) componentdocshell.Config {

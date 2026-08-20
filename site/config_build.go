@@ -673,6 +673,9 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 		prepared.page = b.configPages[index]
 		b.configured[b.configPages[index].Source] = prepared
 	}
+	if err := b.validateLandingNavigationTargets(); err != nil {
+		return err
+	}
 	if b.config.Layout != nil {
 		if err := b.buildDocsFamilies(siteLayout); err != nil {
 			return err
@@ -682,6 +685,31 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			return err
 		}
 		b.siteManifest.LayoutSchemaHash = identity
+	}
+	return nil
+}
+
+func (b *builder) validateLandingNavigationTargets() error {
+	for _, page := range b.configPages {
+		prepared := b.configured[page.Source]
+		if prepared.layout.Kind != LayoutLanding || !resolvedLayoutBool(prepared.layout, "shell") {
+			continue
+		}
+		for index, value := range resolvedLayoutStrings(prepared.layout, "navigation") {
+			target, ok := validSourcePath(value)
+			if ok {
+				_, ok = b.configured[target]
+			}
+			if ok {
+				continue
+			}
+			return presentationSourceDiagnostic(newPresentationDiagnostic(
+				"site.landing_navigation_target_invalid",
+				fmt.Sprintf("landing navigation target %q is not a public Markdown page", value),
+				"Select an existing public Markdown source path.",
+				fmt.Sprintf("/layout/values/navigation/%d", index),
+			), page.Source)
+		}
 	}
 	return nil
 }
@@ -717,6 +745,7 @@ func prepareResolvedLayout(layout ResolvedLayout, entry layoutRegistryEntry, loc
 	layout.SchemaHash = schemaHash
 	layout.renderer = entry.renderer
 	layout.dependencies = entry.dependencies
+	layout.dependencies.landingShell = entry.renderer == layoutRenderLanding && resolvedLayoutBool(layout, "shell")
 	return layout, nil
 }
 
@@ -1041,6 +1070,11 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 
 func (b *builder) stageTypedLayoutAssets() error {
 	dependencies := b.typedLayoutDependencies()
+	if dependencies.landingShell {
+		if err := b.stageGoshtosoLandingShellAssets(); err != nil {
+			return err
+		}
+	}
 	if dependencies.componentDocShell {
 		if err := b.stageGoshtosoComponentDocShellAssets(); err != nil {
 			return err
@@ -1093,6 +1127,7 @@ func (b *builder) typedLayoutDependencies() layoutDependencies {
 		prepared := b.configured[page.Source]
 		dependencies.siteStyles = dependencies.siteStyles || prepared.layout.dependencies.siteStyles
 		dependencies.landingStyles = dependencies.landingStyles || prepared.layout.dependencies.landingStyles
+		dependencies.landingShell = dependencies.landingShell || prepared.layout.dependencies.landingShell
 		dependencies.docsStyles = dependencies.docsStyles || prepared.layout.dependencies.docsStyles
 		dependencies.docsInteractions = dependencies.docsInteractions || prepared.layout.dependencies.docsInteractions
 		dependencies.goshtosoNavigation = dependencies.goshtosoNavigation || prepared.layout.dependencies.goshtosoNavigation
@@ -1256,6 +1291,9 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 }
 
 func (b *builder) renderResolvedLayoutSource(ctx context.Context, source Source, prepared configuredPage, dependencyBytes []byte) error {
+	if prepared.layout.dependencies.landingShell {
+		return b.renderResolvedLandingShellSource(ctx, source, prepared, dependencyBytes)
+	}
 	if prepared.layout.renderer == layoutRenderDocs {
 		return b.renderResolvedComponentDocShellSource(ctx, source, prepared, dependencyBytes)
 	}
@@ -1324,7 +1362,7 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 	// componentdocshell already owns the Goshtoso stylesheet. Other configured
 	// layouts still need a rendered requirement when their Markdown uses a
 	// Goshtoso-backed component (for example chart controls or code actions).
-	excludeGoshtosoStyles := prepared.layout.dependencies.componentDocShell
+	excludeGoshtosoStyles := prepared.layout.dependencies.componentDocShell || prepared.layout.dependencies.landingShell
 	if b.request.Assets == AssetsLocal {
 		for _, requirement := range requirements.List() {
 			if excludeGoshtosoStyles && requirement.ID == "goshtoso.styles" {
@@ -1604,6 +1642,20 @@ func (b *builder) addResolvedBinding(bindings map[string][]ssg.AreaBinding, prep
 func resolvedLayoutBool(layout ResolvedLayout, key string) bool {
 	value, _ := layout.Values[key].(bool)
 	return value
+}
+
+func resolvedLayoutStrings(layout ResolvedLayout, key string) []string {
+	values, ok := layoutListValues(layout.Values[key])
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if text, ok := value.(string); ok {
+			result = append(result, text)
+		}
+	}
+	return result
 }
 
 func (b *builder) stageChartIconSprite(requirements margo.HTMLRequirements) error {
