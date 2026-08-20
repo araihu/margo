@@ -25,6 +25,16 @@ func TestPageConfigAcceptsSupportedMatrix(t *testing.T) {
 	}
 }
 
+func TestPageConfigAcceptsAndValidatesCustomSize(t *testing.T) {
+	config := PageConfig{Custom: &CustomPageSize{WidthMM: 338.667, HeightMM: 190.5}}
+	if err := config.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (PageConfig{Size: PageA4, Custom: &CustomPageSize{WidthMM: 10, HeightMM: 10}}).Validate(); err == nil {
+		t.Fatal("named page with custom size unexpectedly accepted")
+	}
+}
+
 func TestPageConfigRejectsUnsupportedSize(t *testing.T) {
 	t.Parallel()
 

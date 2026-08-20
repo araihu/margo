@@ -20,7 +20,7 @@ func TestRuntimeDescriptorRejectsInvalidIdentityAndTaskGraphs(t *testing.T) {
 		code string
 		edit func(*RuntimeDescriptor)
 	}{
-		{name: "protocol", code: "runtime.protocol_invalid", edit: func(value *RuntimeDescriptor) { value.Protocol = "margo-runtime/v2" }},
+		{name: "missing v2 request", code: "runtime.validation_request_missing", edit: func(value *RuntimeDescriptor) { value.Protocol = "margo-runtime/v2" }},
 		{name: "zero document", code: "runtime.document_fingerprint_invalid", edit: func(value *RuntimeDescriptor) { value.DocumentFingerprint = DocumentFingerprint{} }},
 		{name: "instance", code: "runtime.instance_invalid", edit: func(value *RuntimeDescriptor) { value.RenderInstanceID = "ri-ABC" }},
 		{name: "null tasks", code: "runtime.descriptor_malformed", edit: func(value *RuntimeDescriptor) { value.Tasks = nil }},

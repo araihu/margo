@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -330,6 +331,29 @@ series: [{name: Revenue, values: [12, 18]}]
 			}
 			if !bytes.Contains(engine.request.HTML, []byte(test.wantMarker)) {
 				t.Fatalf("PDF HTML missing %q", test.wantMarker)
+			}
+		})
+	}
+}
+
+func TestPageConfigCSSGeometry(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        pdf.PageConfig
+		wantWidthCSS  float64
+		wantHeightCSS float64
+	}{
+		{name: "custom", config: pdf.PageConfig{Custom: &pdf.CustomPageSize{WidthMM: 338.6666667, HeightMM: 190.5}}, wantWidthCSS: 1280, wantHeightCSS: 720},
+		{name: "a4 landscape", config: pdf.PageConfig{Size: pdf.PageA4, Orientation: pdf.Landscape}, wantWidthCSS: 1122.519685, wantHeightCSS: 793.700787},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			width, height, err := pageConfigCSSGeometry(test.config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if math.Abs(width-test.wantWidthCSS) > 0.0001 || math.Abs(height-test.wantHeightCSS) > 0.0001 {
+				t.Fatalf("geometry = %gx%g", width, height)
 			}
 		})
 	}

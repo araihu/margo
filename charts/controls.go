@@ -143,7 +143,14 @@ func applyChartPrintPolicy(chart templ.Component, options chartRenderOptions) te
 			return err
 		}
 		if !options.controlWrapper {
-			return chart.Render(ctx, out)
+			// Static-only hosts still need extension-owned style provenance;
+			// otherwise Margo's fragment validator rejects the chart's bundled
+			// stylesheet before it can reach the deck/page renderer.
+			writer := &chartControlAlpineWriter{out: out, externalizedControlRuntime: false}
+			if err := chart.Render(ctx, writer); err != nil {
+				return err
+			}
+			return writer.flush()
 		}
 		return renderWithChartControlAlpineRootOptions(ctx, chart, out, options.externalizedControlRuntime)
 	})

@@ -30,6 +30,7 @@ type ExportReport struct {
 func (report ExportReport) Clone() ExportReport {
 	report.PDF = append([]byte(nil), report.PDF...)
 	report.Runtime = cloneRuntimeReport(report.Runtime)
+	report.Page = report.Page.Clone()
 	if report.Assets != nil {
 		assets := report.Assets
 		report.Assets = make(map[string]string, len(assets))

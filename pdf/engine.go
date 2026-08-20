@@ -43,6 +43,10 @@ type Request struct {
 func (request Request) Clone() Request {
 	request.HTML = append([]byte(nil), request.HTML...)
 	request.Runtime = cloneRuntimeDescriptor(request.Runtime)
+	if request.Page.Custom != nil {
+		custom := *request.Page.Custom
+		request.Page.Custom = &custom
+	}
 	return request
 }
 
@@ -91,6 +95,10 @@ func (info EngineInfo) Validate() error {
 }
 
 func cloneRuntimeDescriptor(descriptor margo.RuntimeDescriptor) margo.RuntimeDescriptor {
+	if descriptor.ValidationRequest != nil {
+		request := *descriptor.ValidationRequest
+		descriptor.ValidationRequest = &request
+	}
 	if descriptor.Tasks != nil {
 		descriptor.Tasks = append([]margo.RuntimeTask{}, descriptor.Tasks...)
 	}
@@ -103,6 +111,10 @@ func cloneRuntimeDescriptor(descriptor margo.RuntimeDescriptor) margo.RuntimeDes
 }
 
 func cloneRuntimeReport(report margo.RuntimeReport) margo.RuntimeReport {
+	if report.ValidationIdentity != nil {
+		identity := *report.ValidationIdentity
+		report.ValidationIdentity = &identity
+	}
 	if report.Tasks != nil {
 		report.Tasks = append([]margo.RuntimeTaskReport{}, report.Tasks...)
 	}

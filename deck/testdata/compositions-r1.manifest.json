@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "catalogVersion": "r1",
+  "source": "deck/testdata/compositions-r1.md",
+  "slides": [
+    {"slide": 1, "name": "content", "variant": "content", "family": "", "slots": ["body"]},
+    {"slide": 2, "name": "", "variant": "", "family": "", "slots": []},
+    {"slide": 3, "name": "agenda", "variant": "agenda", "family": "timeline", "slots": ["item-1", "item-2", "item-3"]},
+    {"slide": 4, "name": "media-split", "variant": "split", "family": "columns", "slots": ["media", "content"]},
+    {"slide": 5, "name": "media-stage", "variant": "stage", "family": "columns", "slots": ["media", "content"]},
+    {"slide": 6, "name": "steps", "variant": "steps", "family": "timeline", "slots": ["step-1", "step-2", "step-3"]},
+    {"slide": 7, "name": "highlight", "variant": "highlight", "family": "section", "slots": ["body"]},
+    {"slide": 8, "name": "compare-grid", "variant": "compare", "family": "grid", "slots": ["item-1", "item-2"]},
+    {"slide": 9, "name": "hero", "variant": "hero", "family": "lead", "slots": ["body"]},
+    {"slide": 10, "name": "image-grid", "variant": "image", "family": "grid", "slots": ["image-1", "image-2"]}
+  ]
+}

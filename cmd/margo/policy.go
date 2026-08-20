@@ -72,7 +72,12 @@ func parsePolicyDocument(input []byte) (loadedPolicy, error) {
 	return loadedPolicy{Host: policy, Digest: "sha256:" + hex.EncodeToString(hash[:])}, nil
 }
 
-func compilerForPolicy(policy *loadedPolicy, _ policyTarget, chartOptions ...charts.Option) *margo.Compiler {
+func compilerForPolicy(policy *loadedPolicy, target policyTarget, chartOptions ...charts.Option) *margo.Compiler {
+	if target == policyTargetDeck {
+		// Full-page decks are static slide artifacts. Keep the chart SVG and
+		// accessible data table, but do not ship browser-only chart controls.
+		chartOptions = append(chartOptions, charts.WithControlWrapper(false))
+	}
 	if policy == nil {
 		return newCompilerWithChartOptions(chartOptions)
 	}

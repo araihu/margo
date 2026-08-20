@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -164,6 +165,17 @@ func TestStandaloneRelocatesProvenanceMarkedChartScripts(t *testing.T) {
 	}
 	if strings.Contains(markup, `data-margo-extension-script="charts"`) {
 		t.Fatalf("provenance script remained in article: %s", markup)
+	}
+}
+
+func TestChartScriptBootstrapEscapesJavaScriptSource(t *testing.T) {
+	source := "window.value = \"double\"; // single ' quote \\\\ newline\n"
+	markup := string(chartScriptBootstrap(3, source))
+	if !strings.Contains(markup, `data-margo-chart-script-slot="3"`) {
+		t.Fatalf("slot ordinal missing: %s", markup)
+	}
+	if want := `script.textContent = ` + strconv.Quote(source) + `;`; !strings.Contains(markup, want) {
+		t.Fatalf("escaped chart source missing %q: %s", want, markup)
 	}
 }
 

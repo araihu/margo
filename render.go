@@ -43,6 +43,7 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 			contextLabels:       make(map[string]string),
 			extensionSlots:      extensionSlots,
 			target:              renderTarget(renderOptions),
+			idAllocator:         renderIDAllocator(renderOptions),
 		}
 		return renderer.renderBlock(parsed.root)
 	})
@@ -66,6 +67,7 @@ type markdownRenderer struct {
 	contextLabels       map[string]string
 	extensionSlots      [][]byte
 	target              RenderTarget
+	idAllocator         RenderIDAllocator
 }
 
 func (r markdownRenderer) renderBlock(node goldast.Node) error {
@@ -197,7 +199,11 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 	case *tableast.Table:
 		ordinal := r.runtimeTaskOrdinals["table"]
 		r.runtimeTaskOrdinals["table"] = ordinal + 1
-		return renderMarkdownTable(r.ctx, r.out, value, r.source, r.tableSort, fmt.Sprintf("margo-table-%d", ordinal))
+		tableID := fmt.Sprintf("margo-table-%d", ordinal)
+		if r.idAllocator != nil {
+			tableID = r.idAllocator.Allocate("table", strconv.FormatUint(uint64(ordinal), 10))
+		}
+		return renderMarkdownTable(r.ctx, r.out, value, r.source, r.tableSort, tableID)
 	case *tableast.FootnoteList:
 		if _, err := io.WriteString(r.out, `<section class="footnotes" aria-label="Footnotes" role="doc-endnotes"><hr><ol>`); err != nil {
 			return err
@@ -208,7 +214,11 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 		_, err := io.WriteString(r.out, `</ol></section>`)
 		return err
 	case *tableast.Footnote:
-		if _, err := fmt.Fprintf(r.out, `<li id="fn:%d">`, value.Index); err != nil {
+		footnoteID := fmt.Sprintf("fn:%d", value.Index)
+		if r.idAllocator != nil {
+			footnoteID = r.idAllocator.Allocate("footnote", strconv.Itoa(value.Index))
+		}
+		if _, err := fmt.Fprintf(r.out, `<li id="%s">`, html.EscapeString(footnoteID)); err != nil {
 			return err
 		}
 		if err := r.renderBlock(value); err != nil {
@@ -324,14 +334,22 @@ func (r markdownRenderer) renderInline(node goldast.Node) error {
 		if value.RefIndex > 0 {
 			refID = "fnref" + strconv.Itoa(value.RefIndex) + ":" + strconv.Itoa(value.Index)
 		}
-		_, err := fmt.Fprintf(r.out, `<sup id="%s"><a href="#fn:%d" role="doc-noteref" aria-label="Footnote %d">%d</a></sup>`, refID, value.Index, value.Index, value.Index)
+		footnoteID := fmt.Sprintf("fn:%d", value.Index)
+		if r.idAllocator != nil {
+			refID = r.idAllocator.Allocate("footnote-ref", refID)
+			footnoteID = r.idAllocator.Allocate("footnote", strconv.Itoa(value.Index))
+		}
+		_, err := fmt.Fprintf(r.out, `<sup id="%s"><a href="#%s" role="doc-noteref" aria-label="Footnote %d">%d</a></sup>`, html.EscapeString(refID), html.EscapeString(footnoteID), value.Index, value.Index)
 		return err
 	case *tableast.FootnoteBacklink:
 		refID := "fnref:" + strconv.Itoa(value.Index)
 		if value.RefIndex > 0 {
 			refID = "fnref" + strconv.Itoa(value.RefIndex) + ":" + strconv.Itoa(value.Index)
 		}
-		_, err := fmt.Fprintf(r.out, `&#160;<a href="#%s" role="doc-backlink" aria-label="Back to footnote reference %d">↩</a>`, refID, value.Index)
+		if r.idAllocator != nil {
+			refID = r.idAllocator.Allocate("footnote-ref", refID)
+		}
+		_, err := fmt.Fprintf(r.out, `&#160;<a href="#%s" role="doc-backlink" aria-label="Back to footnote reference %d">↩</a>`, html.EscapeString(refID), value.Index)
 		return err
 	case *goldast.Link:
 		return r.renderLink(value.Destination, value.Title, value)
@@ -396,6 +414,10 @@ func (r markdownRenderer) renderRuntimeFence(kind string, source []byte) error {
 	r.runtimeTaskOrdinals[kind] = ordinal + 1
 	captionID := fmt.Sprintf("margo-mermaid-caption-%d", ordinal)
 	sourceID := fmt.Sprintf("margo-mermaid-source-%d", ordinal)
+	if r.idAllocator != nil {
+		captionID = r.idAllocator.Allocate("mermaid-caption", strconv.FormatUint(uint64(ordinal), 10))
+		sourceID = r.idAllocator.Allocate("mermaid-source", strconv.FormatUint(uint64(ordinal), 10))
+	}
 	contextLabel := strings.TrimSpace(r.contextLabels["heading"])
 	if contextLabel == "" {
 		contextLabel = fmt.Sprintf("diagram %d", ordinal+1)
