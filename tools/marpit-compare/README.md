@@ -25,5 +25,22 @@ node tools/marpit-compare/make-compare.mjs \
   --font-checks 6
 ```
 
+For the R1 composition corpus, pass the deck-owned manifest as metadata:
+
+```sh
+node tools/marpit-compare/make-compare.mjs \
+  --output /tmp/margo-compositions-compare \
+  --margo /tmp/margo-compositions-compare/margo \
+  --marpit /tmp/margo-compositions-compare/marpit \
+  --corpus deck/testdata/compositions-r1.md \
+  --composition-manifest deck/testdata/compositions-r1.manifest.json
+```
+
+The generated page adds a `Compositions R1` category and shows each mapped
+slide's composition name, variant, family, and ordered slots. The comparison
+manifest and runtime evidence record `catalogVersion` and the composition
+manifest SHA-256. The manifest is metadata only: the generator never imports
+reference PPTX/PDF files, fonts, images, or the external visual guide.
+
 Serve the output with any static server. The page has no external runtime
 dependencies.

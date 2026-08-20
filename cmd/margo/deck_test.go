@@ -46,6 +46,34 @@ func TestDeckPrintChartDataFlagProjectsAccessibleTable(t *testing.T) {
 	}
 }
 
+func TestDeckHTMLOmitsBrowserChartControls(t *testing.T) {
+	markdown := "# Chart\n\n```goshtosochart\nschemaVersion: 1\ntype: bar\ntitle: Revenue\ncategories: [Q1]\nseries:\n  - name: Actual\n    values: [12]\n```\n"
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"deck", "-"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	markup := stdout.String()
+	for _, forbidden := range []string{
+		`data-goshtoso-chart-wrapper-mode`,
+		`chart-expand-export-copy-action`,
+		`exportFromMenu`,
+	} {
+		if strings.Contains(markup, forbidden) {
+			t.Fatalf("deck chart controls leaked %q", forbidden)
+		}
+	}
+	for _, required := range []string{`data-margo-chart-data="v1"`, `<svg`, `<table`} {
+		if !strings.Contains(markup, required) {
+			t.Fatalf("deck chart missing %q", required)
+		}
+	}
+}
+
 func TestDeckCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 	root := t.TempDir()
 	policyPath := filepath.Join(root, "policy.json")

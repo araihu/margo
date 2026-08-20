@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-const categories = [
+const baseCategories = [
   { name: 'Foundations', from: 1, to: 5, description: 'lead, section, quote and document primitives' },
   { name: 'Layouts', from: 6, to: 12, description: 'columns, sidebar, compare, metrics and timeline' },
   { name: 'Media', from: 13, to: 19, description: 'images, backgrounds, code and rich content' },
@@ -15,6 +15,7 @@ const outputDir = path.resolve(args.output ?? '/tmp/margo-pdf-compare')
 const margoDir = path.resolve(args.margo ?? path.join(outputDir, 'margo'))
 const marpitDir = path.resolve(args.marpit ?? path.join(outputDir, 'marpit'))
 const corpusPath = args.corpus ? path.resolve(args.corpus) : null
+const compositionManifestPath = args.compositionManifest ? path.resolve(args.compositionManifest) : null
 const capturedAt = args.capturedAt ?? process.env.MARGO_COMPARE_CAPTURED_AT ?? new Date().toISOString()
 const viewport = args.viewport ?? '1280×720'
 const pdfGeometry = args.pdfGeometry ?? '1280×720 CSS px'
@@ -28,13 +29,22 @@ const engineName = args.engineName ?? 'Chromium'
 const engineVersion = args.engineVersion ?? '154.0.8011.0'
 const platformProfile = args.platformProfile ?? 'darwin-arm64'
 
-const [margoSlides, marpitSlides, corpusBytes] = await Promise.all([
+const [margoSlides, marpitSlides, corpusBytes, compositionManifestBytes] = await Promise.all([
   readSlides(margoDir),
   readSlides(marpitDir),
   corpusPath ? fs.readFile(corpusPath) : Promise.resolve(null),
+  compositionManifestPath ? fs.readFile(compositionManifestPath) : Promise.resolve(null),
 ])
 const captureReportPath = path.join(margoDir, 'capture-report.json')
 const captureReportBytes = await fs.readFile(captureReportPath).catch(() => null)
+
+const compositionManifest = compositionManifestBytes ? parseCompositionManifest(compositionManifestBytes) : null
+const compositionManifestSHA256 = compositionManifestBytes ? sha256(compositionManifestBytes) : 'not-provided'
+const compositionBySlide = new Map((compositionManifest?.slides ?? []).map((item) => [item.slide, item]))
+const compositionSlides = [...compositionBySlide.keys()].filter((slide) => Number.isInteger(slide) && slide > 0).sort((left, right) => left - right)
+const categories = compositionSlides.length > 0
+  ? [...baseCategories, { name: 'Compositions R1', from: compositionSlides[0], to: compositionSlides[compositionSlides.length - 1], description: 'closed R1 vocabulary, semantic slots and visual variants' }]
+  : baseCategories
 
 if (margoSlides.length === 0 || marpitSlides.length === 0) {
   throw new Error(`comparison requires both image directories: ${margoDir} and ${marpitDir}`)
@@ -82,6 +92,7 @@ const runtimeEvidence = {
     marpitManifestSHA256: marpitDigest,
     viewport,
     pdfGeometry,
+    ...(compositionManifest ? { compositionCatalogVersion: compositionManifest.catalogVersion, compositionManifestSHA256 } : {}),
   },
   validationIdentity: {
     browserProfile,
@@ -116,7 +127,8 @@ const runtimeEvidenceSHA256 = sha256(Buffer.from(JSON.stringify(runtimeEvidence,
 const categoryMarkup = categories.map((category) => {
   const cards = margoSlides
     .filter(({ slide }) => slide >= category.from && slide <= category.to)
-    .map(({ slide }) => renderCard(slide, margoSlides, marpitSlides, category, margoAssetRoot, marpitAssetRoot))
+    .filter(({ slide }) => category.name !== 'Compositions R1' || compositionBySlide.get(slide)?.name)
+    .map(({ slide }) => renderCard(slide, margoSlides, marpitSlides, category, margoAssetRoot, marpitAssetRoot, compositionBySlide.get(slide)))
     .join('\n')
   return `<section class="category-group" data-category="${escapeHTML(category.name)}" id="category-${slug(category.name)}">
   <div class="category-heading">
@@ -135,6 +147,7 @@ const html = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
   <meta name="description" content="Margo and Marpit visual comparison with provenance and review controls">
   <title>Margo / Marpit visual comparison</title>
   <style>
@@ -208,6 +221,8 @@ const html = `<!doctype html>
     .image-button:hover img { border-color: var(--accent); }
     figcaption { margin-block-start: 8px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
     .pair-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; min-width: 0; margin-block-start: 14px; padding-block-start: 12px; border-block-start: 1px solid var(--surface-alt); }
+    .pair-composition { margin-block: 12px 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; overflow-wrap: anywhere; }
+    .pair-composition strong { color: var(--ink); }
     .pair-meta summary { display: inline-flex; align-items: center; min-block-size: 44px; cursor: pointer; color: var(--accent-strong); font-size: 0.8rem; font-weight: 800; }
     .pair-meta p { flex: 1 1 100%; min-width: 0; max-width: 70ch; margin: 10px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.45; overflow-wrap: anywhere; word-break: break-word; }
     .section-index { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 18px; }
@@ -461,6 +476,7 @@ await fs.writeFile(path.join(outputDir, 'comparison-manifest.json'), JSON.string
   corpusSHA256: corpusDigest,
   margoManifestSHA256: margoDigest,
   marpitManifestSHA256: marpitDigest,
+  ...(compositionManifest ? { compositionCatalogVersion: compositionManifest.catalogVersion, compositionManifestSHA256 } : {}),
   fontBundle: {
     expectedSHA256: fontBundleExpected,
     observedSHA256: fontBundleObserved,
@@ -489,6 +505,29 @@ function parseArgs(argv) {
   return result
 }
 
+function parseCompositionManifest(bytes) {
+  let parsed
+  try {
+    parsed = JSON.parse(bytes.toString('utf8'))
+  } catch (error) {
+    throw new Error(`composition manifest is not valid JSON: ${error.message}`)
+  }
+  if (!parsed || parsed.version !== 1 || parsed.catalogVersion !== 'r1' || !Array.isArray(parsed.slides)) {
+    throw new Error('composition manifest must declare version 1, catalogVersion r1, and slides[]')
+  }
+  const seen = new Set()
+  const slides = parsed.slides.map((item) => {
+    const slide = Number(item.slide)
+    if (!Number.isInteger(slide) || slide < 1 || seen.has(slide)) throw new Error('composition manifest slide identities must be unique positive integers')
+    seen.add(slide)
+    if (typeof item.name !== 'string' || typeof item.variant !== 'string' || typeof item.family !== 'string' || !Array.isArray(item.slots) || item.slots.some((slot) => typeof slot !== 'string')) {
+      throw new Error(`composition manifest slide ${slide} has invalid composition fields`)
+    }
+    return { slide, name: item.name, variant: item.variant, family: item.family, slots: [...item.slots] }
+  })
+  return { catalogVersion: parsed.catalogVersion, slides }
+}
+
 async function readSlides(directory) {
   const entries = await fs.readdir(directory)
   const slides = []
@@ -511,17 +550,21 @@ function manifestDigest(name, slides) {
   return hash.digest('hex')
 }
 
-function renderCard(slide, margoSlides, marpitSlides, category, margoAssetRoot, marpitAssetRoot) {
+function renderCard(slide, margoSlides, marpitSlides, category, margoAssetRoot, marpitAssetRoot, composition) {
   const margo = margoSlides.find((item) => item.slide === slide)
   const marpit = marpitSlides.find((item) => item.slide === slide)
   const number = String(slide).padStart(2, '0')
   const summary = `${category.name}: ${category.description}. Compare renderer-specific theme, layout and extension output.`
+  const compositionMarkup = composition && composition.name
+    ? `<p class="pair-composition" data-composition="${escapeHTML(composition.name)}"><strong>Composition:</strong> <code>${escapeHTML(composition.name)}</code> · <strong>Variant:</strong> <code>${escapeHTML(composition.variant ?? '')}</code> · <strong>Family:</strong> <code>${escapeHTML(composition.family ?? '')}</code> · <strong>Slots:</strong> <code>${escapeHTML((composition.slots ?? []).join(', '))}</code></p>`
+    : ''
   return `<article class="pair" data-slide="${slide}" data-category="${escapeHTML(category.name)}">
     <div class="pair-heading"><h3>Slide ${slide}</h3><select class="pair-status" data-review-state aria-label="Review state for slide ${slide}"><option value="unreviewed">Unreviewed</option><option value="reviewed">Reviewed</option><option value="needs-attention">Needs attention</option></select></div>
     <div class="captures">
       ${renderCapture('Margo', margo, `Margo slide ${slide}; ${summary}`, `Slide ${slide} · Margo · 1:1`, margoAssetRoot)}
       ${renderCapture('Marpit reference', marpit, `Marpit reference slide ${slide}; ${summary}`, `Slide ${slide} · Marpit reference · 1:1`, marpitAssetRoot)}
     </div>
+    ${compositionMarkup}
     <details class="pair-meta"><summary>Review notes</summary><p><strong>Expected:</strong> renderer-specific theme and extension differences. <strong>Check:</strong> slide boundaries, reading order, overflow, legibility, font metrics and PDF geometry. <code>${escapeHTML(margoAssetRoot)}/slide-${number}.png</code> · <code>${escapeHTML(marpitAssetRoot)}/slide-${number}.png</code></p></details>
   </article>`
 }

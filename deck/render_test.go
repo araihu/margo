@@ -39,7 +39,7 @@ func TestRenderProducesAccessibleSections(t *testing.T) {
 func TestRenderEmitsLogicalStageGeometryAndLocalizedLanguage(t *testing.T) {
 	result, err := Render(context.Background(), margo.New(), RenderInput{
 		Name:     "deck.md",
-		Markdown: []byte("---\nlang: pt-BR\nsize: 4:3\n---\n# Um\n"),
+		Markdown: []byte("---\nlang: pt-BR\nsize: 4:3\n---\n<!-- paginate: true -->\n# Um\n"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +57,7 @@ func TestRenderEmitsLogicalStageGeometryAndLocalizedLanguage(t *testing.T) {
 		`aria-label="Controles de slides"`,
 		`>Anterior</button>`,
 		`>Próximo</button>`,
+		`class="margo-deck__pagination" aria-hidden="true">1</span>`,
 	} {
 		if !strings.Contains(html, fragment) {
 			t.Fatalf("HTML missing %q", fragment)
@@ -82,6 +83,63 @@ func TestRenderProjectsStructuralLayoutDOMInSourceOrder(t *testing.T) {
 	}
 	if strings.Index(html, ">Left</h1>") > strings.Index(html, ">Right</h1>") {
 		t.Fatal("layout DOM reordered source slots")
+	}
+}
+
+func TestRenderCompositionDataAttributesAndSemanticSlots(t *testing.T) {
+	result := mustRenderDeck(t, "<!-- composition: media-split -->\n<!-- slot: media -->\n# Media\n<!-- slot: content -->\n# Content\n")
+	html := string(result.HTML())
+	for _, fragment := range []string{
+		`data-margo-composition-catalog="r1"`,
+		`data-margo-composition="media-split"`,
+		`data-margo-composition-variant="split"`,
+		`data-margo-composition-family="columns"`,
+		`data-margo-slot="media"`,
+		`data-margo-slot-role="media"`,
+		`data-margo-slot="content"`,
+		`data-margo-slot-role="content"`,
+	} {
+		if !strings.Contains(html, fragment) {
+			t.Fatalf("HTML missing %q", fragment)
+		}
+	}
+	if strings.Index(html, `data-margo-slot="media"`) > strings.Index(html, `data-margo-slot="content"`) {
+		t.Fatal("composition slots are not emitted in source order")
+	}
+}
+
+func TestRenderUncomposedSlideHasNoCompositionMetadata(t *testing.T) {
+	html := string(mustRenderDeck(t, "# One\n").HTML())
+	start := strings.Index(html, "<article")
+	end := strings.Index(html, "</article>")
+	if start < 0 || end < start {
+		t.Fatal("article not found")
+	}
+	article := html[start:end]
+	if strings.Contains(article, `data-margo-composition="`) || strings.Contains(article, `data-margo-composition-catalog="`) || strings.Contains(article, `data-margo-slot-role="`) {
+		t.Fatalf("uncomposed deck gained composition metadata: %s", article)
+	}
+}
+
+func TestRenderCompositionLabelsFollowSlideLanguage(t *testing.T) {
+	result := mustRenderDeck(t, "---\nlang: pt-BR\ncomposition: compare-grid\n---\n<!-- slot: item-1 -->\n# Um\n<!-- slot: item-2 -->\n# Dois\n")
+	html := string(result.HTML())
+	if !strings.Contains(html, `role="group" aria-label="Comparação"`) {
+		t.Fatalf("localized composition label missing: %s", html)
+	}
+}
+
+func TestDeckCSSDeclaresR1GridAndVariants(t *testing.T) {
+	for _, fragment := range []string{
+		".margo-layout--grid",
+		"data-margo-composition-variant",
+		"media-stage",
+		"compare-grid",
+		"image-grid",
+	} {
+		if !strings.Contains(deckCSS, fragment) {
+			t.Fatalf("deck CSS missing %q", fragment)
+		}
 	}
 }
 

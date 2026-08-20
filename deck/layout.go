@@ -8,7 +8,7 @@ import (
 )
 
 var structuralLayoutClasses = map[string]struct{}{
-	"columns": {}, "sidebar": {}, "compare": {}, "metrics": {}, "timeline": {}, "demo": {},
+	"columns": {}, "sidebar": {}, "compare": {}, "metrics": {}, "timeline": {}, "demo": {}, "grid": {},
 }
 
 var styleLayoutClasses = map[string]struct{}{
@@ -60,6 +60,7 @@ func parseStructuralComment(line []byte) (layoutMarker, bool, error) {
 type layoutBuilder struct {
 	class         string
 	markerClass   string
+	composition   CompositionName
 	started       bool
 	closed        bool
 	activeSlot    string
@@ -77,7 +78,7 @@ func newLayoutBuilder() *layoutBuilder {
 }
 
 func (builder *layoutBuilder) write(line []byte) {
-	if builder.started {
+	if builder.started && builder.activeSlot != "" {
 		_, _ = builder.current.Write(line)
 		return
 	}
@@ -86,12 +87,83 @@ func (builder *layoutBuilder) write(line []byte) {
 
 func (builder *layoutBuilder) start(class string, line int) error {
 	if builder.started {
+		if builder.composition != "" && !builder.markerPresent && builder.markerClass == class {
+			builder.markerPresent = true
+			return nil
+		}
 		return fmt.Errorf("nested layout marker")
 	}
 	builder.started = true
 	builder.markerPresent = true
 	builder.markerClass = class
 	builder.firstLine = line
+	return nil
+}
+
+// setComposition binds the current slide to a catalog composition. Structural
+// compositions create an implicit layout; body compositions keep the normal
+// markdown path. The binding may be replaced only before any content or an
+// explicit layout marker has been authored.
+func (builder *layoutBuilder) setComposition(name CompositionName, line int) error {
+	if name == builder.composition {
+		return nil
+	}
+	spec := CompositionSpec{}
+	if name != "" {
+		resolved, err := ResolveComposition(name)
+		if err != nil {
+			return err
+		}
+		spec = resolved
+	}
+	if builder.composition != "" {
+		if builder.markerPresent || len(bytes.TrimSpace(builder.content.Bytes())) > 0 || len(bytes.TrimSpace(builder.current.Bytes())) > 0 || len(builder.slots) > 0 {
+			return fmt.Errorf("composition cannot change after layout content begins")
+		}
+		if builder.started && builder.markerPresent && spec.LayoutClass != builder.markerClass {
+			return fmt.Errorf("composition does not agree with layout marker")
+		}
+	}
+	if builder.started && builder.markerPresent {
+		if !isStructuralClass(spec.LayoutClass) || spec.LayoutClass != builder.markerClass {
+			return fmt.Errorf("composition does not agree with layout marker")
+		}
+	}
+	structural := isStructuralClass(spec.LayoutClass)
+	if builder.started && !builder.markerPresent && structural && spec.LayoutClass != builder.markerClass {
+		builder.started = false
+		builder.closed = false
+		builder.markerClass = ""
+		builder.firstLine = 0
+		builder.activeSlot = ""
+		builder.activeLine = 0
+		builder.current.Reset()
+		builder.content.Reset()
+		builder.slots = nil
+		builder.seen = make(map[string]struct{})
+	}
+	if builder.started && !structural {
+		builder.started = false
+		builder.closed = false
+		builder.markerClass = ""
+		builder.firstLine = 0
+		builder.activeSlot = ""
+		builder.activeLine = 0
+		builder.current.Reset()
+		builder.content.Reset()
+		builder.slots = nil
+		builder.seen = make(map[string]struct{})
+	}
+	builder.composition = name
+	if !structural {
+		return nil
+	}
+	if !builder.started {
+		builder.started = true
+		builder.markerPresent = false
+		builder.markerClass = spec.LayoutClass
+		builder.firstLine = line
+	}
 	return nil
 }
 
@@ -143,7 +215,7 @@ func (builder *layoutBuilder) finishSlot() error {
 	return nil
 }
 
-func (builder *layoutBuilder) finish(name string, line int, classes []string) (*Layout, []byte, error) {
+func (builder *layoutBuilder) finish(name string, line int, classes []string, spec CompositionSpec) (*Layout, []byte, error) {
 	if err := validateClassCombination(name, line, classes); err != nil {
 		return nil, nil, err
 	}
@@ -152,6 +224,35 @@ func (builder *layoutBuilder) finish(name string, line int, classes []string) (*
 		if isStructuralClass(class) {
 			structural = class
 		}
+	}
+	if spec.Name != "" {
+		if spec.BodyRole != "" {
+			if builder.started || len(builder.slots) > 0 || builder.activeSlot != "" {
+				return nil, nil, deckError("deck.composition_slot_invalid", name, builder.firstLine, "body composition cannot contain structural slots")
+			}
+			return nil, append([]byte(nil), builder.content.Bytes()...), nil
+		}
+		if structural != spec.LayoutClass || builder.composition != spec.Name {
+			return nil, nil, deckError("deck.composition_conflict", name, line, "composition and layout class do not agree")
+		}
+		if !builder.started {
+			return nil, nil, deckError("deck.composition_slots_required", name, line, "structural composition requires slots")
+		}
+		if builder.markerPresent && !builder.closed {
+			return nil, nil, deckError("deck.layout_invalid", name, line, "layout marker is not closed")
+		}
+		if !builder.closed {
+			if err := builder.finishSlot(); err != nil {
+				return nil, nil, deckError("deck.composition_slot_invalid", name, builder.activeLine, err.Error())
+			}
+		}
+		if builder.content.Len() > 0 && len(bytes.TrimSpace(builder.content.Bytes())) > 0 {
+			return nil, nil, deckError("deck.composition_slot_invalid", name, builder.firstLine, "unmarked content is not allowed inside a composition layout")
+		}
+		if err := validateCompositionSlots(name, spec, builder.slots, builder.firstLine); err != nil {
+			return nil, nil, err
+		}
+		return &Layout{Class: structural, Slots: append([]LayoutSlot(nil), builder.slots...)}, nil, nil
 	}
 	if !builder.started {
 		if structural != "" {
@@ -174,6 +275,26 @@ func (builder *layoutBuilder) finish(name string, line int, classes []string) (*
 	return &Layout{Class: structural, Slots: append([]LayoutSlot(nil), builder.slots...)}, nil, nil
 }
 
+func validateCompositionSlots(name string, spec CompositionSpec, slots []LayoutSlot, line int) error {
+	if len(slots) < spec.MinSlots || len(slots) > spec.MaxSlots {
+		return deckError("deck.composition_slots_required", name, line, fmt.Sprintf("%s requires %d-%d slots", spec.Name, spec.MinSlots, spec.MaxSlots))
+	}
+	allowed := make(map[string]CompositionSlot, len(spec.Slots))
+	for _, slot := range spec.Slots {
+		allowed[slot.Name] = slot
+	}
+	for index, slot := range slots {
+		expected, ok := allowed[slot.Name]
+		if !ok || index >= len(spec.Slots) || spec.Slots[index].Name != slot.Name {
+			return deckError("deck.composition_slot_invalid", name, slot.SourceLine, "slot is not valid for composition "+string(spec.Name))
+		}
+		if !expected.Required && index < spec.MinSlots {
+			return deckError("deck.composition_slot_invalid", name, slot.SourceLine, "required composition slots are out of order")
+		}
+	}
+	return nil
+}
+
 func validateSlots(name, class string, slots []LayoutSlot, line int) error {
 	if len(slots) == 0 {
 		return deckError("deck.layout_slots_required", name, line, "structural layout requires slots")
@@ -194,6 +315,8 @@ func validateSlots(name, class string, slots []LayoutSlot, line int) error {
 		min, max = 3, 4
 	case "timeline":
 		min, max = 3, 6
+	case "grid":
+		min, max = 2, 4
 	}
 	if len(slots) < min || len(slots) > max {
 		return deckError("deck.layout_slots_required", name, line, fmt.Sprintf("%s requires %d-%d slots", class, min, max))

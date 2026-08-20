@@ -22,17 +22,19 @@ type RenderInput struct {
 }
 
 type Result struct {
-	html              []byte
-	slideCount        int
-	fingerprint       margo.DocumentFingerprint
-	slideResults      []*margo.RenderResult
-	theme             margo.ThemeName
-	colorMode         margo.ColorMode
-	geometry          DeckGeometry
-	lang              string
-	metadata          Metadata
-	requirements      margo.HTMLRequirements
-	validationRequest margo.RuntimeValidationRequest
+	html                      []byte
+	slideCount                int
+	fingerprint               margo.DocumentFingerprint
+	slideResults              []*margo.RenderResult
+	theme                     margo.ThemeName
+	colorMode                 margo.ColorMode
+	geometry                  DeckGeometry
+	lang                      string
+	metadata                  Metadata
+	requirements              margo.HTMLRequirements
+	validationRequest         margo.RuntimeValidationRequest
+	layoutInputs              []layoutSlideInput
+	compositionCatalogVersion string
 }
 
 func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, options ...RenderOption) (*Result, error) {
@@ -77,9 +79,27 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 	slotFragments := make([][][]byte, len(slides))
 	runtimeResults := make([]*margo.RenderResult, 0, len(slides))
 	requirementGroups := make([]margo.HTMLRequirements, len(slides))
+	layoutInputs := make([]layoutSlideInput, len(slides))
+	compositionCatalogVersion := ""
 	for index, slide := range slides {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		layoutInputs[index] = layoutSlideInput{ID: slide.ID()}
+		if composition := slide.Composition(); composition.Name != "" {
+			compositionCatalogVersion = CompositionCatalogVersion
+			layoutInputs[index].Composition = string(composition.Name)
+			layoutInputs[index].Variant = composition.Variant
+			layoutInputs[index].Class = strings.Join(slide.Directives().Classes, " ")
+			layoutInputs[index].Family = composition.LayoutClass
+			layout := slide.Layout()
+			if layout != nil {
+				layoutInputs[index].Layout = layout.Class
+				layoutInputs[index].Slots = make([]string, len(layout.Slots))
+				for slotIndex, slot := range layout.Slots {
+					layoutInputs[index].Slots[slotIndex] = slot.Name
+				}
+			}
 		}
 		layout := slide.Layout()
 		if layout == nil {
@@ -125,17 +145,19 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 	}
 	fingerprint := deckFingerprint(input, theme, colorMode, geometry, lang)
 	return &Result{
-		html:              page,
-		slideCount:        len(slides),
-		fingerprint:       fingerprint,
-		slideResults:      append([]*margo.RenderResult(nil), runtimeResults...),
-		theme:             theme,
-		colorMode:         colorMode,
-		geometry:          geometry,
-		lang:              lang,
-		metadata:          document.Metadata(),
-		requirements:      requirements,
-		validationRequest: validationRequest,
+		html:                      page,
+		slideCount:                len(slides),
+		fingerprint:               fingerprint,
+		slideResults:              append([]*margo.RenderResult(nil), runtimeResults...),
+		theme:                     theme,
+		colorMode:                 colorMode,
+		geometry:                  geometry,
+		lang:                      lang,
+		metadata:                  document.Metadata(),
+		requirements:              requirements,
+		validationRequest:         validationRequest,
+		layoutInputs:              layoutInputs,
+		compositionCatalogVersion: compositionCatalogVersion,
 	}, nil
 }
 
@@ -265,7 +287,14 @@ func (r *Result) Geometry() DeckGeometry {
 
 func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]byte, geometry DeckGeometry, documentLang string) []byte {
 	var output bytes.Buffer
-	_, _ = fmt.Fprintf(&output, `<article class="margo-deck" data-margo-width="%g" data-margo-height="%g" data-margo-unit="%s" data-margo-preset="%s">`, geometry.Width, geometry.Height, html.EscapeString(string(geometry.Unit)), html.EscapeString(geometry.Preset))
+	compositionCatalogAttribute := ""
+	for _, slide := range slides {
+		if slide.Composition().Name != "" {
+			compositionCatalogAttribute = ` data-margo-composition-catalog="` + html.EscapeString(CompositionCatalogVersion) + `"`
+			break
+		}
+	}
+	_, _ = fmt.Fprintf(&output, `<article class="margo-deck"%s data-margo-width="%g" data-margo-height="%g" data-margo-unit="%s" data-margo-preset="%s">`, compositionCatalogAttribute, geometry.Width, geometry.Height, html.EscapeString(string(geometry.Unit)), html.EscapeString(geometry.Preset))
 	for index, slide := range slides {
 		state := " hidden"
 		current := ""
@@ -280,6 +309,7 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 			}
 		}
 		stateDirectives := slide.Directives()
+		composition := slide.Composition()
 		chapterNumber := 0
 		for priorIndex := 0; priorIndex <= index; priorIndex++ {
 			for _, class := range slides[priorIndex].Directives().Classes {
@@ -316,8 +346,12 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 		if stateDirectives.Paginate != "" {
 			paginateAttribute = ` data-margo-paginate="` + html.EscapeString(stateDirectives.Paginate) + `"`
 		}
-		_, _ = fmt.Fprintf(&output, `<section id="%s" class="%s" role="region" aria-label="%s" tabindex="-1" data-margo-slide="%d"%s%s%s%s%s%s>`,
-			html.EscapeString(slide.ID()), html.EscapeString(strings.Join(classes, " ")), html.EscapeString(ariaLabel), index, current, state, langAttribute, chapterAttribute, colorAttribute, paginateAttribute)
+		compositionAttributes := ""
+		if composition.Name != "" {
+			compositionAttributes = ` data-margo-composition="` + html.EscapeString(string(composition.Name)) + `" data-margo-composition-variant="` + html.EscapeString(composition.Variant) + `"`
+		}
+		_, _ = fmt.Fprintf(&output, `<section id="%s" class="%s" role="region" aria-label="%s" tabindex="-1" data-margo-slide="%d"%s%s%s%s%s%s%s>`,
+			html.EscapeString(slide.ID()), html.EscapeString(strings.Join(classes, " ")), html.EscapeString(ariaLabel), index, current, state, langAttribute, chapterAttribute, colorAttribute, paginateAttribute, compositionAttributes)
 		if stateDirectives.BackgroundColor != "" && stateDirectives.BackgroundColor != "transparent" {
 			_, _ = fmt.Fprintf(&output, `<div class="margo-deck__color-layer" data-margo-background-color="%s" aria-hidden="true"></div>`, html.EscapeString(stateDirectives.BackgroundColor))
 		}
@@ -349,13 +383,23 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 		if layout == nil {
 			_, _ = output.Write(fragments[index])
 		} else {
-			_, _ = fmt.Fprintf(&output, `<div class="margo-layout margo-layout--%s" data-margo-slot-count="%d"`, html.EscapeString(layout.Class), len(layout.Slots))
+			layoutAttributes := ""
+			if composition.Name != "" {
+				layoutAttributes = ` data-margo-composition-family="` + html.EscapeString(composition.LayoutClass) + `"`
+			}
+			_, _ = fmt.Fprintf(&output, `<div class="margo-layout margo-layout--%s" data-margo-slot-count="%d"%s`, html.EscapeString(layout.Class), len(layout.Slots), layoutAttributes)
 			if layout.Class == "metrics" {
 				_, _ = fmt.Fprintf(&output, ` role="group" aria-label="%s"`, html.EscapeString(localizedDeckLayoutLabel(sectionLang, layout.Class)))
+			} else if composition.Name == "compare-grid" || composition.Name == "image-grid" {
+				_, _ = fmt.Fprintf(&output, ` role="group" aria-label="%s"`, html.EscapeString(localizedDeckCompositionLabel(sectionLang, composition)))
 			}
 			_ = output.WriteByte('>')
 			if layout.Class == "timeline" {
-				_, _ = output.WriteString(`<ol class="margo-layout__slots">`)
+				if composition.Name == "agenda" || composition.Name == "steps" {
+					_, _ = fmt.Fprintf(&output, `<ol class="margo-layout__slots" aria-label="%s">`, html.EscapeString(localizedDeckCompositionLabel(sectionLang, composition)))
+				} else {
+					_, _ = output.WriteString(`<ol class="margo-layout__slots">`)
+				}
 			} else {
 				_, _ = output.WriteString(`<div class="margo-layout__slots">`)
 			}
@@ -365,7 +409,18 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 				if layout.Class == "timeline" {
 					tag, closeTag = "li", "</li>"
 				}
-				_, _ = fmt.Fprintf(&output, `<%s class="margo-layout__slot margo-layout__slot--%s">`, tag, html.EscapeString(slot.Name))
+				slotAttributes := ""
+				if composition.Name != "" {
+					role := ""
+					for _, declared := range composition.Slots {
+						if declared.Name == slot.Name {
+							role = declared.Role
+							break
+						}
+					}
+					slotAttributes = ` data-margo-slot="` + html.EscapeString(slot.Name) + `" data-margo-slot-role="` + html.EscapeString(role) + `"`
+				}
+				_, _ = fmt.Fprintf(&output, `<%s class="margo-layout__slot margo-layout__slot--%s"%s>`, tag, html.EscapeString(slot.Name), slotAttributes)
 				if index < len(slotFragments) && slotIndex < len(slotFragments[index]) {
 					_, _ = output.Write(slotFragments[index][slotIndex])
 				}
@@ -382,7 +437,7 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 			_, _ = fmt.Fprintf(&output, `<footer class="margo-deck__footer">%s</footer>`, html.EscapeString(stateDirectives.Footer))
 		}
 		if stateDirectives.Paginate != "" && stateDirectives.Paginate != "false" {
-			_, _ = fmt.Fprintf(&output, `<span class="margo-deck__pagination" aria-hidden="true">%s</span>`, html.EscapeString(localizedDeckSlideLabel(sectionLang, slide.Ordinal(), len(slides))))
+			_, _ = fmt.Fprintf(&output, `<span class="margo-deck__pagination" aria-hidden="true">%s</span>`, strconv.Itoa(slide.Ordinal()))
 		}
 		_, _ = output.WriteString(`</section>`)
 	}

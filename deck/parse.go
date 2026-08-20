@@ -93,6 +93,16 @@ func parseMetadata(name string, lines [][]byte) (Metadata, DirectiveState, int, 
 				metadata.Marp = &active
 				continue
 			}
+			if key == "composition" {
+				event := directiveEvent{name: key, node: mapping.Content[index+1], line: 1}
+				if err := validateDirectiveNode(name, 1, key, event.node); err != nil {
+					return Metadata{}, directives, 0, err
+				}
+				if err := applyDirectiveEvent(&directives, event); err != nil {
+					return Metadata{}, directives, 0, err
+				}
+				continue
+			}
 			if strings.HasPrefix(key, "$") {
 				return Metadata{}, directives, 0, deckError("deck.directive_invalid", name, 1, "legacy $ directives are not supported; use the unprefixed form")
 			}
@@ -161,6 +171,9 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 	var slides []Slide
 	builder := newLayoutBuilder()
 	inherited := cloneDirectiveState(global)
+	if err := builder.setComposition(inherited.Composition, firstLine); err != nil {
+		return nil, deckError("deck.composition_conflict", name, firstLine, err.Error())
+	}
 	var spot []directiveEvent
 	var notes []string
 	var fence *fenceState
@@ -191,15 +204,31 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 				if !validLayoutClass(marker.value) || !isStructuralClass(marker.value) {
 					return nil, deckError("deck.layout_invalid", name, lineNumber, "layout marker names an unknown structural class")
 				}
+				if builder.composition != "" {
+					spec, resolveErr := ResolveComposition(builder.composition)
+					if resolveErr != nil || !isStructuralClass(spec.LayoutClass) || spec.LayoutClass != marker.value {
+						return nil, deckError("deck.composition_conflict", name, lineNumber, "layout marker does not match composition")
+					}
+				}
 				err = builder.start(marker.value, lineNumber)
 			case "slot":
+				if builder.composition != "" {
+					spec, resolveErr := ResolveComposition(builder.composition)
+					if resolveErr != nil || !isStructuralClass(spec.LayoutClass) {
+						return nil, deckError("deck.composition_slot_invalid", name, lineNumber, "body composition cannot contain structural slots")
+					}
+				}
 				err = builder.slot(marker.value, lineNumber)
 			case "end":
 				err = builder.end()
 			}
 			if err != nil {
 				code := "deck.layout_invalid"
-				if marker.kind == "slot" && (strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "empty")) {
+				if builder.composition != "" {
+					if marker.kind == "slot" || strings.Contains(err.Error(), "empty") {
+						code = "deck.composition_slot_invalid"
+					}
+				} else if marker.kind == "slot" && (strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "empty")) {
 					code = "deck.slot_invalid"
 				}
 				return nil, deckError(code, name, lineNumber, err.Error())
@@ -224,10 +253,20 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 					}
 					if event.spot {
 						spot = append(spot, event)
+						if event.name == "composition" {
+							if err := builder.setComposition(compositionName(event), event.line); err != nil {
+								return nil, deckError("deck.composition_conflict", name, event.line, err.Error())
+							}
+						}
 						continue
 					}
 					if err := applyDirectiveEvent(&inherited, event); err != nil {
 						return nil, err
+					}
+					if event.name == "composition" {
+						if err := builder.setComposition(inherited.Composition, event.line); err != nil {
+							return nil, deckError("deck.composition_conflict", name, event.line, err.Error())
+						}
 					}
 				}
 			}
@@ -241,6 +280,9 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 				return nil, err
 			}
 			builder = newLayoutBuilder()
+			if err := builder.setComposition(inherited.Composition, lineNumber); err != nil {
+				return nil, deckError("deck.composition_conflict", name, lineNumber, err.Error())
+			}
 			spot = nil
 			notes = nil
 			previousLine = ""
@@ -252,6 +294,9 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 				return nil, err
 			}
 			builder = newLayoutBuilder()
+			if err := builder.setComposition(inherited.Composition, lineNumber); err != nil {
+				return nil, deckError("deck.composition_conflict", name, lineNumber, err.Error())
+			}
 			spot = nil
 			notes = nil
 			previousLine = ""
@@ -267,23 +312,30 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 }
 
 func appendScannedSlide(slides []Slide, builder *layoutBuilder, name string, line int, global, inherited DirectiveState, spot []directiveEvent, notes []string) ([]Slide, error) {
-	classes := append([]string(nil), inherited.Classes...)
-	for _, event := range spot {
-		if event.name != "class" {
-			continue
-		}
-		values, _ := directiveStringList(event.node)
-		if len(values) == 0 || len(values) == 1 && values[0] == "none" {
-			classes = nil
-		} else {
-			classes = append([]string(nil), values...)
-		}
-	}
-	layout, markdown, err := builder.finish(name, line, classes)
+	state, err := effectiveState(global, inherited, spot)
 	if err != nil {
 		return nil, err
 	}
-	state, err := effectiveState(global, inherited, spot)
+	spec := CompositionSpec{}
+	if state.Composition != "" {
+		spec, err = ResolveComposition(state.Composition)
+		if err != nil {
+			return nil, deckError("deck.composition_invalid", name, line, err.Error())
+		}
+	}
+	classes, err := normalizeCompositionClasses(name, line, state.Classes, spec)
+	if err != nil {
+		return nil, err
+	}
+	state.Classes = classes
+	if spec.Name == "" {
+		for _, class := range classes {
+			if class == "grid" {
+				return nil, deckError("deck.class_unsupported", name, line, "unsupported deck class grid without a composition")
+			}
+		}
+	}
+	layout, markdown, err := builder.finish(name, line, classes, spec)
 	if err != nil {
 		return nil, err
 	}
@@ -305,13 +357,53 @@ func appendScannedSlide(slides []Slide, builder *layoutBuilder, name string, lin
 	}
 	ordinal := len(slides) + 1
 	return append(slides, Slide{
-		ordinal:    ordinal,
-		id:         fmt.Sprintf("slide-%04d", ordinal),
-		markdown:   append([]byte(nil), markdown...),
-		directives: state,
-		notes:      append([]string(nil), notes...),
-		layout:     cloneLayout(layout),
+		ordinal:     ordinal,
+		id:          fmt.Sprintf("slide-%04d", ordinal),
+		markdown:    append([]byte(nil), markdown...),
+		directives:  state,
+		composition: cloneCompositionSpec(spec),
+		notes:       append([]string(nil), notes...),
+		layout:      cloneLayout(layout),
 	}), nil
+}
+
+func compositionName(event directiveEvent) CompositionName {
+	value, _ := directiveScalar(event.node, true)
+	if value == "none" {
+		return ""
+	}
+	return CompositionName(value)
+}
+
+func normalizeCompositionClasses(name string, line int, classes []string, spec CompositionSpec) ([]string, error) {
+	result := append([]string(nil), classes...)
+	if spec.Name == "" {
+		return result, nil
+	}
+	for _, class := range result {
+		if class == "invert" {
+			continue
+		}
+		if spec.LayoutClass == "" || class != spec.LayoutClass {
+			return nil, deckError("deck.composition_conflict", name, line, "class does not match composition")
+		}
+	}
+	if spec.LayoutClass != "" {
+		found := false
+		for _, class := range result {
+			if class == spec.LayoutClass {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result = append(result, spec.LayoutClass)
+		}
+	}
+	if err := validateClassCombination(name, line, result); err != nil {
+		return nil, deckError("deck.composition_conflict", name, line, err.Error())
+	}
+	return result, nil
 }
 
 func htmlComment(line []byte) (string, bool) {

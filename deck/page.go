@@ -158,6 +158,77 @@ func localizedDeckLayoutLabel(lang, class string) string {
 	return "Layout " + class
 }
 
+func localizedDeckCompositionLabel(lang string, composition CompositionSpec) string {
+	pt := strings.HasPrefix(strings.ToLower(lang), "pt")
+	es := strings.HasPrefix(strings.ToLower(lang), "es")
+	if pt {
+		switch composition.Name {
+		case "agenda":
+			return "Agenda"
+		case "steps":
+			return "Etapas"
+		case "compare-grid":
+			return "Comparação"
+		case "image-grid":
+			return "Grade de imagens"
+		case "media-split":
+			return "Mídia e conteúdo"
+		case "media-stage":
+			return "Palco de mídia"
+		case "highlight":
+			return "Destaque"
+		case "hero":
+			return "Abertura"
+		case "content":
+			return "Conteúdo"
+		}
+	}
+	if es {
+		switch composition.Name {
+		case "agenda":
+			return "Agenda"
+		case "steps":
+			return "Etapas"
+		case "compare-grid":
+			return "Comparación"
+		case "image-grid":
+			return "Cuadrícula de imágenes"
+		case "media-split":
+			return "Medios y contenido"
+		case "media-stage":
+			return "Escenario multimedia"
+		case "highlight":
+			return "Destacado"
+		case "hero":
+			return "Apertura"
+		case "content":
+			return "Contenido"
+		}
+	}
+	switch composition.Name {
+	case "agenda":
+		return "Agenda"
+	case "steps":
+		return "Steps"
+	case "compare-grid":
+		return "Comparison"
+	case "image-grid":
+		return "Image grid"
+	case "media-split":
+		return "Media and content"
+	case "media-stage":
+		return "Media stage"
+	case "highlight":
+		return "Highlight"
+	case "hero":
+		return "Hero"
+	case "content":
+		return "Content"
+	default:
+		return "Composition"
+	}
+}
+
 func localizedDeckLabels(lang string) deckLabelSet {
 	if strings.HasPrefix(strings.ToLower(lang), "pt") {
 		return deckLabelSet{Controls: "Controles de slides", Previous: "Anterior", Next: "Próximo", Print: "Imprimir", Slide: "Slide", Separator: "de"}

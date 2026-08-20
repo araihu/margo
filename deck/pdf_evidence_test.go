@@ -47,3 +47,20 @@ func TestPDFArtifactEvidenceRejectsPageCountAndEdgeMismatch(t *testing.T) {
 		t.Fatal("mismatched page evidence unexpectedly valid")
 	}
 }
+
+func TestComposedPDFArtifactEvidenceIncludesCompositionIdentity(t *testing.T) {
+	spec, err := ResolveComposition("hero")
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := BuildPDFArtifactReportWithComposition(1280, 720, 1, []PDFMediaBoxMicrometers{{Index: 0, RightMicrometers: 338667, TopMicrometers: 190500}}, []CompositionSpec{spec})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.CompositionCatalogVersion != CompositionCatalogVersion {
+		t.Fatalf("catalog version = %q", report.CompositionCatalogVersion)
+	}
+	if len(report.Compositions) != 1 || report.Compositions[0].Name != "hero" || report.Compositions[0].Variant != "hero" {
+		t.Fatalf("composition identity = %#v", report.Compositions)
+	}
+}

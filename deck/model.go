@@ -36,6 +36,7 @@ type DirectiveState struct {
 	ColorMode       margo.ColorMode
 	HeadingDivider  HeadingDivider
 	Size            string
+	Composition     CompositionName
 	Paginate        string
 	Header          string
 	Footer          string
@@ -60,12 +61,13 @@ type Layout struct {
 }
 
 type Slide struct {
-	ordinal    int
-	id         string
-	markdown   []byte
-	directives DirectiveState
-	notes      []string
-	layout     *Layout
+	ordinal     int
+	id          string
+	markdown    []byte
+	directives  DirectiveState
+	composition CompositionSpec
+	notes       []string
+	layout      *Layout
 }
 
 func (s Slide) Ordinal() int {
@@ -93,6 +95,11 @@ func (s Slide) Notes() []string {
 // Layout returns a defensive copy of the normalized structural layout.
 func (s Slide) Layout() *Layout {
 	return cloneLayout(s.layout)
+}
+
+// Composition returns a defensive copy of the resolved R1 composition.
+func (s Slide) Composition() CompositionSpec {
+	return cloneCompositionSpec(s.composition)
 }
 
 type Document struct {
@@ -124,12 +131,13 @@ func (d *Document) Slides() []Slide {
 	result := make([]Slide, len(d.slides))
 	for index, slide := range d.slides {
 		result[index] = Slide{
-			ordinal:    slide.ordinal,
-			id:         slide.id,
-			markdown:   slide.Markdown(),
-			directives: cloneDirectiveState(slide.directives),
-			notes:      slide.Notes(),
-			layout:     slide.Layout(),
+			ordinal:     slide.ordinal,
+			id:          slide.id,
+			markdown:    slide.Markdown(),
+			directives:  cloneDirectiveState(slide.directives),
+			composition: cloneCompositionSpec(slide.composition),
+			notes:       slide.Notes(),
+			layout:      slide.Layout(),
 		}
 	}
 	return result

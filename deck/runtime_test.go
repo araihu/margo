@@ -103,6 +103,61 @@ func TestRuntimeLayoutEnvelopeRejectsNonFiniteEvidence(t *testing.T) {
 	}
 }
 
+func TestLayoutTaskDigestIncludesCompositionIdentity(t *testing.T) {
+	left := mustRenderRuntimeDeck(t, "<!-- composition: media-split -->\n<!-- slot: media -->\n# Media\n<!-- slot: content -->\n# Content\n")
+	right := mustRenderRuntimeDeck(t, "<!-- composition: media-stage -->\n<!-- slot: media -->\n# Media\n<!-- slot: content -->\n# Content\n")
+	leftDescriptor, err := left.RuntimeDescriptor("ri-00000042")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rightDescriptor, err := right.RuntimeDescriptor("ri-00000042")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if leftDescriptor.Tasks[len(leftDescriptor.Tasks)-2].InputSHA256 == rightDescriptor.Tasks[len(rightDescriptor.Tasks)-2].InputSHA256 {
+		t.Fatal("composition identity did not change the screen layout digest")
+	}
+}
+
+func TestCanonicalLayoutEnvelopeIncludesCompositionCatalogVersion(t *testing.T) {
+	envelope := LayoutValidationEnvelope{
+		Mode: LayoutValidationModeScreen, LogicalCanvas: LogicalCanvas{Width: 1280, Height: 720},
+		Stage: StageMetrics{Scale: 1}, ValidationRequest: validDeckValidationRequest(t), CompositionCatalogVersion: CompositionCatalogVersion,
+	}
+	encoded, err := CanonicalLayoutValidationEnvelope(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"compositionCatalogVersion":"r1"`) {
+		t.Fatalf("envelope = %s", encoded)
+	}
+}
+
+func TestLegacyLayoutEnvelopeWithoutCompositionCatalogRemainsValid(t *testing.T) {
+	envelope := LayoutValidationEnvelope{
+		Mode: LayoutValidationModeScreen, LogicalCanvas: LogicalCanvas{Width: 1280, Height: 720},
+		Stage: StageMetrics{Scale: 1}, ValidationRequest: validDeckValidationRequest(t),
+	}
+	if _, err := CanonicalLayoutValidationEnvelope(envelope); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCompositionCatalogMismatchFailsClosed(t *testing.T) {
+	envelope := LayoutValidationEnvelope{
+		Mode: LayoutValidationModeScreen, LogicalCanvas: LogicalCanvas{Width: 1280, Height: 720},
+		Stage: StageMetrics{Scale: 1}, ValidationRequest: validDeckValidationRequest(t), CompositionCatalogVersion: "r2",
+	}
+	if got, want := deckDiagnosticCode(mustEnvelopeError(envelope)), "deck.composition_catalog_mismatch"; got != want {
+		t.Fatalf("diagnostic = %q want %q", got, want)
+	}
+}
+
+func mustEnvelopeError(envelope LayoutValidationEnvelope) error {
+	_, err := CanonicalLayoutValidationEnvelope(envelope)
+	return err
+}
+
 func TestRuntimeDescriptorRequestIsDefensive(t *testing.T) {
 	result := mustRenderDeck(t, "# One\n")
 	descriptor, err := result.RuntimeDescriptor("ri-00000042")

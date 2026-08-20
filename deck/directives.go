@@ -20,7 +20,7 @@ var (
 	localDirectiveNames = map[string]struct{}{
 		"paginate": {}, "header": {}, "footer": {}, "class": {}, "color": {}, "backgroundColor": {},
 		"backgroundImage": {}, "backgroundPosition": {}, "backgroundRepeat": {}, "backgroundSize": {},
-		"backgroundDecorative": {}, "backgroundAlt": {},
+		"backgroundDecorative": {}, "backgroundAlt": {}, "composition": {},
 	}
 	colorTokens = map[string]struct{}{
 		"surface": {}, "surface-alt": {}, "ink": {}, "ink-muted": {}, "accent": {}, "accent-strong": {},
@@ -123,7 +123,7 @@ func validateDirectiveNode(name string, line int, key string, node *yaml.Node) e
 	if node == nil {
 		return deckError("deck.directive_invalid", name, line, "directive value is missing")
 	}
-	if node.Anchor != "" || node.Kind == yaml.AliasNode || node.Tag == "!!map" || node.Tag == "!!seq" && key != "headingDivider" && key != "class" {
+	if node.Anchor != "" || node.Kind == yaml.AliasNode || (node.Tag == "!!map" || node.Tag == "!!seq") && key != "headingDivider" && key != "class" && key != "composition" {
 		if key != "size" {
 			return deckError("deck.directive_invalid", name, line, "directive value uses an unsupported YAML feature")
 		}
@@ -183,6 +183,11 @@ func validateDirectiveNode(name string, line int, key string, node *yaml.Node) e
 			if !validLayoutClass(value) {
 				return deckError("deck.class_unsupported", name, line, "unsupported deck class "+value)
 			}
+		}
+	case "composition":
+		value, err := directiveScalar(node, true)
+		if err != nil || !isCompositionName(value) {
+			return deckError("deck.composition_invalid", name, line, "composition must be a lowercase R1 name or none")
 		}
 	case "color", "backgroundColor":
 		value, err := directiveScalarOrNone(node)
@@ -277,6 +282,13 @@ func applyDirectiveEvent(state *DirectiveState, event directiveEvent) error {
 			state.Classes = nil
 		} else {
 			state.Classes = append([]string(nil), values...)
+		}
+	case "composition":
+		value, _ := directiveScalar(event.node, true)
+		if value == "none" {
+			state.Composition = ""
+		} else {
+			state.Composition = CompositionName(value)
 		}
 	case "color", "backgroundColor":
 		value, _ := directiveScalarOrNone(event.node)
@@ -492,6 +504,7 @@ func oneOf(value string, values ...string) bool {
 
 func effectiveState(global, inherited DirectiveState, spot []directiveEvent) (DirectiveState, error) {
 	state := cloneDirectiveState(global)
+	state.Composition = inherited.Composition
 	state.Paginate = inherited.Paginate
 	state.Header = inherited.Header
 	state.Footer = inherited.Footer

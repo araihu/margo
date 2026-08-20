@@ -52,12 +52,24 @@ type SlideLayoutMetrics struct {
 
 // LayoutValidationEnvelope is the canonical mode-bound browser evidence body.
 type LayoutValidationEnvelope struct {
-	Version           int                            `json:"version"`
-	Mode              LayoutValidationMode           `json:"mode"`
-	LogicalCanvas     LogicalCanvas                  `json:"logicalCanvas"`
-	Slides            []SlideLayoutMetrics           `json:"slides"`
-	Stage             StageMetrics                   `json:"stage"`
-	ValidationRequest margo.RuntimeValidationRequest `json:"validationRequest"`
+	Version                   int                            `json:"version"`
+	Mode                      LayoutValidationMode           `json:"mode"`
+	LogicalCanvas             LogicalCanvas                  `json:"logicalCanvas"`
+	Slides                    []SlideLayoutMetrics           `json:"slides"`
+	Stage                     StageMetrics                   `json:"stage"`
+	ValidationRequest         margo.RuntimeValidationRequest `json:"validationRequest"`
+	CompositionCatalogVersion string                         `json:"compositionCatalogVersion,omitempty"`
+}
+
+type layoutSlideInput struct {
+	ID          string   `json:"id"`
+	Classes     []string `json:"classes"`
+	Layout      string   `json:"layout"`
+	Composition string   `json:"composition,omitempty"`
+	Variant     string   `json:"variant,omitempty"`
+	Class       string   `json:"class,omitempty"`
+	Family      string   `json:"family,omitempty"`
+	Slots       []string `json:"slots,omitempty"`
 }
 
 // LayoutValidator is the browser-owned screen/print validation seam.
@@ -70,6 +82,9 @@ func CanonicalLayoutValidationEnvelope(envelope LayoutValidationEnvelope) ([]byt
 	envelope.Version = 1
 	if envelope.Mode != LayoutValidationModeScreen && envelope.Mode != LayoutValidationModePrintDOM {
 		return nil, deckError("deck.validation_mode_mismatch", "", 1, "unknown layout validation mode")
+	}
+	if envelope.CompositionCatalogVersion != "" && envelope.CompositionCatalogVersion != CompositionCatalogVersion {
+		return nil, deckError("deck.composition_catalog_mismatch", "", 1, "unsupported composition catalog version")
 	}
 	if err := envelope.ValidationRequest.Validate(); err != nil {
 		return nil, err
@@ -194,25 +209,28 @@ func (r *Result) runtimeDescriptor(instance margo.RenderInstanceID, includePrint
 }
 
 func (r *Result) layoutTaskInputDigest(mode LayoutValidationMode) (string, error) {
-	type slideInput struct {
-		ID      string   `json:"id"`
-		Classes []string `json:"classes"`
-		Layout  string   `json:"layout"`
-	}
 	input := struct {
-		Version           int                            `json:"version"`
-		Document          string                         `json:"documentFingerprint"`
-		Theme             margo.ThemeName                `json:"theme"`
-		ColorMode         margo.ColorMode                `json:"colorMode"`
-		Geometry          DeckGeometry                   `json:"geometry"`
-		Mode              LayoutValidationMode           `json:"mode"`
-		Slides            []slideInput                   `json:"slides"`
-		ValidationRequest margo.RuntimeValidationRequest `json:"validationRequest"`
-		OverflowVersion   string                         `json:"overflowVersion"`
+		Version                   int                            `json:"version"`
+		Document                  string                         `json:"documentFingerprint"`
+		Theme                     margo.ThemeName                `json:"theme"`
+		ColorMode                 margo.ColorMode                `json:"colorMode"`
+		Geometry                  DeckGeometry                   `json:"geometry"`
+		Mode                      LayoutValidationMode           `json:"mode"`
+		Slides                    []layoutSlideInput             `json:"slides"`
+		ValidationRequest         margo.RuntimeValidationRequest `json:"validationRequest"`
+		OverflowVersion           string                         `json:"overflowVersion"`
+		CompositionCatalogVersion string                         `json:"compositionCatalogVersion,omitempty"`
 	}{Version: 1, Document: r.fingerprint.String(), Theme: r.theme, ColorMode: r.colorMode, Geometry: r.geometry, Mode: mode, ValidationRequest: r.validationRequest, OverflowVersion: "logical-1/64-v1"}
-	input.Slides = make([]slideInput, 0, r.slideCount)
+	if r.compositionCatalogVersion != "" {
+		input.CompositionCatalogVersion = r.compositionCatalogVersion
+	}
+	input.Slides = make([]layoutSlideInput, 0, r.slideCount)
 	for index := 0; index < r.slideCount; index++ {
-		input.Slides = append(input.Slides, slideInput{ID: fmt.Sprintf("slide-%04d", index+1)})
+		if index < len(r.layoutInputs) {
+			input.Slides = append(input.Slides, r.layoutInputs[index])
+			continue
+		}
+		input.Slides = append(input.Slides, layoutSlideInput{ID: fmt.Sprintf("slide-%04d", index+1)})
 	}
 	encoded, err := canonicaljson.Marshal(input)
 	if err != nil {
