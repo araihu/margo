@@ -125,11 +125,6 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 .margo-showcase-article .margo-breadcrumbs { margin-block-end: 2rem; color: var(--margo-text); font-size: 0.875rem; }
 .margo-showcase-article .margo-breadcrumbs a { color: inherit; text-decoration: none; }
 .margo-showcase-article .margo-document { color: var(--margo-text); }
-[data-margo-layout="landing"] .margo-showcase-article .margo-document h1 { color: var(--margo-text-strong); font-size: clamp(2.25rem, 6vw, 4.5rem); letter-spacing: -0.04em; line-height: 1.05; }
-[data-margo-layout="landing"] .margo-showcase-article .margo-document__lead { color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
-[data-margo-layout="landing"] .margo-showcase-article .margo-document h2 { margin-block-start: 3rem; color: var(--margo-text-strong); letter-spacing: -0.02em; }
-[data-margo-layout="landing"] .margo-showcase-article .margo-document blockquote { margin-block-start: 1.25rem; margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
-[data-margo-layout="landing"] .margo-showcase-article .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
 .component-doc-shell__brand-mark { display: none !important; }
 .margo-shell-search { width: clamp(11rem, 26vw, 18rem); min-width: 0; flex: 0 1 auto; }
 .margo-shell-search-trigger { min-block-size: 2.75rem; }
@@ -201,12 +196,38 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { display: block; }
 [data-margo-layout="landing"] .margo-area--main-content { max-inline-size: none; }
 .margo-landing-article { inline-size: 100%; max-inline-size: none; margin-inline: auto; padding-block: clamp(1.5rem, 4vw, 4rem); }
-[data-margo-layout="landing"] .margo-document { max-inline-size: 100%; }
-[data-margo-layout="landing"] .margo-document h1 { color: var(--margo-text-strong); font-size: clamp(2.25rem, 6vw, 4.5rem); letter-spacing: -0.04em; line-height: 1.05; }
-[data-margo-layout="landing"] .margo-document__lead { color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
-[data-margo-layout="landing"] .margo-document h2 { margin-block-start: 3rem; color: var(--margo-text-strong); letter-spacing: -0.02em; }
-[data-margo-layout="landing"] .margo-document blockquote { margin-block-start: 1.25rem; margin-inline: 0; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
-[data-margo-layout="landing"] .margo-document img[alt^="Margo mascot"] { display: block; inline-size: min(100%, 24rem); aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; margin-block: 1.5rem 2rem; margin-inline: auto; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
+.margo-landing-article > .margo-document { max-inline-size: 100%; }
+.margo-landing-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1.5rem, 5vw, 4rem);
+  inline-size: min(100%, 84rem);
+  margin-inline: auto;
+  padding-inline: clamp(0rem, 2vw, 1.5rem);
+}
+.margo-landing-hero__copy { min-inline-size: 0; max-inline-size: 44rem; }
+.margo-landing-hero__copy h1 { margin-block: 0 1rem; color: var(--margo-text-strong); font-size: clamp(2.75rem, 7vw, 5.5rem); letter-spacing: -0.04em; line-height: 1; text-wrap: balance; }
+.margo-landing-hero__copy .margo-document__lead { margin-block: 0 0.75rem; color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
+.margo-landing-hero__copy > ul { display: grid; gap: 0.75rem; margin-block: 1.5rem 0; padding: 0; list-style: none; }
+.margo-landing-hero__copy > ul a { display: flex; align-items: center; min-block-size: 2.75rem; padding: 0.75rem 1rem; border: 1px solid var(--margo-outline); border-radius: 0.75rem; background: var(--margo-surface-alt); color: var(--margo-text-strong); font-weight: 700; line-height: 1.35; text-decoration: none; }
+.margo-landing-hero__copy > ul li:first-child a { border-color: var(--margo-accent); background: var(--margo-accent); color: var(--margo-surface); }
+.margo-landing-hero__copy > ul a:hover { text-decoration: underline; }
+.margo-landing-hero__visual { min-inline-size: 0; inline-size: min(100%, 30rem); justify-self: center; }
+.margo-landing-hero__visual > * { margin: 0; }
+.margo-landing-hero__visual img { display: block; inline-size: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
+.margo-landing-section { inline-size: min(100%, 84rem); margin-inline: auto; padding-block-start: clamp(3.5rem, 8vw, 7rem); padding-inline: clamp(0rem, 2vw, 1.5rem); }
+.margo-landing-section > * { max-inline-size: var(--margo-reading-measure); margin-inline: auto; }
+.margo-landing-section > h2 { margin-block: 0 1rem; color: var(--margo-text-strong); font-size: clamp(1.75rem, 3vw, 2.5rem); letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance; }
+.margo-landing-section > .margo-landing-media { max-inline-size: min(100%, 64rem); }
+.margo-landing-section > .margo-landing-media img, .margo-landing-section > .margo-landing-media svg { display: block; max-inline-size: 100%; block-size: auto; margin-inline: auto; }
+.margo-landing-section > blockquote { margin-block: 1.25rem; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
+.margo-landing-section:last-child > ul:last-child { display: grid; gap: 0.75rem; padding: 0; list-style: none; }
+.margo-landing-section:last-child > ul:last-child a { display: flex; align-items: center; min-block-size: 2.75rem; padding: 0.75rem 1rem; border: 1px solid var(--margo-outline); border-radius: 0.75rem; background: var(--margo-surface-alt); color: var(--margo-text-strong); font-weight: 700; text-decoration: none; }
+@media (min-width: 56.25rem) {
+  .margo-landing-hero { grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr); }
+  .margo-landing-hero__copy > ul, .margo-landing-section:last-child > ul:last-child { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 `
 
 // configuredDocsCSS contains only the Margo-owned article and action layer.
@@ -1362,8 +1383,134 @@ func (b *builder) resolvedBindingsForPage(prepared configuredPage) (map[string][
 }
 
 func (b *builder) landingBindings(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {
-	article := `<div class="margo-landing-article" data-margo-landing-article="true">` + string(prepared.article) + `</div>`
+	fragment, err := transformLandingArticle(prepared.article)
+	if err != nil {
+		return nil, fmt.Errorf("site.landing_fragment_invalid: %s: %w", prepared.page.Source, err)
+	}
+	article := `<div class="margo-landing-article" data-margo-landing-article="true">` + string(fragment) + `</div>`
 	return b.articleOnlyBindings(prepared, article)
+}
+
+func transformLandingArticle(fragment []byte) ([]byte, error) {
+	nodes, err := html.ParseFragment(bytes.NewReader(fragment), &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"})
+	if err != nil {
+		return nil, err
+	}
+	var article *html.Node
+	for _, node := range nodes {
+		if node.Type == html.TextNode && strings.TrimSpace(node.Data) == "" || node.Type == html.CommentNode {
+			continue
+		}
+		if node.Type != html.ElementNode || node.Data != "article" || !hasClass(node, "margo-document") || article != nil {
+			return nil, fmt.Errorf("expected one article.margo-document root")
+		}
+		article = node
+	}
+	if article == nil {
+		return nil, fmt.Errorf("expected one article.margo-document root")
+	}
+
+	hero := landingElement(atom.Header, "header", "margo-landing-hero")
+	copy := landingElement(atom.Div, "div", "margo-landing-hero__copy")
+	hero.AppendChild(copy)
+	var visual *html.Node
+	for child := article.FirstChild; child != nil && !landingHeading(child); {
+		next := child.NextSibling
+		article.RemoveChild(child)
+		if visual == nil && landingMediaBlock(child) {
+			addLandingClass(child, "margo-landing-media")
+			visual = landingElement(atom.Div, "div", "margo-landing-hero__visual")
+			visual.AppendChild(child)
+		} else {
+			copy.AppendChild(child)
+		}
+		child = next
+	}
+	if visual != nil {
+		hero.AppendChild(visual)
+	}
+	article.InsertBefore(hero, article.FirstChild)
+
+	for heading := hero.NextSibling; heading != nil; {
+		if !landingHeading(heading) {
+			return nil, fmt.Errorf("content outside landing section")
+		}
+		section := landingElement(atom.Section, "section", "margo-landing-section")
+		if id := attributeValue(heading, "id"); id != "" {
+			section.Attr = append(section.Attr, html.Attribute{Key: "aria-labelledby", Val: id})
+		}
+		article.InsertBefore(section, heading)
+		for child := heading; child != nil; {
+			next := child.NextSibling
+			if child != heading && landingHeading(child) {
+				heading = child
+				break
+			}
+			article.RemoveChild(child)
+			if landingMediaBlock(child) {
+				addLandingClass(child, "margo-landing-media")
+			}
+			section.AppendChild(child)
+			if next == nil {
+				heading = nil
+			}
+			child = next
+		}
+	}
+
+	var output bytes.Buffer
+	for _, node := range nodes {
+		if err := html.Render(&output, node); err != nil {
+			return nil, err
+		}
+	}
+	if countElements(output.Bytes(), "article") != 1 {
+		return nil, fmt.Errorf("landing fragment must contain one article")
+	}
+	return output.Bytes(), nil
+}
+
+func landingElement(dataAtom atom.Atom, data, className string) *html.Node {
+	return &html.Node{Type: html.ElementNode, DataAtom: dataAtom, Data: data, Attr: []html.Attribute{{Key: "class", Val: className}}}
+}
+
+func landingHeading(node *html.Node) bool {
+	return node.Type == html.ElementNode && node.Data == "h2"
+}
+
+func landingMediaBlock(node *html.Node) bool {
+	if node.Type != html.ElementNode {
+		return false
+	}
+	switch node.Data {
+	case "figure", "picture", "video", "audio", "svg", "canvas", "table":
+		return true
+	}
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == html.ElementNode {
+			switch child.Data {
+			case "img", "picture", "video", "audio", "svg", "canvas":
+				return true
+			}
+			if landingMediaBlock(child) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func addLandingClass(node *html.Node, className string) {
+	if hasClass(node, className) {
+		return
+	}
+	for index := range node.Attr {
+		if node.Attr[index].Key == "class" {
+			node.Attr[index].Val += " " + className
+			return
+		}
+	}
+	node.Attr = append(node.Attr, html.Attribute{Key: "class", Val: className})
 }
 
 func (b *builder) articleBindings(prepared configuredPage) (map[string][]ssg.AreaBinding, error) {

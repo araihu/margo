@@ -192,32 +192,22 @@ func TestLayoutBrowserCrossFamilyNavigationRefreshesShell(t *testing.T) {
 }
 
 type landingGeometryState struct {
-	Display              string  `json:"display"`
-	GridColumns          string  `json:"gridColumns"`
-	GridAreas            string  `json:"gridAreas"`
-	FrameLeft            float64 `json:"frameLeft"`
-	FrameRight           float64 `json:"frameRight"`
-	MainLeft             float64 `json:"mainLeft"`
-	MainRight            float64 `json:"mainRight"`
-	BrandWidth           float64 `json:"brandWidth"`
-	BrandHeight          float64 `json:"brandHeight"`
-	BrandLabelRight      float64 `json:"brandLabelRight"`
-	SearchContainerWidth float64 `json:"searchContainerWidth"`
-	SearchLeft           float64 `json:"searchLeft"`
-	SearchRight          float64 `json:"searchRight"`
-	SearchWidth          float64 `json:"searchWidth"`
-	RepositoryLeft       float64 `json:"repositoryLeft"`
-	RepositoryIcon       bool    `json:"repositoryIcon"`
-	ImageWidth           float64 `json:"imageWidth"`
-	ImageHeight          float64 `json:"imageHeight"`
-	ImageAspectRatio     float64 `json:"imageAspectRatio"`
-	ImageCSSAspectRatio  string  `json:"imageCSSAspectRatio"`
-	ImageObjectFit       string  `json:"imageObjectFit"`
-	CTAExists            bool    `json:"ctaExists"`
-	CTAInViewport        bool    `json:"ctaInViewport"`
-	CTATop               float64 `json:"ctaTop"`
-	CTAHeight            float64 `json:"ctaHeight"`
-	ShowcaseWrapper      bool    `json:"showcaseWrapper"`
+	HeroColumns         int       `json:"heroColumns"`
+	HeroWidth           float64   `json:"heroWidth"`
+	CopyTop             float64   `json:"copyTop"`
+	VisualTop           float64   `json:"visualTop"`
+	CopyLeft            float64   `json:"copyLeft"`
+	VisualLeft          float64   `json:"visualLeft"`
+	ActionHeights       []float64 `json:"actionHeights"`
+	ActionBottoms       []float64 `json:"actionBottoms"`
+	ImageAspectRatio    float64   `json:"imageAspectRatio"`
+	ImageCSSAspectRatio string    `json:"imageCSSAspectRatio"`
+	ImageObjectFit      string    `json:"imageObjectFit"`
+	SectionWidth        float64   `json:"sectionWidth"`
+	SectionTextWidth    float64   `json:"sectionTextWidth"`
+	SectionMediaWidth   float64   `json:"sectionMediaWidth"`
+	ArticleCount        int       `json:"articleCount"`
+	Overflow            bool      `json:"overflow"`
 }
 
 const landingGeometryScript = `(() => {
@@ -226,51 +216,40 @@ const landingGeometryScript = `(() => {
     const value = node.getBoundingClientRect();
     return { left: value.left, right: value.right, top: value.top, width: value.width, height: value.height };
   };
-	const frame = document.querySelector('[data-margo-layout="landing"].margo-frame--main');
-  const main = document.querySelector('[data-margo-area="main-content"]');
-  const brand = document.querySelector('[data-margo-global-navigation] .margo-site-brand');
-  const brandLabel = brand && brand.lastElementChild;
-  const search = document.querySelector('[data-search-field] button');
-  const repository = document.querySelector('[data-margo-global-navigation] [data-margo-repository-link="true"]');
-  const searchContainer = document.querySelector('[data-margo-global-navigation] .margo-site-search');
-  const image = document.querySelector('[data-margo-layout="landing"] img[alt^="Margo mascot"]');
-  const cta = document.querySelector('[data-margo-layout="landing"] .margo-document a');
-  const frameRect = rect(frame);
-  const mainRect = rect(main);
-  const imageRect = rect(image);
-  const ctaRect = rect(cta);
-  const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0, 900);
-  const style = frame ? getComputedStyle(frame) : {};
-  const imageStyle = image ? getComputedStyle(image) : {};
-  return {
-    display: style.display || '',
-    gridColumns: style.gridTemplateColumns || '',
-    gridAreas: style.gridTemplateAreas || '',
-    frameLeft: frameRect.left,
-    frameRight: frameRect.right,
-    mainLeft: mainRect.left,
-    mainRight: mainRect.right,
-    brandWidth: rect(brand).width,
-    brandHeight: rect(brand).height,
-    brandLabelRight: rect(brandLabel).right,
-    searchContainerWidth: rect(searchContainer).width,
-    searchLeft: rect(search).left,
-    searchRight: rect(search).right,
-    searchWidth: rect(search).width,
-    repositoryLeft: rect(repository).left,
-    repositoryIcon: !!repository && repository.getAttribute('aria-label') === 'Repository' && !!repository.querySelector('svg[aria-hidden="true"]'),
-    imageWidth: imageRect.width,
-    imageHeight: imageRect.height,
-    imageAspectRatio: imageRect.height ? imageRect.width / imageRect.height : 0,
-    imageCSSAspectRatio: imageStyle.aspectRatio || '',
-    imageObjectFit: imageStyle.objectFit || '',
-    ctaExists: !!cta,
-    ctaInViewport: !!cta && ctaRect.height > 0 && ctaRect.top < viewportHeight && ctaRect.top + ctaRect.height > 0,
-    ctaTop: ctaRect.top,
-    ctaHeight: ctaRect.height,
-		showcaseWrapper: !!document.querySelector('[data-margo-landing-article="true"] > article.margo-document'),
-  };
-})()`
+	  const hero = document.querySelector('.margo-landing-hero');
+	  const copy = document.querySelector('.margo-landing-hero__copy');
+	  const visual = document.querySelector('.margo-landing-hero__visual');
+	  const actions = [...document.querySelectorAll('.margo-landing-hero__copy > ul a')];
+	  const image = visual?.querySelector('img');
+	  const section = document.querySelector('.margo-landing-section');
+	  const sectionText = section?.querySelector(':scope > p:not(.margo-landing-media)');
+	  const sectionMedia = section?.querySelector(':scope > .margo-landing-media');
+	  const heroStyle = hero ? getComputedStyle(hero) : {};
+	  const heroColumns = (heroStyle.gridTemplateColumns || '').split(' ').filter(Boolean).length;
+	  const heroRect = rect(hero);
+	  const copyRect = rect(copy);
+	  const visualRect = rect(visual);
+	  const imageRect = rect(image);
+	  const imageStyle = image ? getComputedStyle(image) : {};
+	  return {
+	    heroColumns,
+	    heroWidth: heroRect.width,
+	    copyTop: copyRect.top,
+	    visualTop: visualRect.top,
+	    copyLeft: copyRect.left,
+	    visualLeft: visualRect.left,
+	    actionHeights: actions.map(action => rect(action).height),
+	    actionBottoms: actions.map(action => rect(action).top + rect(action).height),
+	    imageAspectRatio: imageRect.height ? imageRect.width / imageRect.height : 0,
+	    imageCSSAspectRatio: imageStyle.aspectRatio || '',
+	    imageObjectFit: imageStyle.objectFit || '',
+	    sectionWidth: rect(section).width,
+	    sectionTextWidth: rect(sectionText).width,
+	    sectionMediaWidth: rect(sectionMedia).width,
+	    articleCount: document.querySelectorAll('[data-margo-landing-article="true"] > article.margo-document').length,
+	    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
+	  };
+	})()`
 
 func TestLandingLayoutVisualGeometry(t *testing.T) {
 	browserPath := installedSiteTestChromium()
@@ -285,27 +264,43 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 	defer cancelBrowser()
 	ctx, cancel := context.WithTimeout(browserContext, 180*time.Second)
 	defer cancel()
-	for _, width := range []int64{390, 719, 720, 900, 1280, 1775} {
+	for _, width := range []int64{390, 719, 720, 900, 1493, 1775} {
+		height := int64(900)
+		if width < 720 {
+			height = 844
+		}
 		var state landingGeometryState
 		if err := chromedp.Run(ctx,
-			chromedp.EmulateViewport(width, 900),
+			chromedp.EmulateViewport(width, height),
 			chromedp.Navigate(server.URL+"/"),
 			chromedp.WaitVisible(`[data-margo-layout="landing"].margo-frame--main`, chromedp.ByQuery),
 			chromedp.Evaluate(landingGeometryScript, &state),
 		); err != nil {
 			t.Fatalf("landing geometry at %dpx failed: %v", width, err)
 		}
-		if state.Display != "block" {
-			t.Fatalf("landing at %dpx did not use one-column block composition: %+v", width, state)
+		wantColumns := 1
+		if width >= 900 {
+			wantColumns = 2
 		}
-		if state.MainLeft < state.FrameLeft-1 || state.MainRight > state.FrameRight+1 {
-			t.Fatalf("landing at %dpx main content escapes frame: %+v", width, state)
+		if state.HeroColumns != wantColumns || state.ArticleCount != 1 || state.Overflow {
+			t.Fatalf("landing at %dpx composition = %+v, want %d hero columns, one article, no overflow", width, state, wantColumns)
 		}
-		if state.ImageWidth > 386 || state.ImageAspectRatio < 1.28 || state.ImageAspectRatio > 1.38 || state.ImageCSSAspectRatio != "4 / 3" || state.ImageObjectFit != "cover" {
-			t.Fatalf("landing at %dpx hero geometry = %+v, want compact 4:3 cover", width, state)
+		if wantColumns == 1 && state.VisualTop <= state.CopyTop || wantColumns == 2 && state.VisualLeft <= state.CopyLeft {
+			t.Fatalf("landing at %dpx visual order/placement = %+v", width, state)
 		}
-		if !state.CTAExists || !state.CTAInViewport || state.CTAHeight <= 0 || !state.ShowcaseWrapper {
-			t.Fatalf("landing at %dpx first-viewport CTA/wrapper = %+v", width, state)
+		if len(state.ActionHeights) != 2 || len(state.ActionBottoms) != 2 {
+			t.Fatalf("landing at %dpx action count = %+v", width, state)
+		}
+		for index, actionHeight := range state.ActionHeights {
+			if actionHeight < 44 || state.ActionBottoms[index] > float64(height) {
+				t.Fatalf("landing at %dpx action %d misses first-viewport 44px target: %+v", width, index, state)
+			}
+		}
+		if state.ImageAspectRatio < 1.28 || state.ImageAspectRatio > 1.38 || state.ImageCSSAspectRatio != "4 / 3" || state.ImageObjectFit != "cover" {
+			t.Fatalf("landing at %dpx hero media geometry = %+v", width, state)
+		}
+		if width >= 900 && (state.HeroWidth < float64(width)*0.72 || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
+			t.Fatalf("landing at %dpx canvas/reading measure = %+v", width, state)
 		}
 	}
 }
@@ -414,7 +409,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 func layoutBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\n**Choose a starting path:** [Start with the CLI](cli/index.md) or [embed the Go module](module/index.md).\n\n![Margo mascot preparing a document](margo-mascot.png)\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n")
 	mascot, err := os.ReadFile(filepath.Join("..", "showcase", "content", "margo-mascot.png"))
 	if err != nil {
 		t.Fatal(err)

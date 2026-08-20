@@ -1064,7 +1064,7 @@ locales:
 	if strings.Contains(styles, ".margo-shell-topnav") {
 		t.Fatalf("site stylesheet still contains removed top navigation rules: %s", styles)
 	}
-	for _, forbidden := range []string{"\nbutton, a {", "\nbutton {", "\n:focus-visible {"} {
+	for _, forbidden := range []string{"\nbutton, a {", "\nbutton {", "\n:focus-visible {", "margo-landing", `data-margo-layout="landing"`, `[alt^=`} {
 		if strings.Contains(styles, forbidden) {
 			t.Fatalf("shell CSS leaks an unscoped control rule %q: %s", forbidden, styles)
 		}
@@ -1957,6 +1957,95 @@ Module details.
 	}
 }
 
+func TestBuildConfigLandingGroupsMarkdownIntoSemanticComposition(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+---
+# Landing
+
+Publish one Markdown source in the format your project needs.
+
+- [Publish with the CLI — standalone publishing workflow](cli/index.md)
+- [Embed the Go module — host-owned composition](module/index.md)
+
+![A document becoming several outputs](hero.png)
+
+## Proof
+
+One source, several projections.
+
+![Several generated outputs](proof.png)
+
+## Trust boundaries
+
+The host keeps authority.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "# CLI\n\nCLI guide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule guide.\n")
+	copyMargoAsset(t, filepath.Join(root, "docs", "hero.png"), "margo-mascot.png")
+	copyMargoAsset(t, filepath.Join(root, "docs", "proof.png"), "margo-mascot.png")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: landing\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	for _, required := range []string{
+		`<header class="margo-landing-hero">`,
+		`class="margo-landing-hero__copy"`,
+		`class="margo-landing-hero__visual"`,
+		`<section class="margo-landing-section" aria-labelledby="proof">`,
+		`<section class="margo-landing-section" aria-labelledby="trust-boundaries">`,
+		`class="margo-landing-media"`,
+		`href="/cli/"`,
+		`href="/module/"`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("landing composition missing %q: %s", required, page)
+		}
+	}
+	if strings.Count(page, `<article class="margo-document`) != 1 || strings.Count(page, "<h1") != 1 {
+		t.Fatalf("landing must preserve one article and one h1: %s", page)
+	}
+	for _, forbidden := range []string{"component-doc-shell", "margo-breadcrumbs", "margo-pagination", "margo-page-actions", `id="left-nav"`, `id="right-nav"`} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("landing leaked docs chrome %q", forbidden)
+		}
+	}
+}
+
+func TestBuildConfigLandingSupportsTextOnlyMarkdownWithoutSections(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Text only\n\nA useful landing needs no image or section.\n")
+	writeTypedLayoutBuildConfig(t, root, "layout:\n  kind: landing\n")
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	if strings.Count(page, `<article class="margo-document`) != 1 || !strings.Contains(page, `<header class="margo-landing-hero"><div class="margo-landing-hero__copy">`) || !strings.Contains(page, "A useful landing needs no image or section.") {
+		t.Fatalf("text-only landing fallback malformed: %s", page)
+	}
+	if strings.Contains(page, "margo-landing-hero__visual") || strings.Contains(page, "margo-landing-section") {
+		t.Fatalf("text-only landing emitted empty visual or section: %s", page)
+	}
+}
+
+func TestBuildConfigLandingFragmentRejectsMalformedRoot(t *testing.T) {
+	for _, fragment := range []string{
+		`<div class="margo-document"><h1>Wrong element</h1></div>`,
+		`<article class="margo-document"><h1>One</h1></article><article class="margo-document"><h1>Two</h1></article>`,
+	} {
+		if _, err := transformLandingArticle([]byte(fragment)); err == nil {
+			t.Fatalf("malformed landing fragment accepted: %s", fragment)
+		}
+	}
+}
+
 func TestBuildConfigStagesLayoutKindAssetsAndDependencies(t *testing.T) {
 	build := func(t *testing.T, assets string) Result {
 		t.Helper()
@@ -2043,7 +2132,7 @@ theme:
 		if styles := string(configArtifact(t, result, configuredTypedSiteStylePath)); strings.Contains(styles, "data-margo-layout") || strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "margo-page-actions") {
 			t.Fatalf("shared stylesheet contains kind-owned selectors: %s", styles)
 		}
-		if styles := string(configArtifact(t, result, configuredLandingStylePath)); !strings.Contains(styles, `data-margo-layout="landing"`) || strings.Contains(styles, `data-margo-layout="docs"`) || strings.Contains(styles, "component-doc-shell") {
+		if styles := string(configArtifact(t, result, configuredLandingStylePath)); !strings.Contains(styles, `.margo-landing-hero`) || strings.Contains(styles, `[alt^=`) || strings.Contains(styles, `data-margo-layout="docs"`) || strings.Contains(styles, "component-doc-shell") {
 			t.Fatalf("landing stylesheet ownership is not isolated: %s", styles)
 		}
 		if styles := string(configArtifact(t, result, configuredDocsStylePath)); !strings.Contains(styles, `.margo-showcase-article`) || !strings.Contains(styles, `.margo-pagination`) || strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "margo-frame") {
