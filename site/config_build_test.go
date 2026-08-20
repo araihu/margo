@@ -2143,6 +2143,8 @@ theme:
 		}
 		if styles := string(configArtifact(t, result, configuredLandingStylePath)); !strings.Contains(styles, `.margo-landing-hero`) || strings.Contains(styles, `[alt^=`) || strings.Contains(styles, `@media (min-width: 56.25rem)`) || strings.Contains(styles, `data-margo-layout="docs"`) || strings.Contains(styles, "component-doc-shell") {
 			t.Fatalf("landing stylesheet ownership is not isolated: %s", styles)
+		} else if !strings.Contains(styles, `.margo-landing-section > .margo-landing-media > img, .margo-landing-section > .margo-landing-media > svg`) || strings.Contains(styles, `.margo-landing-section > .margo-landing-media img`) || strings.Contains(styles, `.margo-landing-section > .margo-landing-media svg`) {
+			t.Fatalf("landing media styles must not resize nested component SVGs: %s", styles)
 		}
 		if styles := string(configArtifact(t, result, configuredDocsStylePath)); !strings.Contains(styles, `.margo-showcase-article`) || !strings.Contains(styles, `.margo-pagination`) || strings.Contains(styles, "component-doc-shell") || strings.Contains(styles, "margo-frame") {
 			t.Fatalf("docs stylesheet ownership is not isolated: %s", styles)
