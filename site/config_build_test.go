@@ -503,10 +503,8 @@ theme:
 	styles := string(configArtifact(t, result, configuredDocsStylePath))
 	for _, required := range []string{
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`,
-		`grid-template-columns: minmax(12rem, 16rem) minmax(0, var(--margo-reading-measure)) minmax(12rem, 16rem);`,
-		`grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";`,
-		`@media (min-width: 880px) and (max-width: 1199px)`,
-		`grid-template-columns: minmax(9rem, 11rem) minmax(0, 1fr) minmax(9rem, 11rem);`,
+		`@media (min-width: 880px)`,
+		`grid-template-columns: clamp(9rem, 16vw, 16rem) minmax(0, var(--margo-reading-measure)) clamp(9rem, 16vw, 16rem);`,
 		`grid-template-areas: "top-nav top-nav top-nav" "left-nav main-content right-nav" "footer footer footer";`,
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--left-nav`,
 		`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer > .margo-area--main-content`,

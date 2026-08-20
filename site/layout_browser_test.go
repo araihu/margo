@@ -628,21 +628,37 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 }
 
 type docsGeometryState struct {
-	Display         string  `json:"display"`
-	GridColumns     string  `json:"gridColumns"`
-	GridAreas       string  `json:"gridAreas"`
-	LeftNavWidth    float64 `json:"leftNavWidth"`
-	MainWidth       float64 `json:"mainWidth"`
-	RightNavWidth   float64 `json:"rightNavWidth"`
-	HeadingWidth    float64 `json:"headingWidth"`
-	LeadWidth       float64 `json:"leadWidth"`
-	HeadingFontSize float64 `json:"headingFontSize"`
-	LeadFontSize    float64 `json:"leadFontSize"`
+	Display               string  `json:"display"`
+	GridColumns           string  `json:"gridColumns"`
+	GridAreas             string  `json:"gridAreas"`
+	LeftNavWidth          float64 `json:"leftNavWidth"`
+	MainWidth             float64 `json:"mainWidth"`
+	RightNavWidth         float64 `json:"rightNavWidth"`
+	TopNavWidth           float64 `json:"topNavWidth"`
+	TopNavLeft            float64 `json:"topNavLeft"`
+	TopNavRight           float64 `json:"topNavRight"`
+	NavbarWidth           float64 `json:"navbarWidth"`
+	NavbarLeft            float64 `json:"navbarLeft"`
+	NavbarRight           float64 `json:"navbarRight"`
+	FamilyLinksWidth      float64 `json:"familyLinksWidth"`
+	FamilyLinksLeft       float64 `json:"familyLinksLeft"`
+	FamilyLinksRight      float64 `json:"familyLinksRight"`
+	LeftNavLeft           float64 `json:"leftNavLeft"`
+	RightNavRight         float64 `json:"rightNavRight"`
+	TopNavBottom          float64 `json:"topNavBottom"`
+	ContentTop            float64 `json:"contentTop"`
+	HeadingWidth          float64 `json:"headingWidth"`
+	HeadingContainerWidth float64 `json:"headingContainerWidth"`
+	LeadWidth             float64 `json:"leadWidth"`
+	LeadBottom            float64 `json:"leadBottom"`
+	ActionsTop            float64 `json:"actionsTop"`
+	HeadingFontSize       float64 `json:"headingFontSize"`
+	LeadFontSize          float64 `json:"leadFontSize"`
 }
 
 const docsGeometryScript = `(() => {
   const frame = document.querySelector('[data-margo-layout="docs"].margo-frame--top-left-main-right-footer');
-  const rect = (node) => node ? node.getBoundingClientRect() : { width: 0 };
+  const rect = (node) => node ? node.getBoundingClientRect() : { width: 0, left: 0, right: 0, top: 0, bottom: 0 };
   const style = frame ? getComputedStyle(frame) : {};
   const heading = document.querySelector('[data-margo-area="main-content"] .margo-document h1');
   const lead = document.querySelector('[data-margo-area="main-content"] .margo-document__lead');
@@ -655,8 +671,24 @@ const docsGeometryScript = `(() => {
     leftNavWidth: rect(document.querySelector('[data-margo-area="left-nav"]')).width,
     mainWidth: rect(document.querySelector('[data-margo-area="main-content"]')).width,
     rightNavWidth: rect(document.querySelector('[data-margo-area="right-nav"]')).width,
+    topNavWidth: rect(document.querySelector('[data-margo-area="top-nav"]')).width,
+    topNavLeft: rect(document.querySelector('[data-margo-area="top-nav"]')).left,
+    topNavRight: rect(document.querySelector('[data-margo-area="top-nav"]')).right,
+    navbarWidth: rect(document.querySelector('.margo-site-navbar')).width,
+    navbarLeft: rect(document.querySelector('.margo-site-navbar')).left,
+    navbarRight: rect(document.querySelector('.margo-site-navbar')).right,
+    familyLinksWidth: rect(document.querySelector('.margo-site-family-links')).width,
+    familyLinksLeft: rect(document.querySelector('.margo-site-family-links')).left,
+    familyLinksRight: rect(document.querySelector('.margo-site-family-links')).right,
+    leftNavLeft: rect(document.querySelector('[data-margo-area="left-nav"]')).left,
+    rightNavRight: rect(document.querySelector('[data-margo-area="right-nav"]')).right,
+    topNavBottom: rect(document.querySelector('[data-margo-area="top-nav"]')).bottom,
+    contentTop: rect(document.querySelector('[data-margo-area="main-content"]')).top,
     headingWidth: rect(heading).width,
+    headingContainerWidth: rect(document.querySelector('.margo-page-heading')).width,
     leadWidth: rect(lead).width,
+    leadBottom: rect(lead).bottom,
+    actionsTop: rect(document.querySelector('.margo-page-actions')).top,
     headingFontSize: parseFloat(headingStyle.fontSize || '0'),
     leadFontSize: parseFloat(leadStyle.fontSize || '0'),
   };
@@ -675,11 +707,12 @@ func TestDocsLayoutGridTemplate(t *testing.T) {
 	defer cancelBrowser()
 	ctx, cancel := context.WithTimeout(browserContext, 90*time.Second)
 	defer cancel()
-	for _, width := range []int64{719, 720, 799, 800, 879, 880, 884, 900, 1100, 1200, 1280, 1775} {
+	states := make(map[int64]docsGeometryState)
+	for _, width := range []int64{719, 720, 799, 800, 879, 880, 884, 900, 1100, 1199, 1200, 1237, 1280, 1775} {
 		var state docsGeometryState
 		if err := chromedp.Run(ctx,
 			chromedp.EmulateViewport(width, 900),
-			chromedp.Navigate(server.URL+"/module/"),
+			chromedp.Navigate(server.URL+"/cli/"),
 			chromedp.WaitVisible(`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`, chromedp.ByQuery),
 			chromedp.Evaluate(docsGeometryScript, &state),
 		); err != nil {
@@ -688,6 +721,7 @@ func TestDocsLayoutGridTemplate(t *testing.T) {
 		if state.Display != "grid" {
 			t.Fatalf("docs at %dpx display = %q, want grid: %+v", width, state.Display, state)
 		}
+		states[width] = state
 		if width < 640 {
 			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 1 {
 				t.Fatalf("docs at %dpx did not collapse to one grid track: %+v", width, state)
@@ -715,10 +749,32 @@ func TestDocsLayoutGridTemplate(t *testing.T) {
 		if state.LeftNavWidth <= 0 || state.MainWidth < 320 || state.RightNavWidth <= 0 {
 			t.Fatalf("docs at %dpx grid tracks lack a usable reading column: %+v", width, state)
 		}
-		if state.HeadingWidth < 180 || state.LeadWidth < 220 || state.HeadingFontSize > 64 || state.LeadFontSize > 32 {
+		if absFloat(state.NavbarWidth-state.TopNavWidth) > 1 || absFloat(state.FamilyLinksWidth-state.TopNavWidth) > 1 {
+			t.Fatalf("docs at %dpx navbar does not share the frame axis: %+v", width, state)
+		}
+		if absFloat(state.NavbarLeft-state.TopNavLeft) > 1 || absFloat(state.NavbarRight-state.TopNavRight) > 1 || absFloat(state.FamilyLinksLeft-state.TopNavLeft) > 1 || absFloat(state.FamilyLinksRight-state.TopNavRight) > 1 || absFloat(state.LeftNavLeft-state.TopNavLeft) > 1 || absFloat(state.RightNavRight-state.TopNavRight) > 1 {
+			t.Fatalf("docs at %dpx header and content rails do not share their outer edges: %+v", width, state)
+		}
+		if absFloat(state.ContentTop-state.TopNavBottom) > 1 {
+			t.Fatalf("docs at %dpx leaves a disjointed gap between navigation and content rails: %+v", width, state)
+		}
+		if state.LeadWidth < state.HeadingContainerWidth-1 || state.ActionsTop < state.LeadBottom-1 {
+			t.Fatalf("docs at %dpx page actions squeeze the title and lead: %+v", width, state)
+		}
+		if state.HeadingWidth <= 0 || state.LeadWidth < 220 || state.HeadingFontSize > 64 || state.LeadFontSize > 32 {
 			t.Fatalf("docs at %dpx typography or page-heading geometry is not readable: %+v", width, state)
 		}
 	}
+	if states[1200].MainWidth < states[1199].MainWidth-2 {
+		t.Fatalf("docs reading column collapses at 1200px: 1199=%+v 1200=%+v", states[1199], states[1200])
+	}
+}
+
+func absFloat(value float64) float64 {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 type searchSemanticsState struct {
@@ -850,7 +906,12 @@ Module documentation overview.
 The module family is navigable.
 `)
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nA second module page for scoped pagination.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), `# CLI
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), `---
+margo:
+  actions:
+    markdown: true
+---
+# CLI
 
 CLI documentation overview.
 
