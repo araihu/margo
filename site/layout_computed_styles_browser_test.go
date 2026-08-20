@@ -2,10 +2,6 @@ package site
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,150 +9,96 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
+// TestLayoutDocsFrameResponsiveComputedStyles protects the public
+// componentdocshell breakpoints. The docs renderer owns article content; the
+// Goshtoso shell owns the frame, responsive sidebar, and TOC rail.
 func TestLayoutDocsFrameResponsiveComputedStyles(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
 		t.Skip("installed Chromium-family browser unavailable")
 	}
-
-	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nTour documentation.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
-	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
-	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
-	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
-source: docs
-assets: local
-base_path: /docs
-site:
-  name: Margo
-  description: Margo documentation
-  base_url: https://margo.example
-  home: index.md
-  logo: assets/logo.svg
-  icon: assets/logo.svg
-  social_image:
-    path: assets/social.jpg
-    alt: Margo preview
-layout:
-  kind: docs
-  default:
-    families: [module]
-  values:
-    family: default
-navigation:
-  mode: file-tree
-locales:
-  default: en
-  supported: [en]
-theme:
-  builtin: true
-  name: modern
-  color_mode: light
-`)
-
-	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	artifacts := make(map[string][]byte, len(result.Artifacts))
-	for _, artifact := range result.Artifacts {
-		artifacts["/"+strings.TrimPrefix(artifact.Path, "/")] = artifact.Content
-	}
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		artifactPath := request.URL.Path
-		if strings.HasPrefix(artifactPath, "/docs") {
-			artifactPath = strings.TrimPrefix(artifactPath, "/docs")
-		}
-		if artifactPath == "" || artifactPath == "/" {
-			artifactPath = "/index.html"
-		} else if strings.HasSuffix(artifactPath, "/") {
-			artifactPath += "index.html"
-		}
-		content, ok := artifacts[artifactPath]
-		if !ok {
-			http.NotFound(writer, request)
-			return
-		}
-		writer.Header().Set("Content-Type", siteBrowserContentType(artifactPath))
-		_, _ = writer.Write(content)
-	}))
+	server := layoutBrowserServer(t)
 	defer server.Close()
-
 	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()
-	ctx, cancel := context.WithTimeout(browserContext, 45*time.Second)
+	ctx, cancel := context.WithTimeout(browserContext, 60*time.Second)
 	defer cancel()
 
-	type frameState struct {
-		Display             string            `json:"display"`
-		ColumnCount         int               `json:"columnCount"`
-		GridAreas           string            `json:"gridAreas"`
-		OverflowX           string            `json:"overflowX"`
-		ClientWidth         float64           `json:"clientWidth"`
-		ScrollWidth         float64           `json:"scrollWidth"`
-		HasThreeColumnAreas bool              `json:"hasThreeColumnAreas"`
-		HasStackedAreaRows  bool              `json:"hasStackedAreaRows"`
-		AreaGridNames       map[string]string `json:"areaGridNames"`
+	type state struct {
+		HeaderHeight  float64 `json:"headerHeight"`
+		HeaderRows    string  `json:"headerRows"`
+		SidebarWidth  float64 `json:"sidebarWidth"`
+		SidebarFixed  bool    `json:"sidebarFixed"`
+		MenuVisible   bool    `json:"menuVisible"`
+		TOCVisible    bool    `json:"tocVisible"`
+		TOCWidth      float64 `json:"tocWidth"`
+		TOCEnabled    string  `json:"tocEnabled"`
+		TOCHidden     bool    `json:"tocHidden"`
+		ViewportWidth float64 `json:"viewportWidth"`
+		TOCMedia      bool    `json:"tocMedia"`
+		FamilyCenter  bool    `json:"familyCenter"`
+		Overflow      bool    `json:"overflow"`
 	}
-	for _, viewport := range []struct {
-		width       int64
-		name        string
-		columns     int
-		threeColumn bool
-		twoColumn   bool
-		stacked     bool
-		overflow    string
+	const script = `(() => {
+		const visible = (node) => !!node && getComputedStyle(node).display !== "none" && node.getClientRects().length > 0;
+		const rect = (node) => node?.getBoundingClientRect() || { width: 0, left: 0, right: 0 };
+		const header = document.querySelector('.component-doc-shell__header-inner');
+		const sidebar = document.querySelector('#componentdocshell-sidebar');
+		const toc = document.querySelector('[data-componentdocshell-toc]');
+		const links = document.querySelector('.component-doc-shell__family-links');
+		const headerRect = rect(header), linksRect = rect(links);
+		return {
+			headerHeight: headerRect.height,
+			headerRows: header ? getComputedStyle(header).gridTemplateRows : '',
+			sidebarWidth: rect(sidebar).width,
+			sidebarFixed: sidebar ? getComputedStyle(sidebar).position === 'fixed' : false,
+			menuVisible: visible(document.querySelector('.component-doc-shell__menu-button')),
+			tocVisible: visible(toc),
+			tocWidth: rect(toc).width,
+			tocEnabled: toc?.dataset.enabled || '',
+			tocHidden: toc?.hasAttribute('hidden') || false,
+			viewportWidth: innerWidth,
+			tocMedia: matchMedia('(min-width: 1280px)').matches,
+			familyCenter: visible(links) && Math.abs((linksRect.left + linksRect.right) / 2 - innerWidth / 2) < 2,
+			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
+		};
+	})()`
+
+	for _, check := range []struct {
+		width            int64
+		name             string
+		headerHeight     float64
+		wantMenu         bool
+		wantTOC          bool
+		wantFamilyCenter bool
 	}{
-		{width: 1440, name: "wide", columns: 3, threeColumn: true},
-		{width: 720, name: "two-column-tablet", columns: 2, twoColumn: true, overflow: "clip"},
-		{width: 900, name: "mid", columns: 3, threeColumn: true},
-		{width: 390, name: "narrow", columns: 1, overflow: "clip"},
+		{390, "mobile", 64, true, false, false},
+		{720, "tablet", 108, false, false, false},
+		{1279, "toc-hidden-boundary", 108, false, false, false},
+		{1280, "toc-visible-boundary", 108, false, true, false},
+		{1439, "two-row-header-boundary", 108, false, true, false},
+		{1440, "single-row-header-boundary", 64, false, true, true},
+		{1498, "wide", 64, false, true, true},
 	} {
-		var state frameState
+		var got state
 		if err := chromedp.Run(ctx,
-			chromedp.EmulateViewport(viewport.width, 844),
-			chromedp.Navigate(server.URL+"/docs/module/"),
-			chromedp.WaitVisible(`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`, chromedp.ByQuery),
-			chromedp.Evaluate(`(() => {
-				const frame = document.querySelector('[data-margo-layout="docs"].margo-frame--top-left-main-right-footer');
-				const style = getComputedStyle(frame);
-				const areaGridNames = Object.fromEntries([...document.querySelectorAll('[data-margo-area]')].map((area) => [area.dataset.margoArea, getComputedStyle(area).gridArea]));
-				return {
-					display: style.display,
-					columnCount: style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length,
-					gridAreas: style.gridTemplateAreas,
-					overflowX: style.overflowX,
-					clientWidth: frame.clientWidth,
-					scrollWidth: frame.scrollWidth,
-					hasThreeColumnAreas: style.gridTemplateAreas.includes('left-nav main-content right-nav'),
-					hasStackedAreaRows: style.gridTemplateAreas.includes('"left-nav"') && style.gridTemplateAreas.includes('"main-content"') && style.gridTemplateAreas.includes('"right-nav"'),
-					areaGridNames,
-				};
-			})()`, &state),
+			chromedp.EmulateViewport(check.width, 844),
+			chromedp.Navigate(server.URL+"/cli/"),
+			chromedp.WaitVisible(`[data-margo-layout="docs"].component-doc-shell`, chromedp.ByQuery),
+			chromedp.Evaluate(script, &got),
 		); err != nil {
-			t.Fatalf("%s viewport browser check failed: %v", viewport.name, err)
+			t.Fatalf("%s viewport browser check failed: %v", check.name, err)
 		}
-		if state.Display != "grid" || state.ColumnCount != viewport.columns {
-			t.Fatalf("%s viewport frame geometry = %+v, want display grid with %d columns", viewport.name, state, viewport.columns)
+		if got.HeaderHeight < check.headerHeight-1 || got.HeaderHeight > check.headerHeight+1 || got.MenuVisible != check.wantMenu || got.TOCVisible != check.wantTOC || (check.wantFamilyCenter && !got.FamilyCenter) || got.Overflow {
+			t.Fatalf("%s componentdocshell geometry = %+v", check.name, got)
 		}
-		hasTwoColumnAreas := state.ColumnCount == 2 && strings.Contains(state.GridAreas, `"left-nav main-content"`) && !strings.Contains(state.GridAreas, "right-nav")
-		if viewport.threeColumn != state.HasThreeColumnAreas || viewport.twoColumn != hasTwoColumnAreas || viewport.stacked != state.HasStackedAreaRows {
-			t.Fatalf("%s viewport grid areas = %+v", viewport.name, state)
+		if check.width >= 720 && (got.SidebarWidth < 287 || got.SidebarWidth > 289 || got.SidebarFixed) {
+			t.Fatalf("%s sidebar is not the persistent 18rem shell rail: %+v", check.name, got)
 		}
-		for area, want := range map[string]string{"left-nav": "left-nav", "main-content": "main-content", "right-nav": "right-nav"} {
-			if got := state.AreaGridNames[area]; got != want {
-				t.Fatalf("%s viewport %s grid area = %q, want %q: %+v", viewport.name, area, got, want, state)
-			}
-		}
-		if state.ScrollWidth > state.ClientWidth+1 {
-			t.Fatalf("%s viewport overflows frame: %+v", viewport.name, state)
-		}
-		if viewport.overflow != "" && state.OverflowX != viewport.overflow {
-			t.Fatalf("%s viewport overflow-x = %q, want %q: %+v", viewport.name, state.OverflowX, viewport.overflow, state)
+		if check.wantTOC && (got.TOCWidth < 239 || got.TOCWidth > 241) {
+			t.Fatalf("%s TOC is not the 15rem shell rail: %+v", check.name, got)
 		}
 	}
 }

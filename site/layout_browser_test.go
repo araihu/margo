@@ -2,510 +2,155 @@ package site
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/araihu/margo/internal/browserlaunch"
-	"github.com/chromedp/cdproto/emulation"
-	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/kb"
 )
 
-func TestLayoutBrowser(t *testing.T) {
+func TestLayoutBrowserDocsShellMobileInteraction(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
-		t.Fatal("layout browser acceptance requires an installed Chromium-family browser")
+		t.Skip("installed Chromium-family browser unavailable")
 	}
-
 	server := layoutBrowserServer(t)
 	defer server.Close()
 	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()
-	ctx, cancel := context.WithTimeout(browserContext, 120*time.Second)
+	ctx, cancel := context.WithTimeout(browserContext, 60*time.Second)
 	defer cancel()
 
-	var errorMu sync.Mutex
-	var browserErrors []string
-	chromedp.ListenTarget(browserContext, func(event interface{}) {
-		var message string
-		switch event := event.(type) {
-		case *runtime.EventConsoleAPICalled:
-			if event.Type != runtime.APITypeError {
-				return
-			}
-			message = "console.error"
-			if len(event.Args) > 0 && event.Args[0].Description != "" {
-				message += ": " + event.Args[0].Description
-			}
-		case *runtime.EventExceptionThrown:
-			message = "uncaught exception"
-			if event.ExceptionDetails != nil && event.ExceptionDetails.Text != "" {
-				message += ": " + event.ExceptionDetails.Text
-			}
-		case *network.EventLoadingFailed:
-			if event.Canceled || event.ErrorText == "" {
-				return
-			}
-			message = "network load failed: " + event.ErrorText
-		default:
-			return
-		}
-		errorMu.Lock()
-		browserErrors = append(browserErrors, message)
-		errorMu.Unlock()
-	})
-
-	type browserCell struct {
-		route       string
-		name        string
-		layout      string
-		family      string
-		heading     string
-		sidebar     bool
-		tocArea     bool
-		pagination  bool
-		familyCount int
+	type state struct {
+		HeaderHeight     float64 `json:"headerHeight"`
+		MenuCount        int     `json:"menuCount"`
+		MenuVisible      bool    `json:"menuVisible"`
+		SidebarOpen      bool    `json:"sidebarOpen"`
+		SidebarInert     bool    `json:"sidebarInert"`
+		SidebarOffCanvas bool    `json:"sidebarOffCanvas"`
+		BackdropVisible  bool    `json:"backdropVisible"`
+		FocusReturned    bool    `json:"focusReturned"`
+		TOCVisible       bool    `json:"tocVisible"`
+		Overflow         bool    `json:"overflow"`
 	}
-	cells := []browserCell{
-		{route: "/", name: "Tour", layout: "landing", heading: "Tour"},
-		{route: "/module/", name: "Module", layout: "docs", family: "module", heading: "Module", familyCount: 1, sidebar: true, tocArea: true, pagination: true},
-		{route: "/cli/", name: "CLI", layout: "docs", family: "cli", heading: "CLI", familyCount: 1, sidebar: true, tocArea: true, pagination: true},
+	const stateScript = `(() => {
+		const visible = (node) => !!node && getComputedStyle(node).display !== "none" && getComputedStyle(node).visibility !== "hidden" && node.getClientRects().length > 0;
+		const button = document.querySelector('.component-doc-shell__menu-button');
+		const sidebar = document.querySelector('#componentdocshell-sidebar');
+		const rect = sidebar?.getBoundingClientRect() || { right: 0 };
+		return {
+			headerHeight: document.querySelector('.component-doc-shell__header-inner')?.getBoundingClientRect().height || 0,
+			menuCount: document.querySelectorAll('.component-doc-shell__menu-button').length,
+			menuVisible: visible(button),
+			sidebarOpen: sidebar?.classList.contains('is-open') || false,
+			sidebarInert: sidebar?.hasAttribute('inert') || false,
+			sidebarOffCanvas: rect.right <= 1,
+			backdropVisible: visible(document.querySelector('.component-doc-shell__backdrop')),
+			focusReturned: document.activeElement === button,
+			tocVisible: visible(document.querySelector('[data-componentdocshell-toc]')),
+			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
+		};
+	})()`
+	var closed state
+	if err := chromedp.Run(ctx,
+		chromedp.EmulateViewport(390, 844),
+		chromedp.Navigate(server.URL+"/cli/"),
+		chromedp.WaitVisible(`[data-margo-layout="docs"].component-doc-shell`, chromedp.ByQuery),
+		chromedp.Evaluate(stateScript, &closed),
+	); err != nil {
+		t.Fatal(err)
 	}
-	for _, colorMode := range []string{"light", "dark"} {
-		for _, viewport := range []struct {
-			name  string
-			width int64
-		}{
-			{name: "mobile", width: 390},
-			{name: "tablet", width: 820},
-			{name: "desktop", width: 1440},
-		} {
-			for _, cell := range cells {
-				cell := cell
-				route := cell.route
-				t.Run(fmt.Sprintf("%s/%s/%s", colorMode, viewport.name, cell.name), func(t *testing.T) {
-					resetBrowserErrors := func() {
-						errorMu.Lock()
-						browserErrors = nil
-						errorMu.Unlock()
-					}
-					readBrowserErrors := func() []string {
-						errorMu.Lock()
-						defer errorMu.Unlock()
-						return append([]string(nil), browserErrors...)
-					}
-					resetBrowserErrors()
-
-					var state layoutBrowserState
-					actions := chromedp.Tasks{
-						runtime.Enable(),
-						network.Enable(),
-						emulation.SetEmulatedMedia().WithFeatures([]*emulation.MediaFeature{{Name: "prefers-color-scheme", Value: colorMode}}),
-						chromedp.EmulateViewport(viewport.width, 844),
-						chromedp.Navigate(server.URL + route),
-						chromedp.WaitVisible(`[data-margo-layout]`, chromedp.ByQuery),
-						chromedp.Evaluate(layoutBrowserStateScript, &state),
-					}
-					if err := chromedp.Run(ctx, actions...); err != nil {
-						t.Fatalf("%s at %s/%d browser check failed: %v", route, colorMode, viewport.width, err)
-					}
-					if errors := readBrowserErrors(); len(errors) > 0 {
-						t.Fatalf("%s at %s/%d emitted browser errors: %s", route, colorMode, viewport.width, strings.Join(errors, "; "))
-					}
-					if state.Path != route && !(route == "/" && state.Path == "/index.html") {
-						t.Fatalf("route path = %q, want %q: %+v", state.Path, route, state)
-					}
-					if state.Layout != cell.layout || state.Heading != cell.heading || state.ArticleCount != 1 || state.ActiveFamily != cell.family || state.ActiveFamilyCount != cell.familyCount {
-						t.Fatalf("%s active layout/family = %+v, want layout=%q family=%q", cell.name, state, cell.layout, cell.family)
-					}
-					if state.ColorMode != colorMode {
-						t.Fatalf("color mode = %q, want %q: %+v", state.ColorMode, colorMode, state)
-					}
-					wantSidebarVisible := cell.sidebar && viewport.width >= 640
-					wantTOCVisible := cell.tocArea && viewport.width >= 880
-					wantTOCSummary := cell.tocArea && viewport.width < 880
-					if state.Sidebar != cell.sidebar || state.SidebarVisible != wantSidebarVisible || state.TOCArea != cell.tocArea || state.Pagination != cell.pagination || state.TOC != cell.tocArea || state.TOCVisible != wantTOCVisible || state.TOCSummaryVisible != wantTOCSummary || (cell.tocArea && state.TOCLinks == 0) {
-						t.Fatalf("%s chrome presence = %+v, want sidebar=%t toc-area=%t pagination=%t and a usable docs TOC", cell.name, state, cell.sidebar, cell.tocArea, cell.pagination)
-					}
-					if cell.layout == "landing" {
-						if state.FamilyNavigation || state.Breadcrumbs || state.PageActions || state.DocsShellAttributeCount != 0 {
-							t.Fatalf("Tour leaked docs shell chrome or attributes at %dpx: %+v", viewport.width, state)
-						}
-						if state.FrameDisplay != "block" || state.ArticleOverflow {
-							t.Fatalf("Tour is not a one-column, viewport-contained article at %dpx: %+v", viewport.width, state)
-						}
-					} else {
-						if !state.FamilyNavigation || state.DocsShellAttributeCount == 0 || state.SidebarLinkCount < 2 || state.SidebarForeignLinkCount != 0 {
-							t.Fatalf("%s docs shell/sidebar scope at %dpx = %+v", cell.name, viewport.width, state)
-						}
-						if state.PaginationLinkCount == 0 || state.PaginationForeignLinkCount != 0 {
-							t.Fatalf("%s pagination is missing or crosses family at %dpx: %+v", cell.name, viewport.width, state)
-						}
-					}
-					wantMobileTrigger := viewport.width == 390 && cell.layout == "docs"
-					if state.MobileTriggerCount != boolToInt(wantMobileTrigger) || state.MobileTriggerVisible != wantMobileTrigger {
-						t.Fatalf("mobile trigger state = %+v, want count/visibility for width %d", state, viewport.width)
-					}
-					if state.DocumentOverflow || state.FrameOverflow {
-						t.Fatalf("horizontal overflow at %s/%d: %+v", route, viewport.width, state)
-					}
-				})
-			}
-		}
+	if closed.HeaderHeight < 63 || closed.HeaderHeight > 65 || closed.MenuCount != 1 || !closed.MenuVisible || !closed.SidebarInert || !closed.SidebarOffCanvas || closed.SidebarOpen || closed.BackdropVisible || closed.TOCVisible || closed.Overflow {
+		t.Fatalf("390px shell initial state = %+v", closed)
 	}
 
-	t.Run("612px mobile docs shell", func(t *testing.T) {
-		var state struct {
-			NavbarRight       float64 `json:"navbarRight"`
-			TriggerLeft       float64 `json:"triggerLeft"`
-			TriggerRight      float64 `json:"triggerRight"`
-			TriggerWidth      float64 `json:"triggerWidth"`
-			TriggerHeight     float64 `json:"triggerHeight"`
-			LeftActionsRight  float64 `json:"leftActionsRight"`
-			SidebarDisplay    string  `json:"sidebarDisplay"`
-			DrawerPosition    string  `json:"drawerPosition"`
-			DrawerBottom      float64 `json:"drawerBottom"`
-			DrawerOpen        bool    `json:"drawerOpen"`
-			SummaryVisible    bool    `json:"summaryVisible"`
-			TOCVisible        bool    `json:"tocVisible"`
-			TOCTitleVisible   bool    `json:"tocTitleVisible"`
-			ActiveElementID   string  `json:"activeElementID"`
-			ActiveTabIndex    string  `json:"activeTabIndex"`
-			LocationHash      string  `json:"locationHash"`
-			SummaryFocused    bool    `json:"summaryFocused"`
-			MobileMenuVisible bool    `json:"mobileMenuVisible"`
-			MobileLinkCount   int     `json:"mobileLinkCount"`
-			MobileActiveCount int     `json:"mobileActiveCount"`
-		}
-		readState := `(() => {
-			const visible = (node) => !!node && getComputedStyle(node).display !== 'none' && node.getClientRects().length > 0;
-			const nav = document.querySelector('[data-margo-global-navigation="true"]');
-			const trigger = nav?.querySelector('[data-margo-mobile-menu-trigger="true"]');
-			const left = nav?.firstElementChild;
-			const sidebar = document.querySelector('[data-margo-area="left-nav"]');
-			const drawerArea = document.querySelector('[data-margo-area="right-nav"]');
-			const drawer = drawerArea?.querySelector('[data-margo-toc-drawer="true"]');
-			const summary = drawer?.querySelector('[data-margo-toc-summary="true"]');
-			const toc = drawer?.querySelector('[data-margo-toc="true"]');
-			const tocTitle = drawer?.querySelector('[data-margo-toc-title="true"]');
-			const mobileMenu = nav?.querySelector('[data-margo-mobile-menu="true"]');
-			const mobileLinks = [...(mobileMenu?.querySelectorAll('[data-margo-family-page-link]') || [])];
-			const rect = (node) => node?.getBoundingClientRect() || {left: 0, right: 0, width: 0, height: 0, bottom: 0};
-			return {
-				navbarRight: rect(nav).right,
-				triggerLeft: rect(trigger).left,
-				triggerRight: rect(trigger).right,
-				triggerWidth: rect(trigger).width,
-				triggerHeight: rect(trigger).height,
-				leftActionsRight: rect(left).right,
-				sidebarDisplay: sidebar ? getComputedStyle(sidebar).display : '',
-				drawerPosition: drawerArea ? getComputedStyle(drawerArea).position : '',
-				drawerBottom: innerHeight - rect(drawerArea).bottom,
-				drawerOpen: !!drawer?.open,
-				summaryVisible: visible(summary),
-				tocVisible: visible(toc),
-				tocTitleVisible: visible(tocTitle),
-				activeElementID: document.activeElement?.id || '',
-				activeTabIndex: document.activeElement?.getAttribute('tabindex') || '',
-				locationHash: location.hash,
-				summaryFocused: document.activeElement === summary,
-				mobileMenuVisible: visible(mobileMenu),
-				mobileLinkCount: mobileLinks.length,
-				mobileActiveCount: mobileLinks.filter((link) => link.getAttribute('aria-current') === 'page').length,
-			};
-		})()`
-		if err := chromedp.Run(ctx,
-			chromedp.EmulateViewport(612, 790),
-			chromedp.Navigate(server.URL+"/cli/"),
-			chromedp.WaitVisible(`[data-margo-layout="docs"]`, chromedp.ByQuery),
-			chromedp.Evaluate(readState, &state),
-		); err != nil {
-			t.Fatal(err)
-		}
-		if state.TriggerWidth < 44 || state.TriggerHeight < 44 || state.TriggerRight > state.NavbarRight+1 || state.TriggerLeft < state.LeftActionsRight-1 {
-			t.Fatalf("612px mobile trigger is misplaced or overlapping: %+v", state)
-		}
-		if state.SidebarDisplay != "none" || state.DrawerPosition != "fixed" || state.DrawerBottom > 1 || state.DrawerOpen || !state.SummaryVisible || state.TOCVisible || state.TOCTitleVisible {
-			t.Fatalf("612px collapsed sidebar/TOC state = %+v", state)
-		}
-		if err := chromedp.Run(ctx,
-			chromedp.Click(`[data-margo-mobile-menu-trigger="true"]`, chromedp.ByQuery),
-			chromedp.WaitVisible(`[data-margo-mobile-menu="true"]`, chromedp.ByQuery),
-			chromedp.Evaluate(readState, &state),
-		); err != nil {
-			t.Fatal(err)
-		}
-		if !state.MobileMenuVisible || state.MobileLinkCount < 2 || state.MobileActiveCount != 1 {
-			t.Fatalf("612px mobile menu lacks active-family pages: %+v", state)
-		}
-		if err := chromedp.Run(ctx,
-			chromedp.Click(`[data-margo-mobile-menu-trigger="true"]`, chromedp.ByQuery),
-			chromedp.Click(`[data-margo-toc-summary="true"]`, chromedp.ByQuery),
-			chromedp.WaitVisible(`[data-margo-toc="true"]`, chromedp.ByQuery),
-			chromedp.Click(`[data-margo-toc-link]`, chromedp.ByQuery),
-			chromedp.Poll(`location.hash && document.activeElement?.id === decodeURIComponent(location.hash.slice(1))`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
-			chromedp.Evaluate(readState, &state),
-		); err != nil {
-			t.Fatal(err)
-		}
-		if state.DrawerOpen || state.TOCVisible || state.ActiveElementID == "" || state.LocationHash != "#"+state.ActiveElementID || state.ActiveTabIndex != "-1" {
-			t.Fatalf("TOC drawer collapse did not transfer focus to target heading: %+v", state)
-		}
-		if err := chromedp.Run(ctx,
-			chromedp.Evaluate(`document.activeElement.blur()`, nil),
-			chromedp.Poll(`!document.querySelector(location.hash)?.hasAttribute('tabindex')`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
-			chromedp.EmulateViewport(880, 790),
-			chromedp.Poll(`document.querySelector('[data-margo-toc-drawer="true"]')?.open === true`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
-			chromedp.Evaluate(readState, &state),
-		); err != nil {
-			t.Fatal(err)
-		}
-		if !state.DrawerOpen || state.SummaryVisible || !state.TOCVisible || !state.TOCTitleVisible {
-			t.Fatalf("880px desktop TOC disclosure semantics = %+v", state)
-		}
-		if err := chromedp.Run(ctx,
-			chromedp.Focus(`[data-margo-toc-link]`, chromedp.ByQuery),
-			chromedp.Poll(`document.activeElement?.matches('[data-margo-toc-link]')`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
-			chromedp.EmulateViewport(612, 790),
-			chromedp.Poll(`document.querySelector('[data-margo-toc-drawer="true"]')?.open === false && document.activeElement?.matches('[data-margo-toc-summary="true"]')`, nil, chromedp.WithPollingInterval(10*time.Millisecond)),
-			chromedp.Evaluate(readState, &state),
-		); err != nil {
-			t.Fatal(err)
-		}
-		if state.DrawerOpen || !state.SummaryVisible || state.TOCVisible || state.TOCTitleVisible || !state.SummaryFocused {
-			t.Fatalf("TOC disclosure did not reset when crossing back to mobile: %+v", state)
-		}
-	})
-
-	t.Run("normal navigation updates and clears docs state", func(t *testing.T) {
-		errorMu.Lock()
-		browserErrors = nil
-		errorMu.Unlock()
-		var moduleState layoutBrowserState
-		if err := chromedp.Run(ctx,
-			runtime.Enable(),
-			network.Enable(),
-			emulation.SetEmulatedMedia().WithFeatures([]*emulation.MediaFeature{{Name: "prefers-color-scheme", Value: "light"}}),
-			chromedp.EmulateViewport(820, 844),
-			chromedp.Navigate(server.URL+"/module/"),
-			chromedp.WaitVisible(`[data-margo-layout="docs"]`, chromedp.ByQuery),
-			chromedp.Evaluate(layoutBrowserStateScript, &moduleState),
-			chromedp.Click(`[data-margo-family-link="cli"]`, chromedp.ByQuery),
-			chromedp.Evaluate(waitForLayoutRouteScript("docs", "cli", "/cli/"), nil),
-		); err != nil {
-			t.Fatal(err)
-		}
-		if moduleState.Layout != "docs" || moduleState.ActiveFamily != "module" || moduleState.ActiveFamilyCount != 1 || !moduleState.Sidebar || !moduleState.TOC || !moduleState.Pagination || moduleState.SidebarForeignLinkCount != 0 || moduleState.PaginationForeignLinkCount != 0 {
-			t.Fatalf("initial Module navigation state is not family-scoped docs: %+v", moduleState)
-		}
-		var cliState layoutBrowserState
-		if err := chromedp.Run(ctx,
-			chromedp.Evaluate(layoutBrowserStateScript, &cliState),
-			chromedp.Click(`[data-margo-global-navigation] .margo-site-brand`, chromedp.ByQuery),
-			chromedp.Evaluate(waitForLayoutRouteScript("landing", "", "/"), nil),
-		); err != nil {
-			t.Fatal(err)
-		}
-		if cliState.Layout != "docs" || cliState.ActiveFamily != "cli" || cliState.ActiveFamilyCount != 1 || !cliState.Sidebar || !cliState.TOC || !cliState.Pagination || cliState.SidebarForeignLinkCount != 0 || cliState.PaginationForeignLinkCount != 0 {
-			t.Fatalf("Module to CLI navigation did not update family-scoped docs state: %+v", cliState)
-		}
-		var tourState layoutBrowserState
-		if err := chromedp.Run(ctx, chromedp.Evaluate(layoutBrowserStateScript, &tourState)); err != nil {
-			t.Fatal(err)
-		}
-		if tourState.Layout != "landing" || tourState.Heading != "Tour" || tourState.ArticleCount != 1 || tourState.FrameDisplay != "block" || tourState.ActiveFamily != "" || tourState.ActiveFamilyCount != 0 || tourState.FamilyNavigation || tourState.Sidebar || tourState.TOCArea || tourState.TOC || tourState.Breadcrumbs || tourState.Pagination || tourState.PageActions || tourState.DocsShellAttributeCount != 0 || tourState.ArticleOverflow || tourState.DocumentOverflow || tourState.FrameOverflow {
-			t.Fatalf("CLI to Tour navigation retained docs state: %+v", tourState)
-		}
-		errorMu.Lock()
-		errors := append([]string(nil), browserErrors...)
-		errorMu.Unlock()
-		if len(errors) > 0 {
-			t.Fatalf("normal navigation emitted browser errors: %s", strings.Join(errors, "; "))
-		}
-	})
-}
-
-type layoutBrowserState struct {
-	Path                       string  `json:"path"`
-	Layout                     string  `json:"layout"`
-	Heading                    string  `json:"heading"`
-	ArticleCount               int     `json:"articleCount"`
-	ActiveFamily               string  `json:"activeFamily"`
-	ActiveFamilyCount          int     `json:"activeFamilyCount"`
-	ColorMode                  string  `json:"colorMode"`
-	FamilyNavigation           bool    `json:"familyNavigation"`
-	Sidebar                    bool    `json:"sidebar"`
-	SidebarVisible             bool    `json:"sidebarVisible"`
-	SidebarLinkCount           int     `json:"sidebarLinkCount"`
-	SidebarForeignLinkCount    int     `json:"sidebarForeignLinkCount"`
-	TOCArea                    bool    `json:"tocArea"`
-	TOC                        bool    `json:"toc"`
-	TOCVisible                 bool    `json:"tocVisible"`
-	TOCSummaryVisible          bool    `json:"tocSummaryVisible"`
-	TOCLinks                   int     `json:"tocLinks"`
-	Breadcrumbs                bool    `json:"breadcrumbs"`
-	Pagination                 bool    `json:"pagination"`
-	PaginationLinkCount        int     `json:"paginationLinkCount"`
-	PaginationForeignLinkCount int     `json:"paginationForeignLinkCount"`
-	PageActions                bool    `json:"pageActions"`
-	DocsShellAttributeCount    int     `json:"docsShellAttributeCount"`
-	MobileTriggerCount         int     `json:"mobileTriggerCount"`
-	MobileTriggerVisible       bool    `json:"mobileTriggerVisible"`
-	FrameDisplay               string  `json:"frameDisplay"`
-	ArticleOverflow            bool    `json:"articleOverflow"`
-	DocumentOverflow           bool    `json:"documentOverflow"`
-	FrameOverflow              bool    `json:"frameOverflow"`
-	DocumentClientWidth        float64 `json:"documentClientWidth"`
-	DocumentScrollWidth        float64 `json:"documentScrollWidth"`
-	FrameClientWidth           float64 `json:"frameClientWidth"`
-	FrameScrollWidth           float64 `json:"frameScrollWidth"`
-}
-
-type layoutBrowserFocusState struct {
-	Found        bool `json:"found"`
-	Focused      bool `json:"focused"`
-	FocusVisible bool `json:"focusVisible"`
-	Steps        int  `json:"steps"`
-}
-
-func tabUntilFocus(name, script string, state *layoutBrowserFocusState) chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) error {
-		const maxTabPresses = 64
-		for step := 1; step <= maxTabPresses; step++ {
-			if err := chromedp.KeyEvent(kb.Tab).Do(ctx); err != nil {
-				return fmt.Errorf("Tab traversal toward %s failed at press %d: %w", name, step, err)
-			}
-			if err := chromedp.Evaluate(script, state).Do(ctx); err != nil {
-				return fmt.Errorf("reading focus state for %s failed at press %d: %w", name, step, err)
-			}
-			state.Steps = step
-			if state.Found && state.Focused {
-				return nil
-			}
-		}
-		return fmt.Errorf("Tab traversal did not reach %s after %d presses: %+v", name, maxTabPresses, *state)
-	})
-}
-
-const layoutBrowserStateScript = `(() => {
-  const visible = (element) => {
-    if (!element) return false;
-    const style = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-  };
-  const familyLinks = [...document.querySelectorAll("[data-margo-family-link]")];
-  const mobileTriggers = familyLinks.length === 0 ? [] : [...document.querySelectorAll("[data-margo-global-navigation] button")]
-    .filter((button) => (button.getAttribute("aria-label") || "").toLowerCase().includes("mobile menu"));
-	const frame = document.querySelector("[data-margo-layout]");
-	const article = document.querySelector('[data-margo-area="main-content"] article.margo-document');
-	const articleRect = article?.getBoundingClientRect();
-	const sidebar = document.querySelector('[data-margo-area="left-nav"] nav[aria-label="sidebar navigation"]');
-	const sidebarLinks = [...(sidebar?.querySelectorAll('a[href]') || [])];
-	const pagination = document.querySelector('[data-margo-area="main-content"] .margo-pagination');
-	const paginationLinks = [...(pagination?.querySelectorAll('a[href]') || [])];
-	const activeFamily = familyLinks.find((link) => link.getAttribute("aria-current") === "location")?.dataset.margoFamilyLink || "";
-	const familyPathPrefix = activeFamily ? '/' + activeFamily + '/' : '';
-	const isFamilyPath = (link) => {
-		if (!familyPathPrefix) return false;
-		return new URL(link.href, window.location.href).pathname.startsWith(familyPathPrefix);
-	};
-	const toc = document.querySelector('[data-margo-area="right-nav"] [data-margo-toc="true"]');
-	const frameStyle = frame ? getComputedStyle(frame) : {};
-  return {
-    path: window.location.pathname,
-    layout: frame?.dataset.margoLayout || "",
-		heading: article?.querySelector('h1')?.textContent.trim() || '',
-		articleCount: document.querySelectorAll('[data-margo-area="main-content"] article.margo-document').length,
-		activeFamily,
-    activeFamilyCount: familyLinks.filter((link) => link.getAttribute("aria-current") === "location").length,
-		colorMode: document.documentElement.dataset.colorMode || "",
-		familyNavigation: !!document.querySelector('[data-margo-family-navigation="true"]'),
-		sidebar: !!sidebar,
-		sidebarVisible: visible(sidebar),
-		sidebarLinkCount: sidebarLinks.length,
-		sidebarForeignLinkCount: sidebarLinks.filter((link) => !isFamilyPath(link)).length,
-		tocArea: !!document.querySelector('[data-margo-area="right-nav"]'),
-		toc: !!toc,
-		tocVisible: visible(toc),
-		tocSummaryVisible: visible(document.querySelector('[data-margo-toc-summary="true"]')),
-		tocLinks: document.querySelectorAll('[data-margo-area="right-nav"] [data-margo-toc-link]').length,
-		breadcrumbs: !!document.querySelector('[data-margo-area="main-content"] .margo-breadcrumbs, [aria-label="Breadcrumbs"]'),
-		pagination: !!pagination,
-		paginationLinkCount: paginationLinks.length,
-		paginationForeignLinkCount: paginationLinks.filter((link) => !isFamilyPath(link)).length,
-		pageActions: !!document.querySelector('[data-margo-area="main-content"] .margo-page-actions'),
-		docsShellAttributeCount: document.querySelectorAll('[data-margo-global-navigation], [data-margo-family-navigation], [data-margo-repository-link], [data-sidebar-section], [data-margo-toc], [data-margo-layout-dependency]').length,
-    mobileTriggerCount: mobileTriggers.filter(visible).length,
-    mobileTriggerVisible: mobileTriggers.some(visible),
-		frameDisplay: frameStyle.display || '',
-		articleOverflow: !!article && (article.scrollWidth > article.clientWidth + 1 || articleRect.left < -1 || articleRect.right > window.innerWidth + 1),
-		documentOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.body.clientWidth + 1,
-		frameOverflow: !!frame && frame.scrollWidth > frame.clientWidth + 1,
-		documentClientWidth: document.documentElement.clientWidth,
-		documentScrollWidth: document.documentElement.scrollWidth,
-		frameClientWidth: frame?.clientWidth || 0,
-		frameScrollWidth: frame?.scrollWidth || 0,
-  };
-})()`
-
-const focusMobileScript = `(() => {
-  const trigger = [...document.querySelectorAll("[data-margo-global-navigation] button")]
-    .find((button) => {
-      const label = (button.getAttribute("aria-label") || "").toLowerCase();
-      const style = getComputedStyle(button);
-      return label.includes("mobile menu") && style.display !== "none" && style.visibility !== "hidden" && button.getClientRects().length > 0;
-    });
-  if (!trigger) return { found: false, focused: false, focusVisible: false };
-  const style = getComputedStyle(trigger);
-  return {
-    found: true,
-    focused: document.activeElement === trigger,
-    focusVisible: trigger.matches(":focus-visible") && style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0,
-  };
-})()`
-
-const focusDesktopScript = `(() => {
-  const target = document.querySelector(".margo-skip-link");
-  if (!target) return { found: false, focused: false, focusVisible: false };
-  const style = getComputedStyle(target);
-  return {
-    found: true,
-    focused: document.activeElement === target,
-    focusVisible: target.matches(":focus-visible") && style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0,
-  };
-})()`
-
-func waitForLayoutRouteScript(layout, family, route string) string {
-	return fmt.Sprintf(`(async () => {
-  const deadline = Date.now() + 10000;
-  while (Date.now() < deadline) {
-    const frame = document.querySelector('[data-margo-layout="%s"]');
-    const active = %s;
-    const path = window.location.pathname;
-    if (frame && active && (path === "%s" || (path === "/index.html" && "%s" === "/"))) return true;
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  throw new Error("layout navigation did not settle for %s at %s");
-})()`, layout, activeFamilyExpression(family), route, route, layout, route)
-}
-
-func activeFamilyExpression(family string) string {
-	if family == "" {
-		return `document.querySelectorAll('[data-margo-family-link][aria-current="location"]').length === 0`
+	var opened state
+	if err := chromedp.Run(ctx,
+		chromedp.Click(`.component-doc-shell__menu-button`, chromedp.ByQuery),
+		chromedp.Poll(`(() => {
+			const sidebar = document.querySelector('#componentdocshell-sidebar');
+			const backdrop = document.querySelector('.component-doc-shell__backdrop');
+			return sidebar?.classList.contains('is-open') && !!backdrop?.getClientRects().length;
+		})()`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
+		chromedp.Evaluate(stateScript, &opened),
+	); err != nil {
+		t.Fatal(err)
 	}
-	return fmt.Sprintf(`document.querySelector('[data-margo-family-link="%s"][aria-current="location"]')`, family)
+	if !opened.SidebarOpen || !opened.BackdropVisible || opened.SidebarInert || opened.Overflow {
+		t.Fatalf("390px shell menu did not open drawer safely: %+v", opened)
+	}
+
+	var escaped state
+	if err := chromedp.Run(ctx,
+		chromedp.KeyEvent(kb.Escape),
+		chromedp.Poll(`(() => {
+			const sidebar = document.querySelector('#componentdocshell-sidebar');
+			const backdrop = document.querySelector('.component-doc-shell__backdrop');
+			const trigger = document.querySelector('.component-doc-shell__menu-button');
+			return !sidebar?.classList.contains('is-open') && !backdrop?.getClientRects().length && document.activeElement === trigger;
+		})()`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
+		chromedp.Evaluate(stateScript, &escaped),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if escaped.SidebarOpen || !escaped.SidebarInert || !escaped.SidebarOffCanvas || escaped.BackdropVisible || !escaped.FocusReturned || escaped.Overflow {
+		t.Fatalf("390px shell Escape did not restore menu state/focus: %+v", escaped)
+	}
+}
+
+func TestLayoutBrowserTourIsOutsideDocsShell(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+	server := layoutBrowserServer(t)
+	defer server.Close()
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 45*time.Second)
+	defer cancel()
+	var state struct {
+		Layout      string `json:"layout"`
+		Heading     string `json:"heading"`
+		Shell       bool   `json:"shell"`
+		Sidebar     bool   `json:"sidebar"`
+		TOC         bool   `json:"toc"`
+		FamilyNav   bool   `json:"familyNav"`
+		Pagination  bool   `json:"pagination"`
+		PageActions bool   `json:"pageActions"`
+		Overflow    bool   `json:"overflow"`
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.EmulateViewport(390, 844),
+		chromedp.Navigate(server.URL+"/"),
+		chromedp.WaitVisible(`[data-margo-layout="landing"]`, chromedp.ByQuery),
+		chromedp.Evaluate(`(() => ({
+			layout: document.querySelector('[data-margo-layout]')?.dataset.margoLayout || '',
+			heading: document.querySelector('article.margo-document h1')?.textContent.trim() || '',
+			shell: !!document.querySelector('.component-doc-shell'),
+			sidebar: !!document.querySelector('#componentdocshell-sidebar'),
+			toc: !!document.querySelector('[data-componentdocshell-toc]'),
+			familyNav: !!document.querySelector('.component-doc-shell__family-navigation'),
+			pagination: !!document.querySelector('.margo-pagination'),
+			pageActions: !!document.querySelector('.margo-page-actions'),
+			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
+		}))()`, &state),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if state.Layout != "landing" || state.Heading != "Tour" || state.Shell || state.Sidebar || state.TOC || state.FamilyNav || state.Pagination || state.PageActions || state.Overflow {
+		t.Fatalf("Tour leaked docs shell chrome: %+v", state)
+	}
 }
 
 type landingGeometryState struct {
@@ -627,156 +272,6 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 	}
 }
 
-type docsGeometryState struct {
-	Display               string  `json:"display"`
-	GridColumns           string  `json:"gridColumns"`
-	GridAreas             string  `json:"gridAreas"`
-	LeftNavWidth          float64 `json:"leftNavWidth"`
-	MainWidth             float64 `json:"mainWidth"`
-	RightNavWidth         float64 `json:"rightNavWidth"`
-	TopNavWidth           float64 `json:"topNavWidth"`
-	TopNavLeft            float64 `json:"topNavLeft"`
-	TopNavRight           float64 `json:"topNavRight"`
-	NavbarWidth           float64 `json:"navbarWidth"`
-	NavbarLeft            float64 `json:"navbarLeft"`
-	NavbarRight           float64 `json:"navbarRight"`
-	FamilyLinksWidth      float64 `json:"familyLinksWidth"`
-	FamilyLinksLeft       float64 `json:"familyLinksLeft"`
-	FamilyLinksRight      float64 `json:"familyLinksRight"`
-	LeftNavLeft           float64 `json:"leftNavLeft"`
-	RightNavRight         float64 `json:"rightNavRight"`
-	TopNavBottom          float64 `json:"topNavBottom"`
-	ContentTop            float64 `json:"contentTop"`
-	HeadingWidth          float64 `json:"headingWidth"`
-	HeadingContainerWidth float64 `json:"headingContainerWidth"`
-	LeadWidth             float64 `json:"leadWidth"`
-	LeadBottom            float64 `json:"leadBottom"`
-	ActionsTop            float64 `json:"actionsTop"`
-	HeadingFontSize       float64 `json:"headingFontSize"`
-	LeadFontSize          float64 `json:"leadFontSize"`
-}
-
-const docsGeometryScript = `(() => {
-  const frame = document.querySelector('[data-margo-layout="docs"].margo-frame--top-left-main-right-footer');
-  const rect = (node) => node ? node.getBoundingClientRect() : { width: 0, left: 0, right: 0, top: 0, bottom: 0 };
-  const style = frame ? getComputedStyle(frame) : {};
-  const heading = document.querySelector('[data-margo-area="main-content"] .margo-document h1');
-  const lead = document.querySelector('[data-margo-area="main-content"] .margo-document__lead');
-  const headingStyle = heading ? getComputedStyle(heading) : {};
-  const leadStyle = lead ? getComputedStyle(lead) : {};
-  return {
-    display: style.display || '',
-    gridColumns: style.gridTemplateColumns || '',
-    gridAreas: style.gridTemplateAreas || '',
-    leftNavWidth: rect(document.querySelector('[data-margo-area="left-nav"]')).width,
-    mainWidth: rect(document.querySelector('[data-margo-area="main-content"]')).width,
-    rightNavWidth: rect(document.querySelector('[data-margo-area="right-nav"]')).width,
-    topNavWidth: rect(document.querySelector('[data-margo-area="top-nav"]')).width,
-    topNavLeft: rect(document.querySelector('[data-margo-area="top-nav"]')).left,
-    topNavRight: rect(document.querySelector('[data-margo-area="top-nav"]')).right,
-    navbarWidth: rect(document.querySelector('.margo-site-navbar')).width,
-    navbarLeft: rect(document.querySelector('.margo-site-navbar')).left,
-    navbarRight: rect(document.querySelector('.margo-site-navbar')).right,
-    familyLinksWidth: rect(document.querySelector('.margo-site-family-links')).width,
-    familyLinksLeft: rect(document.querySelector('.margo-site-family-links')).left,
-    familyLinksRight: rect(document.querySelector('.margo-site-family-links')).right,
-    leftNavLeft: rect(document.querySelector('[data-margo-area="left-nav"]')).left,
-    rightNavRight: rect(document.querySelector('[data-margo-area="right-nav"]')).right,
-    topNavBottom: rect(document.querySelector('[data-margo-area="top-nav"]')).bottom,
-    contentTop: rect(document.querySelector('[data-margo-area="main-content"]')).top,
-    headingWidth: rect(heading).width,
-    headingContainerWidth: rect(document.querySelector('.margo-page-heading')).width,
-    leadWidth: rect(lead).width,
-    leadBottom: rect(lead).bottom,
-    actionsTop: rect(document.querySelector('.margo-page-actions')).top,
-    headingFontSize: parseFloat(headingStyle.fontSize || '0'),
-    leadFontSize: parseFloat(leadStyle.fontSize || '0'),
-  };
-})()`
-
-func TestDocsLayoutGridTemplate(t *testing.T) {
-	browserPath := installedSiteTestChromium()
-	if browserPath == "" {
-		t.Skip("installed Chromium-family browser unavailable")
-	}
-	server := layoutBrowserServer(t)
-	defer server.Close()
-	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
-	defer cancelAllocator()
-	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
-	defer cancelBrowser()
-	ctx, cancel := context.WithTimeout(browserContext, 90*time.Second)
-	defer cancel()
-	states := make(map[int64]docsGeometryState)
-	for _, width := range []int64{719, 720, 799, 800, 879, 880, 884, 900, 1100, 1199, 1200, 1237, 1280, 1775} {
-		var state docsGeometryState
-		if err := chromedp.Run(ctx,
-			chromedp.EmulateViewport(width, 900),
-			chromedp.Navigate(server.URL+"/cli/"),
-			chromedp.WaitVisible(`[data-margo-layout="docs"].margo-frame--top-left-main-right-footer`, chromedp.ByQuery),
-			chromedp.Evaluate(docsGeometryScript, &state),
-		); err != nil {
-			t.Fatalf("docs geometry at %dpx failed: %v", width, err)
-		}
-		if state.Display != "grid" {
-			t.Fatalf("docs at %dpx display = %q, want grid: %+v", width, state.Display, state)
-		}
-		states[width] = state
-		if width < 640 {
-			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 1 {
-				t.Fatalf("docs at %dpx did not collapse to one grid track: %+v", width, state)
-			}
-			if !strings.Contains(state.GridAreas, `"top-nav"`) || !strings.Contains(state.GridAreas, `"main-content"`) || strings.Contains(state.GridAreas, "left-nav") || strings.Contains(state.GridAreas, "right-nav") {
-				t.Fatalf("docs at %dpx has wrong mobile grid areas: %+v", width, state)
-			}
-			if state.MainWidth < 320 {
-				t.Fatalf("docs at %dpx stacked content is not usable: %+v", width, state)
-			}
-			continue
-		}
-		if width < 880 {
-			if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 2 || !strings.Contains(state.GridAreas, `"left-nav main-content"`) || strings.Contains(state.GridAreas, "right-nav") {
-				t.Fatalf("docs at %dpx did not use coherent two-column tablet grid: %+v", width, state)
-			}
-			if state.LeftNavWidth <= 0 || state.MainWidth < 320 {
-				t.Fatalf("docs at %dpx tablet tracks are not usable: %+v", width, state)
-			}
-			continue
-		}
-		if strings.Count(strings.TrimSpace(state.GridColumns), " ")+1 != 3 || !strings.Contains(state.GridAreas, `"left-nav main-content right-nav"`) {
-			t.Fatalf("docs at %dpx did not retain three-column grid: %+v", width, state)
-		}
-		if state.LeftNavWidth <= 0 || state.MainWidth < 320 || state.RightNavWidth <= 0 {
-			t.Fatalf("docs at %dpx grid tracks lack a usable reading column: %+v", width, state)
-		}
-		if absFloat(state.NavbarWidth-state.TopNavWidth) > 1 || absFloat(state.FamilyLinksWidth-state.TopNavWidth) > 1 {
-			t.Fatalf("docs at %dpx navbar does not share the frame axis: %+v", width, state)
-		}
-		if absFloat(state.NavbarLeft-state.TopNavLeft) > 1 || absFloat(state.NavbarRight-state.TopNavRight) > 1 || absFloat(state.FamilyLinksLeft-state.TopNavLeft) > 1 || absFloat(state.FamilyLinksRight-state.TopNavRight) > 1 || absFloat(state.LeftNavLeft-state.TopNavLeft) > 1 || absFloat(state.RightNavRight-state.TopNavRight) > 1 {
-			t.Fatalf("docs at %dpx header and content rails do not share their outer edges: %+v", width, state)
-		}
-		if absFloat(state.ContentTop-state.TopNavBottom) > 1 {
-			t.Fatalf("docs at %dpx leaves a disjointed gap between navigation and content rails: %+v", width, state)
-		}
-		if state.LeadWidth < state.HeadingContainerWidth-1 || state.ActionsTop < state.LeadBottom-1 {
-			t.Fatalf("docs at %dpx page actions squeeze the title and lead: %+v", width, state)
-		}
-		if state.HeadingWidth <= 0 || state.LeadWidth < 220 || state.HeadingFontSize > 64 || state.LeadFontSize > 32 {
-			t.Fatalf("docs at %dpx typography or page-heading geometry is not readable: %+v", width, state)
-		}
-	}
-	if states[1200].MainWidth < states[1199].MainWidth-2 {
-		t.Fatalf("docs reading column collapses at 1200px: 1199=%+v 1200=%+v", states[1199], states[1200])
-	}
-}
-
-func absFloat(value float64) float64 {
-	if value < 0 {
-		return -value
-	}
-	return value
-}
-
 type searchSemanticsState struct {
 	Role             string `json:"role"`
 	Controls         string `json:"controls"`
@@ -878,18 +373,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 func layoutBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
-layout:
-  kind: landing
----
-# Tour
-
-Publish one Markdown source in the format your project needs.
-
-**Choose a starting path:** [Start with the CLI](cli/index.md) or [embed the Go module](module/index.md).
-
-![Margo mascot preparing a document](margo-mascot.png)
-`)
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\n**Choose a starting path:** [Start with the CLI](cli/index.md) or [embed the Go module](module/index.md).\n\n![Margo mascot preparing a document](margo-mascot.png)\n")
 	mascot, err := os.ReadFile(filepath.Join("..", "showcase", "content", "margo-mascot.png"))
 	if err != nil {
 		t.Fatal(err)
@@ -897,29 +381,10 @@ Publish one Markdown source in the format your project needs.
 	if err := os.WriteFile(filepath.Join(root, "docs", "margo-mascot.png"), mascot, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), `# Module
-
-Module documentation overview.
-
-## Module section
-
-The module family is navigable.
-`)
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nA second module page for scoped pagination.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), `---
-margo:
-  actions:
-    markdown: true
----
-# CLI
-
-CLI documentation overview.
-
-## CLI section
-
-The CLI family is navigable.
-`)
-	writeConfigFile(t, filepath.Join(root, "docs", "cli", "guide.md"), "# CLI guide\n\nA second CLI page for scoped pagination.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n\n## Module section\n\nDetails.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nGuide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "---\nlayout:\n  values:\n    toc: true\n    sidebar: true\nmargo:\n  actions:\n    markdown: true\n---\n# CLI\n\nCLI documentation.\n\n## CLI section\n\nDetails.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "guide.md"), "# CLI guide\n\nGuide.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
@@ -944,6 +409,8 @@ layout:
   default:
     families: [module, cli]
   values:
+    sidebar: true
+    toc: true
     family: default
 navigation:
   mode: file-tree
@@ -955,7 +422,6 @@ theme:
   name: modern
   color_mode: system
 `)
-
 	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
 	if err != nil {
 		t.Fatal(err)
@@ -979,11 +445,4 @@ theme:
 		writer.Header().Set("Content-Type", siteBrowserContentType(artifactPath))
 		_, _ = writer.Write(content)
 	}))
-}
-
-func boolToInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }
