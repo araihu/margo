@@ -208,6 +208,8 @@ type landingGeometryState struct {
 	ImageCSSAspectRatio string    `json:"imageCSSAspectRatio"`
 	ImageObjectFit      string    `json:"imageObjectFit"`
 	SectionWidth        float64   `json:"sectionWidth"`
+	SectionHeadingLeft  float64   `json:"sectionHeadingLeft"`
+	SectionTextLeft     float64   `json:"sectionTextLeft"`
 	SectionTextWidth    float64   `json:"sectionTextWidth"`
 	SectionMediaWidth   float64   `json:"sectionMediaWidth"`
 	FitHeadingLeft      float64   `json:"fitHeadingLeft"`
@@ -231,6 +233,7 @@ const landingGeometryScript = `(() => {
 	  const actions = [...document.querySelectorAll('.margo-landing-hero__copy > ul a')];
 	  const image = visual?.querySelector('img');
 	  const section = document.querySelector('.margo-landing-section');
+	  const sectionHeading = section?.querySelector(':scope > h2');
 	  const sectionText = section?.querySelector(':scope > p:not(.margo-landing-media)');
 	  const sectionMedia = section?.querySelector(':scope > .margo-landing-media');
 	  const fitSection = [...document.querySelectorAll('.margo-landing-section')].find(candidate => candidate.querySelector(':scope > h2')?.textContent.trim() === 'Is Margo a fit?');
@@ -258,6 +261,8 @@ const landingGeometryScript = `(() => {
 	    imageCSSAspectRatio: imageStyle.aspectRatio || '',
 	    imageObjectFit: imageStyle.objectFit || '',
 	    sectionWidth: rect(section).width,
+	    sectionHeadingLeft: rect(sectionHeading).left,
+	    sectionTextLeft: rect(sectionText).left,
 	    sectionTextWidth: rect(sectionText).width,
 	    sectionMediaWidth: rect(sectionMedia).width,
 	    fitHeadingLeft: rect(fitHeading).left,
@@ -332,6 +337,9 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		}
 		if !fixture.heroStacked && (state.HeroWidth < float64(width)*0.72 || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
 			t.Fatalf("landing at %dpx canvas/reading measure = %+v", width, state)
+		}
+		if delta := state.SectionTextLeft - state.SectionHeadingLeft; delta < -1 || delta > 1 {
+			t.Fatalf("landing at %dpx section text starts %.1fpx from its heading: %+v", width, delta, state)
 		}
 		if delta := state.FitListLeft - state.FitHeadingLeft; delta < -1 || delta > 1 {
 			t.Fatalf("landing at %dpx fit list starts %.1fpx from its heading: %+v", width, delta, state)

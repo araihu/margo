@@ -219,6 +219,7 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
 .margo-landing-section { inline-size: min(100%, 84rem); margin-inline: auto; padding-block-start: clamp(3.5rem, 8vw, 7rem); padding-inline: clamp(0rem, 2vw, 1.5rem); }
 .margo-landing-section > * { max-inline-size: var(--margo-reading-measure); margin-inline: auto; }
 .margo-landing-section > h2 { margin-block: 0 1rem; color: var(--margo-text-strong); font-size: clamp(1.75rem, 3vw, 2.5rem); letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance; }
+.margo-landing-section > p:not(.margo-landing-media) { margin-inline: 0 auto; }
 .margo-landing-section > h3, .margo-landing-section > h3 + ul { inline-size: min(100%, 48rem); max-inline-size: 48rem; }
 .margo-landing-section > .margo-landing-media { max-inline-size: min(100%, 64rem); }
 .margo-landing-section > .margo-landing-media img, .margo-landing-section > .margo-landing-media svg { display: block; max-inline-size: 100%; block-size: auto; margin-inline: auto; }
