@@ -1013,6 +1013,9 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 		if err := b.stageGoshtosoComponentDocShellAssets(); err != nil {
 			return err
 		}
+		if err := b.stageComponentDocShellScrollSpy(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

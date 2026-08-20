@@ -470,6 +470,12 @@ func (b *builder) stageGoshtosoComponentDocShellAssets() error {
 		}
 	}
 
+	return nil
+}
+
+// stageComponentDocShellScrollSpy preserves the legacy shell mode runtime.
+// Typed docs use the public componentdocshell TOC lifecycle exclusively.
+func (b *builder) stageComponentDocShellScrollSpy() error {
 	publicURL := b.shellAssetPrefix + componentDocShellScrollSpyAssetName
 	parsed, err := url.Parse(publicURL)
 	if err != nil || parsed.Path == "" || !strings.HasPrefix(parsed.Path, "/") {
@@ -702,7 +708,7 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
 			ThemeStylesheets:              themeStylesheets,
 		},
-		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
+		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: false, LocalRuntime: true},
 		HeaderActions: componentDocShellSearchWithConfig(searchConfig),
 		Footer:        b.componentDocShellFooter(),
 		RepositoryURL: b.config.Site.RepositoryURL,
@@ -770,7 +776,6 @@ func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 	for _, css := range b.config.CustomCSS {
 		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(strings.TrimPrefix(css.CSSURL, "/"))) + `">`)
 	}
-	builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.shellAssetPrefix+componentDocShellScrollSpyAssetName) + `"></script>`)
 	return builder.String()
 }
 
@@ -987,6 +992,9 @@ func (b *builder) publicationArtifactHref(filename string) string {
 const componentDocShellNavigationSwap = "outerHTML transition:true swap:160ms settle:240ms"
 
 func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source Source) error {
+	if !b.shellMode {
+		return nil
+	}
 	current, exists := b.configured[source.Path]
 	if !exists {
 		return nil

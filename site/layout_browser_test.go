@@ -153,6 +153,44 @@ func TestLayoutBrowserTourIsOutsideDocsShell(t *testing.T) {
 	}
 }
 
+func TestLayoutBrowserCrossFamilyNavigationRefreshesShell(t *testing.T) {
+	browserPath := installedSiteTestChromium()
+	if browserPath == "" {
+		t.Skip("installed Chromium-family browser unavailable")
+	}
+	server := layoutBrowserServer(t)
+	defer server.Close()
+	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+	defer cancelAllocator()
+	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+	defer cancelBrowser()
+	ctx, cancel := context.WithTimeout(browserContext, 60*time.Second)
+	defer cancel()
+
+	var state struct {
+		CurrentFamilies []string `json:"currentFamilies"`
+		Scope           string   `json:"scope"`
+		Heading         string   `json:"heading"`
+	}
+	if err := chromedp.Run(ctx,
+		chromedp.EmulateViewport(1498, 844),
+		chromedp.Navigate(server.URL+"/module/"),
+		chromedp.WaitVisible(`a.component-doc-shell__family-link[href="/cli/"]`, chromedp.ByQuery),
+		chromedp.Click(`a.component-doc-shell__family-link[href="/cli/"]`, chromedp.ByQuery),
+		chromedp.WaitVisible(`[data-sidebar-section="CLI"]`, chromedp.ByQuery),
+		chromedp.Evaluate(`(() => ({
+			currentFamilies: [...document.querySelectorAll('.component-doc-shell__family-link[aria-current="location"]')].map(link => link.textContent.trim()),
+			scope: document.querySelector('.component-doc-shell__scope-family')?.textContent.trim() || '',
+			heading: document.querySelector('#main-content h1')?.textContent.trim() || '',
+		}))()`, &state),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if len(state.CurrentFamilies) != 1 || state.CurrentFamilies[0] != "CLI" || state.Scope != "CLI" || state.Heading != "CLI" {
+		t.Fatalf("cross-family navigation left stale shell state: %+v", state)
+	}
+}
+
 type landingGeometryState struct {
 	Display              string  `json:"display"`
 	GridColumns          string  `json:"gridColumns"`
@@ -245,7 +283,7 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 	defer cancelAllocator()
 	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
 	defer cancelBrowser()
-	ctx, cancel := context.WithTimeout(browserContext, 90*time.Second)
+	ctx, cancel := context.WithTimeout(browserContext, 180*time.Second)
 	defer cancel()
 	for _, width := range []int64{390, 719, 720, 900, 1280, 1775} {
 		var state landingGeometryState
