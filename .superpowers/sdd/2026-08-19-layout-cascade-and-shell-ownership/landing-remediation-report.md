@@ -18,9 +18,9 @@ semantic hero and section grouping only at the landing renderer boundary.
     all other leading nodes in the copy region;
   - carries H2 IDs to `aria-labelledby` and rejects fragments that are not one
     `article.margo-document` root;
-  - styles generic landing classes, with one-column narrow/intermediate flow,
-    a two-column hero from 900px, 44px-safe action links, bounded reading
-    measure, locally wider media, and no mascot-alt selector;
+  - styles generic landing classes, with intrinsically wrapping hero/action
+    layouts, 44px-safe action links, bounded reading measure, locally wider
+    media, and no mascot-alt selector;
   - removes obsolete landing selectors from the shared legacy stylesheet.
 - `site/config_build_test.go`
   - covers semantic hero/visual/section output, one article/H1, public route
@@ -28,7 +28,8 @@ semantic hero and section grouping only at the landing renderer boundary.
     landing dependency isolation.
 - `site/layout_browser_test.go`
   - covers 390, 719, 720, 900, 1493, and 1775px;
-  - asserts hero column count and DOM/visual order, two first-viewport actions
+  - asserts representative stacked and side-by-side outcomes without a
+    viewport-threshold rule, plus DOM/visual order, two first-viewport actions
     at least 44px tall, intentional 4:3 media, reading measure, local media
     widening, one article, and no horizontal overflow;
   - retains the existing docs-shell mobile interaction coverage.
@@ -66,6 +67,21 @@ The first browser run then exposed an over-strict numeric test ceiling for the
 existing `75ch` token at 900px. The assertion was corrected to test the actual
 65–75ch contract and local media widening; production CSS was unchanged for
 that correction. The responsive suite then passed.
+
+Review correction RED:
+
+```text
+GOWORK=off go test ./site -run TestBuildConfigStagesLayoutKindAssetsAndDependencies/local -count=1
+```
+
+The test failed because landing CSS still contained the rejected
+`@media (min-width: 56.25rem)` rule. The browser contract was also rewritten to
+name expected narrow/intermediate/wide outcomes instead of deriving them from a
+hard-coded 900px transition.
+
+Review correction GREEN uses `flex-wrap` for the hero and
+`repeat(auto-fit, minmax(...))` for both action lists. Available space now
+chooses stacked or side-by-side composition without a new breakpoint.
 
 ## Gates
 

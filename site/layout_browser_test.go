@@ -192,14 +192,17 @@ func TestLayoutBrowserCrossFamilyNavigationRefreshesShell(t *testing.T) {
 }
 
 type landingGeometryState struct {
-	HeroColumns         int       `json:"heroColumns"`
 	HeroWidth           float64   `json:"heroWidth"`
 	CopyTop             float64   `json:"copyTop"`
+	CopyRight           float64   `json:"copyRight"`
+	CopyBottom          float64   `json:"copyBottom"`
 	VisualTop           float64   `json:"visualTop"`
 	CopyLeft            float64   `json:"copyLeft"`
 	VisualLeft          float64   `json:"visualLeft"`
 	ActionHeights       []float64 `json:"actionHeights"`
 	ActionBottoms       []float64 `json:"actionBottoms"`
+	ActionLefts         []float64 `json:"actionLefts"`
+	ActionTops          []float64 `json:"actionTops"`
 	ImageAspectRatio    float64   `json:"imageAspectRatio"`
 	ImageCSSAspectRatio string    `json:"imageCSSAspectRatio"`
 	ImageObjectFit      string    `json:"imageObjectFit"`
@@ -224,22 +227,23 @@ const landingGeometryScript = `(() => {
 	  const section = document.querySelector('.margo-landing-section');
 	  const sectionText = section?.querySelector(':scope > p:not(.margo-landing-media)');
 	  const sectionMedia = section?.querySelector(':scope > .margo-landing-media');
-	  const heroStyle = hero ? getComputedStyle(hero) : {};
-	  const heroColumns = (heroStyle.gridTemplateColumns || '').split(' ').filter(Boolean).length;
 	  const heroRect = rect(hero);
 	  const copyRect = rect(copy);
 	  const visualRect = rect(visual);
 	  const imageRect = rect(image);
 	  const imageStyle = image ? getComputedStyle(image) : {};
 	  return {
-	    heroColumns,
 	    heroWidth: heroRect.width,
 	    copyTop: copyRect.top,
+	    copyRight: copyRect.right,
+	    copyBottom: copyRect.top + copyRect.height,
 	    visualTop: visualRect.top,
 	    copyLeft: copyRect.left,
 	    visualLeft: visualRect.left,
 	    actionHeights: actions.map(action => rect(action).height),
 	    actionBottoms: actions.map(action => rect(action).top + rect(action).height),
+	    actionLefts: actions.map(action => rect(action).left),
+	    actionTops: actions.map(action => rect(action).top),
 	    imageAspectRatio: imageRect.height ? imageRect.width / imageRect.height : 0,
 	    imageCSSAspectRatio: imageStyle.aspectRatio || '',
 	    imageObjectFit: imageStyle.objectFit || '',
@@ -264,7 +268,20 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 	defer cancelBrowser()
 	ctx, cancel := context.WithTimeout(browserContext, 180*time.Second)
 	defer cancel()
-	for _, width := range []int64{390, 719, 720, 900, 1493, 1775} {
+	for _, fixture := range []struct {
+		name           string
+		width          int64
+		heroStacked    bool
+		actionsStacked bool
+	}{
+		{name: "phone", width: 390, heroStacked: true, actionsStacked: true},
+		{name: "narrow-edge", width: 719, heroStacked: true, actionsStacked: true},
+		{name: "intermediate", width: 720, heroStacked: true, actionsStacked: true},
+		{name: "compact-wide", width: 900, actionsStacked: true},
+		{name: "wide", width: 1493},
+		{name: "max-wide", width: 1775},
+	} {
+		width := fixture.width
 		height := int64(900)
 		if width < 720 {
 			height = 844
@@ -278,18 +295,17 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		); err != nil {
 			t.Fatalf("landing geometry at %dpx failed: %v", width, err)
 		}
-		wantColumns := 1
-		if width >= 900 {
-			wantColumns = 2
+		if state.ArticleCount != 1 || state.Overflow {
+			t.Fatalf("landing %s at %dpx composition = %+v, want one article and no overflow", fixture.name, width, state)
 		}
-		if state.HeroColumns != wantColumns || state.ArticleCount != 1 || state.Overflow {
-			t.Fatalf("landing at %dpx composition = %+v, want %d hero columns, one article, no overflow", width, state, wantColumns)
+		if (fixture.heroStacked && state.VisualTop < state.CopyBottom-1) || (!fixture.heroStacked && state.VisualLeft < state.CopyRight-1) {
+			t.Fatalf("landing %s at %dpx hero placement = %+v", fixture.name, width, state)
 		}
-		if wantColumns == 1 && state.VisualTop <= state.CopyTop || wantColumns == 2 && state.VisualLeft <= state.CopyLeft {
-			t.Fatalf("landing at %dpx visual order/placement = %+v", width, state)
-		}
-		if len(state.ActionHeights) != 2 || len(state.ActionBottoms) != 2 {
+		if len(state.ActionHeights) != 2 || len(state.ActionBottoms) != 2 || len(state.ActionLefts) != 2 || len(state.ActionTops) != 2 {
 			t.Fatalf("landing at %dpx action count = %+v", width, state)
+		}
+		if (fixture.actionsStacked && state.ActionTops[1] <= state.ActionTops[0]) || (!fixture.actionsStacked && state.ActionLefts[1] <= state.ActionLefts[0]) {
+			t.Fatalf("landing %s at %dpx intrinsic action placement = %+v", fixture.name, width, state)
 		}
 		for index, actionHeight := range state.ActionHeights {
 			if actionHeight < 44 || state.ActionBottoms[index] > float64(height) {
@@ -299,7 +315,7 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		if state.ImageAspectRatio < 1.28 || state.ImageAspectRatio > 1.38 || state.ImageCSSAspectRatio != "4 / 3" || state.ImageObjectFit != "cover" {
 			t.Fatalf("landing at %dpx hero media geometry = %+v", width, state)
 		}
-		if width >= 900 && (state.HeroWidth < float64(width)*0.72 || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
+		if !fixture.heroStacked && (state.HeroWidth < float64(width)*0.72 || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
 			t.Fatalf("landing at %dpx canvas/reading measure = %+v", width, state)
 		}
 	}

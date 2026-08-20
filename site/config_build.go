@@ -198,22 +198,22 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
 .margo-landing-article { inline-size: 100%; max-inline-size: none; margin-inline: auto; padding-block: clamp(1.5rem, 4vw, 4rem); }
 .margo-landing-article > .margo-document { max-inline-size: 100%; }
 .margo-landing-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: clamp(1.5rem, 5vw, 4rem);
   inline-size: min(100%, 84rem);
   margin-inline: auto;
   padding-inline: clamp(0rem, 2vw, 1.5rem);
 }
-.margo-landing-hero__copy { min-inline-size: 0; max-inline-size: 44rem; }
+.margo-landing-hero__copy { flex: 1 1 26rem; min-inline-size: 0; }
 .margo-landing-hero__copy h1 { margin-block: 0 1rem; color: var(--margo-text-strong); font-size: clamp(2.75rem, 7vw, 5.5rem); letter-spacing: -0.04em; line-height: 1; text-wrap: balance; }
 .margo-landing-hero__copy .margo-document__lead { margin-block: 0 0.75rem; color: var(--margo-accent); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 650; }
-.margo-landing-hero__copy > ul { display: grid; gap: 0.75rem; margin-block: 1.5rem 0; padding: 0; list-style: none; }
+.margo-landing-hero__copy > ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 0.75rem; margin-block: 1.5rem 0; padding: 0; list-style: none; }
 .margo-landing-hero__copy > ul a { display: flex; align-items: center; min-block-size: 2.75rem; padding: 0.75rem 1rem; border: 1px solid var(--margo-outline); border-radius: 0.75rem; background: var(--margo-surface-alt); color: var(--margo-text-strong); font-weight: 700; line-height: 1.35; text-decoration: none; }
 .margo-landing-hero__copy > ul li:first-child a { border-color: var(--margo-accent); background: var(--margo-accent); color: var(--margo-surface); }
 .margo-landing-hero__copy > ul a:hover { text-decoration: underline; }
-.margo-landing-hero__visual { min-inline-size: 0; inline-size: min(100%, 30rem); justify-self: center; }
+.margo-landing-hero__visual { flex: 1 1 18rem; min-inline-size: 0; max-inline-size: 30rem; margin-inline: auto; }
 .margo-landing-hero__visual > * { margin: 0; }
 .margo-landing-hero__visual img { display: block; inline-size: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: center 62%; border: 1px solid var(--margo-outline); border-radius: 1rem; box-shadow: 0 1rem 2.5rem rgb(11 18 32 / 18%); }
 .margo-landing-section { inline-size: min(100%, 84rem); margin-inline: auto; padding-block-start: clamp(3.5rem, 8vw, 7rem); padding-inline: clamp(0rem, 2vw, 1.5rem); }
@@ -222,12 +222,8 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
 .margo-landing-section > .margo-landing-media { max-inline-size: min(100%, 64rem); }
 .margo-landing-section > .margo-landing-media img, .margo-landing-section > .margo-landing-media svg { display: block; max-inline-size: 100%; block-size: auto; margin-inline: auto; }
 .margo-landing-section > blockquote { margin-block: 1.25rem; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
-.margo-landing-section:last-child > ul:last-child { display: grid; gap: 0.75rem; padding: 0; list-style: none; }
+.margo-landing-section:last-child > ul:last-child { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 0.75rem; padding: 0; list-style: none; }
 .margo-landing-section:last-child > ul:last-child a { display: flex; align-items: center; min-block-size: 2.75rem; padding: 0.75rem 1rem; border: 1px solid var(--margo-outline); border-radius: 0.75rem; background: var(--margo-surface-alt); color: var(--margo-text-strong); font-weight: 700; text-decoration: none; }
-@media (min-width: 56.25rem) {
-  .margo-landing-hero { grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr); }
-  .margo-landing-hero__copy > ul, .margo-landing-section:last-child > ul:last-child { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 `
 
 // configuredDocsCSS contains only the Margo-owned article and action layer.
