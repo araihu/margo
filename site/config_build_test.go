@@ -293,6 +293,15 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("Tour missing retained example marker %q", required)
 		}
 	}
+	for _, required := range []string{
+		`class="goshtoso-charts-interactive`,
+		`data-goshtoso-chart-capability="interactive-raster"`,
+		`data-margo-requirement="goshtoso-charts.runtime"`,
+	} {
+		if !strings.Contains(landing, required) {
+			t.Fatalf("Tour interactive chart missing %q", required)
+		}
+	}
 	for _, forbidden := range []string{"margo-breadcrumbs", "margo-pagination", "margo-page-actions", `id="left-nav"`, `id="right-nav"`, "data-toc-heading"} {
 		if strings.Contains(landing, forbidden) {
 			t.Fatalf("Tour contains forbidden landing markup %q", forbidden)

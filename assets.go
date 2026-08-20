@@ -76,7 +76,7 @@ func (a AssetRef) validate() error {
 }
 
 func validateAssetPath(name string) error {
-	if name == "" || strings.ContainsAny(name, `\\\x00`) || path.IsAbs(name) || path.Clean(name) != name || name == "." || strings.HasPrefix(name, "../") || strings.Contains(name, "/../") {
+	if name == "" || strings.ContainsAny(name, "\\\x00") || path.IsAbs(name) || path.Clean(name) != name || name == "." || strings.HasPrefix(name, "../") || strings.Contains(name, "/../") {
 		return fmt.Errorf("margo: invalid asset path %q", name)
 	}
 	return nil

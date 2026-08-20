@@ -50,13 +50,13 @@ live reload; it is not a production server.
 ## Markdown stays expressive
 
 Headings, links, tables, code, images, Mermaid, and optional Goshtoso charts stay
-in Markdown. A chart fence produces static SVG plus an exact-data table, keeping
-the values available without browser JavaScript:
+in Markdown. This chart opts into interactive exploration while its exact-data
+table keeps every value available without interaction:
 
 ```goshtosochart
 schemaVersion: 1
 type: line
-renderer: static
+renderer: interactive
 title: Weekly signal
 categories: [Mon, Tue, Wed, Thu]
 series:
@@ -64,8 +64,8 @@ series:
     values: [12, 18, 16, 24]
 ```
 
-Static SVG is the default; interactive controls remain optional. PDF output can
-include the exact chart data for print readers.
+Static SVG remains the default. This example loads the local interactive runtime,
+and PDF output can still include the exact chart data for print readers.
 
 ## Trust boundaries stay visible
 

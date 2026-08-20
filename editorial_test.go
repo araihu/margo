@@ -127,6 +127,30 @@ func TestRenderHTMLAllowsOnlyProvenanceMarkedExtensionStyles(t *testing.T) {
 	}
 }
 
+func TestRenderHTMLRelocatesProvenanceMarkedChartScripts(t *testing.T) {
+	requirements, err := mergeHTMLRequirements([]HTMLRequirement{{
+		ID: "goshtoso-charts.runtime", Kind: HTMLScript,
+		Inline: AssetRef{Path: "charts-runtime.js", MediaType: "application/javascript", Content: []byte("window.echarts = {};")},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := RenderHTML(&RenderResult{
+		content:          templ.Raw(`<article class="margo-document"><h1>Chart</h1><figure><script data-margo-extension-script="charts">window.chartReady = true;</script></figure></article>`),
+		htmlRequirements: requirements,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, result.Fragment())
+	if !strings.Contains(markup, `data-margo-chart-script-slot="0"`) || strings.Contains(markup, `data-margo-extension-script="charts"`) {
+		t.Fatalf("chart script was not relocated: %s", markup)
+	}
+	if got := result.Requirements().List(); len(got) != 2 || got[1].ID != "margo.charts.inline.0" || got[1].LocalURL == "" {
+		t.Fatalf("requirements = %+v", got)
+	}
+}
+
 func TestHTMLResultIsDefensiveAndFingerprintSensitive(t *testing.T) {
 	firstRendered := mustRenderSource(t, "---\ntitle: One\nauthors: [A]\ntags: [HTML]\n---\n\nBody\n")
 	first, err := RenderHTML(firstRendered)

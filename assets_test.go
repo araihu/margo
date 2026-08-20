@@ -58,6 +58,15 @@ func TestHTMLAssetHandlerOwnsOnlyMargoMount(t *testing.T) {
 	}
 }
 
+func TestValidateAssetPathAllowsOrdinaryXAndZeroButRejectsNUL(t *testing.T) {
+	if err := validateAssetPath("charts-inline-x0.js"); err != nil {
+		t.Fatalf("ordinary asset path rejected: %v", err)
+	}
+	if err := validateAssetPath("charts\x00inline.js"); err == nil {
+		t.Fatal("asset path containing NUL was accepted")
+	}
+}
+
 func TestDocumentCSSRestoresSemanticMarkdownRhythmAfterGoshtosoPreflight(t *testing.T) {
 	css, err := os.ReadFile("assets/document.css")
 	if err != nil {
