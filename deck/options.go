@@ -3,19 +3,99 @@ package deck
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
+	"github.com/araihu/goshtoso/components/icon/heroicons"
 	"github.com/araihu/margo"
 )
 
 // RenderOption overrides one immutable deck render setting.
 type RenderOption func(*renderOptions) error
 
+// PaginationIconPlacement fixes the icon's position relative to the ordinal.
+type PaginationIconPlacement string
+
+const (
+	PaginationIconBefore PaginationIconPlacement = "before"
+	PaginationIconAfter  PaginationIconPlacement = "after"
+)
+
+// PaginationIconConfig describes one trusted Goshtoso catalog icon in the
+// bottom-right pagination cluster.
+type PaginationIconConfig struct {
+	Symbol     string
+	Placement  PaginationIconPlacement
+	Label      string
+	Decorative bool
+}
+
 type renderOptions struct {
-	validationRequest *margo.RuntimeValidationRequest
-	theme             *margo.ThemeName
-	colorMode         *margo.ColorMode
-	geometry          *DeckGeometry
-	idAllocator       margo.RenderIDAllocator
+	validationRequest         *margo.RuntimeValidationRequest
+	theme                     *margo.ThemeName
+	colorMode                 *margo.ColorMode
+	geometry                  *DeckGeometry
+	idAllocator               margo.RenderIDAllocator
+	confidentialityBadgeLabel string
+	paginationIcon            *PaginationIconConfig
+}
+
+// WithConfidentialityBadge adds trusted host chrome before each visible page
+// ordinal. Markdown cannot set or override this label.
+func WithConfidentialityBadge(label string) RenderOption {
+	return func(options *renderOptions) error {
+		label = strings.TrimSpace(label)
+		if label == "" || len([]byte(label)) > 64 || strings.ContainsAny(label, "<>\x00\n\r\t") {
+			return deckError("deck.confidentiality_badge_invalid", "", 1, "confidentiality badge must be bounded inline text")
+		}
+		if options.confidentialityBadgeLabel != "" && options.confidentialityBadgeLabel != label {
+			return deckError("deck.presentation_conflict", "", 1, "confidentiality badge overrides disagree")
+		}
+		options.confidentialityBadgeLabel = label
+		return nil
+	}
+}
+
+// WithPaginationIcon adds one trusted Goshtoso icon to each paginated slide.
+// Placement is explicit; informative icons must provide a label.
+func WithPaginationIcon(config PaginationIconConfig) RenderOption {
+	return func(options *renderOptions) error {
+		normalized, err := normalizePaginationIcon(config)
+		if err != nil {
+			return err
+		}
+		if options.paginationIcon != nil && *options.paginationIcon != normalized {
+			return deckError("deck.presentation_conflict", "", 1, "pagination icon overrides disagree")
+		}
+		options.paginationIcon = &normalized
+		return nil
+	}
+}
+
+func normalizePaginationIcon(config PaginationIconConfig) (PaginationIconConfig, error) {
+	config.Symbol = strings.TrimSpace(config.Symbol)
+	config.Label = strings.TrimSpace(config.Label)
+	if config.Symbol == "" || !goshtosoIconSymbol(config.Symbol) {
+		return PaginationIconConfig{}, deckError("deck.pagination_icon_invalid", "", 1, "pagination icon symbol is not in the Goshtoso catalog")
+	}
+	if config.Placement != PaginationIconBefore && config.Placement != PaginationIconAfter {
+		return PaginationIconConfig{}, deckError("deck.pagination_icon_invalid", "", 1, "pagination icon placement must be before or after")
+	}
+	if len([]byte(config.Label)) > 64 || strings.ContainsAny(config.Label, "<>\x00\n\r\t") {
+		return PaginationIconConfig{}, deckError("deck.pagination_icon_invalid", "", 1, "pagination icon label must be bounded inline text")
+	}
+	if !config.Decorative && config.Label == "" {
+		return PaginationIconConfig{}, deckError("deck.pagination_icon_invalid", "", 1, "informative pagination icons require a label")
+	}
+	return config, nil
+}
+
+func goshtosoIconSymbol(symbol string) bool {
+	for _, glyph := range heroicons.Glyphs {
+		if string(glyph.Symbol) == symbol {
+			return true
+		}
+	}
+	return false
 }
 
 func WithTheme(theme margo.ThemeName) RenderOption {

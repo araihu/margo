@@ -231,25 +231,36 @@ emit an accessible inline SVG, preserve source text order, and fail closed for
 unknown or ambiguous symbols. This is a roadmap contract; R1 does not yet
 resolve icon tokens or import an iconpack.
 
-## Pagination position and icon placement (roadmap)
+## Pagination position and icon placement
 
 Margo pins the page ordinal to the bottom-right corner on every paginated
 slide. The reference template may show an ordinal in the top-right corner, but
-that placement is not imported into the Margo contract. An optional icon token
-joins the same bottom-right cluster, immediately before or after the integer:
+that placement is not imported into the Margo contract. A host-provided
+Goshtoso catalog icon joins the same bottom-right cluster, immediately before
+or after the integer:
 
 ```text
 before: :icon-name-here 6
 after:  6 :icon-name-here
 ```
 
-`before` and `after` are explicit placement values; the renderer must not infer
+`before` and `after` are explicit placement values; the renderer does not infer
 placement from language, direction, or theme. Decorative icons stay hidden from
-assistive technology; informative icons require an accessible label. R1 emits
-the numeric ordinal in the bottom-right only, so icon attachment remains
-roadmap work.
+assistive technology; informative icons require an accessible label. R1's host
+API resolves exact symbols from the embedded Goshtoso Heroicons catalog and
+embeds the sprite in the static page:
 
-## Confidentiality badge (roadmap)
+```go
+deck.WithPaginationIcon(deck.PaginationIconConfig{
+    Symbol: "hi-16-solid-clock", Placement: deck.PaginationIconBefore,
+    Decorative: true,
+})
+```
+
+The `Mês/ano :icon-name-here` author token and declared iconpacks remain
+roadmap work; R1 fails closed for symbols outside the embedded catalog.
+
+## Confidentiality badge
 
 Confidentiality is host-owned chrome. When configured, render the Goshtoso
 `badge.Badge` component immediately before the numeric ordinal in the same
@@ -264,9 +275,9 @@ badge.Badge(badge.Config{
 })
 ```
 
-The visible label remains the accessible status; any lock icon is decorative
-and must be hidden from assistive technology. If the host cannot load Goshtoso
-Badge, the fallback is the same plain-text label, never an icon-only seal. R1
+The visible label remains the accessible status. Hosts configure it through
+`deck.WithConfidentialityBadge`; the CLI exposes the same host setting through
+`--confidentiality-badge`. Margo renders Goshtoso Badge before the ordinal and
 does not expose an author-authored badge directive or import the reference
 seal.
 

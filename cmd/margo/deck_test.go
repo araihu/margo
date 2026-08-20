@@ -30,6 +30,40 @@ func TestDeckDefaultsToHTMLStdout(t *testing.T) {
 	}
 }
 
+func TestDeckConfidentialityBadgeFlagAddsHostChrome(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("<!-- paginate: true -->\n# One\n"), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"deck", "-", "--confidentiality-badge", "Confidencial"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `margo-deck__confidentiality-badge`) {
+		t.Fatal("deck confidentiality badge missing")
+	}
+}
+
+func TestDeckPaginationIconFlagsAddHostChrome(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("<!-- paginate: true -->\n# One\n"), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{
+		"deck", "-", "--pagination-icon", "hi-16-solid-clock",
+		"--pagination-icon-placement", "before", "--pagination-icon-decorative",
+	})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	markup := stdout.String()
+	if !strings.Contains(markup, `href="#hi-16-solid-clock"`) || !strings.Contains(markup, `<symbol id="hi-16-solid-clock"`) {
+		t.Fatalf("deck pagination icon missing: %s", markup)
+	}
+}
+
 func TestDeckPrintChartDataFlagProjectsAccessibleTable(t *testing.T) {
 	markdown := "# Chart\n\n```goshtosochart\nschemaVersion: 1\ntype: bar\ntitle: Revenue\ncategories: [Q1]\nseries:\n  - name: Actual\n    values: [12]\n```\n"
 	var stdout bytes.Buffer

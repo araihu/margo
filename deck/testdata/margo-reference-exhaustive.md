@@ -589,7 +589,8 @@ Source order vence qualquer aparencia de grid.
 | Cycle / ring process | Parcial | topologia exige boundary |
 | Video playback | Deferir | PDF precisa poster + link |
 | Watermark image + opacity | Deferir | furniture de host, sem sobreposicao |
-| Selo de sigilo + ordinal | Deferir | Goshtoso Badge antes do ordinal inferior |
+| Icone Goshtoso + ordinal | Suporta | host-owned, catalogo embutido, `before` / `after` explicito |
+| Selo de sigilo + ordinal | Suporta | host-owned, Goshtoso Badge antes do ordinal inferior |
 | PPTX round-trip | Deferir | fora do contrato HTML/PDF |
 
 ---

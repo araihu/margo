@@ -68,6 +68,94 @@ func TestRenderEmitsLogicalStageGeometryAndLocalizedLanguage(t *testing.T) {
 	}
 }
 
+func TestRenderPlacesHostConfidentialityBadgeBeforeOrdinal(t *testing.T) {
+	result, err := Render(context.Background(), margo.New(), RenderInput{
+		Name:     "confidential.md",
+		Markdown: []byte("<!-- paginate: true -->\n<!-- footer: Gerado pelo Margo -->\n# One\n"),
+	}, WithConfidentialityBadge("Confidencial"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result.HTML())
+	badge := strings.Index(markup, `margo-deck__confidentiality-badge`)
+	ordinal := strings.Index(markup, `class="margo-deck__pagination" aria-hidden="true">1</span>`)
+	if badge < 0 || ordinal < 0 || badge > ordinal {
+		t.Fatalf("confidentiality badge and ordinal are not in contract order: %s", markup)
+	}
+	if !strings.Contains(markup, `class="margo-deck__bottom-chrome"`) || !strings.Contains(markup, `class="margo-deck__pagination-cluster"`) || !strings.Contains(markup[badge:ordinal], `>Confidencial</span>`) {
+		t.Fatalf("confidentiality cluster missing accessible Goshtoso badge: %s", markup)
+	}
+}
+
+func TestRenderPlacesDecorativePaginationIconBeforeOrdinal(t *testing.T) {
+	result, err := Render(context.Background(), margo.New(), RenderInput{
+		Name:     "icon.md",
+		Markdown: []byte("<!-- paginate: true -->\n# One\n"),
+	}, WithPaginationIcon(PaginationIconConfig{
+		Symbol:     "hi-16-solid-clock",
+		Placement:  PaginationIconBefore,
+		Decorative: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result.HTML())
+	icon := strings.Index(markup, `href="#hi-16-solid-clock"`)
+	ordinal := strings.Index(markup, `class="margo-deck__pagination" aria-hidden="true">1</span>`)
+	if icon < 0 || ordinal < 0 || icon > ordinal {
+		t.Fatalf("pagination icon and ordinal are not in contract order: %s", markup)
+	}
+	for _, fragment := range []string{
+		`class="size-4 margo-deck__pagination-icon"`,
+		`aria-hidden="true"`,
+		`<symbol id="hi-16-solid-clock"`,
+		`class="margo-deck__pagination-cluster"`,
+	} {
+		if !strings.Contains(markup, fragment) {
+			t.Fatalf("pagination icon markup missing %q: %s", fragment, markup)
+		}
+	}
+}
+
+func TestRenderPlacesLabeledPaginationIconAfterOrdinal(t *testing.T) {
+	result, err := Render(context.Background(), margo.New(), RenderInput{
+		Name:     "icon.md",
+		Markdown: []byte("<!-- paginate: true -->\n# One\n"),
+	}, WithPaginationIcon(PaginationIconConfig{
+		Symbol:    "hi-16-solid-clock",
+		Placement: PaginationIconAfter,
+		Label:     "Horário",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result.HTML())
+	ordinal := strings.Index(markup, `class="margo-deck__pagination" aria-hidden="true">1</span>`)
+	icon := strings.Index(markup, `href="#hi-16-solid-clock"`)
+	if ordinal < 0 || icon < 0 || ordinal > icon {
+		t.Fatalf("pagination icon and ordinal are not in contract order: %s", markup)
+	}
+	for _, fragment := range []string{`role="img"`, `aria-label="Horário"`} {
+		if !strings.Contains(markup, fragment) {
+			t.Fatalf("labeled pagination icon missing %q: %s", fragment, markup)
+		}
+	}
+}
+
+func TestRenderRejectsUnknownPaginationIcon(t *testing.T) {
+	_, err := Render(context.Background(), margo.New(), RenderInput{
+		Name:     "icon.md",
+		Markdown: []byte("<!-- paginate: true -->\n# One\n"),
+	}, WithPaginationIcon(PaginationIconConfig{
+		Symbol:     "unknown-icon",
+		Placement:  PaginationIconBefore,
+		Decorative: true,
+	}))
+	if got := deckDiagnosticCode(err); got != "deck.pagination_icon_invalid" {
+		t.Fatalf("error code = %q, err = %v", got, err)
+	}
+}
+
 func TestRenderProjectsStructuralLayoutDOMInSourceOrder(t *testing.T) {
 	result := mustRenderDeck(t, "<!-- _class: columns -->\n<!-- layout: columns -->\n<!-- slot: left -->\n# Left\n<!-- slot: right -->\n# Right\n<!-- /layout -->\n")
 	html := string(result.HTML())

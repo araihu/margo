@@ -9,6 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	goshtosoassets "github.com/araihu/goshtoso/assets"
+	"github.com/araihu/goshtoso/components/badge"
+	"github.com/araihu/goshtoso/components/icon"
 	"github.com/araihu/margo"
 )
 
@@ -138,12 +141,27 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 		return nil, err
 	}
 	lang := document.Directives().Lang
-	article := renderDeckArticle(slides, fragments, slotFragments, geometry, lang)
-	page, err := renderDeckPage(document.Metadata(), theme, colorMode, lang, geometry, article, requirements)
+	confidentialityBadge, err := renderConfidentialityBadge(ctx, renderOptions.confidentialityBadgeLabel)
 	if err != nil {
 		return nil, err
 	}
-	fingerprint := deckFingerprint(input, theme, colorMode, geometry, lang)
+	paginationIcon, paginationIconPlacement, err := renderPaginationIcon(ctx, renderOptions.paginationIcon, slides)
+	if err != nil {
+		return nil, err
+	}
+	var paginationIconSprite []byte
+	if len(paginationIcon) > 0 {
+		paginationIconSprite, err = renderPaginationIconSprite()
+		if err != nil {
+			return nil, err
+		}
+	}
+	article := renderDeckArticle(slides, fragments, slotFragments, geometry, lang, confidentialityBadge, paginationIcon, paginationIconPlacement)
+	page, err := renderDeckPage(document.Metadata(), theme, colorMode, lang, geometry, article, requirements, paginationIconSprite)
+	if err != nil {
+		return nil, err
+	}
+	fingerprint := deckFingerprint(input, theme, colorMode, geometry, lang, renderOptions.confidentialityBadgeLabel, renderOptions.paginationIcon)
 	return &Result{
 		html:                      page,
 		slideCount:                len(slides),
@@ -285,7 +303,66 @@ func (r *Result) Geometry() DeckGeometry {
 	return r.geometry
 }
 
-func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]byte, geometry DeckGeometry, documentLang string) []byte {
+func renderConfidentialityBadge(ctx context.Context, label string) ([]byte, error) {
+	if label == "" {
+		return nil, nil
+	}
+	var output bytes.Buffer
+	component := badge.Badge(badge.Config{
+		Label: label, Tone: badge.ToneWarning, Appearance: badge.AppearanceSoft, Size: badge.SizeSM,
+		RootClass: "margo-deck__confidentiality-badge",
+	})
+	if err := component.Render(ctx, &output); err != nil {
+		return nil, fmt.Errorf("deck.confidentiality_badge_render: %w", err)
+	}
+	return append([]byte(nil), output.Bytes()...), nil
+}
+
+func renderPaginationIcon(ctx context.Context, config *PaginationIconConfig, slides []Slide) ([]byte, PaginationIconPlacement, error) {
+	if config == nil || !hasPaginatedSlide(slides) {
+		return nil, "", nil
+	}
+	var output bytes.Buffer
+	component := icon.Icon(icon.Config{
+		Symbol:     icon.Symbol(config.Symbol),
+		Size:       icon.SizeSM,
+		Label:      config.Label,
+		Decorative: config.Decorative,
+		RootClass:  "margo-deck__pagination-icon",
+		Mode:       icon.ModeInline,
+	})
+	if err := component.Render(ctx, &output); err != nil {
+		return nil, "", fmt.Errorf("deck.pagination_icon_render: %w", err)
+	}
+	return append([]byte(nil), output.Bytes()...), config.Placement, nil
+}
+
+func hasPaginatedSlide(slides []Slide) bool {
+	for _, slide := range slides {
+		if directives := slide.Directives(); directives.Paginate != "" && directives.Paginate != "false" {
+			return true
+		}
+	}
+	return false
+}
+
+func renderPaginationIconSprite() ([]byte, error) {
+	sprite, err := goshtosoassets.ReadFile("icons/heroicons.svg")
+	if err != nil {
+		return nil, fmt.Errorf("deck.pagination_icon_sprite: %w", err)
+	}
+	sprite = bytes.TrimSpace(sprite)
+	if !bytes.HasPrefix(sprite, []byte("<svg")) || !bytes.HasSuffix(sprite, []byte("</svg>")) {
+		return nil, fmt.Errorf("deck.pagination_icon_sprite: invalid Goshtoso sprite")
+	}
+	var output bytes.Buffer
+	output.WriteString(`<div class="margo-deck__icon-sprite" hidden aria-hidden="true">`)
+	output.Write(sprite)
+	output.WriteString(`</div>`)
+	return append([]byte(nil), output.Bytes()...), nil
+}
+
+func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]byte, geometry DeckGeometry, documentLang string, confidentialityBadge, paginationIcon []byte, paginationIconPlacement PaginationIconPlacement) []byte {
 	var output bytes.Buffer
 	compositionCatalogAttribute := ""
 	for _, slide := range slides {
@@ -433,11 +510,29 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 			}
 			_, _ = output.WriteString(`</div>`)
 		}
-		if stateDirectives.Footer != "" {
-			_, _ = fmt.Fprintf(&output, `<footer class="margo-deck__footer">%s</footer>`, html.EscapeString(stateDirectives.Footer))
-		}
-		if stateDirectives.Paginate != "" && stateDirectives.Paginate != "false" {
+		paginated := stateDirectives.Paginate != "" && stateDirectives.Paginate != "false"
+		if paginated && (len(confidentialityBadge) > 0 || len(paginationIcon) > 0) {
+			_, _ = output.WriteString(`<div class="margo-deck__bottom-chrome">`)
+			if stateDirectives.Footer != "" {
+				_, _ = fmt.Fprintf(&output, `<footer class="margo-deck__footer">%s</footer>`, html.EscapeString(stateDirectives.Footer))
+			}
+			_, _ = output.WriteString(`<div class="margo-deck__pagination-cluster">`)
+			_, _ = output.Write(confidentialityBadge)
+			if paginationIconPlacement == PaginationIconBefore {
+				_, _ = output.Write(paginationIcon)
+			}
 			_, _ = fmt.Fprintf(&output, `<span class="margo-deck__pagination" aria-hidden="true">%s</span>`, strconv.Itoa(slide.Ordinal()))
+			if paginationIconPlacement == PaginationIconAfter {
+				_, _ = output.Write(paginationIcon)
+			}
+			_, _ = output.WriteString(`</div></div>`)
+		} else {
+			if stateDirectives.Footer != "" {
+				_, _ = fmt.Fprintf(&output, `<footer class="margo-deck__footer">%s</footer>`, html.EscapeString(stateDirectives.Footer))
+			}
+			if paginated {
+				_, _ = fmt.Fprintf(&output, `<span class="margo-deck__pagination" aria-hidden="true">%s</span>`, strconv.Itoa(slide.Ordinal()))
+			}
 		}
 		_, _ = output.WriteString(`</section>`)
 	}
@@ -465,9 +560,15 @@ func normalizePresentation(theme margo.ThemeName, colorMode margo.ColorMode, sou
 	return theme, colorMode, nil
 }
 
-func deckFingerprint(input RenderInput, theme margo.ThemeName, colorMode margo.ColorMode, geometry DeckGeometry, lang string) margo.DocumentFingerprint {
+func deckFingerprint(input RenderInput, theme margo.ThemeName, colorMode margo.ColorMode, geometry DeckGeometry, lang, confidentialityBadgeLabel string, paginationIcon *PaginationIconConfig) margo.DocumentFingerprint {
 	preimage := []byte(fmt.Sprintf("margo/deck/v2\n%s\n%s\n%s\n%s\n%s\n%g\n%g\n%s\n", input.Name, input.BaseURL, theme, colorMode, lang, geometry.Width, geometry.Height, geometry.Preset))
 	preimage = append(preimage, input.Markdown...)
+	if confidentialityBadgeLabel != "" {
+		preimage = append(preimage, []byte("\nmargo/host/confidentiality-badge\n"+confidentialityBadgeLabel)...)
+	}
+	if paginationIcon != nil {
+		preimage = append(preimage, []byte(fmt.Sprintf("\nmargo/host/pagination-icon\n%s\n%s\n%s\n%t", paginationIcon.Symbol, paginationIcon.Placement, paginationIcon.Label, paginationIcon.Decorative))...)
+	}
 	return margo.DocumentFingerprint(sha256.Sum256(preimage))
 }
 

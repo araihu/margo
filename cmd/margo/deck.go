@@ -21,6 +21,11 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	pageOptions := pageFlags{Size: "A4", Orientation: "portrait"}
 	var slideOptions slideGeometryFlags
 	printChartData := false
+	confidentialityBadge := ""
+	paginationIconSymbol := ""
+	paginationIconPlacement := ""
+	paginationIconLabel := ""
+	paginationIconDecorative := false
 	diagnostics := string(diagnosticText)
 	var policyOptions policyFlags
 	command := &cobra.Command{
@@ -42,7 +47,7 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, err)
 			}
-			artifact, err := renderDeckArtifact(command, deps, args[0], formatValue, engineOptions, pageOptions, slideOptions, printChartData, policy)
+			artifact, err := renderDeckArtifact(command, deps, args[0], formatValue, engineOptions, pageOptions, slideOptions, printChartData, confidentialityBadge, paginationIconSymbol, paginationIconPlacement, paginationIconLabel, paginationIconDecorative, policy)
 			if err == nil {
 				_, err = publish(command.Context(), artifact, output, command.OutOrStdout())
 			}
@@ -56,6 +61,11 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVarP(&output.Path, "output", "o", "-", "output path, or - for stdout")
 	command.Flags().BoolVarP(&output.Force, "force", "f", false, "replace an existing output file")
 	command.Flags().BoolVar(&printChartData, "print-chart-data", false, "print accessible exact-data tables after charts")
+	command.Flags().StringVar(&confidentialityBadge, "confidentiality-badge", "", "host-owned badge label shown before page ordinals")
+	command.Flags().StringVar(&paginationIconSymbol, "pagination-icon", "", "host-owned Goshtoso icon symbol in the page ordinal cluster")
+	command.Flags().StringVar(&paginationIconPlacement, "pagination-icon-placement", "", "pagination icon placement: before or after")
+	command.Flags().StringVar(&paginationIconLabel, "pagination-icon-label", "", "accessible label for an informative pagination icon")
+	command.Flags().BoolVar(&paginationIconDecorative, "pagination-icon-decorative", false, "hide the pagination icon from assistive technology")
 	command.Flags().StringVar(&diagnostics, "diagnostics", string(diagnosticText), "diagnostic format: text or json")
 	engineOptions.bind(command)
 	pageOptions.bind(command)
@@ -112,7 +122,7 @@ func (options slideGeometryFlags) geometry(command *cobra.Command) (deck.DeckGeo
 	return geometry, true, err
 }
 
-func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format string, engineOptions engineFlags, pageOptions pageFlags, slideOptions slideGeometryFlags, printChartData bool, policy *loadedPolicy) ([]byte, error) {
+func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format string, engineOptions engineFlags, pageOptions pageFlags, slideOptions slideGeometryFlags, printChartData bool, confidentialityBadge, paginationIconSymbol, paginationIconPlacement, paginationIconLabel string, paginationIconDecorative bool, policy *loadedPolicy) ([]byte, error) {
 	source, err := readInput(command.Context(), deps.SourceReader, deps.Stdin, input)
 	if err != nil {
 		return nil, err
@@ -134,9 +144,19 @@ func renderDeckArtifact(command *cobra.Command, deps Dependencies, input, format
 	if err != nil {
 		return nil, err
 	}
+	renderOptions := []deck.RenderOption(nil)
+	if command.Flags().Changed("confidentiality-badge") {
+		renderOptions = append(renderOptions, deck.WithConfidentialityBadge(confidentialityBadge))
+	}
+	if command.Flags().Changed("pagination-icon") || command.Flags().Changed("pagination-icon-placement") || command.Flags().Changed("pagination-icon-label") || command.Flags().Changed("pagination-icon-decorative") {
+		renderOptions = append(renderOptions, deck.WithPaginationIcon(deck.PaginationIconConfig{
+			Symbol: paginationIconSymbol, Placement: deck.PaginationIconPlacement(paginationIconPlacement),
+			Label: paginationIconLabel, Decorative: paginationIconDecorative,
+		}))
+	}
 	result, err := deck.Render(command.Context(), compiler, deck.RenderInput{
 		Name: source.Name, Markdown: source.Content, BaseURL: baseURL, Geometry: geometry,
-	})
+	}, renderOptions...)
 	if err != nil {
 		return nil, err
 	}

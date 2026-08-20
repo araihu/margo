@@ -10,7 +10,7 @@ import (
 	"github.com/araihu/margo"
 )
 
-func renderDeckPage(metadata Metadata, theme margo.ThemeName, colorMode margo.ColorMode, lang string, geometry DeckGeometry, article []byte, requirements margo.HTMLRequirements) ([]byte, error) {
+func renderDeckPage(metadata Metadata, theme margo.ThemeName, colorMode margo.ColorMode, lang string, geometry DeckGeometry, article []byte, requirements margo.HTMLRequirements, iconSprite []byte) ([]byte, error) {
 	dependencies, err := margo.RenderHTMLDependencies(requirements, margo.HTMLDependenciesInline)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,11 @@ func renderDeckPage(metadata Metadata, theme margo.ThemeName, colorMode margo.Co
 	_, _ = output.WriteString(`}</style>`)
 	_, _ = output.WriteString(`<style data-margo-deck-styles>`)
 	_, _ = output.WriteString(strings.ReplaceAll(deckCSS, "</style", `<\/style`))
-	_, _ = output.WriteString(`</style></head><body><div class="margo-deck-stage">`)
+	_, _ = output.WriteString(`</style></head><body>`)
+	if len(iconSprite) > 0 {
+		_, _ = output.Write(iconSprite)
+	}
+	_, _ = output.WriteString(`<div class="margo-deck-stage">`)
 	_, _ = output.Write(article)
 	_, _ = output.WriteString(`<nav class="margo-deck-controls" aria-label="`)
 	_, _ = output.WriteString(html.EscapeString(labels.Controls))
