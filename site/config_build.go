@@ -128,7 +128,7 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 .component-doc-shell__brand-mark { display: none !important; }
 .margo-shell-search { width: clamp(11rem, 26vw, 18rem); min-width: 0; flex: 0 1 auto; }
 .margo-shell-search-trigger { min-block-size: 2.75rem; }
-@media (width < 30rem) {
+@media (max-width: 719px) {
   .component-doc-shell__brand-mark { display: grid !important; }
   .margo-shell-search { width: 2.75rem; flex: 0 0 2.75rem; }
   .margo-shell-search-trigger { width: 2.75rem; min-width: 2.75rem; padding-inline: 0; justify-content: center; }
@@ -257,6 +257,12 @@ const configuredDocsCSS = `.margo-showcase-article {
 .margo-showcase-article .margo-pagination a { font-weight: 600; text-decoration: none; }
 .margo-showcase-article .margo-pagination a:hover,
 .margo-showcase-article .margo-pagination a:focus-visible { text-decoration: underline; }
+@media (max-width: 719px) {
+  .margo-shell-search { width: 2.75rem; flex: 0 0 2.75rem; }
+  .margo-shell-search-trigger { width: 2.75rem; min-width: 2.75rem; padding-inline: 0; justify-content: center; }
+  .margo-shell-search-trigger > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+  .margo-shell-search-trigger > kbd { display: none; }
+}
 .margo-shell-footer { margin: 0; font-size: 0.875rem; }
 .margo-search-status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 ` + pageActionsCSS

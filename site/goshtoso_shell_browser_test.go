@@ -215,7 +215,7 @@ locales:
 	}
 
 	if err := chromedp.Run(ctx,
-		chromedp.EmulateViewport(390, 844),
+		chromedp.EmulateViewport(486, 844),
 		chromedp.Navigate(server.URL+"/"),
 		chromedp.WaitVisible(`[data-search-field] button`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
