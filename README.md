@@ -225,11 +225,11 @@ family identity.
 The `landing` layout is for a conversion-oriented page: it has no sidebar,
 table of contents, breadcrumbs, pagination, or page-action toolbar. The `docs`
 layout provides family-local navigation, document context, and scoped
-pagination when neighbors exist. The Margo showcase publishes exactly three
-Markdown-generated routes: Tour at `/`, Module at `/module/`, and CLI at
-`/cli/`. The static artifacts remain `module/index.html` and `cli/index.html`,
-but public links, canonicals, search, family navigation, sitemap, `llms.txt`,
-and rewritten Markdown use those directory routes, including base-path and locale prefixes.
+pagination when neighbors exist. The Margo showcase publishes Tour at `/`,
+Module at `/module/`, the CLI overview at `/cli/`, and one CLI command page
+under `/cli/COMMAND/` for each documented command. Static artifacts remain
+directory `index.html` files, while public links, canonicals, search, family navigation, sitemap, `llms.txt`,
+and rewritten Markdown use the directory routes, including base-path and locale prefixes.
 The former root feature pages are retired. Retired Tour feature routes
 return HTTP 404, produce no artifacts, and have no redirect or hidden
 compatibility page.

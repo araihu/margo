@@ -205,6 +205,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	commandNames := []string{"check", "completion", "deck", "doctor", "html", "pdf", "schema", "serve", "site", "version"}
 
 	htmlRoutes := make([]string, 0)
 	artifacts := make(map[string][]byte, len(result.Artifacts))
@@ -215,7 +216,12 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	sort.Strings(htmlRoutes)
-	if got, want := htmlRoutes, []string{"cli/index.html", "index.html", "module/index.html"}; !reflect.DeepEqual(got, want) {
+	wantHTMLRoutes := []string{"cli/index.html", "index.html", "module/index.html"}
+	for _, command := range commandNames {
+		wantHTMLRoutes = append(wantHTMLRoutes, "cli/"+command+"/index.html")
+	}
+	sort.Strings(wantHTMLRoutes)
+	if got, want := htmlRoutes, wantHTMLRoutes; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HTML routes = %v, want exactly %v", got, want)
 	}
 	for _, retired := range []string{"charts", "cli", "decks", "determinism", "html", "markdown", "mermaid", "module", "pdf", "policy", "site"} {
@@ -223,7 +229,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("retired route artifact %q exists", retired+".html")
 		}
 	}
-	if got, want := len(result.Site.Routes), 3; got != want {
+	if got, want := len(result.Site.Routes), len(wantHTMLRoutes); got != want {
 		t.Fatalf("configured routes = %d, want %d: %+v", got, want, result.Site.Routes)
 	}
 	wantRoutes := map[string]struct {
@@ -234,6 +240,13 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		"index.md":        {output: "index.html", family: "", layout: "landing"},
 		"module/index.md": {output: "module/index.html", family: "module", layout: "docs"},
 		"cli/index.md":    {output: "cli/index.html", family: "cli", layout: "docs"},
+	}
+	for _, command := range commandNames {
+		wantRoutes["cli/"+command+"/index.md"] = struct {
+			output string
+			family string
+			layout string
+		}{output: "cli/" + command + "/index.html", family: "cli", layout: "docs"}
 	}
 	for _, route := range result.Site.Routes {
 		want, ok := wantRoutes[route.Source]
@@ -263,19 +276,30 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	landing := string(artifacts["index.html"])
 	module := string(artifacts["module/index.html"])
 	cli := string(artifacts["cli/index.html"])
-	for name, page := range map[string]string{
-		"Tour":   landing,
-		"Module": module,
-		"CLI":    cli,
-	} {
-		route := map[string]string{"Tour": "https://margo.araihu.com/", "Module": "https://margo.araihu.com/module/", "CLI": "https://margo.araihu.com/cli/"}[name]
-		if !strings.Contains(page, `<link rel="canonical" href="`+route+`"`) {
-			t.Fatalf("%s canonical does not expose public route %q: %s", name, route, page)
+	publicationPages := map[string]struct {
+		content string
+		route   string
+	}{
+		"Tour":   {content: landing, route: "https://margo.araihu.com/"},
+		"Module": {content: module, route: "https://margo.araihu.com/module/"},
+		"CLI":    {content: cli, route: "https://margo.araihu.com/cli/"},
+	}
+	for _, command := range commandNames {
+		publicationPages[command] = struct {
+			content string
+			route   string
+		}{
+			content: string(artifacts["cli/"+command+"/index.html"]),
+			route:   "https://margo.araihu.com/cli/" + command + "/",
 		}
 	}
-	for name, page := range map[string]string{"Tour": landing, "Module": module, "CLI": cli} {
-		if strings.Count(page, "<h1") != 1 {
-			t.Fatalf("%s h1 count = %d", name, strings.Count(page, "<h1"))
+	for name, page := range publicationPages {
+		route := page.route
+		if !strings.Contains(page.content, `<link rel="canonical" href="`+route+`"`) {
+			t.Fatalf("%s canonical does not expose public route %q: %s", name, route, page.content)
+		}
+		if strings.Count(page.content, "<h1") != 1 {
+			t.Fatalf("%s h1 count = %d", name, strings.Count(page.content, "<h1"))
 		}
 	}
 	for _, required := range []string{`href="/module/"`, `href="/cli/"`, `One source, several projections`} {
@@ -320,22 +344,41 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("CLI outline missing %q", required)
 		}
 	}
-	sitemap := string(artifacts[SitemapPath])
-	if strings.Count(sitemap, "<url>") != 3 {
-		t.Fatalf("sitemap URL count = %d, want 3: %s", strings.Count(sitemap, "<url>"), sitemap)
+	for _, command := range commandNames {
+		if !strings.Contains(cli, `href="/cli/`+command+`/"`) {
+			t.Fatalf("CLI overview missing command link %q", command)
+		}
 	}
-	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"} {
+	checkPage := string(artifacts["cli/check/index.html"])
+	for _, command := range commandNames {
+		if !strings.Contains(checkPage, `href="/cli/`+command+`/"`) {
+			t.Fatalf("CLI sidebar missing command %q", command)
+		}
+	}
+	sitemap := string(artifacts[SitemapPath])
+	if strings.Count(sitemap, "<url>") != len(wantHTMLRoutes) {
+		t.Fatalf("sitemap URL count = %d, want %d: %s", strings.Count(sitemap, "<url>"), len(wantHTMLRoutes), sitemap)
+	}
+	publicRoutes := []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"}
+	for _, command := range commandNames {
+		publicRoutes = append(publicRoutes, "https://margo.araihu.com/cli/"+command+"/")
+	}
+	for _, route := range publicRoutes {
 		if !strings.Contains(sitemap, "<loc>"+route+"</loc>") {
 			t.Fatalf("sitemap missing %q", route)
 		}
 	}
 	llms := string(artifacts[LLMSPath])
-	for _, title := range []string{"[Margo]", "[Go module]", "[CLI workflows]"} {
+	wantTitles := []string{"[Margo]", "[Go module]", "[CLI workflows]"}
+	for _, command := range commandNames {
+		wantTitles = append(wantTitles, "["+command+"]")
+	}
+	for _, title := range wantTitles {
 		if !strings.Contains(llms, title) {
 			t.Fatalf("llms.txt missing %q: %s", title, llms)
 		}
 	}
-	for _, route := range []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"} {
+	for _, route := range publicRoutes {
 		if !strings.Contains(llms, route) {
 			t.Fatalf("llms.txt missing public route %q: %s", route, llms)
 		}
