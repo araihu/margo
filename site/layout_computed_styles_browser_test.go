@@ -71,16 +71,19 @@ func TestLayoutDocsFrameResponsiveComputedStyles(t *testing.T) {
 		name             string
 		headerHeight     float64
 		wantMenu         bool
+		wantSidebarFixed bool
 		wantTOC          bool
 		wantFamilyCenter bool
 	}{
-		{390, "mobile", 64, true, false, false},
-		{720, "tablet", 108, false, false, false},
-		{1279, "toc-hidden-boundary", 108, false, false, false},
-		{1280, "toc-visible-boundary", 108, false, true, false},
-		{1439, "two-row-header-boundary", 108, false, true, false},
-		{1440, "single-row-header-boundary", 64, false, true, true},
-		{1498, "wide", 64, false, true, true},
+		{390, "mobile", 64, true, true, false, false},
+		{720, "tablet", 108, true, true, false, false},
+		{1023, "sidebar-drawer-boundary", 108, true, true, false, false},
+		{1024, "sidebar-rail-boundary", 108, false, false, false, false},
+		{1279, "toc-hidden-boundary", 108, false, false, false, false},
+		{1280, "toc-visible-boundary", 108, false, false, true, false},
+		{1439, "two-row-header-boundary", 108, false, false, true, false},
+		{1440, "single-row-header-boundary", 64, false, false, true, true},
+		{1498, "wide", 64, false, false, true, true},
 	} {
 		var got state
 		if err := chromedp.Run(ctx,
@@ -91,10 +94,10 @@ func TestLayoutDocsFrameResponsiveComputedStyles(t *testing.T) {
 		); err != nil {
 			t.Fatalf("%s viewport browser check failed: %v", check.name, err)
 		}
-		if got.HeaderHeight < check.headerHeight-1 || got.HeaderHeight > check.headerHeight+1 || got.MenuVisible != check.wantMenu || got.TOCVisible != check.wantTOC || (check.wantFamilyCenter && !got.FamilyCenter) || got.Overflow {
+		if got.HeaderHeight < check.headerHeight-1 || got.HeaderHeight > check.headerHeight+1 || got.MenuVisible != check.wantMenu || got.SidebarFixed != check.wantSidebarFixed || got.TOCVisible != check.wantTOC || (check.wantFamilyCenter && !got.FamilyCenter) || got.Overflow {
 			t.Fatalf("%s componentdocshell geometry = %+v", check.name, got)
 		}
-		if check.width >= 720 && (got.SidebarWidth < 287 || got.SidebarWidth > 289 || got.SidebarFixed) {
+		if check.width >= 1024 && (got.SidebarWidth < 287 || got.SidebarWidth > 289) {
 			t.Fatalf("%s sidebar is not the persistent 18rem shell rail: %+v", check.name, got)
 		}
 		if check.wantTOC && (got.TOCWidth < 239 || got.TOCWidth > 241) {

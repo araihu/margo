@@ -17,9 +17,6 @@ Margo compiles ordinary Markdown into one semantic document, then projects it to
 HTML, linked sites, PDFs, or experimental decks. Pick the boundary that matches
 who owns composition and delivery.
 
-- [Publish with the CLI — check, preview, and build from a standalone workflow](cli/index.md)
-- [Embed the Go module — keep composition and delivery inside your application](module/index.md)
-
 ![Margo mascot preparing a document](margo-mascot.png)
 
 ## One source, several projections

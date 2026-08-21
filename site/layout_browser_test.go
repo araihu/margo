@@ -202,6 +202,8 @@ type landingGeometryState struct {
 	ThemeControlVisible bool      `json:"themeControlVisible"`
 	RepositoryVisible   bool      `json:"repositoryVisible"`
 	HeroWidth           float64   `json:"heroWidth"`
+	HeroPaddingTop      float64   `json:"heroPaddingTop"`
+	HeroPaddingBottom   float64   `json:"heroPaddingBottom"`
 	CopyTop             float64   `json:"copyTop"`
 	CopyRight           float64   `json:"copyRight"`
 	CopyBottom          float64   `json:"copyBottom"`
@@ -220,11 +222,14 @@ type landingGeometryState struct {
 	SectionTextLeft     float64   `json:"sectionTextLeft"`
 	SectionTextWidth    float64   `json:"sectionTextWidth"`
 	SectionMediaWidth   float64   `json:"sectionMediaWidth"`
+	MediaTextGap        float64   `json:"mediaTextGap"`
 	FitHeadingLeft      float64   `json:"fitHeadingLeft"`
 	FitListLeft         float64   `json:"fitListLeft"`
 	FinalActionTops     []float64 `json:"finalActionTops"`
 	FinalActionLefts    []float64 `json:"finalActionLefts"`
 	FinalActionWidths   []float64 `json:"finalActionWidths"`
+	FinalLinksGoshtoso  bool      `json:"finalLinksGoshtoso"`
+	FooterBrandRendered bool      `json:"footerBrandRendered"`
 	ArticleCount        int       `json:"articleCount"`
 	Overflow            bool      `json:"overflow"`
 }
@@ -248,6 +253,7 @@ const landingGeometryScript = `(() => {
 	  const sectionHeading = section?.querySelector(':scope > h2');
 	  const sectionText = section?.querySelector(':scope > p:not(.margo-landing-media)');
 	  const sectionMedia = section?.querySelector(':scope > .margo-landing-media');
+	  const mediaText = section?.querySelector(':scope > .margo-landing-media + p');
 	  const fitSection = [...document.querySelectorAll('.margo-landing-section')].find(candidate => candidate.querySelector(':scope > h2')?.textContent.trim() === 'Is Margo a fit?');
 	  const fitHeading = fitSection?.querySelector(':scope > h3');
 	  const fitList = fitHeading?.nextElementSibling;
@@ -257,6 +263,7 @@ const landingGeometryScript = `(() => {
 	  const visualRect = rect(visual);
 	  const imageRect = rect(image);
 	  const imageStyle = image ? getComputedStyle(image) : {};
+	  const heroStyle = hero ? getComputedStyle(hero) : {};
 	  return {
 	    headerWidth: rect(header).width,
 	    headerHeight: rect(header).height,
@@ -265,6 +272,8 @@ const landingGeometryScript = `(() => {
 	    themeControlVisible: visible(document.querySelector('#landingshell-dark-mode')),
 	    repositoryVisible: visible(document.querySelector('.landing-shell__navigation > [aria-label="Source repository"]')),
 	    heroWidth: heroRect.width,
+	    heroPaddingTop: parseFloat(heroStyle.paddingTop || '0'),
+	    heroPaddingBottom: parseFloat(heroStyle.paddingBottom || '0'),
 	    copyTop: copyRect.top,
 	    copyRight: copyRect.right,
 	    copyBottom: copyRect.top + copyRect.height,
@@ -283,11 +292,14 @@ const landingGeometryScript = `(() => {
 	    sectionTextLeft: rect(sectionText).left,
 	    sectionTextWidth: rect(sectionText).width,
 	    sectionMediaWidth: rect(sectionMedia).width,
+	    mediaTextGap: rect(mediaText).top - (rect(sectionMedia).top + rect(sectionMedia).height),
 	    fitHeadingLeft: rect(fitHeading).left,
 	    fitListLeft: rect(fitList).left,
 	    finalActionTops: finalActions.map(action => rect(action).top),
 	    finalActionLefts: finalActions.map(action => rect(action).left),
 	    finalActionWidths: finalActions.map(action => rect(action).width),
+	    finalLinksGoshtoso: finalActions.length === 2 && finalActions.every(action => action.classList.contains('text-primary') && !action.classList.contains('rounded-2xl')),
+	    footerBrandRendered: !!document.querySelector('.landing-shell__footer-brand'),
 	    articleCount: document.querySelectorAll('[data-margo-landing-article="true"] > article.margo-document').length,
 	    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 || document.body.scrollWidth > document.documentElement.clientWidth + 1,
 	  };
@@ -336,6 +348,15 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		if state.ArticleCount != 1 || state.Overflow {
 			t.Fatalf("landing %s at %dpx composition = %+v, want one article and no overflow", fixture.name, width, state)
 		}
+		if state.HeroPaddingTop < 24 || state.HeroPaddingBottom < 24 {
+			t.Fatalf("landing %s at %dpx hero block padding = %+v, want at least 24px", fixture.name, width, state)
+		}
+		if state.MediaTextGap < 16 {
+			t.Fatalf("landing %s at %dpx media-to-text gap = %.1fpx, want at least 16px", fixture.name, width, state.MediaTextGap)
+		}
+		if state.FooterBrandRendered {
+			t.Fatalf("landing %s at %dpx repeated footer brand rendered", fixture.name, width)
+		}
 		if state.HeaderWidth < float64(width)-1 || state.HeaderWidth > float64(width)+1 || state.HeaderHeight < 64 || state.FooterWidth < float64(width)-1 || state.FooterWidth > float64(width)+1 || state.VisibleHeaderLinks != 2 || !state.ThemeControlVisible || !state.RepositoryVisible {
 			t.Fatalf("landing shell %s at %dpx navigation/footer geometry = %+v", fixture.name, width, state)
 		}
@@ -365,8 +386,8 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		if delta := state.FitListLeft - state.FitHeadingLeft; delta < -1 || delta > 1 {
 			t.Fatalf("landing at %dpx fit list starts %.1fpx from its heading: %+v", width, delta, state)
 		}
-		if len(state.FinalActionTops) != 2 || state.FinalActionTops[1] <= state.FinalActionTops[0] || math.Abs(state.FinalActionLefts[1]-state.FinalActionLefts[0]) > 1 || math.Abs(state.FinalActionWidths[1]-state.FinalActionWidths[0]) > 1 {
-			t.Fatalf("landing at %dpx final actions are not a uniform vertical stack: %+v", width, state)
+		if len(state.FinalActionTops) != 2 || state.FinalActionTops[1] <= state.FinalActionTops[0] || !state.FinalLinksGoshtoso {
+			t.Fatalf("landing at %dpx final actions are not Goshtoso text links in a vertical stack: %+v", width, state)
 		}
 	}
 }
@@ -475,7 +496,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 func layoutBrowserServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n  values:\n    shell: true\n    navigation: [module/index.md, cli/index.md]\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\nThe same source can serve several formats.\n\n![Several generated outputs](margo-mascot.png)\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n\n## Choose your next step\n\n- [Start with the CLI guide](cli/index.md)\n- [Continue with the Module guide](module/index.md)\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n  values:\n    shell: true\n    navigation: [module/index.md, cli/index.md]\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\n![Several generated outputs](margo-mascot.png)\n\nThe same source can serve several formats.\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n\n## Choose your next step\n\n- [Start with the CLI guide](cli/index.md)\n- [Continue with the Module guide](module/index.md)\n")
 	mascot, err := os.ReadFile(filepath.Join("..", "showcase", "content", "margo-mascot.png"))
 	if err != nil {
 		t.Fatal(err)

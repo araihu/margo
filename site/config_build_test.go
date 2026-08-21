@@ -308,6 +308,25 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("Tour missing %q", required)
 		}
 	}
+	for _, removed := range []string{
+		"Publish with the CLI — check, preview, and build from a standalone workflow",
+		"Embed the Go module — keep composition and delivery inside your application",
+		`class="landing-shell__footer-brand"`,
+	} {
+		if strings.Contains(landing, removed) {
+			t.Fatalf("Tour retained removed hero/footer content %q", removed)
+		}
+	}
+	for _, required := range []string{
+		`aria-label="Footer navigation"`,
+	} {
+		if !strings.Contains(landing, required) {
+			t.Fatalf("Tour missing Goshtoso link/footer contract %q", required)
+		}
+	}
+	if strings.Count(landing, `class="font-medium text-primary`) < 2 {
+		t.Fatalf("Tour final navigation did not render two Goshtoso text links")
+	}
 	for _, required := range []string{"good fit", "not a fit"} {
 		if !strings.Contains(strings.ToLower(landing), required) {
 			t.Fatalf("Tour missing %q", required)

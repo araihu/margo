@@ -22,6 +22,7 @@ import (
 	chartassets "github.com/araihu/goshtoso-charts/assets"
 	goshtosoassets "github.com/araihu/goshtoso/assets"
 	"github.com/araihu/goshtoso/components/breadcrumbs"
+	"github.com/araihu/goshtoso/components/link"
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/internal/staticimage"
 	"github.com/araihu/margo/ssg"
@@ -204,6 +205,7 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
   gap: clamp(1.5rem, 5vw, 4rem);
   inline-size: min(100%, 84rem);
   margin-inline: auto;
+  padding-block: clamp(1.5rem, 4vw, 4rem);
   padding-inline: clamp(0rem, 2vw, 1.5rem);
 }
 .margo-landing-hero__copy { flex: 1 1 26rem; min-inline-size: 0; }
@@ -223,10 +225,10 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
 .margo-landing-section > h3, .margo-landing-section > h3 + ul { inline-size: min(100%, 48rem); max-inline-size: 48rem; }
 .margo-landing-section > .margo-landing-media { max-inline-size: min(100%, 64rem); }
 .margo-landing-section > .margo-landing-media > img, .margo-landing-section > .margo-landing-media > svg { display: block; max-inline-size: 100%; block-size: auto; margin-inline: auto; }
+.margo-landing-section > .margo-landing-media + p { margin-block-start: 1rem; }
 [data-margo-layout="landing"] .goshtoso-charts-expand-panel { inline-size: min(100%, 36rem); max-inline-size: min(100%, 36rem); block-size: min(calc(100dvh - 2rem), 36rem); max-block-size: calc(100dvh - 2rem); min-inline-size: 0; }
 .margo-landing-section > blockquote { margin-block: 1.25rem; border-inline-start: 0.25rem solid var(--margo-accent); padding-inline: 1rem; color: var(--margo-text-strong); }
 .margo-landing-section:last-child > ul:last-child { display: grid; grid-template-columns: 1fr; gap: 0.75rem; padding: 0; list-style: none; }
-.margo-landing-section:last-child > ul:last-child a { display: flex; align-items: center; min-block-size: 2.75rem; padding: 0.75rem 1rem; border: 1px solid var(--margo-outline); border-radius: 0.75rem; background: var(--margo-surface-alt); color: var(--margo-text-strong); font-weight: 700; text-decoration: none; }
 `
 
 // configuredDocsCSS contains only the Margo-owned article and action layer.
@@ -1500,6 +1502,9 @@ func transformLandingArticle(fragment []byte) ([]byte, error) {
 			child = next
 		}
 	}
+	if err := transformLandingFinalLinks(article); err != nil {
+		return nil, err
+	}
 
 	var output bytes.Buffer
 	for _, node := range nodes {
@@ -1511,6 +1516,81 @@ func transformLandingArticle(fragment []byte) ([]byte, error) {
 		return nil, fmt.Errorf("landing fragment must contain one article")
 	}
 	return output.Bytes(), nil
+}
+
+func transformLandingFinalLinks(article *html.Node) error {
+	section := article.LastChild
+	for section != nil && section.Type != html.ElementNode {
+		section = section.PrevSibling
+	}
+	if section == nil || !hasClass(section, "margo-landing-section") {
+		return nil
+	}
+	list := section.LastChild
+	for list != nil && list.Type != html.ElementNode {
+		list = list.PrevSibling
+	}
+	if list == nil || list.Data != "ul" {
+		return nil
+	}
+	for item := list.FirstChild; item != nil; item = item.NextSibling {
+		if item.Type != html.ElementNode || item.Data != "li" {
+			continue
+		}
+		anchor := item.FirstChild
+		for anchor != nil && anchor.Type != html.ElementNode {
+			anchor = anchor.NextSibling
+		}
+		if anchor == nil || anchor.Data != "a" {
+			continue
+		}
+		href := attributeValue(anchor, "href")
+		if href == "" {
+			continue
+		}
+		var rendered bytes.Buffer
+		ctx := templ.WithChildren(context.Background(), templ.Raw("link"))
+		if err := link.Link(href, link.WithAppearance(link.AppearanceText)).Render(ctx, &rendered); err != nil {
+			return err
+		}
+		nodes, err := html.ParseFragment(bytes.NewReader(rendered.Bytes()), &html.Node{Type: html.ElementNode, DataAtom: atom.Li, Data: "li"})
+		if err != nil {
+			return err
+		}
+		var replacement *html.Node
+		for _, node := range nodes {
+			if node.Type == html.ElementNode {
+				if replacement != nil || node.Data != "a" {
+					return fmt.Errorf("expected one Goshtoso link root")
+				}
+				replacement = node
+			} else if node.Type != html.TextNode || strings.TrimSpace(node.Data) != "" {
+				return fmt.Errorf("expected one Goshtoso link root")
+			}
+		}
+		if replacement == nil {
+			return fmt.Errorf("expected one Goshtoso link root")
+		}
+		for child := replacement.FirstChild; child != nil; {
+			next := child.NextSibling
+			replacement.RemoveChild(child)
+			child = next
+		}
+		for child := anchor.FirstChild; child != nil; {
+			next := child.NextSibling
+			anchor.RemoveChild(child)
+			replacement.AppendChild(child)
+			child = next
+		}
+		for _, attr := range anchor.Attr {
+			if attr.Key != "href" && attr.Key != "class" {
+				replacement.Attr = append(replacement.Attr, attr)
+			}
+		}
+		item.InsertBefore(replacement, anchor)
+		item.RemoveChild(anchor)
+	}
+	return nil
 }
 
 func landingElement(dataAtom atom.Atom, data, className string) *html.Node {

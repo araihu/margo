@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const goshtosoComponentDocShellVersion = "v0.1.6"
+const goshtosoComponentDocShellVersion = "v0.1.7"
 
 const componentDocShellScrollSpyAssetName = "margo-scroll-spy.js"
 
@@ -755,7 +755,7 @@ func (b *builder) typedLandingShellConfig(prepared configuredPage) landingshell.
 		Navigation:    links,
 		Appearance:    appearance,
 		Interactions:  landingshell.InteractionConfig{LocalRuntime: true},
-		Footer:        landingshell.Footer{Name: b.config.Site.Name, Meta: []string{b.config.Site.Version}, Links: links},
+		Footer:        landingshell.Footer{Links: links, HideBrand: true},
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   landingShellAssetPrefix(b.config.BasePath),
 	}
@@ -1011,7 +1011,7 @@ func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 }
 
 // applyTypedComponentDocShellSemantics adds Margo's route hook and bridges the
-// one structural value not exposed by Goshtoso componentdocshell v0.1.6.
+// one structural value not exposed by Goshtoso componentdocshell v0.1.7.
 // sidebar=false removes the shell's sidebar controls after rendering; it does
 // not add private shell CSS or recreate the shell's responsive layout.
 func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEnabled bool) ([]byte, error) {
