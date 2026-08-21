@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/page"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
@@ -85,9 +86,10 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	if err := validateRequest(request); err != nil {
 		return pdf.Result{}, err
 	}
+	mermaidTasks := 0
 	for _, task := range request.Runtime.Tasks {
-		if task.Kind != "mermaid" {
-			return pdf.Result{}, chromiumError("pdf.runtime_unsupported", "runtime task kind "+task.Kind+" is not implemented")
+		if task.Kind == "mermaid" {
+			mermaidTasks++
 		}
 	}
 	var err error
@@ -120,7 +122,14 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	var metrics margo.LayoutMetrics
 	var runtimeOutput browserRuntimeOutput
 	var pdfBytes []byte
-	if err := chromedp.Run(browserCtx,
+	actions := []chromedp.Action{}
+	if request.Runtime.Protocol == margo.RuntimeProtocolV2 {
+		validationRequest := request.Runtime.ValidationRequest
+		actions = append(actions, emulation.SetDeviceMetricsOverride(
+			int64(validationRequest.ViewportWidth), int64(validationRequest.ViewportHeight), validationRequest.DeviceScaleFactor, false,
+		))
+	}
+	actions = append(actions,
 		chromedp.Navigate(server.URL),
 		chromedp.Evaluate(runtimeExpression, &runtimeOutput, awaitPromise),
 		chromedp.Evaluate(`(async () => {
@@ -128,6 +137,7 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 			if (typeof globalThis.margoPrepareDeckPrint === "function") await globalThis.margoPrepareDeckPrint();
 			return true;
 		})()`, nil, awaitPromise),
+		emulation.SetEmulatedMedia().WithMedia("print"),
 		chromedp.Evaluate(`(async () => {
 			await document.fonts.ready;
 			await Promise.all(Array.from(document.images).map((image) => image.complete ? true : new Promise((resolve, reject) => {
@@ -146,29 +156,57 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 			pdfBytes, _, err = params.Do(ctx)
 			return err
 		}),
-	); err != nil {
+	)
+	if err := chromedp.Run(browserCtx, actions...); err != nil {
 		return pdf.Result{}, chromiumError("pdf.chromium.export_failed", err.Error())
 	}
 	if !strings.HasPrefix(string(pdfBytes), "%PDF-") {
 		return pdf.Result{}, chromiumError("pdf.chromium.output_invalid", "browser returned invalid PDF bytes")
 	}
-	if len(runtimeOutput.SVG) != len(request.Runtime.Tasks) {
+	if len(runtimeOutput.SVG) != mermaidTasks {
 		return pdf.Result{}, chromiumError("pdf.runtime_task_mismatch", "document runtime markers do not match the descriptor")
 	}
 	version, err := engine.Version(exportCtx)
 	if err != nil {
 		return pdf.Result{}, err
 	}
+	status := margo.RuntimeReady
+	var diagnostic *margo.Diagnostic
+	fontDigest := runtimeOutput.FontBundleDigest
+	for _, check := range runtimeOutput.FontChecks {
+		if !check.Loaded {
+			status = margo.RuntimeFailed
+			diagnostic = &margo.Diagnostic{Code: "deck.fonts_unavailable", Severity: margo.SeverityError, Message: "a required deck font face did not load"}
+			break
+		}
+	}
+	if request.Runtime.Protocol == margo.RuntimeProtocolV2 && fontDigest != request.Runtime.ValidationRequest.ExpectedFontBundleDigest {
+		status = margo.RuntimeFailed
+		diagnostic = &margo.Diagnostic{Code: "deck.font_bundle_mismatch", Severity: margo.SeverityError, Message: "observed deck font bundle differs from the descriptor lock"}
+	}
 	report := margo.RuntimeReport{
 		Protocol:            request.Runtime.Protocol,
 		DocumentFingerprint: request.Runtime.DocumentFingerprint,
 		RenderInstanceID:    request.Runtime.RenderInstanceID,
 		ExecutionID:         request.ExecutionID,
-		Status:              margo.RuntimeReady,
-		Tasks:               runtimeTaskReports(request.Runtime.Tasks, runtimeOutput.SVG),
-		FontChecks:          []margo.FontCheck{},
+		Status:              status,
+		Tasks:               runtimeTaskReports(request.Runtime.Tasks, runtimeOutput.SVG, metrics),
+		FontChecks:          runtimeOutput.FontChecks,
 		BlockedRequests:     []margo.BlockedRequest{},
 		Layout:              metrics,
+		Diagnostic:          diagnostic,
+	}
+	if request.Runtime.Protocol == margo.RuntimeProtocolV2 {
+		platformProfile := runtime.GOOS + "-" + runtime.GOARCH
+		if validRuntimeDigest(fontDigest) {
+			report.ValidationIdentity = &margo.RuntimeValidationIdentity{
+				BrowserProfile:   request.Runtime.ValidationRequest.BrowserProfile,
+				EngineName:       engine.Name(),
+				EngineVersion:    version,
+				PlatformProfile:  platformProfile,
+				FontBundleDigest: fontDigest,
+			}
+		}
 	}
 	if err := margo.ValidateRuntimeReport(request.Runtime, request.ExecutionID, report); err != nil {
 		return pdf.Result{}, chromiumError("pdf.runtime_report_invalid", err.Error())
@@ -228,7 +266,9 @@ func documentServer(document []byte) *httptest.Server {
 }
 
 type browserRuntimeOutput struct {
-	SVG []string `json:"svg"`
+	SVG              []string          `json:"svg"`
+	FontChecks       []margo.FontCheck `json:"fontChecks"`
+	FontBundleDigest string            `json:"fontBundleDigest"`
 }
 
 const runtimeExpression = `(async () => {
@@ -303,12 +343,15 @@ const runtimeExpression = `(async () => {
 		return {theme: 'base', themeVariables};
 	}
 
+	const fontEvidence = typeof globalThis.margoGetDeckFontEvidence === 'function'
+		? await globalThis.margoGetDeckFontEvidence()
+		: {fontChecks: [], fontBundleDigest: ''};
 	const nodes = Array.from(document.querySelectorAll('[data-margo-runtime-task="mermaid"]'));
-	if (nodes.length === 0) return {svg: []};
+	if (nodes.length === 0) return {svg: [], ...fontEvidence};
 	if (globalThis.margoRuntimeReady && typeof globalThis.margoRuntimeReady.then === 'function') {
 		await globalThis.margoRuntimeReady;
 		const embedded = nodes.map((node) => node.querySelector('.margo-mermaid__canvas svg')?.outerHTML ?? '');
-		if (embedded.every((svg) => svg.length > 0)) return {svg: embedded};
+		if (embedded.every((svg) => svg.length > 0)) return {svg: embedded, ...fontEvidence};
 	}
 	const mermaid = (await import('/margo-assets/mermaid/11.16.1/mermaid.esm.min.mjs')).default;
 	const mermaidConfiguration = margoMermaidConfiguration();
@@ -339,13 +382,22 @@ const runtimeExpression = `(async () => {
 		if (source) source.hidden = true;
 		outputs.push(svg ? svg.outerHTML : rendered.svg);
 	}
-	return {svg: outputs};
+	return {svg: outputs, ...fontEvidence};
 })()`
 
-func runtimeTaskReports(tasks []margo.RuntimeTask, outputs []string) []margo.RuntimeTaskReport {
+func runtimeTaskReports(tasks []margo.RuntimeTask, outputs []string, metrics margo.LayoutMetrics) []margo.RuntimeTaskReport {
 	reports := make([]margo.RuntimeTaskReport, len(tasks))
+	mermaidIndex := 0
 	for index, task := range tasks {
-		output := []byte(outputs[index])
+		output := []byte(fmt.Sprintf("margo-runtime-task/%s/%d/%d", task.Kind, metrics.ScrollWidth, metrics.ScrollHeight))
+		if task.Kind == "mermaid" {
+			if mermaidIndex >= len(outputs) {
+				output = nil
+			} else {
+				output = []byte(outputs[mermaidIndex])
+			}
+			mermaidIndex++
+		}
 		digest := sha256.Sum256(output)
 		reports[index] = margo.RuntimeTaskReport{
 			ID:           task.ID,
@@ -359,10 +411,23 @@ func runtimeTaskReports(tasks []margo.RuntimeTask, outputs []string) []margo.Run
 	return reports
 }
 
+func validRuntimeDigest(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}
+
 func injectPageGeometry(document []byte, config pdf.PageConfig) ([]byte, error) {
 	orientation := config.Orientation
 	if orientation == "" {
 		orientation = pdf.Portrait
+	}
+	pageSize := string(config.Size)
+	if config.Custom != nil {
+		pageSize = fmt.Sprintf("%smm %smm", formatMillimeters(config.Custom.WidthMM), formatMillimeters(config.Custom.HeightMM))
+		orientation = ""
 	}
 	margins := fmt.Sprintf("%smm %smm %smm %smm",
 		formatMillimeters(config.Margins.Top), formatMillimeters(config.Margins.Right),
@@ -373,14 +438,14 @@ func injectPageGeometry(document []byte, config pdf.PageConfig) ([]byte, error) 
 		maxImageHeight = "none"
 	}
 	imageRule := fmt.Sprintf(`@media print { .margo-document img { max-block-size: %s !important; max-height: %s !important; max-inline-size: 100%% !important; max-width: 100%% !important; inline-size: auto !important; width: auto !important; block-size: auto !important; height: auto !important; aspect-ratio: auto !important; object-fit: contain !important; page-break-inside: avoid; break-inside: avoid-page; } }`, maxImageHeight, maxImageHeight)
-	rule := fmt.Sprintf(`<style data-margo-page-geometry>@page { size: %s %s; margin: %s; } @page margo-diagram-landscape { size: %s landscape; margin: %s; } %s</style>`,
-		config.Size, orientation, margins, config.Size, margins, imageRule,
+	orientationSuffix := ""
+	if orientation != "" {
+		orientationSuffix = " " + string(orientation)
+	}
+	rule := fmt.Sprintf(`<style data-margo-page-geometry>@page { size: %s%s; margin: %s; } @page margo-diagram-landscape { size: %s landscape; margin: %s; } %s</style>`,
+		pageSize, orientationSuffix, margins, pageSize, margins, imageRule,
 	)
-	lower := strings.ToLower(string(document))
-	// Embedded runtimes may contain the literal text "</head>" inside script
-	// source. The generated document's real head terminator is the final
-	// occurrence; inserting at the first occurrence can leave @page inside JS.
-	index := strings.LastIndex(lower, "</head>")
+	index := htmlHeadEnd(document)
 	if index < 0 {
 		return nil, chromiumError("pdf.page_geometry_failed", "HTML document has no closing head element")
 	}
@@ -389,6 +454,67 @@ func injectPageGeometry(document []byte, config pdf.PageConfig) ([]byte, error) 
 	result = append(result, rule...)
 	result = append(result, document[index:]...)
 	return result, nil
+}
+
+// htmlHeadEnd returns the byte offset of the real closing head tag. A simple
+// strings.Index is insufficient because generated runtime bundles may contain
+// the literal text "</head>" inside script or style source. The scan is
+// intentionally lexical: raw-text elements are skipped, while the first
+// closing head tag outside them is the document boundary where @page CSS must
+// be inserted.
+func htmlHeadEnd(document []byte) int {
+	lower := strings.ToLower(string(document))
+	headStart := strings.Index(lower, "<head")
+	if headStart < 0 {
+		return -1
+	}
+	headOpenEnd := strings.IndexByte(lower[headStart:], '>')
+	if headOpenEnd < 0 {
+		return -1
+	}
+	position := headStart + headOpenEnd + 1
+	for position < len(lower) {
+		closingHead := strings.Index(lower[position:], "</head>")
+		if closingHead < 0 {
+			return -1
+		}
+		closingHead += position
+		for _, rawName := range []string{"script", "style"} {
+			rawStart := findHTMLTag(lower, position, "<"+rawName)
+			if rawStart < 0 || rawStart >= closingHead {
+				continue
+			}
+			rawOpenEnd := strings.IndexByte(lower[rawStart:], '>')
+			if rawOpenEnd < 0 {
+				return -1
+			}
+			rawClose := strings.Index(lower[rawStart+rawOpenEnd+1:], "</"+rawName+">")
+			if rawClose < 0 {
+				return -1
+			}
+			position = rawStart + rawOpenEnd + 1 + rawClose + len(rawName) + 3
+			goto nextCandidate
+		}
+		return closingHead
+	nextCandidate:
+	}
+	return -1
+}
+
+func findHTMLTag(lower string, start int, prefix string) int {
+	for position := start; position < len(lower); {
+		found := strings.Index(lower[position:], prefix)
+		if found < 0 {
+			return -1
+		}
+		found += position
+		after := found + len(prefix)
+		if after == len(lower) || lower[after] == ' ' || lower[after] == '\t' || lower[after] == '\n' || lower[after] == '\r' || lower[after] == '>' || lower[after] == '/' {
+			return found
+		}
+		position = after
+	}
+	return -1
 }
 
 func formatMillimeters(value pdf.Millimeters) string {

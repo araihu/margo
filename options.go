@@ -11,6 +11,14 @@ type Option func(*compilerConfig) error
 // RenderOption configures one immutable render operation.
 type RenderOption func(*renderOptions) error
 
+// RenderIDAllocator is the render-wide identity capability used by deck and
+// trusted extensions. The pair (kind, sourceKey) is idempotent and resolves to
+// one stable HTML ID for the lifetime of a render.
+type RenderIDAllocator interface {
+	Allocate(kind, sourceKey string) string
+	Resolve(kind, sourceKey string) (string, bool)
+}
+
 type compilerConfig struct {
 	values map[string]any
 }
@@ -44,11 +52,29 @@ func WithRenderTarget(target RenderTarget) RenderOption {
 	}
 }
 
+// WithRenderIDAllocator provides a trusted render-wide identity allocator.
+func WithRenderIDAllocator(allocator RenderIDAllocator) RenderOption {
+	return func(options *renderOptions) error {
+		if allocator == nil {
+			return fmt.Errorf("render.id_allocator_invalid: allocator is nil")
+		}
+		options.values["idAllocator"] = allocator
+		return nil
+	}
+}
+
 func renderTarget(options renderOptions) RenderTarget {
 	if target, ok := options.values["target"].(RenderTarget); ok {
 		return target
 	}
 	return TargetHTML
+}
+
+func renderIDAllocator(options renderOptions) RenderIDAllocator {
+	if allocator, ok := options.values["idAllocator"].(RenderIDAllocator); ok {
+		return allocator
+	}
+	return nil
 }
 
 func newCompilerConfig() compilerConfig {

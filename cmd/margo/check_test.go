@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,6 +64,17 @@ func TestCheckCommandSucceedsForCompatibleInput(t *testing.T) {
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestCheckDeckRunsDeckParser(t *testing.T) {
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("<!-- class: unsupported -->\n# One\n"), Stdout: io.Discard, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"check", "-", "--target", "deck"})
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "deck.class_unsupported" {
+		t.Fatalf("error = %v", err)
 	}
 }
 

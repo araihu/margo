@@ -201,6 +201,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		Compiler: margo.New(margo.WithExtension(charts.Extension(
 			charts.WithExternalizedControlRuntime(true),
 		))),
+		PDFEngine: siteTestPDFEngine{},
 	})
 	if err != nil {
 		t.Fatal(err)

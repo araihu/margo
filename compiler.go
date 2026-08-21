@@ -110,6 +110,29 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 	}, nil
 }
 
+// SupportsRenderIDAllocator reports whether every registered extension has
+// opted into the deck render-wide identity capability.
+func (c *Compiler) SupportsRenderIDAllocator() bool {
+	if c == nil {
+		return false
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for _, registration := range c.registry.registrations {
+		found := false
+		for _, capability := range registration.Identity.Capabilities {
+			if capability == "NamespacedIDsV1" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 // Render creates an immutable result. Semantic rendering is added by the
 // later render-plan task; this early contract still enforces compiler binding.
 func (c *Compiler) Render(ctx context.Context, document *Document, options ...RenderOption) (*RenderResult, error) {

@@ -40,7 +40,7 @@ func installDefaultExtensions(config *compilerConfig) error {
 			Name:              "mermaid",
 			Version:           internalmermaid.RuntimeVersion,
 			ConfigurationHash: hex.EncodeToString(configurationHash[:]),
-			Capabilities:      append([]string{"runtime-task", "strict-configuration"}, browserCapabilities...),
+			Capabilities:      append([]string{"runtime-task", "strict-configuration", "NamespacedIDsV1"}, browserCapabilities...),
 		},
 		Fences:  []string{"mermaid"},
 		Factory: func(RenderContext) (ExtensionSession, error) { return mermaidSession{}, nil },

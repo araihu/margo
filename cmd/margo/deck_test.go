@@ -30,6 +30,84 @@ func TestDeckDefaultsToHTMLStdout(t *testing.T) {
 	}
 }
 
+func TestDeckConfidentialityBadgeFlagAddsHostChrome(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("<!-- paginate: true -->\n# One\n"), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"deck", "-", "--confidentiality-badge", "Confidencial"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `margo-deck__confidentiality-badge`) {
+		t.Fatal("deck confidentiality badge missing")
+	}
+}
+
+func TestDeckPaginationIconFlagsAddHostChrome(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("<!-- paginate: true -->\n# One\n"), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{
+		"deck", "-", "--pagination-icon", "hi-16-solid-clock",
+		"--pagination-icon-placement", "before", "--pagination-icon-decorative",
+	})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	markup := stdout.String()
+	if !strings.Contains(markup, `href="#hi-16-solid-clock"`) || !strings.Contains(markup, `<symbol id="hi-16-solid-clock"`) {
+		t.Fatalf("deck pagination icon missing: %s", markup)
+	}
+}
+
+func TestDeckPrintChartDataFlagProjectsAccessibleTable(t *testing.T) {
+	markdown := "# Chart\n\n```goshtosochart\nschemaVersion: 1\ntype: bar\ntitle: Revenue\ncategories: [Q1]\nseries:\n  - name: Actual\n    values: [12]\n```\n"
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"deck", "-", "--print-chart-data"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `data-margo-chart-print-data="enabled"`) {
+		t.Fatal("deck did not enable printable chart data")
+	}
+}
+
+func TestDeckHTMLOmitsBrowserChartControls(t *testing.T) {
+	markdown := "# Chart\n\n```goshtosochart\nschemaVersion: 1\ntype: bar\ntitle: Revenue\ncategories: [Q1]\nseries:\n  - name: Actual\n    values: [12]\n```\n"
+	var stdout bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"deck", "-"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	markup := stdout.String()
+	for _, forbidden := range []string{
+		`data-goshtoso-chart-wrapper-mode`,
+		`chart-expand-export-copy-action`,
+		`exportFromMenu`,
+	} {
+		if strings.Contains(markup, forbidden) {
+			t.Fatalf("deck chart controls leaked %q", forbidden)
+		}
+	}
+	for _, required := range []string{`data-margo-chart-data="v1"`, `<svg`, `<table`} {
+		if !strings.Contains(markup, required) {
+			t.Fatalf("deck chart missing %q", required)
+		}
+	}
+}
+
 func TestDeckCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 	root := t.TempDir()
 	policyPath := filepath.Join(root, "policy.json")
@@ -112,13 +190,52 @@ func TestDeckPDFUsesDocumentPagePreferenceUnlessCLIOverridesIt(t *testing.T) {
 		NextExecutionID: func() margo.ExecutionID { return "cli-deck-page" },
 	})
 	command.SetArgs([]string{"deck", "-", "--format", "pdf", "--output", output, "--engine", "native"})
-	if err := command.ExecuteContext(context.Background()); err != nil {
-		t.Fatal(err)
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "cli.deck_validator_unavailable" {
+		t.Fatalf("error = %v", err)
 	}
-	if engine.request.Page.Size != pdf.PageLetter || engine.request.Page.Orientation != pdf.Landscape {
-		t.Fatalf("page config = %+v", engine.request.Page)
+}
+
+func TestDeckPDFRequiresChromiumForSlideGeometry(t *testing.T) {
+	engine := &capturingEngine{name: "native"}
+	probe := engines.Probe{Native: func(context.Context) (pdf.Engine, engines.Candidate) {
+		return engine, engines.Candidate{Name: "native", Version: "test", Compiled: true, Available: true}
+	}}
+	output := filepath.Join(t.TempDir(), "deck.pdf")
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("# One\n"), EngineProbe: probe, Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		NextExecutionID: func() margo.ExecutionID { return "cli-deck-geometry" },
+	})
+	command.SetArgs([]string{"deck", "-", "--format", "pdf", "--output", output, "--engine", "native", "--slide-size", "4:3"})
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "cli.deck_validator_unavailable" {
+		t.Fatalf("error = %v", err)
 	}
-	if engine.request.Page.Margins != (pdf.Margins{}) {
-		t.Fatalf("deck default margins = %+v, want full bleed", engine.request.Page.Margins)
+}
+
+func TestDeckRejectsImplicitCustomGeometry(t *testing.T) {
+	for _, args := range [][]string{
+		{"--slide-width", "1280", "--slide-height", "720"},
+		{"--slide-size", "custom", "--slide-width", "1280", "--slide-height", "720"},
+	} {
+		command := NewRootCommand(Dependencies{
+			Stdin: strings.NewReader("# One\n"), Stderr: io.Discard,
+			Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		})
+		command.SetArgs(append([]string{"deck", "-"}, args...))
+		if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "cli.deck_geometry_invalid" {
+			t.Fatalf("args %v error = %v", args, err)
+		}
+	}
+}
+
+func TestDeckRejectsConflictingFrontmatterAndLegacyPageGeometry(t *testing.T) {
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader("---\nsize: 4:3\n---\n# One\n"), Stderr: io.Discard,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		NextExecutionID: func() margo.ExecutionID { return "cli-deck-conflict" },
+	})
+	command.SetArgs([]string{"deck", "-", "--format", "pdf", "--output", filepath.Join(t.TempDir(), "deck.pdf"), "--engine", "native", "--page-size", "A4"})
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "cli.deck_geometry_conflict" {
+		t.Fatalf("error = %v", err)
 	}
 }

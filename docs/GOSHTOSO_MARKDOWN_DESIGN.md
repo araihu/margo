@@ -802,7 +802,7 @@ Manifests record the selected source, version, and integrity for every asset.
 ## CSS, themes, and whitelabel rendering
 
 Rendered content is scoped under `.goshtoso-document`. Decks additionally use
-`.goshtoso-deck` and `.goshtoso-slide`.
+the deck-owned `.margo-deck`, `.margo-deck__slide`, and `.margo-layout` hooks.
 
 Every library-authored reset, component, document, brand, and override selector
 starts with the document wrapper selector. No generated rule selects `html`,
@@ -899,66 +899,60 @@ Deck semantics activate only when either:
 Without activation, the input is ordinary Markdown and `---` remains
 frontmatter or a thematic break. There is no implicit pagination.
 
-The v0.0.1 compatibility profile supports the core Marpit authoring model:
+The versioned Margo Marpit-compatible v0.0.1 profile supports a closed authoring
+surface. Deck mode is activated by the `margo deck` command, the `deck` package
+API, or opening frontmatter with `marp: true`; ordinary Markdown rendering is
+unchanged. Under explicit deck activation, `marp: false` is a contradiction.
 
-- `---` slide separators;
-- YAML frontmatter;
-- directives in HTML comments;
-- global `theme`, `lang`, and `headingDivider`;
-- local `paginate`, `header`, `footer`, `class`, `color`, and background
-  directives;
-- the `_` spot-directive prefix;
-- unrecognized HTML comments as presenter notes;
-- 16:9 by default, with 4:3 and custom dimensions.
+- YAML frontmatter and directive comments for `theme`, `lang`, `colorMode`,
+  `headingDivider`, `size`, `paginate`, `header`, `footer`, `class`, colors,
+  and local backgrounds;
+- scalar `headingDivider: N` with H1 through HN slide starts, or an exact-level
+  array such as `[2, 4]`;
+- every top-level CommonMark thematic break with 0–3 leading spaces, outside
+  fenced code, lists, blockquotes, and other protected regions; Setext H2 takes
+  precedence over a ruler on the same block;
+- the `_` spot-directive prefix and ordinary unrecognized comments as presenter
+  notes, with malformed recognized directives rejected;
+- built-in `modern`, `goshtoso`, and `minimal` theme/mode catalogs and the
+  structural `columns`, `sidebar`, `compare`, `metrics`, `timeline`, and `demo`
+  layouts, plus the `lead`, `section`, `chapter`, `quote`, and `invert` styles.
 
-Recognized directive comments and presenter notes are parsed structurally by
-deck mode; they do not enable general raw HTML. Other HTML comments follow the
-effective raw HTML policy. `class` values must resolve to names in the host's
-registered deck-class allowlist; arbitrary class names are rejected. Color
-directives use the bounded color grammar, background images resolve through
-`AssetRef` and asset policy, and position/repeat/size directives use typed
-enumerations and bounded lengths. Directive text is never concatenated into a
-CSS declaration.
+The Margo `size` and `colorMode` forms are explicit profile extensions; this is
+not a claim of universal Marpit or Marp Core compatibility. Arbitrary themes,
+markdown-it plugins, author CSS/HTML, remote backgrounds, and unsupported
+background projections fail closed. Color/background directives use bounded
+tokens and typed values, and informative backgrounds require an alternative.
 
-Each slide renders as a semantic `section` inside:
+Each slide renders in source and accessibility order as a semantic `section`:
 
 ```html
-<article class="goshtoso-deck">
-  <section class="goshtoso-slide"></section>
+<article class="margo-deck" data-margo-width="1280" data-margo-height="720">
+  <section class="margo-deck__slide" role="region" lang="en"></section>
 </article>
 ```
 
-Slides accept ordinary Markdown, Goshtoso CodeBlock and Table rendering,
-Mermaid, and supported charts. Unsupported directives produce diagnostics.
-Arbitrary Marpit themes, markdown-it plugins, and experimental inline SVG
-behavior are outside the compatibility claim and are listed in a published
-matrix. The Marpit `style` directive is recognized but rejected as unsupported
-in v0.0.1 rather than interpreted as CSS.
+Slides retain the existing Margo projections for Markdown, tables, code,
+images, Mermaid, and supported Goshtoso charts. Structural slots have exact
+cardinality and stable names; cross-slide and cross-slot references are
+rejected. The responsive visual stage scales a fixed logical 1280x720, 960x720,
+or bounded custom canvas without changing layout measurements, and print CSS
+restores the logical canvas.
 
-There is no automatic text shrinking in v0.0.1. Core performs structural bounds
-only: slide count, configured dimensions, node/resource limits, and directive
-validity. It cannot claim visual overflow validity because it has no layout
-engine.
+Deck runtime descriptors use `margo-runtime/v2` with profile-bound validation
+requests and separate `deck-layout-screen` and `deck-layout-print-dom` tasks.
+Canonical CLI validation uses the pinned Chromium deck profile, bundled font
+identity, quantized logical coordinates, and deterministic evidence. Embedded
+HTML performs only the advisory screen check for its host viewport; it cannot
+claim print/PDF validation. Chromium PDF export compares one page per slide and
+all four MediaBox edges within 10 micrometres before publication. The native
+engine is not a visually validated deck backend.
 
-Core marks deck output `VisualValidationRequired` and registers a deterministic
-deck-layout runtime task. After fonts and Mermaid tasks settle, the task compares
-each slide's client and scroll dimensions and the quantized union of descendant
-bounding boxes against the slide content box. Any excess beyond 1/64 CSS pixel
-is `deck.overflow` and makes the runtime report `failed`.
-
-The full CLI depends on the PDF module's layout validator. `margo deck`
-validates standalone HTML with `--engine native` by default, or the explicitly
-selected Chromium engine, before committing the HTML file. PDF export uses the
-same check and maps one slide to one page. A direct root-module caller receives
-the validation requirement and must run an accepted layout validator before
-claiming validated output.
-
-If unvalidated standalone HTML is opened directly, the embedded runtime runs
-the same check. On failure it sets `data-margo-runtime="failed"` on the document
-root and displays a non-dismissible overflow diagnostic naming every failing
-slide; it does not silently clip and claim success. Keyboard controls,
-fullscreen, presenter mode, transitions, and fragments belong to a later deck
-runtime after the core document and export pipeline.
+If the embedded advisory check finds overflow it sets
+`data-margo-runtime="failed"` and exposes a visible, keyboard-reachable
+diagnostic naming each failing slide; it never silently clips content.
+Fullscreen, presenter mode, transitions, and fragments remain outside this
+profile.
 
 ## CLI
 

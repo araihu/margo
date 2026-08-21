@@ -90,7 +90,7 @@ func Extension(options ...Option) margo.ExtensionRegistration {
 			option(&config)
 		}
 	}
-	capabilities := []string{"static-svg", "accessible-data"}
+	capabilities := []string{"static-svg", "accessible-data", "NamespacedIDsV1"}
 	var capabilityErr error
 	if config.controlWrapper && config.externalizedControlRuntime {
 		var runtimeCapabilities []string

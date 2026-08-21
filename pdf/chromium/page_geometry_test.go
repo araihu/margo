@@ -55,3 +55,23 @@ func TestInjectPageGeometryAllowsImageOverflowExplicitly(t *testing.T) {
 		t.Fatalf("geometry did not disable image cap: %s", markup)
 	}
 }
+
+func TestInjectPageGeometrySkipsHeadTextInsideRuntimeScripts(t *testing.T) {
+	document := []byte(`<!doctype html><html><head><script>const marker = '</head>';</script><style>.x::before{content:"</head>"}</style><title>x</title></head><body></body></html>`)
+	result, err := injectPageGeometry(document, pdf.PageConfig{Size: pdf.PageA4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result)
+	styleIndex := strings.Index(markup, `data-margo-page-geometry`)
+	closingHeadIndex := -1
+	if styleIndex >= 0 {
+		closingHeadIndex = strings.Index(markup[styleIndex:], `</head>`)
+	}
+	if styleIndex < 0 || closingHeadIndex < 0 {
+		t.Fatalf("page geometry was not inserted into the head: %s", markup)
+	}
+	if strings.Count(markup, `data-margo-page-geometry`) != 1 {
+		t.Fatalf("page geometry was inserted more than once: %s", markup)
+	}
+}

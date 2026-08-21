@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/deck"
 	"github.com/spf13/cobra"
 )
 
@@ -56,6 +57,11 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 			findings, err := margo.Check(command.Context(), source, checkOptions...)
 			if err != nil {
 				return reportCommandError(command, format, err)
+			}
+			if target == string(margo.TargetDeck) {
+				if _, err := deck.Parse(source.Name, source.Content); err != nil {
+					return reportCommandError(command, format, err)
+				}
 			}
 			report := summarizeCheck(findings)
 			if policy != nil {

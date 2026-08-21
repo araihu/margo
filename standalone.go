@@ -6,9 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -412,6 +412,15 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 	})
 }
 
+// PrepareHTMLRenderResult relocates trusted chart extension scripts out of an
+// editorial fragment and into the result's dependency graph. Complete HTML
+// shells (standalone pages and presentation decks) can then place those
+// dependencies in their own lifecycle-controlled region without weakening the
+// fragment policy that rejects executable markup.
+func PrepareHTMLRenderResult(result *RenderResult) (*RenderResult, error) {
+	return relocateChartScripts(result)
+}
+
 func relocateChartScripts(result *RenderResult) (*RenderResult, error) {
 	if result == nil || result.Content() == nil {
 		return result, nil
@@ -456,7 +465,7 @@ func relocateChartScripts(result *RenderResult) (*RenderResult, error) {
 		if ordinal > 0 {
 			dependency = fmt.Sprintf("margo.charts.inline.%d", ordinal-1)
 		}
-		content := chartScriptBootstrap(slotID, node.FirstChild.Data)
+		content := chartScriptBootstrap(ordinal, node.FirstChild.Data)
 		digest := sha256.Sum256(content)
 		assetName := "charts-inline-" + hex.EncodeToString(digest[:]) + ".js"
 		scripts = append(scripts, HTMLRequirement{
@@ -492,12 +501,11 @@ func relocateChartScripts(result *RenderResult) (*RenderResult, error) {
 	return &prepared, nil
 }
 
-func chartScriptBootstrap(slotID, source string) []byte {
-	encodedSlot, _ := json.Marshal(slotID)
-	encodedSource, _ := json.Marshal(source)
+func chartScriptBootstrap(ordinal int, source string) []byte {
+	encodedSource := strconv.Quote(source)
 	return []byte(fmt.Sprintf(`(() => {
   const run = () => {
-    const slot = document.querySelector('[data-margo-chart-script-slot="' + %s + '"]');
+    const slot = document.querySelector('[data-margo-chart-script-slot="%d"]');
     if (!slot) return;
     const script = document.createElement("script");
     script.textContent = %s;
@@ -505,7 +513,7 @@ func chartScriptBootstrap(slotID, source string) []byte {
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run, { once: true });
   else run();
-})();`, encodedSlot, encodedSource))
+})();`, ordinal, encodedSource))
 }
 
 // Standalone is a short alias for RenderStandalone.
