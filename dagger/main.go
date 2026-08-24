@@ -202,6 +202,7 @@ func (m *Margo) ReleaseVerify(
 	}
 	_, err = m.goBase(execution).
 		WithFile("/tmp/margo.bundle", gitBundle).
+		WithWorkdir("/").
 		WithExec([]string{"bash", "-euo", "pipefail", "-c", "rm -rf /src && git clone /tmp/margo.bundle /src && (git -C /src show-ref --verify --quiet refs/heads/main || git -C /src branch main refs/remotes/origin/main) && test \"$(git -C /src rev-parse refs/heads/main)\" = \"$(git -C /src rev-parse refs/remotes/origin/main)\""}).
 		WithDirectory("/src", m.Source).
 		WithWorkdir("/src").
