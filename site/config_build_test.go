@@ -190,6 +190,67 @@ theme:
 	}
 }
 
+func TestBuildConfigLocalizesVisibleFrameControls(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Início\n\nPágina inicial.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "# Guia\n\nPágina do guia.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Prévia da documentação
+frame:
+  builtin: top-main-footer
+locales:
+  default: pt-BR
+  supported: [pt-BR]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := string(configArtifact(t, result, "index.html"))
+	guide := string(configArtifact(t, result, "guide.html"))
+	for route, page := range map[string]string{"index": index, "guide": guide} {
+		if !strings.Contains(page, `>Ir para o conteúdo</a>`) {
+			t.Fatalf("%s skip link is not localized: %s", route, page)
+		}
+		for _, english := range []string{"Skip to content", "Previous:", "Next:"} {
+			if strings.Contains(page, english) {
+				t.Fatalf("%s contains English frame control %q: %s", route, english, page)
+			}
+		}
+	}
+	if !strings.Contains(index, `>Próximo: Guia</a>`) {
+		t.Fatalf("next-page label is not localized: %s", index)
+	}
+	if !strings.Contains(guide, `>Anterior: Início</a>`) {
+		t.Fatalf("previous-page label is not localized: %s", guide)
+	}
+}
+
+func TestLocalizedLabelFallsBackToEnglish(t *testing.T) {
+	for key, want := range map[string]string{
+		"skip_content": "Skip to content",
+		"previous":     "Previous",
+		"next":         "Next",
+	} {
+		if got := localizedLabel("es", key); got != want {
+			t.Errorf("localizedLabel(es, %q) = %q, want %q", key, got, want)
+		}
+	}
+}
+
 func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
