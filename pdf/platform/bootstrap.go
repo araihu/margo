@@ -428,8 +428,8 @@ func VerifyPlatformToolchain(lockPath string, runnerID RunnerID) error {
 }
 
 func validateToolchainLock(lock toolchainLock, lockDirectory string) error {
-	if lock.Go.Version != "1.26.5" {
-		return platformError("pdf.platform_lock_invalid", "Go version must be 1.26.5")
+	if lock.Go.Version != "1.27.0" {
+		return platformError("pdf.platform_lock_invalid", "Go version must be 1.27.0")
 	}
 	if lock.ModulePath != "github.com/araihu/margo" {
 		return platformError("pdf.platform_lock_invalid", "root module path is invalid")

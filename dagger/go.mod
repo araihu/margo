@@ -1,6 +1,6 @@
 module dagger/margo
 
-go 1.26.5
+go 1.27.0
 
 require dagger.io/dagger v0.21.8
 

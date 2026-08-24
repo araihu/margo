@@ -19,7 +19,7 @@ func TestPlatformToolchainLockRejectsUnrecordedRunner(t *testing.T) {
 	writePlatformTestFile(t, lockPath, `{
   "schemaVersion": "margo/pdf-platform-toolchain/v2",
   "modulePath": "github.com/araihu/margo",
-  "go": {"version": "1.26.5"},
+  "go": {"version": "1.27.0"},
   "modules": [],
   "nodeHarness": {},
   "muambaTool": {},
@@ -39,7 +39,7 @@ func TestPlatformToolchainLockRejectsUnknownFields(t *testing.T) {
 	writePlatformTestFile(t, lockPath, `{
   "schemaVersion": "margo/pdf-platform-toolchain/v2",
   "modulePath": "github.com/araihu/margo",
-  "go": {"version": "1.26.5"},
+  "go": {"version": "1.27.0"},
   "modules": [],
   "nodeHarness": {},
   "muambaTool": {},
@@ -346,7 +346,7 @@ func writeSyntheticToolchainLock(t *testing.T) string {
 	lock := toolchainLock{
 		SchemaVersion: platformToolchainSchema,
 		ModulePath:    "github.com/araihu/margo",
-		Go:            toolchainGo{Version: "1.26.5"},
+		Go:            toolchainGo{Version: "1.27.0"},
 		Modules: []toolchainModule{
 			{Path: "github.com/chromedp/chromedp", Version: "v0.14.2", Sum: "h1:r3b/WtwM50RsBZHMUm9fsNhhzRStTHrKdr2zmwbZSzM=", GoModSum: "h1:rHzAv60xDE7VNy/MYtTUrYreSc0ujt2O1/C3bzctYBo="},
 		},
