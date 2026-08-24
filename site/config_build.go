@@ -2141,9 +2141,23 @@ func (b *builder) publicAlternatePath(absolute string) string {
 
 func localizedLabel(locale, key string) string {
 	if strings.EqualFold(locale, "pt-BR") {
-		return map[string]string{"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo", "home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página", "skip_content": "Ir para o conteúdo", "previous": "Anterior", "next": "Próximo"}[key]
+		return map[string]string{
+			"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo",
+			"home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página", "skip_content": "Ir para o conteúdo",
+			"open_navigation": "Abrir navegação", "close_navigation": "Fechar navegação", "dark_mode": "Usar modo escuro",
+			"light_mode": "Usar modo claro", "source_repository": "Repositório de código", "search_pages": "Buscar páginas",
+			"search_results": "Resultados da busca", "no_matching_pages": "Nenhuma página encontrada.", "page": "Página",
+			"sidebar_navigation": "Navegação lateral", "active": "ativa", "brand_home": "início", "previous": "Anterior", "next": "Próximo",
+		}[key]
 	}
-	return map[string]string{"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home", "language": "Language", "theme": "Theme", "toc": "On this page", "skip_content": "Skip to content", "previous": "Previous", "next": "Next"}[key]
+	return map[string]string{
+		"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home",
+		"language": "Language", "theme": "Theme", "toc": "On this page", "skip_content": "Skip to content",
+		"open_navigation": "Open navigation", "close_navigation": "Close navigation", "dark_mode": "Switch to dark mode",
+		"light_mode": "Switch to light mode", "source_repository": "Source repository", "search_pages": "Search pages",
+		"search_results": "Search results", "no_matching_pages": "No matching pages.", "page": "Page",
+		"sidebar_navigation": "sidebar navigation", "active": "active", "brand_home": "home", "previous": "Previous", "next": "Next",
+	}[key]
 }
 
 func openGraphLocale(locale string) string {
