@@ -863,6 +863,7 @@ func applyLandingShellSemantics(document []byte, page Page) ([]byte, error) {
 				setHTMLAttribute(node, "id", "margo-document")
 			case node.Data == "a" && hasClass(node, "landing-shell__skip"):
 				setHTMLAttribute(node, "href", "#margo-document")
+				setHTMLText(node, localizedLabel(page.Locale, "skip_content"))
 			}
 		}
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
