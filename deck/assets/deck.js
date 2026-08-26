@@ -154,6 +154,32 @@
           }
         }
       }
+
+      // Mermaid's normal document treatment permits a locally scrollable
+      // canvas. A printed deck has no such escape hatch: the fixed slide
+      // canvas would silently crop the diagram. Check the rendered SVG after
+      // Mermaid has run, including any clipping wrapper it is nested in.
+      const diagrams = [...slide.querySelectorAll(".margo-mermaid__canvas > svg")].filter((diagram) => {
+        const style = getComputedStyle(diagram);
+        return style.display !== "none" && style.visibility !== "hidden";
+      });
+      for (let diagramIndex = 0; diagramIndex < diagrams.length; diagramIndex += 1) {
+        const diagram = diagrams[diagramIndex];
+        const diagramRect = diagram.getBoundingClientRect();
+        if (diagramRect.width <= 0 || diagramRect.height <= 0) continue;
+        const clippingAncestors = [slide];
+        for (let ancestor = diagram.parentElement; ancestor && ancestor !== slide; ancestor = ancestor.parentElement) {
+          const style = getComputedStyle(ancestor);
+          if (/(hidden|clip|auto|scroll)/.test(`${style.overflowX} ${style.overflowY}`)) clippingAncestors.push(ancestor);
+        }
+        for (const ancestor of clippingAncestors) {
+          const rect = ancestor.getBoundingClientRect();
+          if (diagramRect.left < rect.left - 1 || diagramRect.right > rect.right + 1 ||
+              diagramRect.top < rect.top - 1 || diagramRect.bottom > rect.bottom + 1) {
+            return `slide ${slideIndex + 1} Mermaid diagram ${diagramIndex + 1} of ${diagrams.length} exceeds the printable canvas; simplify the diagram or choose a larger slide size`;
+          }
+        }
+      }
     }
     return "";
   };
