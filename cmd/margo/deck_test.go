@@ -136,8 +136,8 @@ func TestDeckCommandUsesStaticEmbedProjectionFromTrustedPolicy(t *testing.T) {
 }
 
 func TestDeckPDFExecutesMermaidAndKeepsStaticChart(t *testing.T) {
-	browser := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	if _, err := os.Stat(browser); err != nil {
+	browser := installedCLITestChromium()
+	if browser == "" {
 		t.Skip("installed Chromium unavailable")
 	}
 	input := "# Runtime\n\n```mermaid\ngraph TD; A-->B\n```\n---\n# Chart\n\n```goshtosochart\n" +

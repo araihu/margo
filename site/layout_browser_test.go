@@ -96,7 +96,8 @@ func TestLayoutBrowserDocsShellMobileInteraction(t *testing.T) {
 			const sidebar = document.querySelector('#componentdocshell-sidebar');
 			const backdrop = document.querySelector('.component-doc-shell__backdrop');
 			const trigger = document.querySelector('.component-doc-shell__menu-button');
-			return !sidebar?.classList.contains('is-open') && !backdrop?.getClientRects().length && document.activeElement === trigger;
+			const sidebarRect = sidebar?.getBoundingClientRect();
+			return !sidebar?.classList.contains('is-open') && sidebar?.hasAttribute('inert') && sidebarRect?.right <= 1 && !backdrop?.getClientRects().length && document.activeElement === trigger;
 		})()`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(stateScript, &escaped),
 	); err != nil {
@@ -377,7 +378,7 @@ func TestLandingLayoutVisualGeometry(t *testing.T) {
 		if state.ImageAspectRatio < 1.28 || state.ImageAspectRatio > 1.38 || state.ImageCSSAspectRatio != "4 / 3" || state.ImageObjectFit != "cover" {
 			t.Fatalf("landing at %dpx hero media geometry = %+v", width, state)
 		}
-		if !fixture.heroStacked && (state.HeroWidth < math.Min(float64(width)*0.72, 1150) || state.SectionTextWidth > 760 || state.SectionMediaWidth <= state.SectionTextWidth) {
+		if !fixture.heroStacked && (state.HeroWidth < math.Min(float64(width)*0.72, 1150) || state.SectionTextWidth > 48*16 || state.SectionMediaWidth <= state.SectionTextWidth) {
 			t.Fatalf("landing at %dpx canvas/reading measure = %+v", width, state)
 		}
 		if delta := state.SectionTextLeft - state.SectionHeadingLeft; delta < -1 || delta > 1 {

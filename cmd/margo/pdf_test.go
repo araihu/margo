@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -222,8 +223,8 @@ func TestPDFLinkFlagsUseSafeDefaultsAndExplicitResolution(t *testing.T) {
 }
 
 func TestPDFCommandExportsWithInstalledChromium(t *testing.T) {
-	path := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	if _, err := os.Stat(path); err != nil {
+	path := installedCLITestChromium()
+	if path == "" {
 		t.Skip("installed Chromium unavailable")
 	}
 	output := filepath.Join(t.TempDir(), "page.pdf")
@@ -249,8 +250,8 @@ func TestPDFCommandExportsWithInstalledChromium(t *testing.T) {
 }
 
 func TestPDFCommandExportsMixedStaticAndInteractiveCharts(t *testing.T) {
-	path := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	if _, err := os.Stat(path); err != nil {
+	path := installedCLITestChromium()
+	if path == "" {
 		t.Skip("installed Chromium unavailable")
 	}
 	output := filepath.Join(t.TempDir(), "charts.pdf")
@@ -440,11 +441,15 @@ type capturingEngine struct {
 }
 
 func installedCLITestChromium() string {
-	for _, candidate := range []string{
-		"/opt/homebrew/bin/chromium",
-		"/usr/local/bin/chromium",
-		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-	} {
+	candidates := []string{}
+	if runtime.GOOS == "darwin" {
+		candidates = append(candidates,
+			"/opt/homebrew/bin/chromium",
+			"/usr/local/bin/chromium",
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		)
+	}
+	for _, candidate := range candidates {
 		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
 			return candidate
 		}

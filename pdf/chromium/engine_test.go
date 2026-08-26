@@ -3,6 +3,7 @@ package chromium
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -355,12 +356,20 @@ func fakeExecutable(t *testing.T) string {
 }
 
 func installedChromium() string {
-	candidates := []string{"/opt/homebrew/bin/chromium"}
+	candidates := []string{}
 	if runtime.GOOS == "darwin" {
-		candidates = append(candidates, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+		candidates = append(candidates,
+			"/opt/homebrew/bin/chromium",
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		)
 	}
 	for _, candidate := range candidates {
 		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
+			return candidate
+		}
+	}
+	for _, name := range []string{"google-chrome", "chromium", "chromium-browser"} {
+		if candidate, err := exec.LookPath(name); err == nil {
 			return candidate
 		}
 	}

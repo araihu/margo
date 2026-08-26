@@ -165,8 +165,20 @@ func writeCLIFixture(t *testing.T, root string) (string, string) {
 }
 
 func installedBrowserPath() string {
-	for _, path := range []string{"/opt/homebrew/bin/chromium", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"} {
+	candidates := []string{}
+	if runtime.GOOS == "darwin" {
+		candidates = append(candidates,
+			"/opt/homebrew/bin/chromium",
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		)
+	}
+	for _, path := range candidates {
 		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+			return path
+		}
+	}
+	for _, name := range []string{"google-chrome", "chromium", "chromium-browser"} {
+		if path, err := exec.LookPath(name); err == nil {
 			return path
 		}
 	}

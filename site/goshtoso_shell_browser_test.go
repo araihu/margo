@@ -504,11 +504,14 @@ func siteTestChromiumAllocatorOptions(browserPath string) []chromedp.ExecAllocat
 }
 
 func installedSiteTestChromium() string {
-	candidates := []string{
-		"/opt/homebrew/bin/chromium",
-		"/usr/local/bin/chromium",
-		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-		"/Applications/Chromium.app/Contents/MacOS/Chromium",
+	candidates := []string{}
+	if runtime.GOOS == "darwin" {
+		candidates = append(candidates,
+			"/opt/homebrew/bin/chromium",
+			"/usr/local/bin/chromium",
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+			"/Applications/Chromium.app/Contents/MacOS/Chromium",
+		)
 	}
 	for _, candidate := range candidates {
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
