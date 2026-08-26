@@ -414,6 +414,12 @@ follows each chart in HTML. Those tables are omitted from PDF by default;
 `margo.actions.pdf.printChartData: true` includes them in configured
 pre-rendered PDFs.
 
+Interactive charts are supported by standalone HTML, sites, and `margo pdf`
+(PDF rasterizes the chart for print). `margo deck` is intentionally static for
+both its HTML and PDF projections: omit `renderer` or set `renderer: static`.
+`margo check --target deck` reports `chart.renderer_target_unsupported` with a
+remediation hint when an interactive chart is supplied.
+
 For corporate PDF branding, use a configured site with `site.name`, a local SVG
 `site.logo`, and `margo.actions.pdf: true`; the resulting pre-rendered page PDF
 uses that name and logo. The complete, copyable configuration and the boundary
@@ -468,7 +474,8 @@ heading-divider pagination, local/spot directives, presenter-note comments,
 the built-in `modern`, `goshtoso`, and `minimal` themes, and the closed
 `columns`, `sidebar`, `compare`, `metrics`, `timeline`, and `demo` layout
 catalog. Mermaid, tables, code, images, and supported Goshtoso charts keep the
-same accessible extension projections used by the other Margo targets. Layout
+same accessible extension projections used by the other Margo targets, with
+charts using the static renderer in both deck formats. Layout
 classes and slot names are validated before rendering; arbitrary HTML/CSS,
 remote backgrounds, custom Marpit themes, and unregistered extension ID
 allocators are rejected with diagnostics.

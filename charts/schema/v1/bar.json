@@ -6,7 +6,7 @@
   "properties": {
     "schemaVersion": {"const": 1},
     "type": {"const": "bar"},
-    "renderer": {"enum": ["static", "interactive"]},
+    "renderer": {"description": "Use static SVG for every target. interactive is supported by HTML, site, and standalone PDF; deck HTML and PDF require static.", "enum": ["static", "interactive"]},
     "title": {"type": "string", "minLength": 1},
     "style": {
       "type": "object",

@@ -41,6 +41,12 @@ single-document check because the multi-page site build resolves and validates
 them after indexing all source documents. Other link diagnostics, such as an
 empty destination or an unsupported scheme, still apply to every target.
 
+The CLI registers its chart checker automatically. Interactive Goshtoso Charts
+are valid for `html`, `site`, and standalone `pdf`; the `deck` target is a
+static projection for both HTML and PDF deck artifacts. Therefore
+`margo check --target deck` rejects `renderer: interactive` before rendering and
+points to `/renderer`; omit the field or set it to `static`.
+
 ## Failures and diagnostics
 
 Warnings remain visible but do not fail the command. Any error finding writes
@@ -58,6 +64,7 @@ the complete report, then exits `1` with internal status `check.failed`.
 | `check.link_relative` | Review target-specific relative-link behavior; ordinary site links are resolved by `margo site` |
 | `check.raw_html` | Remove raw HTML or supply trusted policy authority |
 | `mermaid.configuration_forbidden` | Remove legacy Mermaid configuration |
+| `chart.renderer_target_unsupported` | Use `renderer: static` for `margo deck`; use `margo html`, `margo site`, or `margo pdf` for interactive charts |
 
 ## Limitations and care
 

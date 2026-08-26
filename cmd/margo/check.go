@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"github.com/araihu/margo/deck"
 	"github.com/spf13/cobra"
 )
@@ -50,7 +51,11 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return reportCommandError(command, format, fmt.Errorf("cli.input_path_invalid: %w", err))
 			}
-			checkOptions := []margo.CheckOption{margo.WithCheckAssetReader(deps.CheckAssetReader), margo.WithCheckTarget(margo.RenderTarget(target))}
+			checkOptions := []margo.CheckOption{
+				margo.WithCheckAssetReader(deps.CheckAssetReader),
+				margo.WithCheckTarget(margo.RenderTarget(target)),
+				margo.WithCheckExtension(charts.Extension()),
+			}
 			if policy != nil {
 				checkOptions = append(checkOptions, margo.WithCheckPolicy(policy.Host))
 			}

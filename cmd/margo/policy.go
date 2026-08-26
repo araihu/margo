@@ -76,7 +76,7 @@ func compilerForPolicy(policy *loadedPolicy, target policyTarget, chartOptions .
 	if target == policyTargetDeck {
 		// Full-page decks are static slide artifacts. Keep the chart SVG and
 		// accessible data table, but do not ship browser-only chart controls.
-		chartOptions = append(chartOptions, charts.WithControlWrapper(false))
+		chartOptions = append(chartOptions, charts.WithDeckProjection(true), charts.WithControlWrapper(false))
 	}
 	if policy == nil {
 		return newCompilerWithChartOptions(chartOptions)

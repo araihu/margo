@@ -754,10 +754,13 @@ Radar, heatmap, and funnel are candidates for later versions. Candlestick and
 violin remain deferred because their data contracts and presentation semantics
 are less suitable for the first static profile.
 
-Charts render as static, accessible Goshtoso Charts SVG. Interactive controls,
-export buttons, and server-dependent features are omitted. The output includes
-an accessible name and text alternative. Point counts, series counts, label
-lengths, numeric finiteness, and output dimensions are bounded.
+Charts render as accessible Goshtoso Charts SVG by default. HTML and site
+targets, plus standalone PDF, may opt into the interactive renderer; standalone
+PDF captures its printable raster. The `deck` target deliberately remains
+static in both HTML and PDF, and `margo check --target deck` rejects an
+interactive renderer before rendering. The output includes an accessible name
+and text alternative. Point counts, series counts, label lengths, numeric
+finiteness, and output dimensions are bounded.
 
 The CLI exposes the exact schemas:
 

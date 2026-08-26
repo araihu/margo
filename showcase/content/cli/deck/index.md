@@ -89,6 +89,40 @@ For an informative icon, omit `--pagination-icon-decorative` and provide
 `--pagination-icon-label`. `--print-chart-data` includes accessible exact-data
 tables after supported charts.
 
+### Charts in decks
+
+Deck HTML and PDF are static slide projections. Use the default renderer or
+write `renderer: static`; `renderer: interactive` is intentionally rejected for
+the `deck` target because browser chart controls are not part of the deck
+artifact contract. Run the target check first to get the same actionable
+diagnostic that rendering would produce:
+
+~~~sh
+cat > slides.md <<'MARKDOWN'
+# Revenue review
+
+```goshtosochart
+schemaVersion: 1
+type: line
+renderer: static
+title: Weekly revenue
+categories: [Mon, Tue, Wed]
+series:
+  - name: Revenue
+    values: [12, 18, 21]
+```
+MARKDOWN
+
+margo check slides.md --target deck
+margo deck slides.md --format html --output build/slides.html
+margo deck slides.md --format pdf --output build/slides.pdf --slide-size 16:9
+~~~
+
+The interactive renderer remains available for standalone HTML, sites, and
+`margo pdf`; PDF rasterizes the interactive chart for print. For a deck, keep
+the exact-data table with `--print-chart-data` when the printed artifact needs
+the tabular fallback.
+
 ## Structural layouts
 
 Structural layouts are a closed Markdown contract. A slide uses a class marker,

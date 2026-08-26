@@ -54,9 +54,14 @@ type SourcePosition struct {
 
 // ExtensionNode is an immutable detached fence payload.
 type ExtensionNode struct {
-	Fence    string
-	Payload  []byte
-	Source   SourcePosition
+	Fence   string
+	Payload []byte
+	Source  SourcePosition
+	// Target identifies the output projection being checked. Rendered
+	// extension nodes leave this unset because render options are applied
+	// after compilation; compatibility checkers can use it for target-specific
+	// authoring contracts.
+	Target   RenderTarget
 	compiled compiledExtensionNode
 }
 

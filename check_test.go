@@ -246,6 +246,24 @@ func TestCheckExtensionPlainFailureUsesFenceSourcePosition(t *testing.T) {
 	}
 }
 
+func TestCheckExtensionReceivesRequestedTarget(t *testing.T) {
+	var got RenderTarget
+	registration := ExtensionRegistration{
+		Identity: ExtensionIdentity{Name: "target-aware", Version: "v1"}, Fences: []string{"target-aware"},
+		Check: func(_ context.Context, node ExtensionNode) error {
+			got = node.Target
+			return nil
+		},
+	}
+	source := Source{Name: "deck.md", Content: []byte("---\nlanguage: en\n---\n\n```target-aware\ncontent\n```\n")}
+	if _, err := Check(context.Background(), source, WithCheckTarget(TargetDeck), WithCheckExtension(registration)); err != nil {
+		t.Fatal(err)
+	}
+	if got != TargetDeck {
+		t.Fatalf("extension target = %q, want %q", got, TargetDeck)
+	}
+}
+
 func TestCheckDoesNotDropSameLineFindings(t *testing.T) {
 	source := Source{Name: "/workspace/guide.md", BaseURL: "/workspace", Content: []byte("![one](one.png) ![two](two.png) [x](x.md) [y](y.md)\n")}
 	diagnostics, err := Check(context.Background(), source, WithCheckAssetReader(checkMapReader{}))

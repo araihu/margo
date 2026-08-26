@@ -78,7 +78,7 @@ func renderPieWithOptions(rc margo.RenderContext, model pieModel, options chartR
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {
-		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper")
+		return nil, interactiveRendererUnavailable(options)
 	}
 	variant := staticpie.VariantPie
 	if model.Type == "doughnut" {

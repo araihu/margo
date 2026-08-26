@@ -98,6 +98,46 @@ func TestCheckDeckRunsDeckParser(t *testing.T) {
 	}
 }
 
+func TestCheckCommandRejectsInteractiveChartForDeckTarget(t *testing.T) {
+	input := "---\nlanguage: en\n---\n\n# Revenue\n\n```goshtosochart\nschemaVersion: 1\ntype: line\nrenderer: interactive\ntitle: Weekly revenue\ncategories: [Mon, Tue]\nseries:\n  - name: Revenue\n    values: [12, 18]\n```\n"
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(input), Stdout: &stdout, Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"check", "-", "--target", "deck", "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "check.failed" {
+		t.Fatalf("error = %v, stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"code":"chart.renderer_target_unsupported"`) ||
+		!strings.Contains(stdout.String(), `"pointer":"/renderer"`) ||
+		!strings.Contains(stdout.String(), "set renderer: static") {
+		t.Fatalf("target-specific chart diagnostic missing: %s", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestCheckCommandAcceptsInteractiveChartForPDFTarget(t *testing.T) {
+	input := "---\nlanguage: en\n---\n\n# Revenue\n\n```goshtosochart\nschemaVersion: 1\ntype: line\nrenderer: interactive\ntitle: Weekly revenue\ncategories: [Mon, Tue]\nseries:\n  - name: Revenue\n    values: [12, 18]\n```\n"
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(input), Stdout: &stdout, Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"check", "-", "--target", "pdf", "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("error = %v, stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	if got := stdout.String(); got != "{\"diagnostics\":[],\"errors\":0,\"warnings\":0}\n" {
+		t.Fatalf("stdout = %q", got)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
 func TestCheckCommandAppliesTrustedPolicyAndReportsIdentity(t *testing.T) {
 	root := t.TempDir()
 	policyPath := filepath.Join(root, "policy.json")

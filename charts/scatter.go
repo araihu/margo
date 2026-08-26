@@ -186,7 +186,7 @@ func renderScatterWithOptions(rc margo.RenderContext, model scatterModel, option
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {
-		return nil, chartDiagnostic("chart.renderer_controls_required", "interactive renderer requires the chart control wrapper")
+		return nil, interactiveRendererUnavailable(options)
 	}
 	series := make([]staticscatter.Series, len(model.Series))
 	paints := make([]chartPaintModel, len(model.Series))

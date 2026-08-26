@@ -330,6 +330,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 				node := ExtensionNode{
 					Fence: language, Payload: append([]byte(nil), value.Lines().Value(frontmatter.body)...),
 					Source: SourcePosition{Source: snapshot.Name, Line: lineAtOffset(snapshot.Content, frontmatter.bodyOffset+payloadStart), Column: 1},
+					Target: config.target,
 				}
 				failure := checker(ctx, node)
 				if errors.Is(failure, context.Canceled) || errors.Is(failure, context.DeadlineExceeded) {

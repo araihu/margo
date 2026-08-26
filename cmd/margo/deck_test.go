@@ -30,6 +30,27 @@ func TestDeckDefaultsToHTMLStdout(t *testing.T) {
 	}
 }
 
+func TestDeckRejectsInteractiveChartWithTargetDiagnostic(t *testing.T) {
+	input := "---\nlanguage: en\n---\n\n# Revenue\n\n```goshtosochart\nschemaVersion: 1\ntype: line\nrenderer: interactive\ntitle: Weekly revenue\ncategories: [Mon, Tue]\nseries:\n  - name: Revenue\n    values: [12, 18]\n```\n"
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(input), Stdout: &stdout, Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"deck", "-", "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "chart.renderer_target_unsupported" {
+		t.Fatalf("error = %v, stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), `"code":"chart.renderer_target_unsupported"`) ||
+		!strings.Contains(stderr.String(), `"pointer":"/renderer"`) ||
+		!strings.Contains(stderr.String(), "set renderer: static") {
+		t.Fatalf("target-specific chart diagnostic missing: %s", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q; failed deck must not publish bytes", stdout.String())
+	}
+}
+
 func TestDeckConfidentialityBadgeFlagAddsHostChrome(t *testing.T) {
 	var stdout bytes.Buffer
 	command := NewRootCommand(Dependencies{

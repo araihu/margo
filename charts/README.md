@@ -78,6 +78,14 @@ preserve it; palettes, root class, and explicit colors remain supported.
 Interactive scatter requires exactly one point or value for every declared
 category. Use the static renderer when a category contains multiple samples.
 
+Target support is explicit: interactive charts work in standalone HTML, sites,
+and standalone PDF (the PDF projection captures a printable raster). The
+`margo deck` CLI target is static for both HTML and PDF, so
+`margo check --target deck` rejects `renderer: interactive` with
+`chart.renderer_target_unsupported`. Omit `renderer` or set it to `static` in a
+deck. Library callers that preflight chart fences should register the same
+extension with `margo.WithCheckExtension(charts.Extension())`.
+
 ## Accessible data in print
 
 One formatted semantic accessible data table follows each chart in HTML.

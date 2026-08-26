@@ -376,6 +376,12 @@ disclosure on narrow screens, and complete print output.
   behavior, and minimum target sizing.
 - Every generated ID is unique within the document.
 
+The target contract is explicit: standalone HTML, sites, and standalone PDF may
+use the interactive renderer (PDF captures a printable raster), while the
+`deck` target is static in both its HTML and PDF projections. Deck compatibility
+checks reject `renderer: interactive` before rendering so controls are never
+silently removed from an author-requested interactive chart.
+
 ### Tables
 
 - Use semantic caption, header cells, scopes, and source order.

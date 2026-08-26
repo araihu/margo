@@ -30,6 +30,7 @@ type chartRenderOptions struct {
 	controlWrapper             bool
 	externalizedControlRuntime bool
 	printAccessibleData        bool
+	deckProjection             bool
 }
 
 var defaultChartRenderOptions = chartRenderOptions{controlWrapper: true}
@@ -66,6 +67,16 @@ func WithExternalizedControlRuntime(enabled bool) Option {
 func WithPrintableAccessibleData(enabled bool) Option {
 	return func(options *chartRenderOptions) {
 		options.printAccessibleData = enabled
+	}
+}
+
+// WithDeckProjection marks a compiler used by the CLI deck projection. Decks
+// intentionally omit browser chart controls; the marker lets an interactive
+// chart fail with the target-specific contract diagnostic instead of exposing
+// the lower-level missing-wrapper error.
+func WithDeckProjection(enabled bool) Option {
+	return func(options *chartRenderOptions) {
+		options.deckProjection = enabled
 	}
 }
 
@@ -114,6 +125,7 @@ func Extension(options ...Option) margo.ExtensionRegistration {
 		},
 		Fences:  []string{"goshtosochart"},
 		Factory: factory,
+		Check:   func(ctx context.Context, node margo.ExtensionNode) error { return checkChart(ctx, node, config) },
 	}
 }
 
@@ -138,7 +150,7 @@ func extensionFactoryWithOptions(rc margo.RenderContext, options chartRenderOpti
 }
 
 func (options chartRenderOptions) configurationHash() string {
-	value := fmt.Sprintf("control-wrapper=%t\nexternalized-control-runtime=%t\nprint-accessible-data=%t", options.controlWrapper, options.externalizedControlRuntime, options.printAccessibleData)
+	value := fmt.Sprintf("control-wrapper=%t\ndeck-projection=%t\nexternalized-control-runtime=%t\nprint-accessible-data=%t", options.controlWrapper, options.deckProjection, options.externalizedControlRuntime, options.printAccessibleData)
 	hash := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(hash[:])
 }

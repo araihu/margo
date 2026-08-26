@@ -70,7 +70,9 @@ slices:
 ```
 
 Static SVG remains the default. This example loads the local interactive runtime,
-and PDF output can still include the exact chart data for print readers.
+and PDF output can still include the exact chart data for print readers. The
+landing page is an HTML/site projection; `margo deck` uses static charts in both
+deck formats and documents that boundary in its [chart guide](cli/deck/index.md#charts-in-decks).
 
 ## Trust boundaries stay visible
 

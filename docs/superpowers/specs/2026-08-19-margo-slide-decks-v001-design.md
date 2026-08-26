@@ -626,9 +626,10 @@ families inside decks:
 - pie;
 - doughnut;
 - scatter;
-- static and interactive authoring modes;
+- static authoring mode (interactive charts are reserved for standalone HTML,
+  sites, and standalone PDF);
 - semantic exact-data fallback tables;
-- print visibility controlled by the existing chart print option.
+- print visibility controlled by the existing chart print option. `margo check --target deck` rejects an interactive chart before rendering.
 
 The deck package must not import `github.com/araihu/margo/charts`. It merges the
 requirements and runtime descriptors returned by the supplied compiler. During
@@ -1261,7 +1262,7 @@ One integration deck exercises every root feature:
 - code blocks;
 - PNG, JPEG, WebP, GIF, and SVG images with captions;
 - every supported pinned Mermaid family;
-- all chart families, static and interactive authoring modes;
+- all chart families in the static deck projection;
 - sanitized HTML and each iframe deck projection.
 
 The fixture proves the deck path uses the same renderer output and requirements
@@ -1310,7 +1311,8 @@ as ordinary Margo rendering where target semantics match.
 - A4/Letter compatibility mapping;
 - atomic output on every terminal failure;
 - stdin/stdout, force, text diagnostics, and JSON diagnostics;
-- static and interactive chart print projections;
+- static chart print projections in decks and interactive chart raster capture in
+  standalone PDF;
 - PDF point-to-millimetre conversion, 0.001mm quantization, 0.01mm tolerance,
   exact page count, and evidence byte/digest fields;
 - deterministic repeated artifacts under the same accepted engine profile.

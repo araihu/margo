@@ -110,6 +110,10 @@ func TestEveryChartSchemaExposesRendererChoice(t *testing.T) {
 			if !ok {
 				t.Fatal("renderer schema missing")
 			}
+			description, ok := renderer["description"].(string)
+			if !ok || !strings.Contains(description, "deck") || !strings.Contains(description, "static") {
+				t.Fatalf("renderer target contract = %#v", renderer["description"])
+			}
 			enum, ok := renderer["enum"].([]any)
 			if !ok || len(enum) != 2 || enum[0] != "static" || enum[1] != "interactive" {
 				t.Fatalf("renderer enum = %#v", renderer["enum"])
