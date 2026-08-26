@@ -42,6 +42,13 @@ func renderDeckPage(metadata Metadata, theme margo.ThemeName, colorMode margo.Co
 	var output bytes.Buffer
 	_, _ = output.WriteString("<!doctype html><html lang=\"")
 	_, _ = output.WriteString(html.EscapeString(lang))
+	if colorMode == margo.ColorModeDark {
+		// Goshtoso's dark utility and document selectors are keyed by the
+		// canonical .dark class. The deck also exposes data-color-mode for
+		// consumers, but that attribute alone leaves table body text on the
+		// light --color-on-surface token in Chromium.
+		_, _ = output.WriteString(`" class="dark`)
+	}
 	_, _ = output.WriteString("\" data-theme=\"")
 	_, _ = output.WriteString(html.EscapeString(string(theme)))
 	_, _ = output.WriteString("\" data-color-mode=\"")

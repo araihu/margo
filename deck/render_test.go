@@ -68,6 +68,26 @@ func TestRenderEmitsLogicalStageGeometryAndLocalizedLanguage(t *testing.T) {
 	}
 }
 
+func TestRenderDarkDeckActivatesGoshtosoDarkSelectors(t *testing.T) {
+	result, err := Render(context.Background(), margo.New(), RenderInput{
+		Name:     "dark-table.md",
+		Markdown: []byte("---\ntheme: goshtoso\ncolorMode: dark\n---\n# Readable table\n\n| Surface | Status |\n| --- | --- |\n| HTML | pass |\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result.HTML())
+	for _, fragment := range []string{
+		`<html lang="en" class="dark" data-theme="goshtoso" data-color-mode="dark"`,
+		`text-on-surface dark:text-on-surface-dark`,
+		`dark:text-on-surface-dark-strong`,
+	} {
+		if !strings.Contains(markup, fragment) {
+			t.Fatalf("dark deck HTML missing %q", fragment)
+		}
+	}
+}
+
 func TestRenderPlacesHostConfidentialityBadgeBeforeOrdinal(t *testing.T) {
 	result, err := Render(context.Background(), margo.New(), RenderInput{
 		Name:     "confidential.md",
