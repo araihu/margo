@@ -486,7 +486,7 @@ func mermaidDelimitedLabels(lines []string) []string {
 			if end < 0 {
 				continue
 			}
-			label := strings.TrimSpace(line[index+1 : index+1+end])
+			label := normalizeMermaidHumanText(line[index+1 : index+1+end])
 			index += end + 1
 			if label == "" {
 				continue
@@ -516,6 +516,10 @@ func mermaidParticipants(lines []string) []string {
 				break
 			}
 		}
+		label = normalizeMermaidHumanText(label)
+		if label == "" {
+			continue
+		}
 		if _, duplicate := seen[label]; duplicate {
 			continue
 		}
@@ -523,6 +527,42 @@ func mermaidParticipants(lines []string) []string {
 		participants = append(participants, label)
 	}
 	return participants
+}
+
+// normalizeMermaidHumanText converts Mermaid's HTML line-break syntax into
+// plain text for generated captions and other human-readable projections. The
+// Mermaid source itself remains unchanged and is still passed to the browser;
+// this helper only runs on labels copied into prose.
+func normalizeMermaidHumanText(value string) string {
+	value = html.UnescapeString(value)
+	var normalized strings.Builder
+	normalized.Grow(len(value))
+	for index := 0; index < len(value); {
+		if value[index] == '<' {
+			if end := strings.IndexByte(value[index:], '>'); end >= 0 {
+				candidate := value[index : index+end+1]
+				if mermaidLineBreakTag(candidate) {
+					normalized.WriteByte(' ')
+					index += end + 1
+					continue
+				}
+			}
+		}
+		normalized.WriteByte(value[index])
+		index++
+	}
+	return strings.Join(strings.Fields(normalized.String()), " ")
+}
+
+func mermaidLineBreakTag(value string) bool {
+	if len(value) < 3 || value[0] != '<' || value[len(value)-1] != '>' {
+		return false
+	}
+	tag := strings.TrimSpace(value[1 : len(value)-1])
+	tag = strings.TrimPrefix(tag, "/")
+	tag = strings.TrimSpace(tag)
+	tag = strings.TrimSuffix(tag, "/")
+	return strings.EqualFold(strings.TrimSpace(tag), "br")
 }
 
 func naturalLanguageList(values []string) string {

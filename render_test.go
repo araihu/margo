@@ -156,6 +156,20 @@ func TestMermaidFiguresUseUniqueContextualAccessibleNames(t *testing.T) {
 	}
 }
 
+func TestMermaidFigureCaptionNormalizesLineBreakMarkup(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "```mermaid\nflowchart LR\n  A[Grid checkpoint<br/>15 Sep] --> B[Release payment]\n  B --> C[Final<br />approval]\n  C --> D[Close<BR>out]\n```\n").Content())
+	wantCaption := `<figcaption id="margo-mermaid-caption-0" class="margo-figure-caption">Flowchart connecting Grid checkpoint 15 Sep, Release payment, Final approval, and Close out.</figcaption>`
+	if !strings.Contains(markup, wantCaption) {
+		t.Fatalf("Mermaid caption did not normalize line-break markup:\n%s", markup)
+	}
+	if strings.Contains(markup, `Flowchart connecting Grid checkpoint&lt;br/&gt;15 Sep`) {
+		t.Fatalf("Mermaid caption still exposes line-break markup:\n%s", markup)
+	}
+	if !strings.Contains(markup, `A[Grid checkpoint&lt;br/&gt;15 Sep]`) {
+		t.Fatalf("Mermaid source projection was changed while normalizing its caption:\n%s", markup)
+	}
+}
+
 func TestSemanticRenderMatchesGolden(t *testing.T) {
 	got := renderComponent(t, mustRenderSource(t, "# Hello\n\nA [safe link](https://example.com).\n\n- one\n- two\n\n> quoted\n").Content())
 	wantBytes, err := os.ReadFile("testdata/render/semantic.html")
