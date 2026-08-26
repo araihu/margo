@@ -203,7 +203,7 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 		if r.idAllocator != nil {
 			tableID = r.idAllocator.Allocate("table", strconv.FormatUint(uint64(ordinal), 10))
 		}
-		return renderMarkdownTable(r.ctx, r.out, value, r.source, r.tableSort, tableID)
+		return renderMarkdownTable(r, value, r.tableSort, tableID)
 	case *tableast.FootnoteList:
 		if _, err := io.WriteString(r.out, `<section class="footnotes" aria-label="Footnotes" role="doc-endnotes"><hr><ol>`); err != nil {
 			return err

@@ -76,6 +76,30 @@ func TestBuildLocalSiteRewritesLinksAndSharesAssets(t *testing.T) {
 	}
 }
 
+func TestBuildLocalSiteRewritesLinksInsideTableCells(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		SourceRoot: "/workspace/docs",
+		Sources: []Source{
+			{Path: "index.md", Content: []byte("---\ntitle: Table links\nlanguage: en\n---\n\n# Table links\n\n| Resource | Destination |\n| --- | --- |\n| Guide | [Open guide](guide.md) |\n\n[Open guide outside table](guide.md).\n")},
+			{Path: "guide.md", Content: []byte("---\ntitle: Guide\nlanguage: en\n---\n\n# Guide\n")},
+		},
+		Compiler: margo.New(),
+		Assets:   AssetsLocal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := artifactContent(t, result, "index.html")
+	for _, want := range []string{
+		`<a href="guide.html">Open guide</a>`,
+		`<a href="guide.html">Open guide outside table</a>`,
+	} {
+		if !strings.Contains(index, want) {
+			t.Fatalf("index missing %q:\n%s", want, index)
+		}
+	}
+}
+
 func TestBuildInlineSiteEmbedsAssetsAndIsDeterministic(t *testing.T) {
 	root := filepath.Clean("/workspace/docs")
 	sources := []Source{

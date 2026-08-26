@@ -404,6 +404,17 @@ func TestCheckRejectsWindowsAbsoluteLink(t *testing.T) {
 	}
 }
 
+func TestCheckReportsMalformedLinksInsideTableCells(t *testing.T) {
+	source := Source{Name: "table.md", Content: []byte("---\nlanguage: en\n---\n\n# Table\n\n| Resource | Destination |\n| --- | --- |\n| Unsafe | [Open](javascript:alert(1)) |\n")}
+	diagnostics, err := Check(context.Background(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Code != "check.link_unsupported" {
+		t.Fatalf("diagnostics = %+v, want one unsupported-link diagnostic", diagnostics)
+	}
+}
+
 type blockingCheckReader struct{ started chan struct{} }
 
 func (reader blockingCheckReader) ReadAsset(ctx context.Context, _, _ string, _ int64) ([]byte, error) {
