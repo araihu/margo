@@ -317,6 +317,8 @@ margo:
 # Illustrated guide
 
 ![Margo mascot](mascot.png)
+
+![Margo logo](assets/logo.svg)
 `)
 	copyMargoAsset(t, root+"/docs/mascot.png", "margo-mascot.png")
 	copyMargoAsset(t, root+"/assets/logo.svg", "logo.svg")
@@ -351,6 +353,12 @@ locales:
 	pdfHTML := string(pdfRequest.HTML)
 	if !strings.Contains(pdfHTML, "data:image/png;base64,") {
 		t.Fatalf("pre-rendered PDF did not embed the local image")
+	}
+	if strings.Count(pdfHTML, "data:image/svg+xml;base64,") < 2 {
+		t.Fatalf("pre-rendered PDF did not embed both the configured logo and its document image: %s", pdfHTML)
+	}
+	if strings.Contains(pdfHTML, `src="assets/logo.svg"`) {
+		t.Fatalf("pre-rendered PDF retained the configured logo image URL")
 	}
 	if strings.Contains(pdfHTML, `src="mascot.png"`) {
 		t.Fatalf("pre-rendered PDF retained a relative image URL")

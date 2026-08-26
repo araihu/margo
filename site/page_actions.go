@@ -762,6 +762,12 @@ func (b *builder) materializePDFImageURL(value string, page Page) (string, error
 	}
 	asset, ok := b.assets[assetPath]
 	if !ok {
+		// Configured assets (for example site.logo) live outside the source
+		// root and are staged separately. Source assets take precedence when
+		// both maps contain the same publication path.
+		asset, ok = b.configuredAssets[assetPath]
+	}
+	if !ok {
 		return "", diagnostic("site.pdf_asset_unreadable", fmt.Sprintf("image %q was not materialized before PDF rendering", assetPath), "Use a readable local image below the site source directory.", page.Source)
 	}
 	return "data:" + asset.mediaType + ";base64," + base64.StdEncoding.EncodeToString(asset.content), nil
