@@ -780,4 +780,23 @@ body {
   .margo-deck__slide:has([data-goshtoso-chart-capability]) [data-margo-chart-print-image] {
     max-block-size: 13rem !important;
   }
+
+  /* Exact-data tables are opt-in PDF content. Let the table reflow to its
+     natural height and use a compact print measure so a documented multi-row
+     table can remain complete inside the fixed slide canvas. */
+  .margo-deck__slide:has([data-margo-chart-data]) .margo-chart-data {
+    max-block-size: none;
+    overflow: visible;
+  }
+
+  .margo-deck__slide:has([data-margo-chart-data]) .margo-chart-data table {
+    font-size: 0.6875rem;
+    line-height: 1.1;
+  }
+
+  .margo-deck__slide:has([data-margo-chart-data]) .margo-chart-data th,
+  .margo-deck__slide:has([data-margo-chart-data]) .margo-chart-data td {
+    padding-block: 2px;
+    padding-inline: 4px;
+  }
 }

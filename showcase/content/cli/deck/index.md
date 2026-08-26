@@ -121,7 +121,10 @@ margo deck slides.md --format pdf --output build/slides.pdf --slide-size 16:9
 The interactive renderer remains available for standalone HTML, sites, and
 `margo pdf`; PDF rasterizes the interactive chart for print. For a deck, keep
 the exact-data table with `--print-chart-data` when the printed artifact needs
-the tabular fallback.
+the tabular fallback. PDF decks apply compact print styling and let the table
+reflow to its natural height, keeping all declared rows visible in the fixed
+slide canvas. If a larger table still cannot fit, Margo reports the affected
+slide and suggests reducing the chart data or choosing a larger slide size.
 
 ## Structural layouts
 

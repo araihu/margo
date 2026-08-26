@@ -469,6 +469,12 @@ Deck PDF validation requires an installed Chromium-compatible engine; selecting
 `--engine native` fails with `cli.deck_validator_unavailable` instead of
 claiming visual validation.
 
+Deck PDFs use compact print styling and natural-height table reflow when
+`--print-chart-data` is enabled, so supported multi-row tables remain complete
+inside the fixed slide canvas. If a larger table still cannot fit, Margo reports
+the affected slide and suggests reducing the chart data or choosing a larger
+slide size.
+
 Deck authoring accepts YAML frontmatter, top-level CommonMark thematic breaks,
 heading-divider pagination, local/spot directives, presenter-note comments,
 the built-in `modern`, `goshtoso`, and `minimal` themes, and the closed

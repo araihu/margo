@@ -101,7 +101,7 @@ func TestDeckPrintChartDataFlagProjectsAccessibleTable(t *testing.T) {
 	}
 }
 
-func TestDeckPDFPrintChartDataRejectsClippedRows(t *testing.T) {
+func TestDeckPDFPrintChartDataFitsSidebarRows(t *testing.T) {
 	browser := installedCLITestChromium()
 	if browser == "" {
 		t.Skip("installed Chromium unavailable")
@@ -109,20 +109,29 @@ func TestDeckPDFPrintChartDataRejectsClippedRows(t *testing.T) {
 	markdown := `---
 title: Chart
 language: en
+size: 16:9
 ---
 
-# Revenue
+<!-- _class: sidebar -->
+<!-- layout: sidebar -->
+<!-- slot: main -->
+## Revenue
 
 ` + "```goshtosochart\n" + `schemaVersion: 1
 type: bar
 title: Revenue by motion
-categories: [Q4, Q1, Q2, Q3]
+categories: [W1, W2, W3, W4, W5, W6]
 series:
   - name: New logos
-    values: [6.2, 6.8, 7.1, 7.4]
+    values: [4, 7, 9, 12, 15, 18]
   - name: Expansion
-    values: [3.1, 3.8, 4.6, 5.5]
-` + "```\n"
+    values: [4, 6, 8, 10, 13, 16]
+` + "```\n" + `<!-- slot: rail -->
+### Readout
+
+The exact values remain available for review and print.
+<!-- /layout -->
+`
 	output := filepath.Join(t.TempDir(), "chart.pdf")
 	var stderr bytes.Buffer
 	command := NewRootCommand(Dependencies{
@@ -138,17 +147,15 @@ series:
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err := command.ExecuteContext(ctx)
-	if err == nil {
-		t.Fatal("overflowing chart data unexpectedly produced a PDF")
+	if err != nil {
+		t.Fatalf("sidebar chart-data PDF failed: %v, stderr = %s", err, stderr.String())
 	}
-	if got := cliDiagnosticCode(err); got != "pdf.deck_print_overflow" {
-		t.Fatalf("diagnostic code = %q, err = %v, stderr = %s", got, err, stderr.String())
+	data, readErr := os.ReadFile(output)
+	if readErr != nil {
+		t.Fatal(readErr)
 	}
-	if !strings.Contains(err.Error(), "chart data row") || !strings.Contains(err.Error(), "choose a larger slide size") {
-		t.Fatalf("overflow diagnostic is not actionable: %v", err)
-	}
-	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
-		t.Fatalf("overflow output stat = %v; PDF must not be published", statErr)
+	if !bytes.HasPrefix(data, []byte("%PDF-")) || bytes.Count(data, []byte("/Type /Page")) < 2 {
+		t.Fatalf("sidebar chart-data PDF bytes = %d page objects = %d", len(data), bytes.Count(data, []byte("/Type /Page")))
 	}
 }
 
