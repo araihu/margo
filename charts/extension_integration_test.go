@@ -71,6 +71,54 @@ func TestRootDefaultEnablesChartControlWrapper(t *testing.T) {
 	}
 }
 
+func TestRootEmbedsChartControlIconPaths(t *testing.T) {
+	body := readChartFixtureForIntegration(t, "testdata/bar/bar-valid.yaml")
+	out, _, err := renderThroughRoot(t, body, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(out)
+	if strings.Contains(markup, chartassets.ChartIconsSpriteURL) {
+		t.Fatalf("chart controls retained an external sprite reference: %s", markup)
+	}
+	for _, marker := range []string{
+		`<path xmlns="http://www.w3.org/2000/svg"`,
+		`stroke-linecap="round"`,
+		`d="M3.75 3.75v4.5`,
+	} {
+		if !strings.Contains(markup, marker) {
+			t.Fatalf("embedded chart icon is missing %q: %s", marker, markup)
+		}
+	}
+}
+
+func TestStandaloneChartControlsDoNotReferenceExternalSprite(t *testing.T) {
+	body := readChartFixtureForIntegration(t, "testdata/bar/bar-valid.yaml")
+	compiler := margo.New(margo.WithExtension(Extension(WithExternalizedControlRuntime(true))))
+	document, err := compiler.Compile(context.Background(), margo.Source{
+		Name: "chart.md", Content: []byte("```goshtosochart\n" + body + "\n```"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := compiler.Render(context.Background(), document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	standalone, err := margo.RenderStandalone(rendered)
+	if err != nil {
+		t.Fatalf("render standalone: %#v", err)
+	}
+	var output bytes.Buffer
+	if err := standalone.Render(context.Background(), &output); err != nil {
+		t.Fatal(err)
+	}
+	markup := output.String()
+	if strings.Contains(markup, chartassets.ChartIconsSpriteURL) {
+		t.Fatalf("standalone chart retained an external sprite reference: %s", markup)
+	}
+}
+
 func TestRootSupportsInteractiveBarRenderer(t *testing.T) {
 	body := `schemaVersion: 1
 type: bar

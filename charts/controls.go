@@ -3,11 +3,18 @@ package charts
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 
 	"github.com/a-h/templ"
 	chartassets "github.com/araihu/goshtoso-charts/assets"
 	"github.com/araihu/goshtoso-charts/components/chartcontrol"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 const chartScreenDataStyle = `.goshtoso-charts-bar > figcaption,
@@ -184,6 +191,136 @@ const chartControlWrapperStart = `<div class="goshtoso-charts-control-wrapper" d
 const chartExtensionStyleAttribute = `data-margo-extension-style="charts"`
 const chartExtensionScriptAttribute = `data-margo-extension-script="charts"`
 
+var chartIconSymbolsState struct {
+	sync.Once
+	symbols map[string][]byte
+	err     error
+}
+
+// inlineChartIconReferences replaces the external SVG sprite references used
+// by Goshtoso chart controls with the corresponding symbol contents. Chart
+// controls are rendered into both standalone documents and configured sites;
+// neither output can assume that the host serves the upstream root-absolute
+// /charts mount. Keeping the path materialized in the icon itself also avoids
+// a browser request before a configured site's base-path rewriter can run.
+func inlineChartIconReferences(data []byte) ([]byte, error) {
+	prefix := chartassets.ChartIconsSpriteURL + "#"
+	if !bytes.Contains(data, []byte(prefix)) {
+		return data, nil
+	}
+	symbols, err := chartIconSymbolMarkup()
+	if err != nil {
+		return nil, err
+	}
+	contextNode := &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"}
+	nodes, err := html.ParseFragment(bytes.NewReader(data), contextNode)
+	if err != nil {
+		return nil, fmt.Errorf("parse chart controls: %w", err)
+	}
+	var visit func(*html.Node) error
+	visit = func(node *html.Node) error {
+		for child := node.FirstChild; child != nil; {
+			next := child.NextSibling
+			if err := visit(child); err != nil {
+				return err
+			}
+			child = next
+		}
+		if node.Type != html.ElementNode || node.Data != "use" {
+			return nil
+		}
+		attribute := ""
+		for _, candidate := range node.Attr {
+			if candidate.Key == "href" || candidate.Key == "xlink:href" {
+				attribute = candidate.Val
+				break
+			}
+		}
+		if !strings.HasPrefix(attribute, prefix) {
+			return nil
+		}
+		id := strings.TrimPrefix(attribute, prefix)
+		markup, found := symbols[id]
+		if !found {
+			return fmt.Errorf("chart icon symbol %q is unavailable", id)
+		}
+		children, err := html.ParseFragment(bytes.NewReader(markup), contextNode)
+		if err != nil {
+			return fmt.Errorf("parse chart icon symbol %q: %w", id, err)
+		}
+		if node.Parent == nil {
+			return fmt.Errorf("chart icon symbol %q has no parent", id)
+		}
+		for _, child := range children {
+			node.Parent.InsertBefore(child, node)
+		}
+		node.Parent.RemoveChild(node)
+		return nil
+	}
+	for _, node := range nodes {
+		if err := visit(node); err != nil {
+			return nil, err
+		}
+	}
+	var output bytes.Buffer
+	for _, node := range nodes {
+		if err := html.Render(&output, node); err != nil {
+			return nil, fmt.Errorf("serialize chart controls: %w", err)
+		}
+	}
+	return output.Bytes(), nil
+}
+
+func chartIconSymbolMarkup() (map[string][]byte, error) {
+	chartIconSymbolsState.Do(func() {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "http://margo.invalid"+chartassets.ChartIconsSpriteURL, nil)
+		chartassets.Handler().ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			chartIconSymbolsState.err = fmt.Errorf("chart icon sprite returned HTTP %d", recorder.Code)
+			return
+		}
+		document, err := html.Parse(bytes.NewReader(recorder.Body.Bytes()))
+		if err != nil {
+			chartIconSymbolsState.err = fmt.Errorf("parse chart icon sprite: %w", err)
+			return
+		}
+		symbols := make(map[string][]byte)
+		var visit func(*html.Node)
+		visit = func(node *html.Node) {
+			if node.Type == html.ElementNode && node.Data == "symbol" {
+				id := ""
+				for _, attribute := range node.Attr {
+					if attribute.Key == "id" {
+						id = attribute.Val
+						break
+					}
+				}
+				if id != "" {
+					var markup bytes.Buffer
+					for child := node.FirstChild; child != nil; child = child.NextSibling {
+						if err := html.Render(&markup, child); err != nil {
+							chartIconSymbolsState.err = fmt.Errorf("serialize chart icon symbol %q: %w", id, err)
+							return
+						}
+					}
+					symbols[id] = markup.Bytes()
+				}
+			}
+			for child := node.FirstChild; child != nil; child = child.NextSibling {
+				visit(child)
+			}
+		}
+		visit(document)
+		if chartIconSymbolsState.err == nil && len(symbols) == 0 {
+			chartIconSymbolsState.err = fmt.Errorf("chart icon sprite contains no symbols")
+			return
+		}
+		chartIconSymbolsState.symbols = symbols
+	})
+	return chartIconSymbolsState.symbols, chartIconSymbolsState.err
+}
+
 type chartControlAlpineWriter struct {
 	out                        io.Writer
 	pending                    bytes.Buffer
@@ -199,6 +336,15 @@ func (writer *chartControlAlpineWriter) flush() error {
 		return nil
 	}
 	data := append([]byte(nil), writer.pending.Bytes()...)
+	if writer.externalizedControlRuntime {
+		exactLoader := []byte(`<script src="` + chartassets.ControlRuntimeURL + `" defer></script>`)
+		data = bytes.ReplaceAll(data, exactLoader, nil)
+	}
+	var err error
+	data, err = inlineChartIconReferences(data)
+	if err != nil {
+		return err
+	}
 	if index := bytes.Index(data, []byte(chartControlWrapperStart)); index >= 0 {
 		transformed := make([]byte, 0, len(data)+len(` x-data`))
 		transformed = append(transformed, data[:index]...)
@@ -206,14 +352,10 @@ func (writer *chartControlAlpineWriter) flush() error {
 		transformed = append(transformed, data[index+len(`<div`):]...)
 		data = transformed
 	}
-	if writer.externalizedControlRuntime {
-		exactLoader := []byte(`<script src="` + chartassets.ControlRuntimeURL + `" defer></script>`)
-		data = bytes.ReplaceAll(data, exactLoader, nil)
-	}
 	data = bytes.ReplaceAll(data, []byte(`<style>`), []byte(`<style `+chartExtensionStyleAttribute+`>`))
 	data = bytes.ReplaceAll(data, []byte(`<style data-margo-chart-print>`), []byte(`<style `+chartExtensionStyleAttribute+` data-margo-chart-print>`))
 	data = bytes.ReplaceAll(data, []byte(`<script `), []byte(`<script `+chartExtensionScriptAttribute+` `))
 	data = bytes.ReplaceAll(data, []byte(`<script>`), []byte(`<script `+chartExtensionScriptAttribute+`>`))
-	_, err := writer.out.Write(data)
+	_, err = writer.out.Write(data)
 	return err
 }
