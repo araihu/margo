@@ -66,6 +66,76 @@ func TestServeEndToEndReloadsRawMarkdownTree(t *testing.T) {
 	}
 }
 
+func TestServeEndToEndIgnoresConfiguredSiblingArtifacts(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "docs", "index.md"), "# First version\n")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+
+	var stdout lockedBuffer
+	var stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdout: &stdout, Stderr: &stderr, WorkingDirectory: root, Build: testBuildInfo(),
+	})
+	command.SetArgs([]string{"serve", "."})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- command.ExecuteContext(ctx) }()
+	stopped := false
+	defer func() {
+		cancel()
+		if stopped {
+			return
+		}
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Error("serve command did not stop")
+		}
+	}()
+
+	url := strings.TrimSuffix(waitForServingURL(t, &stdout), "/")
+	waitForServedContent(t, url+"/", "First version")
+	reload := openReloadStream(t, ctx, url+"/.margo/live-reload")
+	if err := os.MkdirAll(filepath.Join(root, "build"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "build", "watch-probe.txt"), []byte("ignored\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	assertNoReloadEvent(t, reload, 350*time.Millisecond)
+
+	if err := os.WriteFile(filepath.Join(root, "docs", "index.md"), []byte("# Second version\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitForReloadEvent(t, reload)
+	waitForServedContent(t, url+"/", "Second version")
+
+	cancel()
+	select {
+	case err := <-done:
+		stopped = true
+		if err != nil {
+			t.Fatalf("serve command: %v\nstderr: %s", err, stderr.String())
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("serve command did not stop after cancellation")
+	}
+}
+
 type lockedBuffer struct {
 	mu     sync.Mutex
 	buffer bytes.Buffer
@@ -152,6 +222,25 @@ func waitForReloadEvent(t *testing.T, lines <-chan string) {
 			}
 		case <-deadline.C:
 			t.Fatal(fmt.Sprintf("timed out waiting for reload event"))
+		}
+	}
+}
+
+func assertNoReloadEvent(t *testing.T, lines <-chan string, duration time.Duration) {
+	t.Helper()
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	for {
+		select {
+		case line, ok := <-lines:
+			if !ok {
+				t.Fatal("reload stream closed")
+			}
+			if line == "event: reload" {
+				t.Fatal("unexpected reload event")
+			}
+		case <-timer.C:
+			return
 		}
 	}
 }

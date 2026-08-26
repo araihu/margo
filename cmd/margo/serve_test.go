@@ -135,6 +135,81 @@ site:
 	}
 }
 
+func TestServeConfiguredProjectIgnoresSiblingArtifactsAndWatchesInputs(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "docs", "index.md"), "# Configured\n")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+	project, err := resolveServeProject(normalizeDependencies(Dependencies{WorkingDirectory: root}), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{
+		"build/chromium.log",
+		"logs/serve.log",
+		"reports/site.json",
+		"artifacts/screenshot.png",
+		"dist/index.html",
+	} {
+		if !project.Ignore(filepath.Join(root, filepath.FromSlash(name))) {
+			t.Errorf("sibling artifact %q was not ignored", name)
+		}
+	}
+	for _, name := range []string{
+		"site.yaml",
+		"docs/index.md",
+		"assets/logo.svg",
+		"assets/social.jpg",
+	} {
+		if project.Ignore(filepath.Join(root, filepath.FromSlash(name))) {
+			t.Errorf("configured input %q was ignored", name)
+		}
+	}
+}
+
+func TestServeConfiguredProjectKeepsArtifactNamedAssetAndSourceWatchable(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "build", "index.md"), "# Configured source\n")
+	copySiteConfigAsset(t, filepath.Join(root, "build", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: build
+output: dist
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: build/logo.svg
+  icon: build/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+	project, err := resolveServeProject(normalizeDependencies(Dependencies{WorkingDirectory: root}), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"build/index.md", "build/logo.svg", "assets/social.jpg"} {
+		if project.Ignore(filepath.Join(root, filepath.FromSlash(name))) {
+			t.Errorf("valid input %q was ignored", name)
+		}
+	}
+}
+
 func TestResolveServeProjectBuildsRawMarkdownTree(t *testing.T) {
 	root := t.TempDir()
 	writeSiteFixture(t, filepath.Join(root, "index.md"), "# Raw tree\n")

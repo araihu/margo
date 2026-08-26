@@ -32,9 +32,11 @@ type serveProject struct {
 	inputDir   string
 	configPath string
 
-	mu       sync.RWMutex
-	output   string
-	basePath string
+	mu         sync.RWMutex
+	output     string
+	basePath   string
+	sourceRoot string
+	assetRoots []string
 }
 
 func newServeCommand(deps Dependencies) *cobra.Command {
@@ -166,7 +168,10 @@ func (project *serveProject) Build(ctx context.Context) (devserver.Snapshot, err
 }
 
 func (project *serveProject) updateConfig(config site.Config, resultBasePath string) {
-	output := filepath.Join(filepath.Dir(project.configPath), filepath.FromSlash(config.Output))
+	configDir := filepath.Dir(project.configPath)
+	output := filepath.Join(configDir, filepath.FromSlash(config.Output))
+	sourceRoot := filepath.Join(configDir, filepath.FromSlash(config.Source))
+	assetRoots := configuredAssetRoots(configDir, config)
 	basePath := resultBasePath
 	if basePath == "" {
 		basePath = config.BasePath
@@ -174,14 +179,96 @@ func (project *serveProject) updateConfig(config site.Config, resultBasePath str
 	project.mu.Lock()
 	project.output = filepath.Clean(output)
 	project.basePath = basePath
+	project.sourceRoot = filepath.Clean(sourceRoot)
+	project.assetRoots = assetRoots
 	project.mu.Unlock()
 }
 
 func (project *serveProject) Ignore(name string) bool {
 	project.mu.RLock()
-	output := project.output
+	output, configPath := project.output, project.configPath
+	sourceRoot := project.sourceRoot
+	assetRoots := append([]string(nil), project.assetRoots...)
 	project.mu.RUnlock()
-	return output != "" && pathWithin(output, name)
+	if output != "" && pathWithin(output, name) {
+		return true
+	}
+	if configPath == "" {
+		return false
+	}
+
+	// A configured project has a deliberately small set of input roots. The
+	// source tree and config-declared local assets are allowed even when their
+	// directory happens to have an artifact-like name (for example,
+	// source: build or site.logo: build/logo.svg).
+	if name == project.root || (sourceRoot != "" && pathWithin(sourceRoot, name)) || pathWithin(configPath, name) {
+		return false
+	}
+	for _, root := range assetRoots {
+		if pathWithin(root, name) {
+			return false
+		}
+	}
+	return isSiblingArtifactPath(project.root, name)
+}
+
+// configuredAssetRoots returns the top-level directories containing assets
+// declared by site.yaml. Watching the directory, rather than only the current
+// file, lets an editor replace an asset atomically and lets a newly-created
+// asset become watchable after a config change.
+func configuredAssetRoots(configDir string, config site.Config) []string {
+	values := []string{
+		config.Site.Logo,
+		config.Site.Icon,
+		config.Site.SocialImage.Path,
+	}
+	for _, theme := range config.Themes {
+		values = append(values, theme.CSSURL, theme.TokenCatalog)
+	}
+	for _, css := range config.CustomCSS {
+		values = append(values, css.CSSURL)
+	}
+
+	roots := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value == "" || strings.HasPrefix(value, "https://") {
+			continue
+		}
+		relative := filepath.FromSlash(value)
+		if filepath.IsAbs(relative) {
+			continue
+		}
+		first := strings.Split(relative, string(filepath.Separator))[0]
+		if first == "" || first == "." || first == ".." {
+			continue
+		}
+		root := filepath.Clean(filepath.Join(configDir, first))
+		if _, exists := seen[root]; exists {
+			continue
+		}
+		seen[root] = struct{}{}
+		roots = append(roots, root)
+	}
+	return roots
+}
+
+// isSiblingArtifactPath filters the conventional directories used by the
+// documented CLI examples and development tooling. It intentionally applies
+// only to top-level siblings of a configured source tree; source descendants
+// and declared asset roots are handled by Ignore before this function.
+func isSiblingArtifactPath(root, name string) bool {
+	relative, err := filepath.Rel(root, name)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return false
+	}
+	component := strings.Split(relative, string(filepath.Separator))[0]
+	switch strings.ToLower(component) {
+	case "artifact", "artifacts", "build", "builds", "cache", "caches", "coverage", "log", "logs", "report", "reports", "temp", "tmp":
+		return true
+	default:
+		return false
+	}
 }
 
 func (project *serveProject) BasePath() string {
