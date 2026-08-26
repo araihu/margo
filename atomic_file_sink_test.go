@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,39 @@ func TestAtomicNoReplaceRefusesExistingDestination(t *testing.T) {
 	}
 	if !bytes.Equal(got, prior) {
 		t.Fatalf("existing target bytes = %q, want %q", got, prior)
+	}
+}
+
+func TestAtomicNoReplaceExistingDestinationReportsActionableDiagnostic(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "artifact.html")
+	if err := os.WriteFile(target, []byte("prior"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := (&AtomicFileSink{Target: target}).Commit(
+		context.Background(), bytes.NewReader([]byte("next")), ArtifactDigestOf([]byte("next")),
+	)
+	if err == nil {
+		t.Fatal("Commit() error = nil")
+	}
+	var diagnostic *DiagnosticError
+	if !errors.As(err, &diagnostic) || len(diagnostic.Diagnostics) != 1 {
+		t.Fatalf("error = %#v, want one DiagnosticError", err)
+	}
+	got := diagnostic.Diagnostics[0]
+	if got.Code != "margo.atomic.destination_exists" || got.Severity != SeverityError {
+		t.Fatalf("diagnostic = %#v", got)
+	}
+	for _, want := range []string{target, "--force", "new destination"} {
+		if !strings.Contains(got.Message, want) {
+			t.Fatalf("message = %q, missing %q", got.Message, want)
+		}
+	}
+	if !strings.Contains(got.Hint, "--force") || !strings.Contains(got.Hint, "new destination") {
+		t.Fatalf("hint = %q", got.Hint)
+	}
+	if result.Target != target || result.Outcome != CommitNotCommitted {
+		t.Fatalf("result = %#v", result)
 	}
 }
 
