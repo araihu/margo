@@ -25,8 +25,11 @@ go to stdout. Failed rebuilds go to stderr and keep the last successful
 snapshot. A later successful build replaces it and triggers browser reload.
 
 Configured output is ignored by the watcher and is never written to disk by
-`serve`. The command always emits text diagnostics; it has no `--diagnostics`
-flag.
+`serve`. For configured sites, conventional top-level sibling directories
+used for build outputs, reports, logs, and temporary artifacts—including
+`build/`—are ignored as well. The configured source tree and local assets
+declared by `site.yaml` remain watchable. The command always emits text
+diagnostics; it has no `--diagnostics` flag.
 
 ## Examples
 
