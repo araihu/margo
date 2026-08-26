@@ -1,6 +1,7 @@
 package site
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -208,6 +209,55 @@ theme:
 		if !strings.Contains(llms, required) {
 			t.Fatalf("llms.txt missing %q: %s", required, llms)
 		}
+	}
+}
+
+func TestBuildConfigPublishesExistingLinkedAssets(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\n[Download](assets/format-study.pdf?download=1#page=2)\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "nested", "guide.md"), "# Guide\n\n[Download](../assets/format-study.pdf?download=1#page=2)\n")
+	assetContent := []byte("format study")
+	assetPath := filepath.Join(root, "docs", "assets", "format-study.pdf")
+	if err := os.MkdirAll(filepath.Dir(assetPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(assetPath, assetContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{
+		"index.html":        `href="assets/format-study.pdf?download=1#page=2"`,
+		"nested/guide.html": `href="../assets/format-study.pdf?download=1#page=2"`,
+	} {
+		page := string(configArtifact(t, result, name))
+		if !strings.Contains(page, want) {
+			t.Fatalf("%s missing %q:\n%s", name, want, page)
+		}
+	}
+	if got := configArtifact(t, result, "assets/format-study.pdf"); !bytes.Equal(got, assetContent) {
+		t.Fatalf("linked asset = %q, want %q", got, assetContent)
 	}
 }
 

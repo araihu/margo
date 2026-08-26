@@ -12,6 +12,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -371,7 +372,7 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 			}
 			switch node.Data {
 			case "a":
-				if err := b.rewriteLink(source, node); err != nil {
+				if err := b.rewriteLink(ctx, source, node); err != nil {
 					return err
 				}
 			case "img":
@@ -444,15 +445,24 @@ func (b *builder) rewriteDependency(source Source, node *html.Node) error {
 	return nil
 }
 
-func (b *builder) rewriteLink(source Source, node *html.Node) error {
+func (b *builder) rewriteLink(ctx context.Context, source Source, node *html.Node) error {
 	index := attributeIndex(node, "href")
 	if index < 0 {
 		return nil
 	}
 	value := node.Attr[index].Val
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Path == "" || strings.HasPrefix(parsed.Path, "/") || !isMarkdownPath(parsed.Path) {
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Path == "" || strings.HasPrefix(parsed.Path, "/") {
 		return nil
+	}
+	if !isMarkdownPath(parsed.Path) {
+		target := path.Clean(path.Join(path.Dir(source.Path), parsed.Path))
+		if _, exists := b.outputs[strings.ToLower(target)]; exists {
+			// Rendered page links are already site-relative and may carry a
+			// query or fragment. They are not source-root assets.
+			return nil
+		}
+		return b.rewriteAssetLink(ctx, source, node, index, parsed, value)
 	}
 	target := path.Clean(path.Join(path.Dir(source.Path), parsed.Path))
 	if target == ".." || strings.HasPrefix(target, "../") {
@@ -478,6 +488,57 @@ func (b *builder) rewriteLink(source Source, node *html.Node) error {
 	node.Attr[index].Val = parsed.String()
 	b.references = append(b.references, siteReference{source: source.Path, target: b.pageOutput(targetSource.Path), fragment: parsed.Fragment})
 	return nil
+}
+
+func (b *builder) rewriteAssetLink(ctx context.Context, source Source, node *html.Node, index int, parsed *url.URL, value string) error {
+	assetPath := path.Clean(path.Join(path.Dir(source.Path), parsed.Path))
+	if assetPath == ".." || strings.HasPrefix(assetPath, "../") {
+		return diagnostic("site.asset_outside_root", fmt.Sprintf("asset link %q escapes the site root", value), "Link to a local asset below the input directory.", source.Path)
+	}
+	asset, cached := b.assets[assetPath]
+	if !cached {
+		remaining := margo.MaxDocumentBytes - b.assetBytes
+		data, readErr := b.request.AssetReader.ReadAsset(ctx, b.request.SourceRoot, assetPath, remaining)
+		if readErr != nil {
+			// A relative href is not necessarily a downloadable asset. Keep
+			// missing and non-regular targets as ordinary links; only an
+			// existing regular file is promoted to a published artifact.
+			if errors.Is(readErr, os.ErrNotExist) || errors.Is(readErr, margo.ErrCheckAssetNotRegular) {
+				return nil
+			}
+			return linkedAssetReadDiagnostic(source, value, readErr)
+		}
+		if int64(len(data)) > remaining {
+			return diagnostic("site.asset_too_large", fmt.Sprintf("local asset %q exceeds the remaining site asset limit", value), "Reduce the asset size or remove other local assets.", source.Path)
+		}
+		asset = cachedAsset{content: append([]byte(nil), data...)}
+		b.assets[assetPath] = asset
+		b.assetBytes += int64(len(data))
+	}
+	if err := b.addArtifact(assetPath, asset.content); err != nil {
+		return err
+	}
+	relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), assetPath)
+	if err != nil {
+		return err
+	}
+	parsed.Path = relative
+	parsed.RawPath = ""
+	node.Attr[index].Val = parsed.String()
+	return nil
+}
+
+func linkedAssetReadDiagnostic(source Source, value string, readErr error) error {
+	if errors.Is(readErr, context.Canceled) || errors.Is(readErr, context.DeadlineExceeded) {
+		return readErr
+	}
+	if errors.Is(readErr, margo.ErrCheckAssetOutsideRoot) {
+		return diagnostic("site.asset_outside_root", fmt.Sprintf("asset link %q resolves outside the site root", value), "Link to a local asset below the input directory.", source.Path)
+	}
+	if errors.Is(readErr, margo.ErrCheckAssetTooLarge) {
+		return diagnostic("site.asset_too_large", fmt.Sprintf("local asset %q exceeds the remaining site asset limit", value), "Reduce the asset size or remove other local assets.", source.Path)
+	}
+	return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read local asset %q: %v", value, readErr), "Add a readable regular asset below the input directory.", source.Path)
 }
 
 func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.Node) error {

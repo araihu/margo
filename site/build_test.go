@@ -100,6 +100,57 @@ func TestBuildLocalSiteRewritesLinksInsideTableCells(t *testing.T) {
 	}
 }
 
+func TestBuildLocalSitePublishesExistingLinkedAssets(t *testing.T) {
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "assets", "format-study.pdf")
+	assetContent := []byte("format study")
+	if err := os.MkdirAll(filepath.Dir(assetPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(assetPath, assetContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Build(context.Background(), Request{
+		SourceRoot: root,
+		Sources: []Source{
+			{Path: "nested/index.md", Content: []byte("# Home\n\n[Download](../assets/format-study.pdf?download=1#page=2)\n\n[Guide](guide.md#guide)\n\n[External](https://example.com/file.pdf)\n\n[Missing](../assets/missing.pdf)\n")},
+			{Path: "nested/guide.md", Content: []byte("# Guide\n")},
+		},
+		Compiler: margo.New(), Assets: AssetsLocal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "nested/index.html")
+	for _, want := range []string{
+		`href="../assets/format-study.pdf?download=1#page=2"`,
+		`href="guide.html#guide"`,
+		`href="https://example.com/file.pdf"`,
+		`href="../assets/missing.pdf"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("page missing %q:\n%s", want, page)
+		}
+	}
+	if got := artifactBytes(t, result, "assets/format-study.pdf"); !bytes.Equal(got, assetContent) {
+		t.Fatalf("linked asset = %q, want %q", got, assetContent)
+	}
+	for _, artifact := range result.Artifacts {
+		if artifact.Path == "assets/missing.pdf" {
+			t.Fatalf("missing linked asset was published: %+v", result.Artifacts)
+		}
+	}
+}
+
+func TestBuildLocalSiteRejectsLinkedAssetOutsideSourceRoot(t *testing.T) {
+	_, err := Build(context.Background(), Request{
+		SourceRoot: t.TempDir(),
+		Sources:    []Source{{Path: "index.md", Content: []byte("# Home\n\n[Escape](../secret.pdf)\n")}},
+		Compiler:   margo.New(), Assets: AssetsLocal,
+	})
+	requireSiteCode(t, err, "site.asset_outside_root")
+}
+
 func TestBuildLocalSiteProjectsPublicationMetadata(t *testing.T) {
 	result, err := Build(context.Background(), Request{
 		Sources:  []Source{{Path: "posts/launch.md", Content: []byte("---\ntitle: Launch notes\ndescription: The launch summary.\nlanguage: en\nauthors: [Ana Silva, Rui Costa]\npublishedAt: \"2026-08-25T12:00:00Z\"\nmodifiedAt: \"2026-08-26T12:00:00Z\"\ntags: [operations, release]\n---\n# Launch notes\n\nThe launch summary.\n")}},
