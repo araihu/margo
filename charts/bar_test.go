@@ -51,6 +51,42 @@ func TestBarJSONPayloadUsesTheSameAdapter(t *testing.T) {
 	}
 }
 
+func TestBarLongCategoriesCompactOnlyVisualLabelsAndKeepExactRows(t *testing.T) {
+	payload := `schemaVersion: 1
+type: bar
+title: Revenue
+categories: [North American enterprise strategic, Europe and Middle East growth market, Asia Pacific strategic account, Latin American emerging segment]
+series:
+  - name: Revenue
+    values: [10, 20, 30, 40]`
+	session, err := extensionFactoryWithOptions(
+		margo.RenderContext{EffectivePolicy: margo.EffectivePolicy{OutputBytes: 1 << 20}},
+		chartRenderOptions{controlWrapper: false, deckProjection: true},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if err := session.Render(context.Background(), margo.ExtensionNode{Fence: "goshtosochart", Payload: []byte(payload)}, &output); err != nil {
+		t.Fatal(err)
+	}
+	out := output.String()
+	for _, visual := range []string{"North Ameri…", "Europe and…", "Asia Pacifi…", "Latin Ameri…"} {
+		if !strings.Contains(out, ">"+visual+"</text>") {
+			t.Fatalf("visual label %q missing", visual)
+		}
+	}
+	want := []string{
+		"Revenue|North American enterprise strategic|10",
+		"Revenue|Europe and Middle East growth market|20",
+		"Revenue|Asia Pacific strategic account|30",
+		"Revenue|Latin American emerging segment|40",
+	}
+	if got := extractAccessibleRows(out); len(got) != len(want) || strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("accessible rows = %#v, want %#v", got, want)
+	}
+}
+
 func TestBarSemanticValidationRejectsInvalidModels(t *testing.T) {
 	cases := []struct {
 		name    string

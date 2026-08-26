@@ -23,7 +23,75 @@ const (
 
 	interactiveChartLayoutScriptMarker = "let goecharts_"
 	interactiveBarLayoutScriptMarker   = interactiveChartLayoutScriptMarker
+
+	// Static bars paint category labels into server-rendered SVG. The upstream
+	// renderer measures those labels before emitting the SVG, but it does not
+	// have a compact-label policy for a fixed presentation canvas. Keep visual
+	// labels short enough for a category slot while retaining the source values
+	// in the adjacent exact-data table.
+	staticBarCategoryLabelRunes = 12
 )
+
+// compactStaticBarLabels returns presentation-only labels for a vertical
+// static bar chart. The semantic category values are intentionally left
+// untouched by the caller's accessible rows and are never used as a data
+// substitute.
+func compactStaticBarLabels(categories []string) []string {
+	labels := make([]string, len(categories))
+	limit := staticBarCategoryLabelRunes
+	switch {
+	case len(categories) > 8:
+		limit = 8
+	case len(categories) > 4:
+		limit = 10
+	}
+	for index, category := range categories {
+		labels[index] = compactStaticBarLabel(category, limit)
+	}
+	return labels
+}
+
+func compactStaticBarLabel(value string, limit int) string {
+	runes := []rune(value)
+	if limit < 2 || len(runes) <= limit {
+		return value
+	}
+	budget := limit - 1 // reserve one rune for the ellipsis
+	words := strings.Fields(value)
+	if len(words) == 0 {
+		return value
+	}
+	var result strings.Builder
+	used := 0
+	for _, word := range words {
+		wordRunes := []rune(word)
+		separator := 0
+		if used > 0 {
+			separator = 1
+		}
+		if used+separator+len(wordRunes) > budget {
+			remaining := budget - used - separator
+			if remaining > 0 {
+				if separator > 0 {
+					result.WriteByte(' ')
+				}
+				result.WriteString(string(wordRunes[:remaining]))
+			}
+			break
+		}
+		if separator > 0 {
+			result.WriteByte(' ')
+			used++
+		}
+		result.WriteString(word)
+		used += len(wordRunes)
+	}
+	if used == 0 {
+		result.WriteString(string(runes[:budget]))
+	}
+	result.WriteRune('…')
+	return result.String()
+}
 
 // wrapChartLabel inserts word-boundary breaks for text painted by ECharts.
 // It preserves the source value in the figure aria-label, caption, and Margo's

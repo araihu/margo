@@ -24,6 +24,26 @@ func TestWrapChartLabelUsesConservativeWordBoundaries(t *testing.T) {
 	}
 }
 
+func TestCompactStaticBarLabelsOnlyShortensVisualValues(t *testing.T) {
+	categories := []string{
+		"Q1",
+		"North American enterprise strategic",
+		"Europe and Middle East growth market",
+		"Asia Pacific strategic account",
+		"Latin American emerging segment",
+	}
+	got := compactStaticBarLabels(categories)
+	if got[0] != categories[0] {
+		t.Fatalf("short category changed: %q", got[0])
+	}
+	if got[1] != "North Ame…" || got[2] != "Europe an…" || got[3] != "Asia Paci…" || got[4] != "Latin Ame…" {
+		t.Fatalf("compact labels = %#v", got)
+	}
+	if len(categories) != len(got) {
+		t.Fatalf("compact labels changed category count: %d", len(got))
+	}
+}
+
 func TestRewriteInteractiveBarLayoutScriptKeepsOriginalSourceValues(t *testing.T) {
 	const markup = `<script>let goecharts_ABC123 = echarts.init(document.getElementById('ABC123')); let option_ABC123 = {"title":{"text":"Original"},"legend":{}}; goecharts_ABC123.setOption(option_ABC123);</script>`
 	out := rewriteInteractiveBarLayoutScript(markup, "A deliberately long chart title that needs wrapping")

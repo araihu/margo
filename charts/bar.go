@@ -148,11 +148,15 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 		chartComponent = applyChartPrintPolicy(chartComponent, options)
 		return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 	}
+	labels := model.Categories
+	if options.deckProjection && model.Orientation != "horizontal" {
+		labels = compactStaticBarLabels(labels)
+	}
 	component := bar.Bar(bar.Config{
 		Label:       model.Title,
 		Caption:     Caption(model.Title),
 		Title:       model.Title,
-		Labels:      append([]string(nil), model.Categories...),
+		Labels:      append([]string(nil), labels...),
 		Series:      series,
 		Orientation: orientation,
 		Controls:    controlOptions,

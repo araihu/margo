@@ -67,7 +67,7 @@ body {
 .margo-deck__slide:not([hidden]) {
   align-items: center;
   display: grid;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: minmax(min-content, 1fr);
   gap: 0;
 }
 
@@ -564,7 +564,7 @@ body {
 }
 
 .margo-deck__slide:has([data-margo-chart-data]) {
-  padding-block: 32px;
+  padding-block: 64px;
 }
 
 /* Chart controls, plot, data table and explanatory copy need a small
@@ -572,7 +572,7 @@ body {
    unchanged while preventing a four-pixel scrollbar/overflow diagnostic on
    dense scatter and interactive chart slides. */
 .margo-deck__slide:has([data-goshtoso-chart-capability]) {
-  padding-block: 32px;
+  padding-block: 64px;
 }
 
 .margo-deck__slide:has([data-margo-chart-data]) [data-goshtoso-chart-content],
@@ -779,6 +779,15 @@ body {
 
   .margo-deck__slide:has([data-goshtoso-chart-capability]) [data-margo-chart-print-image] {
     max-block-size: 13rem !important;
+  }
+
+  /* Static SVG charts have no browser wrapper to resize them. Keep their
+     visual projection compact when the opt-in exact-data table is present so
+     the table remains above the slide footer on the fixed 16:9 canvas. */
+  .margo-deck__slide:has([data-margo-chart-data]) figure.goshtoso-charts-bar > svg {
+    block-size: auto;
+    max-block-size: 10rem !important;
+    max-inline-size: 100%;
   }
 
   /* Exact-data tables are opt-in PDF content. Let the table reflow to its
