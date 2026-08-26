@@ -144,7 +144,8 @@ func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartR
 				Title: &sharedchart.TitleOptions{Text: model.Title}, Animation: sharedchart.Bool(false), Controls: controlOptions, Export: exportOptions,
 			},
 		})
-		chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+		chartComponent := applyInteractiveBarLayout(templ.Component(component), model.Title)
+		chartComponent = applyChartPrintPolicy(chartComponent, options)
 		return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 	}
 	component := bar.Bar(bar.Config{
