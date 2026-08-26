@@ -122,6 +122,42 @@
     await prepareInteractiveCharts();
   };
 
+  // Print styles intentionally keep each slide on its fixed canvas. A chart
+  // data table can still be clipped by an intermediate scroll/overflow box,
+  // though, which would make an exact-data table silently incomplete in the
+  // PDF. Validate every visible chart row after print media is enabled so the
+  // Chromium exporter can fail before it publishes a misleading artifact.
+  const validatePrintLayout = () => {
+    for (let slideIndex = 0; slideIndex < slides.length; slideIndex += 1) {
+      const slide = slides[slideIndex];
+      const slideRect = slide.getBoundingClientRect();
+      const dataBlocks = [...slide.querySelectorAll(".margo-chart-data")].filter((block) => {
+        return getComputedStyle(block).display !== "none";
+      });
+      for (const block of dataBlocks) {
+        const rows = [...block.querySelectorAll("[data-margo-chart-row]")];
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+          const row = rows[rowIndex];
+          const rowRect = row.getBoundingClientRect();
+          if (rowRect.width <= 0 || rowRect.height <= 0) continue;
+          const clippingAncestors = [slide];
+          for (let ancestor = row.parentElement; ancestor && ancestor !== slide; ancestor = ancestor.parentElement) {
+            const style = getComputedStyle(ancestor);
+            if (/(hidden|clip|auto|scroll)/.test(`${style.overflowX} ${style.overflowY}`)) clippingAncestors.push(ancestor);
+          }
+          for (const ancestor of clippingAncestors) {
+            const rect = ancestor.getBoundingClientRect();
+            if (rowRect.left < rect.left - 1 || rowRect.right > rect.right + 1 ||
+                rowRect.top < rect.top - 1 || rowRect.bottom > rect.bottom + 1) {
+              return `slide ${slideIndex + 1} chart data row ${rowIndex + 1} of ${rows.length} exceeds the printable canvas; reduce chart data or choose a larger slide size`;
+            }
+          }
+        }
+      }
+    }
+    return "";
+  };
+
   const restoreScreen = () => {
     for (let index = chartPrintReplacements.length - 1; index >= 0; index -= 1) {
       const { original, replacement } = chartPrintReplacements[index];
@@ -175,6 +211,7 @@
   }
 
   globalThis.margoPrepareDeckPrint = preparePrint;
+  globalThis.margoValidateDeckPrint = validatePrintLayout;
   globalThis.margoRestoreDeckScreen = restoreScreen;
   window.addEventListener("beforeprint", () => { void preparePrint(); });
   window.addEventListener("afterprint", restoreScreen);

@@ -80,6 +80,57 @@ func TestDeckPrintChartDataFlagProjectsAccessibleTable(t *testing.T) {
 	}
 }
 
+func TestDeckPDFPrintChartDataRejectsClippedRows(t *testing.T) {
+	browser := installedCLITestChromium()
+	if browser == "" {
+		t.Skip("installed Chromium unavailable")
+	}
+	markdown := `---
+title: Chart
+language: en
+---
+
+# Revenue
+
+` + "```goshtosochart\n" + `schemaVersion: 1
+type: bar
+title: Revenue by motion
+categories: [Q4, Q1, Q2, Q3]
+series:
+  - name: New logos
+    values: [6.2, 6.8, 7.1, 7.4]
+  - name: Expansion
+    values: [3.1, 3.8, 4.6, 5.5]
+` + "```\n"
+	output := filepath.Join(t.TempDir(), "chart.pdf")
+	var stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+		NextExecutionID: func() margo.ExecutionID { return "cli-deck-chart-overflow" },
+	})
+	command.SetArgs([]string{
+		"deck", "-", "--format", "pdf", "--output", output,
+		"--slide-size", "16:9", "--print-chart-data",
+		"--engine", "chromium", "--engine-path", browser,
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := command.ExecuteContext(ctx)
+	if err == nil {
+		t.Fatal("overflowing chart data unexpectedly produced a PDF")
+	}
+	if got := cliDiagnosticCode(err); got != "pdf.deck_print_overflow" {
+		t.Fatalf("diagnostic code = %q, err = %v, stderr = %s", got, err, stderr.String())
+	}
+	if !strings.Contains(err.Error(), "chart data row") || !strings.Contains(err.Error(), "choose a larger slide size") {
+		t.Fatalf("overflow diagnostic is not actionable: %v", err)
+	}
+	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
+		t.Fatalf("overflow output stat = %v; PDF must not be published", statErr)
+	}
+}
+
 func TestDeckHTMLOmitsBrowserChartControls(t *testing.T) {
 	markdown := "# Chart\n\n```goshtosochart\nschemaVersion: 1\ntype: bar\ntitle: Revenue\ncategories: [Q1]\nseries:\n  - name: Actual\n    values: [12]\n```\n"
 	var stdout bytes.Buffer
