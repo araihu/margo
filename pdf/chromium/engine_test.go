@@ -1,6 +1,7 @@
 package chromium
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -303,6 +304,75 @@ func TestExportExecutesMermaidRuntimeTaskWithInstalledChromium(t *testing.T) {
 	}
 	if len(result.Runtime.Tasks) != 1 || result.Runtime.Tasks[0].OutputBytes < 100 || result.Runtime.Tasks[0].OutputSHA256 == "" {
 		t.Fatalf("runtime tasks = %+v", result.Runtime.Tasks)
+	}
+}
+
+func TestExportMermaidPortraitUsesDeclaredPageGeometryWithInstalledChromium(t *testing.T) {
+	path := installedChromium()
+	if path == "" {
+		t.Skip("no installed Chromium-family browser")
+	}
+	compiler := margo.New()
+	document, err := compiler.Compile(context.Background(), margo.Source{
+		Name: "portrait-mermaid.md",
+		Content: []byte("---\n" +
+			"title: Portrait Mermaid reproduction\n" +
+			"language: en\n" +
+			"margo:\n" +
+			"  page:\n" +
+			"    size: A4\n" +
+			"    orientation: portrait\n" +
+			"---\n\n" +
+			"# Portrait Mermaid reproduction\n\n" +
+			"```mermaid\n" +
+			"flowchart LR\n" +
+			"    A[Specialist advisory] --> B[Reusable controls and evidence]\n" +
+			"    B --> C[Managed assurance subscriptions]\n" +
+			"    C --> D[Platform adoption]\n" +
+			"    D --> E[Higher renewal value]\n" +
+			"    E --> A\n" +
+			"```\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := compiler.Render(context.Background(), document, margo.WithRenderTarget(margo.TargetPDF))
+	if err != nil {
+		t.Fatal(err)
+	}
+	standalone, err := margo.RenderStandalone(rendered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var html bytes.Buffer
+	if err := standalone.Render(context.Background(), &html); err != nil {
+		t.Fatal(err)
+	}
+	descriptor, err := rendered.RuntimeDescriptor("ri-00000003")
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine, err := New(Config{ExecutablePath: path, Timeout: 20 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := engine.Export(context.Background(), pdf.Request{
+		HTML: html.Bytes(), Runtime: descriptor, ExecutionID: "chromium-mermaid-portrait", Page: pdf.PageConfig{
+			Size: pdf.PageA4, Orientation: pdf.Portrait,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	boxes, err := deck.ParsePDFMediaBoxes(result.PDF)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(boxes) != 1 {
+		t.Fatalf("Mermaid portrait PDF page count = %d, want 1 (boxes = %#v)", len(boxes), boxes)
+	}
+	if boxes[0].RightMicrometers < 209000 || boxes[0].RightMicrometers > 211000 || boxes[0].TopMicrometers < 296000 || boxes[0].TopMicrometers > 298000 {
+		t.Fatalf("Mermaid portrait PDF media box = %#v, want A4 portrait", boxes[0])
 	}
 }
 

@@ -114,7 +114,6 @@ func TestMermaidFiguresUseUniqueContextualAccessibleNames(t *testing.T) {
 		`aria-describedby="margo-mermaid-source-0"`,
 		`<span id="margo-mermaid-source-0" class="margo-mermaid__accessible-source">Complete Mermaid source: flowchart LR`,
 		`ready --&gt; pdf[PDF artifact]</span>`,
-		`data-margo-print-layout="landscape"`,
 		`<figcaption id="margo-mermaid-caption-0" class="margo-figure-caption">Flowchart connecting Markdown source, Runtime ready?, and PDF artifact.</figcaption>`,
 		`id="margo-mermaid-caption-1"`,
 		`aria-labelledby="margo-mermaid-caption-1"`,
@@ -127,6 +126,9 @@ func TestMermaidFiguresUseUniqueContextualAccessibleNames(t *testing.T) {
 	}
 	if strings.Contains(markup, `aria-label="Mermaid diagram"`) {
 		t.Fatalf("Mermaid figures still share a generic accessible name:\n%s", markup)
+	}
+	if strings.Contains(markup, `data-margo-print-layout="landscape"`) {
+		t.Fatalf("Mermaid figure inferred a page orientation from its graph direction:\n%s", markup)
 	}
 	if !strings.Contains(markup, `<span class="margo-mermaid__overflow-cue">Scroll diagram horizontally to inspect all labels.</span>`) {
 		t.Fatalf("Mermaid figure has no narrow-layout overflow cue:\n%s", markup)

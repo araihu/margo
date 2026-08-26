@@ -447,15 +447,11 @@ func mermaidFigureDescription(source []byte, contextLabel string) (string, strin
 	}
 	fields := strings.Fields(first)
 	if len(fields) > 0 && (strings.EqualFold(fields[0], "flowchart") || strings.EqualFold(fields[0], "graph")) {
-		layout := ""
-		if len(fields) > 1 && (strings.EqualFold(fields[1], "LR") || strings.EqualFold(fields[1], "RL")) {
-			layout = "landscape"
-		}
 		labels := mermaidDelimitedLabels(lines)
 		if len(labels) > 0 {
-			return "Flowchart connecting " + naturalLanguageList(labels) + ".", layout
+			return "Flowchart connecting " + naturalLanguageList(labels) + ".", ""
 		}
-		return "Flowchart for " + contextLabel + ", with its Mermaid source available as a text fallback.", layout
+		return "Flowchart for " + contextLabel + ", with its Mermaid source available as a text fallback.", ""
 	}
 	if len(fields) > 0 && strings.EqualFold(fields[0], "sequenceDiagram") {
 		participants := mermaidParticipants(lines)
