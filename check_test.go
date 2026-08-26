@@ -306,6 +306,23 @@ func TestCheckRetainsRelativeLinkWarningForStandaloneTargets(t *testing.T) {
 	}
 }
 
+func TestCheckSiteRetainsNonRelativeLinkDiagnostics(t *testing.T) {
+	source := Source{Name: "index.md", Content: []byte("---\nlanguage: en\n---\n\n[Empty]()\n\n[Unsupported](javascript:alert(1))\n\n[Network path](//example.com/docs)\n")}
+	diagnostics, err := Check(context.Background(), source, WithCheckTarget(TargetSite))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"check.link_destination_empty", "check.link_unsupported", "check.link_unsupported"}
+	if len(diagnostics) != len(want) {
+		t.Fatalf("site diagnostics = %+v, want codes %v", diagnostics, want)
+	}
+	for index, code := range want {
+		if diagnostics[index].Code != code {
+			t.Fatalf("site diagnostics[%d] = %+v, want code %q", index, diagnostics[index], code)
+		}
+	}
+}
+
 func TestCheckWarnsForMissingLanguageSkippedHeadingAndEmptyLink(t *testing.T) {
 	source := Source{Name: "guide.md", Content: []byte("# Main\n\n### Skipped level\n\n[unfinished]()\n")}
 	diagnostics, err := Check(context.Background(), source)
