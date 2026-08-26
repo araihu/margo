@@ -53,7 +53,7 @@ func TestInjectComponentDocShellPageDependenciesRequiresHead(t *testing.T) {
 func TestBuildConfigRendersRouteOwnedSocialMetadataAndFrameBindings(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nWelcome to the Margo docs.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "# Guide\n\nA guide-specific description.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "---\ntitle: Guide\ndescription: A guide-specific description.\nlanguage: en\nauthors: [Ana Silva]\npublishedAt: \"2026-08-25T12:00:00Z\"\ntags: [operations]\n---\n# Guide\n\nA guide-specific description.\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
@@ -160,6 +160,21 @@ theme:
 	}
 	if !strings.Contains(guide, `https://margo.example/docs/guide.html`) || strings.Contains(index, `https://margo.example/docs/guide.html`) {
 		t.Fatalf("route metadata not distinct: index=%s guide=%s", index, guide)
+	}
+	for _, required := range []string{
+		`<address aria-label="Authors"><span rel="author">Ana Silva</span></address>`,
+		`<time datetime="2026-08-25T12:00:00Z" data-margo-publication-date="published">2026-08-25T12:00:00Z</time>`,
+		`<li data-margo-publication-tag="operations">operations</li>`,
+		`<meta property="article:published_time" content="2026-08-25T12:00:00Z"`,
+		`<meta property="article:author" content="Ana Silva"`,
+		`<meta property="article:tag" content="operations"`,
+	} {
+		if !strings.Contains(guide, required) {
+			t.Fatalf("configured publication projection missing %q: %s", required, guide)
+		}
+	}
+	if len(first.Site.Routes) != 2 || !reflect.DeepEqual(first.Site.Routes[1].Authors, []string{"Ana Silva"}) {
+		t.Fatalf("configured route publication metadata = %+v", first.Site.Routes)
 	}
 	if got := configArtifact(t, first, "assets/social.jpg"); len(got) < 1000 {
 		t.Fatalf("social asset unexpectedly small: %d", len(got))
