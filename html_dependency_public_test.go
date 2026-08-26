@@ -35,6 +35,38 @@ func TestMergeAndRenderHTMLDependenciesDeduplicatesInOrder(t *testing.T) {
 	}
 }
 
+func TestCodeCopyRequirementIsProjectedOnlyForCopyableCode(t *testing.T) {
+	withCode := mustRenderSource(t, "# Code\n\n```sh\necho hello\n```\n")
+	withCodeHTML, err := RenderHTML(withCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := withCodeHTML.Requirements().List(); len(got) == 0 || got[len(got)-1].ID != "margo.code-copy" {
+		t.Fatalf("code requirements = %#v, want margo.code-copy last", got)
+	}
+
+	withoutCode := mustRenderSource(t, "# No code\n\nPlain text.\n")
+	withoutCodeHTML, err := RenderHTML(withoutCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, requirement := range withoutCodeHTML.Requirements().List() {
+		if requirement.ID == "margo.code-copy" {
+			t.Fatalf("plain document unexpectedly projected code-copy requirement: %#v", withoutCodeHTML.Requirements().List())
+		}
+	}
+	disabled := mustRenderSource(t, "# Disabled\n\n```sh:copy_disabled\necho hello\n```\n")
+	disabledHTML, err := RenderHTML(disabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, requirement := range disabledHTML.Requirements().List() {
+		if requirement.ID == "margo.code-copy" {
+			t.Fatalf("copy-disabled document unexpectedly projected code-copy requirement: %#v", disabledHTML.Requirements().List())
+		}
+	}
+}
+
 func TestRenderHTMLDependenciesRejectsUnknownMode(t *testing.T) {
 	rendered := mustRenderSource(t, "# Page\n")
 	htmlResult, err := RenderHTML(rendered)

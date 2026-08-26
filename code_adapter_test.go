@@ -29,7 +29,15 @@ func TestCodeBlockCopyCanBeDisabledByFenceInfo(t *testing.T) {
 func TestCodeBlockCopyRemainsEnabledByDefault(t *testing.T) {
 	markup := renderComponent(t, mustRenderSource(t, "```text\nordinary Markdown\n```\n").Content())
 
-	if !bytes.Contains([]byte(markup), []byte(`aria-label="Copy text code"`)) {
-		t.Fatalf("regular fence lost its copy button:\n%s", markup)
+	for _, want := range []string{
+		`aria-label="Copy text code"`,
+		`data-margo-code-copy`,
+		`data-margo-code-copy-button`,
+		`data-margo-code-copy-label`,
+		`aria-live="polite"`,
+	} {
+		if !bytes.Contains([]byte(markup), []byte(want)) {
+			t.Fatalf("regular fence lost copy affordance marker %q:\n%s", want, markup)
+		}
 	}
 }

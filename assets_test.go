@@ -38,6 +38,7 @@ func TestHTMLAssetHandlerOwnsOnlyMargoMount(t *testing.T) {
 	}{
 		{path: "/margo-assets/document.css", contentType: "text/css"},
 		{path: "/margo-assets/table-sort.js", contentType: "application/javascript"},
+		{path: "/margo-assets/code-copy.js", contentType: "application/javascript"},
 	} {
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
