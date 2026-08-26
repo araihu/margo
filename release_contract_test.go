@@ -99,7 +99,7 @@ func TestRequiredCIValidatesGoReleaserSnapshot(t *testing.T) {
 	}
 	module := string(daggerData)
 	for _, required := range []string{
-		"goreleaser/goreleaser:v2.17.1@sha256:",
+		"goreleaser/goreleaser:v2.18.0@sha256:",
 		"goreleaser release --snapshot --clean --skip=publish",
 		"sha256sum -c checksums.txt", "archive_count", "margo_*.tar.gz", "margo_*.zip",
 	} {
@@ -120,7 +120,7 @@ func TestReleaseWorkflowUsesPinnedGoReleaserForRootSemverTags(t *testing.T) {
 		"actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
 		"dagger call release-verify --git-bundle=.dagger-git.bundle --ci-context=.dagger-ci-context.json",
 		"goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94",
-		"version: v2.17.1", "args: release --clean",
+		"version: v2.18.0", "args: release --clean",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("release workflow missing %q", required)

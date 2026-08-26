@@ -11,7 +11,7 @@ URLs, navigation, storage, and deployment.
 
 ## Install
 
-Margo requires Go 1.26.5 or newer:
+Margo requires Go 1.27.0 or newer:
 
 ```sh
 go install github.com/araihu/margo/cmd/margo@latest

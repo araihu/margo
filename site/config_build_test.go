@@ -190,6 +190,84 @@ theme:
 	}
 }
 
+func TestBuildConfigLocalizesVisibleFrameControls(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Início\n\nPágina inicial.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "# Guia\n\nPágina do guia.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Prévia da documentação
+frame:
+  builtin: top-main-footer
+locales:
+  default: pt-BR
+  supported: [pt-BR]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := string(configArtifact(t, result, "index.html"))
+	guide := string(configArtifact(t, result, "guide.html"))
+	for route, page := range map[string]string{"index": index, "guide": guide} {
+		if !strings.Contains(page, `>Ir para o conteúdo</a>`) {
+			t.Fatalf("%s skip link is not localized: %s", route, page)
+		}
+		for _, english := range []string{"Skip to content", "Previous:", "Next:"} {
+			if strings.Contains(page, english) {
+				t.Fatalf("%s contains English frame control %q: %s", route, english, page)
+			}
+		}
+	}
+	if !strings.Contains(index, `>Próximo: Guia</a>`) {
+		t.Fatalf("next-page label is not localized: %s", index)
+	}
+	if !strings.Contains(guide, `>Anterior: Início</a>`) {
+		t.Fatalf("previous-page label is not localized: %s", guide)
+	}
+}
+
+func TestLocalizedLabelFallsBackToEnglish(t *testing.T) {
+	for key, want := range map[string]string{
+		"skip_content": "Skip to content",
+		"previous":     "Previous",
+		"next":         "Next",
+	} {
+		if got := localizedLabel("es", key); got != want {
+			t.Errorf("localizedLabel(es, %q) = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestApplyLandingShellSemanticsLocalizesSkipLink(t *testing.T) {
+	document := []byte(`<!doctype html><html><body><a class="landing-shell__skip" href="#main-content">Skip to main content</a><main id="main-content">Content</main></body></html>`)
+	got, err := applyLandingShellSemantics(document, Page{Locale: "pt-BR", Source: "index.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(got)
+	for _, required := range []string{`href="#margo-document"`, `>Ir para o conteúdo</a>`} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("localized landing skip link missing %q: %s", required, page)
+		}
+	}
+	if strings.Contains(page, "Skip to main content") {
+		t.Fatalf("landing skip link retained English text: %s", page)
+	}
+}
+
 func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
@@ -1023,7 +1101,7 @@ locales:
 		`href="https://goshtoso.araihu.com/"`, `Built with Goshtoso`,
 		`href="https://araihu.com/"`, `Arai Hû`,
 		`href="/llms.txt">llms.txt`, `href="/sitemap.xml">sitemap.xml`,
-		`<title>Showcase — Markdown to durable outputs</title>`, `<meta name="description" content="A public feature tour."`,
+		`<title>Showcase</title>`, `<meta name="description" content="A public feature tour."`,
 		`<link rel="canonical" href="https://margo.example/"`, `property="og:image"`,
 		`name="twitter:card" content="summary_large_image"`,
 	} {
@@ -1237,6 +1315,68 @@ func configNodeHasAncestorClass(node *html.Node, className string) bool {
 		}
 	}
 	return false
+}
+
+func TestBuildConfigComponentDocShellUsesConsumerLocaleAndRoutes(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Início\n\nDocumentação do fornecedor.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "vendor.md"), "# Fornecedor\n\nPágina do fornecedor.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+site:
+  name: Vendor Docs
+  description: Documentação do fornecedor.
+  base_url: https://vendor.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Prévia da documentação.
+shell:
+  builtin: componentdocshell
+locales:
+  default: pt-BR
+  supported: [pt-BR]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	for _, required := range []string{
+		`<html lang="pt-BR"`,
+		`dir="ltr"`,
+		`<title>Início</title>`,
+		`>Ir para o conteúdo</a>`,
+		`aria-label="Abrir navegação"`,
+		`sidebarOpen ? &#39;Fechar navegação&#39; : &#39;Abrir navegação&#39;`,
+		`aria-label="Vendor Docs início"`,
+		`aria-label="Navegação lateral"`,
+		`>ativa</span>`,
+		`aria-label="Usar modo escuro"`,
+		`dark ? &#39;Usar modo claro&#39; : &#39;Usar modo escuro&#39;`,
+		`aria-label="Nesta página"`,
+		`>Nesta página</p>`,
+		`>Buscar páginas</span>`,
+		`>Buscar páginas</label>`,
+		`placeholder="Buscar páginas"`,
+		`aria-label="Resultados da busca"`,
+		`href="/vendor.html"`,
+		`>Fornecedor</span>`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("consumer shell missing %q: %s", required, page)
+		}
+	}
+	for _, forbidden := range []string{"Markdown to durable outputs", "Margo features", ">Features<", "Search features"} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("consumer shell leaked showcase content %q: %s", forbidden, page)
+		}
+	}
 }
 
 func TestBuildConfigRendersInlineShellDependenciesWithBasePath(t *testing.T) {

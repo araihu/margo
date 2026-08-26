@@ -548,7 +548,7 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	content := `<div class="margo-showcase-article">` + b.breadcrumbFragment(page) + string(prepared.article) + b.paginationFragment(page) + `</div>`
 	documentTitle := ""
 	if page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
-		documentTitle = page.Title + " — Markdown to durable outputs"
+		documentTitle = page.Title
 	}
 	shellPage := componentdocshell.Page{
 		Title:         page.Title,
@@ -569,12 +569,12 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 		Head:      templ.Raw(b.renderComponentDocShellHead(page)),
 		EnableTOC: true,
 	}
-	component := componentdocshell.Layout(b.componentDocShellConfig(), shellPage)
+	component := componentdocshell.Layout(b.componentDocShellConfig(page), shellPage)
 	var rendered bytes.Buffer
 	if err := component.Render(ctx, &rendered); err != nil {
 		return err
 	}
-	withSearchModal, err := injectComponentDocShellSearchModal(rendered.Bytes(), b.componentDocShellSearchConfig(), ctx, page.Source)
+	withSearchModal, err := injectComponentDocShellSearchModal(rendered.Bytes(), b.componentDocShellSearchConfig(page.Locale), ctx, page.Source)
 	if err != nil {
 		return err
 	}
@@ -582,7 +582,11 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	if err != nil {
 		return err
 	}
-	rewritten, err := b.rewriteHTML(ctx, source, withDependencies)
+	localized, err := applyComponentDocShellLocale(withDependencies, page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, localized)
 	if err != nil {
 		return err
 	}
@@ -613,7 +617,7 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 	content := `<div class="margo-showcase-article" data-margo-showcase-article="true">` + string(prepared.article) + b.paginationFragment(page) + `</div>`
 	documentTitle := ""
 	if page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
-		documentTitle = page.Title + " — Markdown to durable outputs"
+		documentTitle = page.Title
 	}
 	searchConfig := b.typedComponentDocShellSearchConfig(page)
 	shellPage := componentdocshell.Page{
@@ -859,6 +863,7 @@ func applyLandingShellSemantics(document []byte, page Page) ([]byte, error) {
 				setHTMLAttribute(node, "id", "margo-document")
 			case node.Data == "a" && hasClass(node, "landing-shell__skip"):
 				setHTMLAttribute(node, "href", "#margo-document")
+				setHTMLText(node, localizedLabel(page.Locale, "skip_content"))
 			}
 		}
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
@@ -1033,6 +1038,7 @@ func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEna
 	}
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
+		localizeComponentDocShellNode(node, page)
 		setDocument(node)
 		for child := node.FirstChild; child != nil; {
 			next := child.NextSibling
@@ -1055,20 +1061,89 @@ func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEna
 	return output.Bytes(), nil
 }
 
-func (b *builder) componentDocShellConfig() componentdocshell.Config {
+func applyComponentDocShellLocale(document []byte, page Page) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report this generated shell defect.", page.Source)
+	}
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		localizeComponentDocShellNode(node, page)
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(root)
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report this generated shell defect.", page.Source)
+	}
+	return output.Bytes(), nil
+}
+
+func localizeComponentDocShellNode(node *html.Node, page Page) {
+	if node.Type != html.ElementNode {
+		return
+	}
+	switch {
+	case node.Data == "html":
+		setHTMLAttribute(node, "lang", page.Locale)
+		setHTMLAttribute(node, "dir", localeDirection(page.Locale))
+	case node.Data == "a" && hasClass(node, "component-doc-shell__skip"):
+		setHTMLText(node, localizedLabel(page.Locale, "skip_content"))
+	case node.Data == "button" && hasClass(node, "component-doc-shell__menu-button"):
+		setHTMLAttribute(node, "aria-label", localizedLabel(page.Locale, "open_navigation"))
+		setHTMLAttribute(node, "x-bind:aria-label", "sidebarOpen ? '"+localizedLabel(page.Locale, "close_navigation")+"' : '"+localizedLabel(page.Locale, "open_navigation")+"'")
+	case node.Data == "a" && hasClass(node, "component-doc-shell__brand"):
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			if child.Type == html.ElementNode && hasClass(child, "component-doc-shell__brand-name") {
+				setHTMLAttribute(node, "aria-label", strings.TrimSpace(htmlText(child))+" "+localizedLabel(page.Locale, "brand_home"))
+				break
+			}
+		}
+	case node.Data == "button" && attributeValue(node, "id") == "componentdocshell-dark-mode":
+		setHTMLAttribute(node, "aria-label", localizedLabel(page.Locale, "dark_mode"))
+		setHTMLAttribute(node, "x-bind:aria-label", "dark ? '"+localizedLabel(page.Locale, "light_mode")+"' : '"+localizedLabel(page.Locale, "dark_mode")+"'")
+	case node.Data == "a" && hasClass(node, "component-doc-shell__repository"):
+		setHTMLAttribute(node, "aria-label", localizedLabel(page.Locale, "source_repository"))
+	case node.Data == "aside" && hasClass(node, "component-doc-shell__toc-inner"):
+		setHTMLAttribute(node, "aria-label", localizedLabel(page.Locale, "toc"))
+	case node.Data == "p" && hasClass(node, "component-doc-shell__toc-title"):
+		setHTMLText(node, localizedLabel(page.Locale, "toc"))
+	case node.Data == "nav" && hasClass(node, "component-doc-shell__sidebar-nav"):
+		setHTMLAttribute(node, "aria-label", localizedLabel(page.Locale, "sidebar_navigation"))
+	case node.Data == "span" && hasClass(node, "sr-only") && strings.TrimSpace(htmlText(node)) == "active" && hasHTMLAncestorClass(node, "component-doc-shell__sidebar-nav"):
+		setHTMLText(node, localizedLabel(page.Locale, "active"))
+	case attributeValue(node, "role") == "listbox":
+		for parent := node.Parent; parent != nil; parent = parent.Parent {
+			if hasAttribute(parent, "data-search-modal") {
+				setHTMLAttribute(node, "aria-label", localizedLabel(page.Locale, "search_results"))
+				break
+			}
+		}
+	}
+}
+
+func setHTMLText(node *html.Node, value string) {
+	for child := node.FirstChild; child != nil; {
+		next := child.NextSibling
+		node.RemoveChild(child)
+		child = next
+	}
+	node.AppendChild(&html.Node{Type: html.TextNode, Data: value})
+}
+
+func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config {
 	items := make([]sidebar.Item, 0, len(b.configPages))
 	var home Page
 	for _, page := range b.configPages {
-		if page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
+		if routeKey(page.Source, b.config.Locales) == routeKey(b.config.Site.Home, b.config.Locales) && page.Locale == current.Locale {
 			home = page
 			break
 		}
 	}
 	for _, page := range b.configPages {
-		if page.Locale != b.config.Locales.Default {
-			continue
-		}
-		if page.Source == home.Source {
+		if page.Locale != current.Locale {
 			continue
 		}
 		items = append(items, sidebar.Item{ID: componentDocShellPageID(b, page), Label: page.Title, Href: b.shellPageHref(page)})
@@ -1099,9 +1174,7 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 	return componentdocshell.Config{
 		Brand: brand,
 		Navigation: componentdocshell.Navigation{
-			Items:         []sidebar.Item{{ID: componentDocShellPageID(b, home), Label: home.Title, Href: b.shellPageHref(home)}},
-			SectionsTitle: "Margo features",
-			Sections:      []sidebar.Section{{Title: "Features", Items: items}},
+			Items:         items,
 			DisableSearch: true,
 		},
 		Appearance: componentdocshell.AppearanceConfig{
@@ -1114,19 +1187,19 @@ func (b *builder) componentDocShellConfig() componentdocshell.Config {
 			ThemeStylesheets:              themeStylesheets,
 		},
 		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderActions: b.componentDocShellSearch(),
+		HeaderActions: b.componentDocShellSearch(current.Locale),
 		Footer:        b.componentDocShellFooter(),
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   b.shellAssetPrefix,
 	}
 }
 
-func (b *builder) componentDocShellSearch() templ.Component {
+func (b *builder) componentDocShellSearch(locale string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
 		if _, err := io.WriteString(writer, `<div class="margo-shell-search">`); err != nil {
 			return err
 		}
-		if err := search.SearchField(b.componentDocShellSearchConfig()).Render(ctx, writer); err != nil {
+		if err := search.SearchField(b.componentDocShellSearchConfig(locale)).Render(ctx, writer); err != nil {
 			return err
 		}
 		_, err := io.WriteString(writer, `</div>`)
@@ -1134,25 +1207,25 @@ func (b *builder) componentDocShellSearch() templ.Component {
 	})
 }
 
-func (b *builder) componentDocShellSearchConfig() search.Config {
+func (b *builder) componentDocShellSearchConfig(locale string) search.Config {
 	return search.Config{
 		ID:             "margo-doc-search",
-		Label:          "Search features",
-		Placeholder:    "Search features",
+		Label:          localizedLabel(locale, "search_pages"),
+		Placeholder:    localizedLabel(locale, "search_pages"),
 		ShortcutText:   "⌘ K",
 		GlobalShortcut: true,
-		Items:          b.componentDocShellSearchItems(),
+		Items:          b.componentDocShellSearchItems(locale),
 		MatchMode:      search.MatchModeFuzzy,
 		MaxResults:     8,
-		EmptyText:      "No matching pages.",
+		EmptyText:      localizedLabel(locale, "no_matching_pages"),
 		TriggerClass:   "margo-shell-search-trigger",
 	}
 }
 
-func (b *builder) componentDocShellSearchItems() []search.Item {
+func (b *builder) componentDocShellSearchItems(locale string) []search.Item {
 	items := make([]search.Item, 0, len(b.configPages))
 	for _, page := range b.configPages {
-		if page.Locale != b.config.Locales.Default {
+		if page.Locale != locale {
 			continue
 		}
 		href := b.shellPageHref(page)
@@ -1161,7 +1234,7 @@ func (b *builder) componentDocShellSearchItems() []search.Item {
 			Title:       page.Title,
 			Description: page.Description,
 			Href:        href,
-			Kind:        "Page",
+			Kind:        localizedLabel(locale, "page"),
 			Path:        href,
 			Keywords:    []string{page.Source, page.Output},
 		})

@@ -1276,7 +1276,7 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	if err != nil {
 		return err
 	}
-	body := `<a class="margo-skip-link" href="#margo-document">Skip to content</a>` + string(fragment)
+	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
 	rewritten, err := b.rewriteHTML(ctx, source, markup)
 	if err != nil {
@@ -1332,7 +1332,7 @@ func (b *builder) renderResolvedLayoutSource(ctx context.Context, source Source,
 	if err != nil {
 		return err
 	}
-	body := `<a class="margo-skip-link" href="#margo-document">Skip to content</a>` + string(fragment)
+	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
 	rewritten, err := b.rewriteHTML(ctx, source, markup)
 	if err != nil {
@@ -1913,7 +1913,7 @@ func (b *builder) paginationFragment(page Page) string {
 		if familyScoped {
 			href = b.sitePageHref(previous)
 		}
-		builder.WriteString(`<li><a rel="prev" href="` + stdhtml.EscapeString(href) + `">Previous: ` + stdhtml.EscapeString(previous.Title) + `</a></li>`)
+		builder.WriteString(`<li><a rel="prev" href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(localizedLabel(page.Locale, "previous")) + `: ` + stdhtml.EscapeString(previous.Title) + `</a></li>`)
 	}
 	if index >= 0 && index+1 < len(localePages) {
 		next := localePages[index+1]
@@ -1921,7 +1921,7 @@ func (b *builder) paginationFragment(page Page) string {
 		if familyScoped {
 			href = b.sitePageHref(next)
 		}
-		builder.WriteString(`<li><a rel="next" href="` + stdhtml.EscapeString(href) + `">Next: ` + stdhtml.EscapeString(next.Title) + `</a></li>`)
+		builder.WriteString(`<li><a rel="next" href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(localizedLabel(page.Locale, "next")) + `: ` + stdhtml.EscapeString(next.Title) + `</a></li>`)
 	}
 	builder.WriteString(`</ul></nav>`)
 	return builder.String()
@@ -2227,9 +2227,23 @@ func (b *builder) publicAlternatePath(absolute string) string {
 
 func localizedLabel(locale, key string) string {
 	if strings.EqualFold(locale, "pt-BR") {
-		return map[string]string{"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo", "home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página"}[key]
+		return map[string]string{
+			"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo",
+			"home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página", "skip_content": "Ir para o conteúdo",
+			"open_navigation": "Abrir navegação", "close_navigation": "Fechar navegação", "dark_mode": "Usar modo escuro",
+			"light_mode": "Usar modo claro", "source_repository": "Repositório de código", "search_pages": "Buscar páginas",
+			"search_results": "Resultados da busca", "no_matching_pages": "Nenhuma página encontrada.", "page": "Página",
+			"sidebar_navigation": "Navegação lateral", "active": "ativa", "brand_home": "início", "previous": "Anterior", "next": "Próximo",
+		}[key]
 	}
-	return map[string]string{"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home", "language": "Language", "theme": "Theme", "toc": "On this page"}[key]
+	return map[string]string{
+		"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home",
+		"language": "Language", "theme": "Theme", "toc": "On this page", "skip_content": "Skip to content",
+		"open_navigation": "Open navigation", "close_navigation": "Close navigation", "dark_mode": "Switch to dark mode",
+		"light_mode": "Switch to light mode", "source_repository": "Source repository", "search_pages": "Search pages",
+		"search_results": "Search results", "no_matching_pages": "No matching pages.", "page": "Page",
+		"sidebar_navigation": "sidebar navigation", "active": "active", "brand_home": "home", "previous": "Previous", "next": "Next",
+	}[key]
 }
 
 func openGraphLocale(locale string) string {
