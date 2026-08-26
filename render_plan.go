@@ -97,6 +97,7 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			body := parsed.frontmatter.body
 			fence := string(fenced.Language(body))
 			if fence == "" {
+				hasCopyableCodeBlock = true
 				return ast.WalkContinue, nil
 			}
 			if fence == "trusted-embed" {

@@ -26,8 +26,14 @@
   };
 
   const copyText = (text) => {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      return navigator.clipboard.writeText(text).catch(() => {
+    let clipboard = null;
+    try {
+      clipboard = navigator.clipboard;
+    } catch (_) {
+      clipboard = null;
+    }
+    if (clipboard && typeof clipboard.writeText === "function") {
+      return Promise.resolve().then(() => clipboard.writeText(text)).catch(() => {
         if (fallbackCopy(text)) return undefined;
         throw new Error("clipboard unavailable");
       });
