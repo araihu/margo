@@ -382,6 +382,12 @@ func RenderStandalone(result *RenderResult, options ...any) (templ.Component, er
 			return nil, err
 		}
 	}
+	if config.brand.Footer != nil {
+		standaloneContent, err = appendStandaloneFooter(standaloneContent, config.brand.Footer, config.brand.Watermark)
+		if err != nil {
+			return nil, err
+		}
+	}
 	logoURL := assetDataURL(config.brand.Logo)
 	backdropURL := assetDataURL(config.brand.Backdrop)
 	requirements := editorial.Requirements().List()
@@ -678,6 +684,61 @@ func insertTableOfContents(content []byte) ([]byte, error) {
 	for _, node := range nodes {
 		if err := nethtml.Render(&transformed, node); err != nil {
 			return nil, htmlError("html.metadata_invalid", fmt.Sprintf("serialize standalone table of contents: %v", err))
+		}
+	}
+	return transformed.Bytes(), nil
+}
+
+func appendStandaloneFooter(content []byte, footer templ.Component, watermark string) ([]byte, error) {
+	footerBytes, err := renderComponentBytes(footer)
+	if err != nil {
+		return nil, fmt.Errorf("margo: render standalone footer: %w", err)
+	}
+	contextNode := &nethtml.Node{Type: nethtml.ElementNode, DataAtom: atom.Div, Data: "div"}
+	nodes, err := nethtml.ParseFragment(bytes.NewReader(content), contextNode)
+	if err != nil {
+		return nil, fmt.Errorf("margo: parse standalone content for footer insertion: %w", err)
+	}
+	var article *nethtml.Node
+	for _, node := range nodes {
+		if node.Type == nethtml.ElementNode && node.Data == "article" && htmlAttributeEquals(node, "class", "margo-document") {
+			article = node
+			break
+		}
+	}
+	if article == nil {
+		return nil, htmlError("html.metadata_invalid", "standalone content has no Margo document article")
+	}
+	footerNodes, err := nethtml.ParseFragment(bytes.NewReader([]byte(`<footer class="goshtoso-document__footer">`+string(footerBytes)+`</footer>`)), article)
+	if err != nil || len(footerNodes) != 1 {
+		return nil, htmlError("html.metadata_invalid", "standalone footer is malformed")
+	}
+	var lastElement *nethtml.Node
+	for child := article.LastChild; child != nil; child = child.PrevSibling {
+		if child.Type == nethtml.ElementNode {
+			lastElement = child
+			break
+		}
+	}
+	if lastElement == nil {
+		return nil, htmlError("html.metadata_invalid", "standalone document has no content before footer")
+	}
+	endmatter := &nethtml.Node{Type: nethtml.ElementNode, Data: "div", Attr: []nethtml.Attribute{{Key: "class", Val: "goshtoso-document__endmatter"}}}
+	article.InsertBefore(endmatter, lastElement)
+	article.RemoveChild(lastElement)
+	endmatter.AppendChild(lastElement)
+	if watermark != "" {
+		watermarkNode := &nethtml.Node{Type: nethtml.ElementNode, Data: "span", Attr: []nethtml.Attribute{
+			{Key: "class", Val: "goshtoso-document__watermark"}, {Key: "aria-hidden", Val: "true"},
+		}}
+		watermarkNode.AppendChild(&nethtml.Node{Type: nethtml.TextNode, Data: watermark})
+		endmatter.AppendChild(watermarkNode)
+	}
+	endmatter.AppendChild(footerNodes[0])
+	var transformed bytes.Buffer
+	for _, node := range nodes {
+		if err := nethtml.Render(&transformed, node); err != nil {
+			return nil, htmlError("html.metadata_invalid", fmt.Sprintf("serialize standalone footer: %v", err))
 		}
 	}
 	return transformed.Bytes(), nil

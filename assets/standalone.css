@@ -92,6 +92,14 @@
     border-block-start: 1px solid var(--color-outline);
   }
 
+  .goshtoso-document__endmatter {
+    break-inside: avoid;
+  }
+
+  .goshtoso-document__endmatter > :first-child {
+    margin-block-end: 0;
+  }
+
   .goshtoso-document__logo {
     width: 2rem;
     height: 2rem;
@@ -365,6 +373,12 @@
 
   .goshtoso-document__footer {
     border-block-start-color: var(--margo-print-chrome-outline);
+    break-before: avoid-page;
+  }
+
+  .goshtoso-document__endmatter {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
   }
 
   .goshtoso-document__stamps {
