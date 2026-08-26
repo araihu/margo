@@ -121,6 +121,7 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 
 	var metrics margo.LayoutMetrics
 	var runtimeOutput browserRuntimeOutput
+	var printOverflow string
 	var pdfBytes []byte
 	actions := []chromedp.Action{}
 	if request.Runtime.Protocol == margo.RuntimeProtocolV2 {
@@ -146,6 +147,16 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 			})));
 			return {scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight};
 		})()`, &metrics, awaitPromise),
+		chromedp.Evaluate(`(() => {
+			if (typeof globalThis.margoValidateDeckPrint !== "function") return "";
+			return globalThis.margoValidateDeckPrint();
+		})()`, &printOverflow),
+		chromedp.ActionFunc(func(context.Context) error {
+			if printOverflow != "" {
+				return fmt.Errorf("deck print overflow")
+			}
+			return nil
+		}),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			params := page.PrintToPDF().
 				WithPrintBackground(true).
@@ -158,7 +169,13 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 		}),
 	)
 	if err := chromedp.Run(browserCtx, actions...); err != nil {
+		if printOverflow != "" {
+			return pdf.Result{}, chromiumError("pdf.deck_print_overflow", printOverflow)
+		}
 		return pdf.Result{}, chromiumError("pdf.chromium.export_failed", err.Error())
+	}
+	if printOverflow != "" {
+		return pdf.Result{}, chromiumError("pdf.deck_print_overflow", printOverflow)
 	}
 	if !strings.HasPrefix(string(pdfBytes), "%PDF-") {
 		return pdf.Result{}, chromiumError("pdf.chromium.output_invalid", "browser returned invalid PDF bytes")
