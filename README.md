@@ -450,6 +450,10 @@ classes and slot names are validated before rendering; arbitrary HTML/CSS,
 remote backgrounds, custom Marpit themes, and unregistered extension ID
 allocators are rejected with diagnostics.
 
+See the [`margo deck` structural-layout guide](showcase/content/cli/deck/index.md#structural-layouts)
+for a complete copyable deck covering every layout, exact slot cardinalities,
+presenter-note scope, and recovery guidance.
+
 `--slide-size 16:9` selects a 1280x720 logical canvas and `--slide-size 4:3`
 selects 960x720. For custom geometry, pass positive dimensions with
 `--slide-width`, `--slide-height`, and `--slide-unit`; slide geometry cannot be
