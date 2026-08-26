@@ -425,14 +425,7 @@ func (b *builder) rewriteDependency(source Source, node *html.Node) error {
 	if err != nil || !strings.HasPrefix(parsed.Path, "/") {
 		return nil
 	}
-	dependencyKey := strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))
-	dependency, exists := b.dependencies[dependencyKey]
-	if !exists && b.config != nil {
-		basePath := strings.TrimPrefix(normalizedBasePath(b.config.BasePath), "/")
-		if basePath != "" {
-			dependency, exists = b.dependencies[strings.TrimPrefix(dependencyKey, basePath+"/")]
-		}
-	}
+	dependency, exists := b.dependencyForPublicPath(parsed.Path)
 	if !exists {
 		return nil
 	}
@@ -444,6 +437,24 @@ func (b *builder) rewriteDependency(source Source, node *html.Node) error {
 	parsed.RawPath = ""
 	node.Attr[index].Val = parsed.String()
 	return nil
+}
+
+// dependencyForPublicPath resolves an absolute URL emitted by a renderer to
+// the site-relative artifact staged by the builder. Configured layouts prefix
+// public assets with base_path, while the dependency map intentionally keeps
+// artifact keys relative to the publication root.
+func (b *builder) dependencyForPublicPath(publicPath string) (string, bool) {
+	dependencyKey := strings.ToLower(strings.TrimPrefix(publicPath, "/"))
+	dependency, exists := b.dependencies[dependencyKey]
+	if exists || b.config == nil {
+		return dependency, exists
+	}
+	basePath := strings.ToLower(strings.TrimPrefix(normalizedBasePath(b.config.BasePath), "/"))
+	if basePath == "" || !strings.HasPrefix(dependencyKey, basePath+"/") {
+		return "", false
+	}
+	dependency, exists = b.dependencies[strings.TrimPrefix(dependencyKey, basePath+"/")]
+	return dependency, exists
 }
 
 func (b *builder) rewriteLink(ctx context.Context, source Source, node *html.Node) error {
@@ -571,7 +582,7 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		return diagnostic("site.asset_external", fmt.Sprintf("image %q is not a local site asset", value), "Download the image into the site source tree.", source.Path)
 	}
 	if strings.HasPrefix(parsed.Path, "/") {
-		dependency, exists := b.dependencies[strings.ToLower(strings.TrimPrefix(parsed.Path, "/"))]
+		dependency, exists := b.dependencyForPublicPath(parsed.Path)
 		if !exists {
 			return diagnostic("site.asset_external", fmt.Sprintf("image %q is not a local site asset", value), "Download the image into the site source tree.", source.Path)
 		}

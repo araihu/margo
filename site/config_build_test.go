@@ -2429,6 +2429,60 @@ theme:
 	}
 }
 
+func TestBuildConfigLandingShellRewritesConfiguredBasePathImage(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+layout:
+  kind: landing
+  values:
+    shell: true
+    navigation: [guide.md]
+---
+# Landing
+
+Publish one Markdown source.
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "# Guide\n\nA guide.\n")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+base_path: /portal
+site:
+  name: Margo Portal
+  description: A configured landing shell.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo portal preview
+layout:
+  kind: article
+locales:
+  default: en
+  supported: [en]
+theme:
+  builtin: true
+  name: modern
+  color_mode: light
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	if !strings.Contains(page, `<img src="assets/logo.svg"`) {
+		t.Fatalf("configured branding image was not rewritten to its local artifact: %s", page)
+	}
+	if !artifactExists(result, "assets/logo.svg") {
+		t.Fatal("configured branding image was not published")
+	}
+}
+
 func TestBuildConfigLandingShellRejectsUnknownNavigationTarget(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
