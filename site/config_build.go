@@ -406,7 +406,7 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 		layoutPatches: append([]LayoutPatch(nil), inputs.Patches...),
 		configured:    make(map[string]configuredPage),
 		sources:       make(map[string]Source, len(sources)), outputs: make(map[string]string, len(sources)),
-		artifacts: make(map[string][]byte), artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset),
+		artifacts: make(map[string][]byte), artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset), configuredAssets: make(map[string]cachedAsset),
 		dependencies: make(map[string]string), pdfEngine: request.PDFEngine, pdfInstances: margo.NewInstanceAllocator(),
 		siteManifest: SiteManifest{ConfigVersion: 1, Layout: layoutIdentity, LayoutSchemaHash: layoutSchemaHash, BaseURL: strings.TrimSuffix(config.Site.BaseURL, "/"), BasePath: normalizedBasePath(config.BasePath)},
 	}
@@ -1191,8 +1191,8 @@ func (b *builder) typedLayoutDependencies() layoutDependencies {
 }
 
 func (b *builder) validateThemeCatalog(theme ThemeConfig) error {
-	css, cssOK := b.assets[theme.CSSURL]
-	catalog, catalogOK := b.assets[theme.TokenCatalog]
+	css, cssOK := b.configuredAssets[theme.CSSURL]
+	catalog, catalogOK := b.configuredAssets[theme.TokenCatalog]
 	if !cssOK || !catalogOK {
 		return diagnostic("site.theme_catalog_invalid", fmt.Sprintf("theme %q assets were not staged", theme.Name), "Declare readable local CSS and token catalog assets.", theme.Name)
 	}
@@ -1259,7 +1259,7 @@ func (b *builder) stageConfigAsset(name, subject, expectedMedia string) error {
 	if err := b.addArtifact(name, data); err != nil {
 		return err
 	}
-	b.assets[name] = cachedAsset{content: append([]byte(nil), data...), mediaType: mediaType}
+	b.configuredAssets[name] = cachedAsset{content: append([]byte(nil), data...), mediaType: mediaType}
 	b.dependencies[strings.ToLower(strings.TrimPrefix(name, "/"))] = strings.TrimPrefix(name, "/")
 	return nil
 }
@@ -1281,7 +1281,11 @@ func (b *builder) stageSocialImage(config SocialImageConfig) error {
 	if err != nil || decoded.Width != 1280 || decoded.Height != 640 || format != "jpeg" && format != "png" {
 		return diagnostic("site.social_image_invalid", "social preview image must be exactly 1280x640 JPEG or PNG", "Create an intentional landscape preview image.", config.Path)
 	}
-	return b.addArtifact(config.Path, data)
+	if err := b.addArtifact(config.Path, data); err != nil {
+		return err
+	}
+	b.configuredAssets[config.Path] = cachedAsset{content: append([]byte(nil), data...), mediaType: mediaType}
+	return nil
 }
 
 func (b *builder) renderConfiguredSource(ctx context.Context, source Source) error {
@@ -2363,16 +2367,16 @@ func (b *builder) documentStyleDigest() string {
 	}
 	for _, theme := range b.config.Themes {
 		if theme.Name == b.config.Theme.Name {
-			if asset, ok := b.assets[theme.CSSURL]; ok {
+			if asset, ok := b.configuredAssets[theme.CSSURL]; ok {
 				styles[theme.CSSURL] = asset.content
 			}
-			if asset, ok := b.assets[theme.TokenCatalog]; ok {
+			if asset, ok := b.configuredAssets[theme.TokenCatalog]; ok {
 				styles[theme.TokenCatalog] = asset.content
 			}
 		}
 	}
 	for _, css := range b.config.CustomCSS {
-		if asset, ok := b.assets[css.CSSURL]; ok {
+		if asset, ok := b.configuredAssets[css.CSSURL]; ok {
 			styles[css.CSSURL] = asset.content
 		}
 	}

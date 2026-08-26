@@ -797,7 +797,7 @@ func (b *builder) pdfBrandIdentity() (string, margo.AssetRef, error) {
 		return "Margo", logo, nil
 	}
 
-	logoAsset, ok := b.assets[b.config.Site.Logo]
+	logoAsset, ok := b.configuredAssets[b.config.Site.Logo]
 	if !ok {
 		return "", margo.AssetRef{}, fmt.Errorf("site.pdf_brand_logo: configured logo %q was not staged", b.config.Site.Logo)
 	}

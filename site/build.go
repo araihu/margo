@@ -133,6 +133,7 @@ type builder struct {
 	artifacts        map[string][]byte
 	artifactKeys     map[string]string
 	assets           map[string]cachedAsset
+	configuredAssets map[string]cachedAsset
 	dependencies     map[string]string
 	pages            []Page
 	references       []siteReference
@@ -184,7 +185,7 @@ func Build(ctx context.Context, request Request) (Result, error) {
 	b := &builder{
 		request: request, sources: make(map[string]Source, len(request.Sources)),
 		outputs: make(map[string]string, len(request.Sources)), artifacts: make(map[string][]byte),
-		artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset), dependencies: make(map[string]string),
+		artifactKeys: make(map[string]string), assets: make(map[string]cachedAsset), configuredAssets: make(map[string]cachedAsset), dependencies: make(map[string]string),
 		pdfEngine: request.PDFEngine, pdfInstances: margo.NewInstanceAllocator(),
 	}
 	ordered, err := b.indexSources()
@@ -503,17 +504,28 @@ func (b *builder) rewriteAssetLink(ctx context.Context, source Source, node *htm
 			// A relative href is not necessarily a downloadable asset. Keep
 			// missing and non-regular targets as ordinary links; only an
 			// existing regular file is promoted to a published artifact.
-			if errors.Is(readErr, os.ErrNotExist) || errors.Is(readErr, margo.ErrCheckAssetNotRegular) {
+			if errors.Is(readErr, os.ErrNotExist) {
+				if configured, exists := b.configuredAssets[assetPath]; exists {
+					asset, cached = configured, true
+				} else {
+					return nil
+				}
+			} else if errors.Is(readErr, margo.ErrCheckAssetNotRegular) {
 				return nil
+			} else {
+				return linkedAssetReadDiagnostic(source, value, readErr)
 			}
-			return linkedAssetReadDiagnostic(source, value, readErr)
 		}
-		if int64(len(data)) > remaining {
+		if !cached && int64(len(data)) > remaining {
 			return diagnostic("site.asset_too_large", fmt.Sprintf("local asset %q exceeds the remaining site asset limit", value), "Reduce the asset size or remove other local assets.", source.Path)
 		}
-		asset = cachedAsset{content: append([]byte(nil), data...)}
-		b.assets[assetPath] = asset
-		b.assetBytes += int64(len(data))
+		if !cached {
+			var cacheErr error
+			asset, cacheErr = b.cacheSourceAsset(ctx, assetPath, data)
+			if cacheErr != nil {
+				return cacheErr
+			}
+		}
 	}
 	if err := b.addArtifact(assetPath, asset.content); err != nil {
 		return err
@@ -577,19 +589,40 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		return diagnostic("site.asset_outside_root", fmt.Sprintf("image %q escapes the site root", value), "Use an image below the input directory.", source.Path)
 	}
 	asset, cached := b.assets[assetPath]
+	sourceCached := cached
 	if !cached {
 		remaining := margo.MaxDocumentBytes - b.assetBytes
 		data, readErr := b.request.AssetReader.ReadAsset(ctx, b.request.SourceRoot, assetPath, remaining)
 		if readErr != nil {
-			return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read image %q: %v", assetPath, readErr), "Add a readable regular image below the input directory.", source.Path)
+			if errors.Is(readErr, os.ErrNotExist) {
+				if configured, exists := b.configuredAssets[assetPath]; exists {
+					asset, cached = configured, true
+				} else {
+					return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read image %q: %v", assetPath, readErr), "Add a readable regular image below the input directory.", source.Path)
+				}
+			} else {
+				return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read image %q: %v", assetPath, readErr), "Add a readable regular image below the input directory.", source.Path)
+			}
 		}
-		mediaType, detectErr := staticimage.DetectContext(ctx, data)
+		if !cached {
+			mediaType, detectErr := staticimage.DetectContext(ctx, data)
+			if detectErr != nil {
+				return diagnostic("site.asset_invalid", fmt.Sprintf("invalid image %q: %v", assetPath, detectErr), "Use PNG, JPEG, GIF, WebP, or safe SVG.", source.Path)
+			}
+			asset = cachedAsset{content: append([]byte(nil), data...), mediaType: mediaType}
+			b.assets[assetPath] = asset
+			b.assetBytes += int64(len(data))
+		}
+	}
+	if asset.mediaType == "" {
+		mediaType, detectErr := staticimage.DetectContext(ctx, asset.content)
 		if detectErr != nil {
 			return diagnostic("site.asset_invalid", fmt.Sprintf("invalid image %q: %v", assetPath, detectErr), "Use PNG, JPEG, GIF, WebP, or safe SVG.", source.Path)
 		}
-		asset = cachedAsset{content: append([]byte(nil), data...), mediaType: mediaType}
-		b.assets[assetPath] = asset
-		b.assetBytes += int64(len(data))
+		asset.mediaType = mediaType
+		if sourceCached {
+			b.assets[assetPath] = asset
+		}
 	}
 	setImageIntrinsicDimensions(node, asset.content)
 	if b.request.Assets == AssetsInline {
@@ -600,6 +633,27 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 		return err
 	}
 	return nil
+}
+
+// cacheSourceAsset keeps source-root assets separate from configured assets.
+// A configured asset may share a published path with a source asset, but it
+// must never satisfy a source-relative reference before the source is read.
+// Media type detection is intentionally best-effort here: ordinary links may
+// target documents such as PDFs, while image references validate the cached
+// bytes in rewriteImage before they are embedded.
+func (b *builder) cacheSourceAsset(ctx context.Context, assetPath string, data []byte) (cachedAsset, error) {
+	asset := cachedAsset{content: append([]byte(nil), data...)}
+	mediaType, detectErr := staticimage.DetectContext(ctx, data)
+	if detectErr != nil {
+		if errors.Is(detectErr, context.Canceled) || errors.Is(detectErr, context.DeadlineExceeded) {
+			return cachedAsset{}, detectErr
+		}
+	} else {
+		asset.mediaType = mediaType
+	}
+	b.assets[assetPath] = asset
+	b.assetBytes += int64(len(data))
+	return asset, nil
 }
 
 func setImageIntrinsicDimensions(node *html.Node, content []byte) {

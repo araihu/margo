@@ -151,6 +151,46 @@ func TestBuildLocalSiteRejectsLinkedAssetOutsideSourceRoot(t *testing.T) {
 	requireSiteCode(t, err, "site.asset_outside_root")
 }
 
+func TestBuildLocalSiteDoesNotReplacePageWithSameNamedHTMLAsset(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "guide.html"), []byte("source asset"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Build(context.Background(), Request{
+		SourceRoot: root,
+		Sources: []Source{
+			{Path: "guide.md", Content: []byte("# Guide\n")},
+			{Path: "index.md", Content: []byte("# Home\n\n[Guide](guide.html)\n")},
+		},
+		Compiler: margo.New(), Assets: AssetsLocal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page := artifactContent(t, result, "index.html"); !strings.Contains(page, `href="guide.html"`) {
+		t.Fatalf("page link was changed unexpectedly: %s", page)
+	}
+	if page := artifactContent(t, result, "guide.html"); strings.Contains(page, "source asset") {
+		t.Fatalf("same-named source asset replaced the generated page: %s", page)
+	}
+}
+
+func TestBuildLocalSiteRejectsImageAssetCollidingWithPage(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "guide.html"), []byte("\x89PNG\r\n\x1a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Build(context.Background(), Request{
+		SourceRoot: root,
+		Sources: []Source{
+			{Path: "guide.md", Content: []byte("# Guide\n")},
+			{Path: "index.md", Content: []byte("# Home\n\n![Guide](guide.html)\n")},
+		},
+		Compiler: margo.New(), Assets: AssetsLocal,
+	})
+	requireSiteCode(t, err, "site.artifact_collision")
+}
+
 func TestBuildLocalSiteProjectsPublicationMetadata(t *testing.T) {
 	result, err := Build(context.Background(), Request{
 		Sources:  []Source{{Path: "posts/launch.md", Content: []byte("---\ntitle: Launch notes\ndescription: The launch summary.\nlanguage: en\nauthors: [Ana Silva, Rui Costa]\npublishedAt: \"2026-08-25T12:00:00Z\"\nmodifiedAt: \"2026-08-26T12:00:00Z\"\ntags: [operations, release]\n---\n# Launch notes\n\nThe launch summary.\n")}},
@@ -351,6 +391,32 @@ func TestBuildInlineSiteEmbedsAssetsAndIsDeterministic(t *testing.T) {
 	index := artifactContent(t, first, "index.html")
 	if !strings.Contains(index, "data:image/png;base64,") || !strings.Contains(index, "<style") {
 		t.Fatalf("inline page is not self-contained: %s", index)
+	}
+}
+
+func TestBuildInlineSiteLinkBeforeImagePreservesMediaType(t *testing.T) {
+	root := filepath.Clean("/workspace/docs")
+	result, err := Build(context.Background(), Request{
+		SourceRoot: root,
+		Sources:    []Source{{Path: "index.md", Content: []byte("# Home\n\n[Download logo](logo.png)\n\n![Logo](logo.png)\n")}},
+		Compiler:   margo.New(),
+		Assets:     AssetsInline,
+		AssetReader: mapAssetReader{
+			filepath.Join(root, "logo.png"): []byte("\x89PNG\r\n\x1a\n"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "index.html")
+	if !strings.Contains(page, `href="logo.png"`) {
+		t.Fatalf("linked image asset was not published as a link: %s", page)
+	}
+	if !strings.Contains(page, `src="data:image/png;base64,`) {
+		t.Fatalf("image did not preserve its detected media type after a link: %s", page)
+	}
+	if strings.Contains(page, `src="data:;base64,`) {
+		t.Fatalf("image emitted an empty media type after a link: %s", page)
 	}
 }
 

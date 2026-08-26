@@ -261,6 +261,35 @@ locales:
 	}
 }
 
+func TestBuildConfigRejectsSourceAssetShadowingConfiguredCache(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\n[Stylesheet](assets/site.css)\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "assets", "site.css"), "source stylesheet")
+	writeConfigFile(t, filepath.Join(root, "assets", "site.css"), "configured stylesheet")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+custom_css:
+  - css_url: assets/site.css
+locales:
+  default: en
+  supported: [en]
+`)
+	_, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	requireSiteCode(t, err, "site.artifact_collision")
+}
+
 func TestBuildConfigLocalizesVisibleFrameControls(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Início\n\nPágina inicial.\n")
