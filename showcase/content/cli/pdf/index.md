@@ -126,10 +126,11 @@ margo site ./site.yaml
 ```
 
 The configured site's `site.name` and local SVG `site.logo` are materialized
-into the pre-rendered PDF furniture. The logo must be a local safe SVG; remote
-URLs are not a branding path for the offline site builder. `pdf: client` is a
-different mode: it opens the browser print flow, follows the active site theme,
-and does not publish a PDF artifact.
+into the pre-rendered PDF furniture. The logo must be a local SVG at a
+normalized relative path; remote URLs are not a branding path for the offline
+site builder. Keep the SVG inert because it is embedded as trusted document
+branding. `pdf: client` is a different mode: it opens the browser print flow,
+follows the active site theme, and does not publish a PDF artifact.
 
 For a one-off standalone `margo pdf`, keep the logo below the Markdown file's
 directory and put it in the document instead. For example, with
@@ -146,8 +147,10 @@ margo pdf docs/report.md --output build/report.pdf
 That image is part of the document content. Standalone CLI output has no
 `--brand`, `--logo`, or custom-theme flag, so this does not replace its
 standard PDF header and footer. Programmatic PDF brand selection is a
-Go-library concern (`RenderStandalone` with `WithPDFBrand`), not a frontmatter
-or CLI setting.
+Go-library concern, not a frontmatter or CLI setting: call
+`margo.RenderStandalone(rendered, margo.WithPDFBrand(name, logo))`, where
+`logo` is a materialized `margo.AssetRef` (not a path that Margo fetches at
+render time).
 
 ## Failures and diagnostics
 
