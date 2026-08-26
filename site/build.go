@@ -70,6 +70,10 @@ type Page struct {
 	Layout         string             `json:"layout,omitempty"`
 	Title          string             `json:"title,omitempty"`
 	Description    string             `json:"description,omitempty"`
+	Authors        []string           `json:"authors,omitempty"`
+	PublishedAt    string             `json:"publishedAt,omitempty"`
+	ModifiedAt     string             `json:"modifiedAt,omitempty"`
+	Tags           []string           `json:"tags,omitempty"`
 	Canonical      string             `json:"canonical,omitempty"`
 	DocumentDigest string             `json:"documentDigest,omitempty"`
 	ImageOverflow  string             `json:"imageOverflow,omitempty"`
@@ -83,7 +87,8 @@ type Alternate struct {
 }
 
 // SiteManifest carries config and route identity in addition to artifact
-// digests. Legacy callers receive the zero value and keep the old manifest.
+// digests. Directory builds populate Routes with the same stable page records
+// used by the site report; configured builds add their canonical identities.
 type SiteManifest struct {
 	ConfigVersion       int    `json:"configVersion,omitempty"`
 	Layout              string `json:"layout,omitempty"`
@@ -246,8 +251,20 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	if err != nil {
 		return err
 	}
+	publication, err := publicationMetadataFor(source.Path, document.Metadata(), htmlResult.Metadata())
+	if err != nil {
+		return err
+	}
 	output := b.pageOutput(source.Path)
-	page := Page{Source: source.Path, Output: output, ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
+	authors, publishedAt, modifiedAt, tags := pagePublicationMetadata(publication)
+	page := Page{
+		Source: source.Path, Output: output, Locale: htmlResult.Metadata().Language, Title: htmlResult.Metadata().Title,
+		Description: htmlResult.Metadata().Description, Authors: authors, PublishedAt: publishedAt, ModifiedAt: modifiedAt,
+		Tags: tags, ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata()),
+	}
+	if page.Locale == "" {
+		page.Locale = "en"
+	}
 
 	dependencyMode := margo.HTMLDependenciesLocal
 	if b.request.Assets == AssetsInline {
@@ -280,7 +297,11 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 		}
 	}
 
-	rewritten, err := b.rewriteHTML(ctx, source, componentBytes.Bytes())
+	projected, err := projectPublicationMetadata(componentBytes.Bytes(), page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, projected)
 	if err != nil {
 		return err
 	}
@@ -620,9 +641,13 @@ func (b *builder) result() Result {
 	if b.config != nil {
 		pages = b.configPages
 	}
+	siteManifest := b.siteManifest
+	if b.config == nil {
+		siteManifest.Routes = append([]Page(nil), pages...)
+	}
 	result := Result{
 		Artifacts: make([]Artifact, 0, len(paths)), Manifest: margo.Manifest{Entries: make([]margo.ManifestEntry, 0, len(paths))},
-		Pages: append([]Page(nil), pages...), Site: b.siteManifest,
+		Pages: append([]Page(nil), pages...), Site: siteManifest,
 	}
 	for _, name := range paths {
 		content := append([]byte(nil), b.artifacts[name]...)

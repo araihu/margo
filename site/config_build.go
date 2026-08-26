@@ -601,6 +601,11 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 		}
 		locale, _ := sourceLocale(source.Path, b.config.Locales)
 		metadata := result.Metadata()
+		publication, publicationErr := publicationMetadataFor(source.Path, document.Metadata(), metadata)
+		if publicationErr != nil {
+			return publicationErr
+		}
+		authors, publishedAt, modifiedAt, tags := pagePublicationMetadata(publication)
 		if metadata.Language != "" && !strings.EqualFold(metadata.Language, locale) {
 			return diagnostic("site.locale_conflict", fmt.Sprintf("frontmatter language %q conflicts with source locale %q", metadata.Language, locale), "Align frontmatter language with the locale path.", source.Path)
 		}
@@ -616,7 +621,7 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 				description = routeDescription(result.PlainText(), title, b.config.Site.Name)
 			}
 		}
-		page := Page{Source: source.Path, Output: b.pageOutput(source.Path), Locale: locale, Title: title, Description: description, DocumentDigest: documentPayloadDigest(article), ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
+		page := Page{Source: source.Path, Output: b.pageOutput(source.Path), Locale: locale, Title: title, Description: description, Authors: authors, PublishedAt: publishedAt, ModifiedAt: modifiedAt, Tags: tags, DocumentDigest: documentPayloadDigest(article), ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
 		resolvedLayout := ResolvedLayout{}
 		layoutSources := []string(nil)
 		if b.config.Layout != nil {
@@ -1278,7 +1283,11 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	}
 	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
-	rewritten, err := b.rewriteHTML(ctx, source, markup)
+	projected, err := projectPublicationMetadata(markup, page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, projected)
 	if err != nil {
 		return err
 	}
@@ -1334,7 +1343,11 @@ func (b *builder) renderResolvedLayoutSource(ctx context.Context, source Source,
 	}
 	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
-	rewritten, err := b.rewriteHTML(ctx, source, markup)
+	projected, err := projectPublicationMetadata(markup, page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, projected)
 	if err != nil {
 		return err
 	}

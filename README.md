@@ -167,6 +167,11 @@ from the file and also produce `sitemap.xml` and `llms.txt`. The configured
 output defaults to `dist` when omitted. See
 [`showcase.yaml`](showcase.yaml) for a complete configuration.
 
+Site builds project `authors`, `publishedAt`, `modifiedAt`, and `tags` into
+semantic article metadata and into each page record in the site report and
+`margo-manifest.json`. Archive, tag, RSS, and Atom pages remain consumer-owned;
+the deterministic route records are the input for those indexes.
+
 ### Semantic layouts and documentation families
 
 Configured sites can opt into semantic page layouts and documentation families.

@@ -33,6 +33,36 @@ layout, navigation, locale, theme, and publication settings from the config.
 Without `--output-dir`, configured output is resolved beside that file. An
 explicit `--output-dir` changes only the publication destination.
 
+### Article publication metadata
+
+Site builds project the document metadata fields `authors`, `publishedAt`,
+`modifiedAt`, and `tags` into three stable surfaces: the generated article has
+an accessible publication-details header (`address`, `time`, and a tag list),
+the initial HTML head contains `article:*` metadata, and each page record in the
+site report and `margo-manifest.json` carries the same fields. This lets a blog
+or news consumer build archive and tag indexes from the route records without
+duplicating the values in Markdown prose.
+
+For sources that use the common singular names, directory and configured site
+builds also accept `author: Name` and `date: YYYY-MM-DD` (or an RFC 3339 value)
+as aliases. The canonical names remain preferred when multiple authors or
+timestamps are needed:
+
+```markdown
+---
+title: A calm release
+language: en
+authors: [Ana Silva]
+publishedAt: "2026-08-25T12:00:00Z"
+tags: [operations, release]
+---
+```
+
+Margo does not generate archive, tag, RSS, or Atom pages automatically. Route
+records are deterministic and expose enough metadata for a consumer-owned
+indexer; ordering, URLs, and publication policy remain the site's
+responsibility.
+
 ## Examples
 
 ```sh

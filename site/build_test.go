@@ -100,6 +100,62 @@ func TestBuildLocalSiteRewritesLinksInsideTableCells(t *testing.T) {
 	}
 }
 
+func TestBuildLocalSiteProjectsPublicationMetadata(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		Sources:  []Source{{Path: "posts/launch.md", Content: []byte("---\ntitle: Launch notes\ndescription: The launch summary.\nlanguage: en\nauthors: [Ana Silva, Rui Costa]\npublishedAt: \"2026-08-25T12:00:00Z\"\nmodifiedAt: \"2026-08-26T12:00:00Z\"\ntags: [operations, release]\n---\n# Launch notes\n\nThe launch summary.\n")}},
+		Compiler: margo.New(), Assets: AssetsInline,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "posts/launch.html")
+	for _, required := range []string{
+		`data-margo-publication-metadata="true"`,
+		`<address aria-label="Authors"><span rel="author">Ana Silva</span>, <span rel="author">Rui Costa</span></address>`,
+		`<time datetime="2026-08-25T12:00:00Z" data-margo-publication-date="published">2026-08-25T12:00:00Z</time>`,
+		`<time datetime="2026-08-26T12:00:00Z" data-margo-publication-date="modified">2026-08-26T12:00:00Z</time>`,
+		`<li data-margo-publication-tag="operations">operations</li>`,
+		`<meta property="article:published_time" content="2026-08-25T12:00:00Z"`,
+		`<meta property="article:modified_time" content="2026-08-26T12:00:00Z"`,
+		`<meta property="article:author" content="Ana Silva"`,
+		`<meta property="article:tag" content="release"`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("publication projection missing %q:\n%s", required, page)
+		}
+	}
+	if len(result.Pages) != 1 || len(result.Site.Routes) != 1 {
+		t.Fatalf("page projection = pages=%+v routes=%+v", result.Pages, result.Site.Routes)
+	}
+	for _, projected := range [][]string{result.Pages[0].Authors, result.Site.Routes[0].Authors} {
+		if !reflect.DeepEqual(projected, []string{"Ana Silva", "Rui Costa"}) {
+			t.Fatalf("authors = %#v", projected)
+		}
+	}
+	if result.Pages[0].PublishedAt != "2026-08-25T12:00:00Z" || !reflect.DeepEqual(result.Pages[0].Tags, []string{"operations", "release"}) {
+		t.Fatalf("page publication metadata = %+v", result.Pages[0])
+	}
+}
+
+func TestBuildLocalSiteAcceptsBlogAuthorDateAliases(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		Sources:  []Source{{Path: "post.md", Content: []byte("---\ntitle: A blog post\nlanguage: en\nauthor: Ana Silva\ndate: 2026-08-25\ntags: [operations]\n---\n# A blog post\n\nPost body.\n")}},
+		Compiler: margo.New(), Assets: AssetsInline,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "post.html")
+	for _, required := range []string{`rel="author">Ana Silva</span>`, `datetime="2026-08-25"`, `article:published_time" content="2026-08-25"`, `data-margo-publication-tag="operations"`} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("blog alias projection missing %q:\n%s", required, page)
+		}
+	}
+	if got := result.Pages[0]; got.PublishedAt != "2026-08-25" || !reflect.DeepEqual(got.Authors, []string{"Ana Silva"}) {
+		t.Fatalf("alias page = %+v", got)
+	}
+}
+
 func TestBuildInlineSiteEmbedsAssetsAndIsDeterministic(t *testing.T) {
 	root := filepath.Clean("/workspace/docs")
 	sources := []Source{

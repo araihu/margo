@@ -586,7 +586,11 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	if err != nil {
 		return err
 	}
-	rewritten, err := b.rewriteHTML(ctx, source, localized)
+	projected, err := projectPublicationMetadata(localized, page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, projected)
 	if err != nil {
 		return err
 	}
@@ -661,7 +665,11 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 	if err != nil {
 		return err
 	}
-	rewritten, err := b.rewriteHTML(ctx, source, withLayoutHook)
+	projected, err := projectPublicationMetadata(withLayoutHook, page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, projected)
 	if err != nil {
 		return err
 	}
@@ -710,7 +718,11 @@ func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source S
 	if err != nil {
 		return err
 	}
-	rewritten, err := b.rewriteHTML(ctx, source, withSemantics)
+	projected, err := projectPublicationMetadata(withSemantics, page)
+	if err != nil {
+		return err
+	}
+	rewritten, err := b.rewriteHTML(ctx, source, projected)
 	if err != nil {
 		return err
 	}
