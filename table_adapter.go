@@ -40,10 +40,11 @@ func tableSortMode(options renderOptions) TableSortMode {
 	return TableSortClient
 }
 
-func renderMarkdownTable(ctx context.Context, out io.Writer, node *tableast.Table, source []byte, mode TableSortMode, id string) error {
+func renderMarkdownTable(renderer markdownRenderer, node *tableast.Table, mode TableSortMode, id string) error {
 	if mode != TableSortClient {
 		return fmt.Errorf("table.sort_mode_invalid: only client sorting is supported")
 	}
+	ctx, out, source := renderer.ctx, renderer.out, renderer.source
 	header, ok := node.FirstChild().(*tableast.TableHeader)
 	if !ok {
 		return fmt.Errorf("table.header_missing: table header is required")
@@ -78,7 +79,7 @@ func renderMarkdownTable(ctx context.Context, out io.Writer, node *tableast.Tabl
 			if !ok {
 				return fmt.Errorf("table.cell_invalid: row contains an invalid cell")
 			}
-			cells[columns[index].Key] = goshtosotable.Cell{Text: plainInlineText(cell, source)}
+			cells[columns[index].Key] = markdownTableCell(renderer, cell)
 		}
 		if cellNode := row.FirstChild(); cellNode != nil {
 			count := 0
@@ -107,6 +108,37 @@ func renderMarkdownTable(ctx context.Context, out io.Writer, node *tableast.Tabl
 	}
 	_, err := io.WriteString(out, `</div>`)
 	return err
+}
+
+func markdownTableCell(renderer markdownRenderer, cell *tableast.TableCell) goshtosotable.Cell {
+	result := goshtosotable.Cell{Text: plainInlineText(cell, renderer.source)}
+	if !inlineContainsLink(cell) {
+		return result
+	}
+	result.Component = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		cellRenderer := renderer
+		cellRenderer.ctx = ctx
+		cellRenderer.out = out
+		return cellRenderer.renderInlineChildren(cell)
+	})
+	return result
+}
+
+func inlineContainsLink(node goldast.Node) bool {
+	found := false
+	_ = goldast.Walk(node, func(current goldast.Node, entering bool) (goldast.WalkStatus, error) {
+		if !entering {
+			return goldast.WalkContinue, nil
+		}
+		switch current.(type) {
+		case *goldast.Link, *goldast.AutoLink:
+			found = true
+			return goldast.WalkStop, nil
+		default:
+			return goldast.WalkContinue, nil
+		}
+	})
+	return found
 }
 
 func plainInlineText(node goldast.Node, source []byte) string {

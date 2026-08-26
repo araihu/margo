@@ -49,6 +49,27 @@ func TestSemanticRender(t *testing.T) {
 	}
 }
 
+func TestSemanticRenderPreservesLinksInsideMarkdownTableCells(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "# Table links\n\n| Resource | Destination |\n| --- | --- |\n| Guide | [Open guide](guide.md) |\n\n[Open guide outside table](guide.md).\n").Content())
+	if !strings.Contains(markup, `<a href="guide.md">Open guide</a>`) {
+		t.Fatalf("table cell link was not rendered as an anchor:\n%s", markup)
+	}
+	if !strings.Contains(markup, `<a href="guide.md">Open guide outside table</a>`) {
+		t.Fatalf("outside-table link regression:\n%s", markup)
+	}
+}
+
+func TestSemanticRenderRejectsMalformedLinksInsideMarkdownTableCells(t *testing.T) {
+	compiler := New()
+	document, err := compiler.Compile(context.Background(), Source{Name: "table.md", Content: []byte("# Table links\n\n| Resource | Destination |\n| --- | --- |\n| Unsafe | [Open](javascript:alert(1)) |\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := compiler.Render(context.Background(), document); err == nil || !strings.Contains(err.Error(), "render.link_invalid") {
+		t.Fatalf("malformed table link error = %v, want render.link_invalid", err)
+	}
+}
+
 func TestFirstParagraphAfterDocumentTitleIsTheLead(t *testing.T) {
 	markup := renderComponent(t, mustRenderSource(t, "# Visual foundation\n\nPurpose and scope.\n\n## Evidence\n\nOrdinary body copy.\n").Content())
 	if !strings.Contains(markup, `<h1 id="visual-foundation">Visual foundation</h1><p class="margo-document__lead">Purpose and scope.</p>`) {
