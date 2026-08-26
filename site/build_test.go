@@ -112,6 +112,10 @@ func TestBuildLocalSiteProjectsPublicationMetadata(t *testing.T) {
 	for _, required := range []string{
 		`data-margo-publication-metadata="true"`,
 		`<address aria-label="Authors"><span rel="author">Ana Silva</span>, <span rel="author">Rui Costa</span></address>`,
+		`class="margo-document__publication-dates" role="group" aria-label="Publication dates"`,
+		`data-margo-publication-label="published">Published</span>`,
+		`data-margo-publication-label="modified">Updated</span>`,
+		`class="margo-document__publication-separator" aria-hidden="true" data-margo-publication-separator="true"> · </span>`,
 		`<time datetime="2026-08-25T12:00:00Z" data-margo-publication-date="published">2026-08-25T12:00:00Z</time>`,
 		`<time datetime="2026-08-26T12:00:00Z" data-margo-publication-date="modified">2026-08-26T12:00:00Z</time>`,
 		`<li data-margo-publication-tag="operations">operations</li>`,
@@ -134,6 +138,121 @@ func TestBuildLocalSiteProjectsPublicationMetadata(t *testing.T) {
 	}
 	if result.Pages[0].PublishedAt != "2026-08-25T12:00:00Z" || !reflect.DeepEqual(result.Pages[0].Tags, []string{"operations", "release"}) {
 		t.Fatalf("page publication metadata = %+v", result.Pages[0])
+	}
+}
+
+func TestBuildLocalSitePublicationDateLabelsHandleSingleDate(t *testing.T) {
+	tests := []struct {
+		name       string
+		source     string
+		label      string
+		date       string
+		articleTag string
+	}{
+		{
+			name:       "published only",
+			source:     "---\ntitle: Published only\nlanguage: en\npublishedAt: \"2026-08-25T12:00:00Z\"\n---\n# Published only\n",
+			label:      `data-margo-publication-label="published">Published</span>`,
+			date:       `data-margo-publication-date="published">2026-08-25T12:00:00Z</time>`,
+			articleTag: `article:published_time" content="2026-08-25T12:00:00Z"`,
+		},
+		{
+			name:       "modified only",
+			source:     "---\ntitle: Modified only\nlanguage: en\nmodifiedAt: \"2026-08-26T12:00:00Z\"\n---\n# Modified only\n",
+			label:      `data-margo-publication-label="modified">Updated</span>`,
+			date:       `data-margo-publication-date="modified">2026-08-26T12:00:00Z</time>`,
+			articleTag: `article:modified_time" content="2026-08-26T12:00:00Z"`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Build(context.Background(), Request{
+				Sources:  []Source{{Path: "post.md", Content: []byte(test.source)}},
+				Compiler: margo.New(), Assets: AssetsInline,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			page := artifactContent(t, result, "post.html")
+			for _, required := range []string{test.label, test.date, test.articleTag} {
+				if !strings.Contains(page, required) {
+					t.Fatalf("single publication date missing %q:\n%s", required, page)
+				}
+			}
+			if strings.Contains(page, `data-margo-publication-separator="true"`) {
+				t.Fatalf("single publication date unexpectedly contains a separator:\n%s", page)
+			}
+			if test.name == "published only" && strings.Contains(page, `data-margo-publication-label="modified"`) {
+				t.Fatalf("published-only page unexpectedly contains an Updated label:\n%s", page)
+			}
+			if test.name == "modified only" && strings.Contains(page, `data-margo-publication-label="published"`) {
+				t.Fatalf("modified-only page unexpectedly contains a Published label:\n%s", page)
+			}
+		})
+	}
+}
+
+func TestBuildLocalSiteEscapesPublicationMetadata(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		Sources:  []Source{{Path: "post.md", Content: []byte("---\ntitle: Escaping\nlanguage: en\nauthors: [\"Ana <Admin>\"]\npublishedAt: \"2026-08-25T12:00:00Z\"\ntags: [\"<script>alert(1)</script>\", \"C++ & Go\"]\n---\n# Escaping\n")}},
+		Compiler: margo.New(), Assets: AssetsInline,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "post.html")
+	for _, escaped := range []string{
+		`Ana &lt;Admin&gt;`,
+		`&lt;script&gt;alert(1)&lt;/script&gt;`,
+		`C++ &amp; Go`,
+	} {
+		if !strings.Contains(page, escaped) {
+			t.Fatalf("publication metadata is not escaped as %q:\n%s", escaped, page)
+		}
+	}
+	if strings.Contains(page, "<script>alert(1)</script>") {
+		t.Fatalf("publication metadata emitted executable markup:\n%s", page)
+	}
+}
+
+func TestBuildLocalSiteLocalizesPublicationDateLabels(t *testing.T) {
+	result, err := Build(context.Background(), Request{
+		Sources:  []Source{{Path: "post.md", Content: []byte("---\ntitle: Notas de lançamento\nlanguage: pt-BR\npublishedAt: \"2026-08-25T12:00:00Z\"\nmodifiedAt: \"2026-08-26T12:00:00Z\"\n---\n# Notas de lançamento\n")}},
+		Compiler: margo.New(), Assets: AssetsInline,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "post.html")
+	for _, required := range []string{
+		`aria-label="Datas de publicação"`,
+		`data-margo-publication-label="published">Publicado</span>`,
+		`data-margo-publication-label="modified">Atualizado</span>`,
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("Portuguese publication label missing %q:\n%s", required, page)
+		}
+	}
+}
+
+func TestPublicationMetadataStylesWrapAtNarrowWidths(t *testing.T) {
+	for name, stylesheet := range map[string]string{
+		"directory site":           configuredSiteCSS,
+		"typed layout site":        configuredTypedSiteCSS,
+		"shared publication rules": publicationMetadataCSS,
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, required := range []string{
+				".margo-document__publication-dates",
+				"flex-wrap: wrap;",
+				"min-inline-size: 0;",
+				"overflow-wrap: anywhere;",
+			} {
+				if !strings.Contains(stylesheet, required) {
+					t.Fatalf("stylesheet missing narrow-date rule %q:\n%s", required, stylesheet)
+				}
+			}
+		})
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
 	input := t.TempDir()
 	output := filepath.Join(t.TempDir(), "published")
-	writeSiteFixture(t, filepath.Join(input, "index.md"), "---\ntitle: Home\nlanguage: en\nauthors: [Ana Silva]\npublishedAt: \"2026-08-25T12:00:00Z\"\ntags: [operations]\n---\n# Home\n\n[Guide](guide/readme.md)\n\n![Logo](assets/logo.png)\n")
+	writeSiteFixture(t, filepath.Join(input, "index.md"), "---\ntitle: Home\nlanguage: en\nauthors: [Ana Silva]\npublishedAt: \"2026-08-25T12:00:00Z\"\nmodifiedAt: \"2026-08-26T12:00:00Z\"\ntags: [operations]\n---\n# Home\n\n[Guide](guide/readme.md)\n\n![Logo](assets/logo.png)\n")
 	writeSiteFixture(t, filepath.Join(input, "guide", "readme.md"), "# Guide\n\n[Home](../index.md#home)\n")
 	writeSiteFixture(t, filepath.Join(input, "assets", "logo.png"), "\x89PNG\r\n\x1a\n")
 
@@ -71,7 +71,7 @@ func TestSiteCommandBuildsDirectoryAndManifest(t *testing.T) {
 		}
 	}
 	manifest := readSiteFixture(t, filepath.Join(output, "margo-manifest.json"))
-	if !strings.Contains(manifest, `"schemaVersion":"margo-site-manifest/v1"`) || !strings.Contains(manifest, `"index.html"`) || !strings.Contains(manifest, `"authors":["Ana Silva"]`) || !strings.Contains(manifest, `"publishedAt":"2026-08-25T12:00:00Z"`) || !strings.Contains(manifest, `"tags":["operations"]`) {
+	if !strings.Contains(manifest, `"schemaVersion":"margo-site-manifest/v1"`) || !strings.Contains(manifest, `"index.html"`) || !strings.Contains(manifest, `"authors":["Ana Silva"]`) || !strings.Contains(manifest, `"publishedAt":"2026-08-25T12:00:00Z"`) || !strings.Contains(manifest, `"modifiedAt":"2026-08-26T12:00:00Z"`) || !strings.Contains(manifest, `"tags":["operations"]`) {
 		t.Fatalf("manifest = %s", manifest)
 	}
 }

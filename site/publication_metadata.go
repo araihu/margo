@@ -113,8 +113,9 @@ func hasPublicationMetadata(page Page) bool {
 }
 
 // projectPublicationMetadata adds one deterministic semantic article header
-// and machine-readable article metadata to a complete page. It is a no-op for
-// pages without publication metadata, preserving existing bytes and contracts.
+// with labeled publication dates and machine-readable article metadata to a
+// complete page. It is a no-op for pages without publication metadata,
+// preserving existing bytes and contracts.
 func projectPublicationMetadata(document []byte, page Page) ([]byte, error) {
 	if !hasPublicationMetadata(page) {
 		return document, nil
@@ -166,11 +167,19 @@ func publicationHeader(page Page) *html.Node {
 		}
 		header.AppendChild(address)
 	}
-	if page.PublishedAt != "" {
-		header.AppendChild(publicationTime("published", page.PublishedAt))
-	}
-	if page.ModifiedAt != "" {
-		header.AppendChild(publicationTime("modified", page.ModifiedAt))
+	if page.PublishedAt != "" || page.ModifiedAt != "" {
+		dates := &html.Node{Type: html.ElementNode, DataAtom: atom.Span, Data: "span", Attr: []html.Attribute{
+			{Key: "class", Val: "margo-document__publication-dates"},
+			{Key: "role", Val: "group"},
+			{Key: "aria-label", Val: localizedLabel(page.Locale, "publication_dates")},
+		}}
+		if page.PublishedAt != "" {
+			dates.AppendChild(publicationDate("published", page.PublishedAt, localizedLabel(page.Locale, "published"), false))
+		}
+		if page.ModifiedAt != "" {
+			dates.AppendChild(publicationDate("modified", page.ModifiedAt, localizedLabel(page.Locale, "updated"), page.PublishedAt != ""))
+		}
+		header.AppendChild(dates)
 	}
 	if len(page.Tags) > 0 {
 		list := &html.Node{Type: html.ElementNode, DataAtom: atom.Ul, Data: "ul", Attr: []html.Attribute{{Key: "aria-label", Val: "Tags"}, {Key: "data-margo-publication-tags", Val: "true"}}}
@@ -182,6 +191,31 @@ func publicationHeader(page Page) *html.Node {
 		header.AppendChild(list)
 	}
 	return header
+}
+
+func publicationDate(kind, value, label string, separator bool) *html.Node {
+	date := &html.Node{Type: html.ElementNode, DataAtom: atom.Span, Data: "span", Attr: []html.Attribute{
+		{Key: "class", Val: "margo-document__publication-date"},
+		{Key: "data-margo-publication-kind", Val: kind},
+	}}
+	if separator {
+		separatorNode := &html.Node{Type: html.ElementNode, DataAtom: atom.Span, Data: "span", Attr: []html.Attribute{
+			{Key: "class", Val: "margo-document__publication-separator"},
+			{Key: "aria-hidden", Val: "true"},
+			{Key: "data-margo-publication-separator", Val: "true"},
+		}}
+		separatorNode.AppendChild(&html.Node{Type: html.TextNode, Data: " · "})
+		date.AppendChild(separatorNode)
+	}
+	labelNode := &html.Node{Type: html.ElementNode, DataAtom: atom.Span, Data: "span", Attr: []html.Attribute{
+		{Key: "class", Val: "margo-document__publication-label"},
+		{Key: "data-margo-publication-label", Val: kind},
+	}}
+	labelNode.AppendChild(&html.Node{Type: html.TextNode, Data: label})
+	date.AppendChild(labelNode)
+	date.AppendChild(&html.Node{Type: html.TextNode, Data: " "})
+	date.AppendChild(publicationTime(kind, value))
+	return date
 }
 
 func publicationTime(kind, value string) *html.Node {

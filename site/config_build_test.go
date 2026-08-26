@@ -53,7 +53,7 @@ func TestInjectComponentDocShellPageDependenciesRequiresHead(t *testing.T) {
 func TestBuildConfigRendersRouteOwnedSocialMetadataAndFrameBindings(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\nWelcome to the Margo docs.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "---\ntitle: Guide\ndescription: A guide-specific description.\nlanguage: en\nauthors: [Ana Silva]\npublishedAt: \"2026-08-25T12:00:00Z\"\ntags: [operations]\n---\n# Guide\n\nA guide-specific description.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "---\ntitle: Guide\ndescription: A guide-specific description.\nlanguage: en\nauthors: [Ana Silva]\npublishedAt: \"2026-08-25T12:00:00Z\"\nmodifiedAt: \"2026-08-26T12:00:00Z\"\ntags: [operations]\n---\n# Guide\n\nA guide-specific description.\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
@@ -163,9 +163,15 @@ theme:
 	}
 	for _, required := range []string{
 		`<address aria-label="Authors"><span rel="author">Ana Silva</span></address>`,
+		`class="margo-document__publication-dates" role="group" aria-label="Publication dates"`,
+		`data-margo-publication-label="published">Published</span>`,
+		`data-margo-publication-label="modified">Updated</span>`,
+		`data-margo-publication-separator="true"`,
 		`<time datetime="2026-08-25T12:00:00Z" data-margo-publication-date="published">2026-08-25T12:00:00Z</time>`,
+		`<time datetime="2026-08-26T12:00:00Z" data-margo-publication-date="modified">2026-08-26T12:00:00Z</time>`,
 		`<li data-margo-publication-tag="operations">operations</li>`,
 		`<meta property="article:published_time" content="2026-08-25T12:00:00Z"`,
+		`<meta property="article:modified_time" content="2026-08-26T12:00:00Z"`,
 		`<meta property="article:author" content="Ana Silva"`,
 		`<meta property="article:tag" content="operations"`,
 	} {

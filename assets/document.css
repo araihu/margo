@@ -33,6 +33,42 @@
   .margo-document [x-cloak] {
     display: none !important;
   }
+  .margo-document .margo-document__metadata {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
+    min-inline-size: 0;
+  }
+  .margo-document .margo-document__metadata > * {
+    min-inline-size: 0;
+  }
+  .margo-document .margo-document__publication-dates {
+    display: flex;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.45rem 0.8rem;
+    min-inline-size: 0;
+  }
+  .margo-document .margo-document__publication-date {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    break-inside: avoid;
+  }
+  .margo-document .margo-document__publication-label {
+    font-weight: var(--font-weight-semibold);
+  }
+  .margo-document .margo-document__publication-date time {
+    overflow-wrap: anywhere;
+  }
+  .margo-document .margo-document__publication-separator {
+    color: var(--color-outline);
+    font-weight: var(--font-weight-bold);
+  }
   .margo-document :where(h1, h2, h3, h4, h5, h6) {
     color: var(--color-on-surface-strong);
     font-family: var(--document-font-heading);
@@ -330,6 +366,9 @@
   }
   .margo-document:is(.dark *) a {
     color: var(--color-primary-dark);
+  }
+  .margo-document:is(.dark *) .margo-document__publication-separator {
+    color: var(--color-outline-dark);
   }
   .margo-document:is(.dark *) :not(pre) > code {
     color: var(--color-on-surface-dark-strong);

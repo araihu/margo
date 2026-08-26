@@ -88,6 +88,23 @@ func TestDocumentCSSRestoresSemanticMarkdownRhythmAfterGoshtosoPreflight(t *test
 	}
 }
 
+func TestDocumentCSSSeparatesPublicationDatesAtNarrowWidths(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".margo-document .margo-document__publication-dates"),
+		[]byte("flex-wrap: wrap"),
+		[]byte(".margo-document .margo-document__publication-label"),
+		[]byte("overflow-wrap: anywhere"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document stylesheet missing publication-date rule %q", want)
+		}
+	}
+}
+
 func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
 	css, err := os.ReadFile("assets/document.css")
 	if err != nil {

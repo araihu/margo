@@ -149,7 +149,7 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
   ::view-transition-old(margo-main-content), ::view-transition-new(margo-main-content) { animation: none; }
 }
 .margo-shell-footer { margin: 0; color: var(--margo-text); font-size: 0.875rem; }
-`
+` + publicationMetadataCSS
 
 const (
 	configuredTypedSiteStylePath = "margo-assets/site.css"
@@ -192,6 +192,45 @@ body { margin: 0; min-inline-size: 0; font-family: system-ui, sans-serif; line-h
 @media (max-width: 719px) { .margo-frame { padding: 0.75rem; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
 @media print { .margo-skip-link { display: none !important; } .margo-frame { display: block; padding: 0; } .margo-area--main-content { max-inline-size: none; } }
+` + publicationMetadataCSS
+
+// publicationMetadataCSS keeps the reader-facing date projection legible at
+// narrow widths while leaving the semantic time elements and their attributes
+// untouched for indexers and assistive technology.
+const publicationMetadataCSS = `
+.margo-document__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  min-inline-size: 0;
+}
+.margo-document__metadata > * { min-inline-size: 0; }
+.margo-document__publication-dates {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.8rem;
+  min-inline-size: 0;
+}
+.margo-document__publication-date {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  break-inside: avoid;
+}
+.margo-document__publication-label { font-weight: 650; }
+.margo-document__publication-date time { overflow-wrap: anywhere; }
+.margo-document__publication-separator {
+  color: var(--margo-outline, var(--color-outline, #7b8794));
+  font-weight: 700;
+}
+@media print {
+  .margo-document__publication-dates { break-inside: avoid; }
+}
 `
 
 const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { display: block; }
@@ -2243,6 +2282,7 @@ func localizedLabel(locale, key string) string {
 		return map[string]string{
 			"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo",
 			"home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página", "skip_content": "Ir para o conteúdo",
+			"publication_dates": "Datas de publicação", "published": "Publicado", "updated": "Atualizado",
 			"open_navigation": "Abrir navegação", "close_navigation": "Fechar navegação", "dark_mode": "Usar modo escuro",
 			"light_mode": "Usar modo claro", "source_repository": "Repositório de código", "search_pages": "Buscar páginas",
 			"search_results": "Resultados da busca", "no_matching_pages": "Nenhuma página encontrada.", "page": "Página",
@@ -2252,6 +2292,7 @@ func localizedLabel(locale, key string) string {
 	return map[string]string{
 		"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home",
 		"language": "Language", "theme": "Theme", "toc": "On this page", "skip_content": "Skip to content",
+		"publication_dates": "Publication dates", "published": "Published", "updated": "Updated",
 		"open_navigation": "Open navigation", "close_navigation": "Close navigation", "dark_mode": "Switch to dark mode",
 		"light_mode": "Switch to light mode", "source_repository": "Source repository", "search_pages": "Search pages",
 		"search_results": "Search results", "no_matching_pages": "No matching pages.", "page": "Page",

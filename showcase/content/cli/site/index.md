@@ -126,9 +126,13 @@ consumer-owned.
 
 Site builds project the document metadata fields `authors`, `publishedAt`,
 `modifiedAt`, and `tags` into three stable surfaces: the generated article has
-an accessible publication-details header (`address`, `time`, and a tag list),
-the initial HTML head contains `article:*` metadata, and each page record in the
-site report and `margo-manifest.json` carries the same fields. This lets a blog
+an accessible publication-details header (`address`, labeled `time` elements,
+and a tag list). Published and modified timestamps are shown as separate
+`Published`/`Updated` values with a visible separator when both are present;
+the labels wrap with their values on narrow screens and localize with the
+page locale. The initial HTML head contains `article:*` metadata, and each
+page record in the site report and `margo-manifest.json` carries the same fields.
+This lets a blog
 or news consumer build archive and tag indexes from the route records without
 duplicating the values in Markdown prose.
 
