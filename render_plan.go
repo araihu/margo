@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yuin/goldmark/ast"
 	tableast "github.com/yuin/goldmark/extension/ast"
@@ -69,11 +70,12 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		}
 		extensionOrdinals := make(map[int]uint32)
 		usedRegistrations := make(map[int]struct{})
-		requirementCandidates, err := coreHTMLRequirements(false)
+		requirementCandidates, err := coreHTMLRequirements(false, false)
 		if err != nil {
 			return renderPlan{}, err
 		}
 		hasTable := false
+		hasCopyableCodeBlock := false
 		compileContext := extensionCompileContext{normalized: normalized}
 		var missing *Diagnostic
 		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -84,6 +86,10 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				hasTable = true
 				return ast.WalkContinue, nil
 			}
+			if _, code := node.(*ast.CodeBlock); code {
+				hasCopyableCodeBlock = true
+				return ast.WalkContinue, nil
+			}
 			if node.Kind() != ast.KindFencedCodeBlock {
 				return ast.WalkContinue, nil
 			}
@@ -91,6 +97,7 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			body := parsed.frontmatter.body
 			fence := string(fenced.Language(body))
 			if fence == "" {
+				hasCopyableCodeBlock = true
 				return ast.WalkContinue, nil
 			}
 			if fence == "trusted-embed" {
@@ -100,6 +107,9 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			registrationIndex, registered := fenceOwners[fence]
 			if !registered {
 				if fence != "goshtosochart" {
+					if fence != "mermaid" && !strings.HasSuffix(fence, ":copy_disabled") {
+						hasCopyableCodeBlock = true
+					}
 					return ast.WalkContinue, nil
 				}
 				missing = &Diagnostic{Code: "extension.missing_integration", Severity: SeverityError, Source: source.Name, Message: "goshtosochart requires the charts extension"}
@@ -146,11 +156,18 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			return renderPlan{}, &DiagnosticError{Diagnostics: []Diagnostic{*missing}}
 		}
 		if hasTable {
-			coreWithTable, err := coreHTMLRequirements(true)
+			coreWithTable, err := coreHTMLRequirements(true, false)
 			if err != nil {
 				return renderPlan{}, err
 			}
 			requirementCandidates = append(requirementCandidates, coreWithTable[len(coreWithTable)-1])
+		}
+		if hasCopyableCodeBlock {
+			coreWithCodeCopy, err := coreHTMLRequirements(false, true)
+			if err != nil {
+				return renderPlan{}, err
+			}
+			requirementCandidates = append(requirementCandidates, coreWithCodeCopy[len(coreWithCodeCopy)-1])
 		}
 		requirements, err := mergeHTMLRequirements(requirementCandidates)
 		if err != nil {

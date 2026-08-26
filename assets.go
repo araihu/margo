@@ -22,6 +22,7 @@ var embeddedAssets embed.FS
 const (
 	HTMLStylesURL       = "/margo-assets/document.css"
 	TableSortRuntimeURL = "/margo-assets/table-sort.js"
+	CodeCopyRuntimeURL  = "/margo-assets/code-copy.js"
 )
 
 // AssetRef identifies a validated asset and, for overrides, carries its
@@ -132,7 +133,7 @@ func HTMLAssetHandler() http.Handler {
 	})
 }
 
-func coreHTMLRequirements(includeTableSort bool) ([]HTMLRequirement, error) {
+func coreHTMLRequirements(includeTableSort, includeCodeCopy bool) ([]HTMLRequirement, error) {
 	goshtosoStyles, err := goshtosoassets.StylesCSS()
 	if err != nil {
 		return nil, fmt.Errorf("margo: load Goshtoso styles: %w", err)
@@ -153,15 +154,25 @@ func coreHTMLRequirements(includeTableSort bool) ([]HTMLRequirement, error) {
 			LocalURL: HTMLStylesURL, LoadAfter: []string{"goshtoso.styles"}, Inline: documentStyles,
 		},
 	}
-	if !includeTableSort {
-		return requirements, nil
+	if includeTableSort {
+		tableSort, err := EmbeddedAsset("table-sort.js")
+		if err != nil {
+			return nil, err
+		}
+		requirements = append(requirements, HTMLRequirement{
+			ID: "margo.table-sort", Kind: HTMLScript,
+			LocalURL: TableSortRuntimeURL, LoadAfter: []string{"margo.document.styles"}, Inline: tableSort,
+		})
 	}
-	tableSort, err := EmbeddedAsset("table-sort.js")
-	if err != nil {
-		return nil, err
+	if includeCodeCopy {
+		codeCopy, err := EmbeddedAsset("code-copy.js")
+		if err != nil {
+			return nil, err
+		}
+		requirements = append(requirements, HTMLRequirement{
+			ID: "margo.code-copy", Kind: HTMLScript,
+			LocalURL: CodeCopyRuntimeURL, LoadAfter: []string{"margo.document.styles"}, Inline: codeCopy,
+		})
 	}
-	return append(requirements, HTMLRequirement{
-		ID: "margo.table-sort", Kind: HTMLScript,
-		LocalURL: TableSortRuntimeURL, LoadAfter: []string{"margo.document.styles"}, Inline: tableSort,
-	}), nil
+	return requirements, nil
 }

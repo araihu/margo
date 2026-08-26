@@ -46,6 +46,29 @@ func TestStandaloneIsOfflineDeterministicAndScoped(t *testing.T) {
 	}
 }
 
+func TestStandaloneCodeCopyRuntimeIsInline(t *testing.T) {
+	result := mustRenderSource(t, "# Standalone\n\n```sh\necho hello\n```\n")
+	component, err := RenderStandalone(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := renderComponent(t, component)
+	for _, want := range []string{
+		`data-margo-requirement="margo.code-copy"`,
+		`data-margo-code-copy-button`,
+		`data-margo-code-copy-label`,
+		`aria-live="polite"`,
+		`navigator.clipboard`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("standalone code-copy output missing %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, `src="/margo-assets/code-copy.js"`) {
+		t.Fatalf("standalone code-copy runtime was externalized: %s", markup)
+	}
+}
+
 func TestStandalonePreservesDerivedMetadataAndMainLandmark(t *testing.T) {
 	result := mustRenderSource(t, "---\nlanguage: pt-BR\ndescription: Resumo para distribuição.\n---\n\n# Relatório operacional\n\nConteúdo.\n")
 	component, err := RenderStandalone(result)

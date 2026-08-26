@@ -35,6 +35,82 @@ func TestMergeAndRenderHTMLDependenciesDeduplicatesInOrder(t *testing.T) {
 	}
 }
 
+func TestCodeCopyRequirementIsProjectedOnlyForCopyableCode(t *testing.T) {
+	withCode := mustRenderSource(t, "# Code\n\n```sh\necho hello\n```\n")
+	withCodeHTML, err := RenderHTML(withCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := withCodeHTML.Requirements().List(); len(got) == 0 || got[len(got)-1].ID != "margo.code-copy" {
+		t.Fatalf("code requirements = %#v, want margo.code-copy last", got)
+	}
+	unlabeledCode := mustRenderSource(t, "# Unlabeled code\n\n```\necho hello\n```\n")
+	unlabeledCodeHTML, err := RenderHTML(unlabeledCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := unlabeledCodeHTML.Requirements().List(); len(got) == 0 || got[len(got)-1].ID != "margo.code-copy" {
+		t.Fatalf("unlabeled code requirements = %#v, want margo.code-copy last", got)
+	}
+
+	withoutCode := mustRenderSource(t, "# No code\n\nPlain text.\n")
+	withoutCodeHTML, err := RenderHTML(withoutCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, requirement := range withoutCodeHTML.Requirements().List() {
+		if requirement.ID == "margo.code-copy" {
+			t.Fatalf("plain document unexpectedly projected code-copy requirement: %#v", withoutCodeHTML.Requirements().List())
+		}
+	}
+	disabled := mustRenderSource(t, "# Disabled\n\n```sh:copy_disabled\necho hello\n```\n")
+	disabledHTML, err := RenderHTML(disabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, requirement := range disabledHTML.Requirements().List() {
+		if requirement.ID == "margo.code-copy" {
+			t.Fatalf("copy-disabled document unexpectedly projected code-copy requirement: %#v", disabledHTML.Requirements().List())
+		}
+	}
+	mermaid := mustRenderSource(t, "# Mermaid\n\n```mermaid\nflowchart TD\n  A --> B\n```\n")
+	mermaidHTML, err := RenderHTML(mermaid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, requirement := range mermaidHTML.Requirements().List() {
+		if requirement.ID == "margo.code-copy" {
+			t.Fatalf("Mermaid document unexpectedly projected code-copy requirement: %#v", mermaidHTML.Requirements().List())
+		}
+	}
+	extensionCompiler := New(WithExtension(ExtensionRegistration{
+		Identity: ExtensionIdentity{Name: "demo-copy-test", Version: "v1"},
+		Fences:   []string{"demo-copy-test"},
+		Factory: func(RenderContext) (ExtensionSession, error) {
+			return &testExtensionSession{}, nil
+		},
+	}))
+	extensionDocument, err := extensionCompiler.Compile(context.Background(), Source{
+		Name: "extension.md", Content: []byte("# Extension\n\n```demo-copy-test\npayload\n```\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	extensionResult, err := extensionCompiler.Render(context.Background(), extensionDocument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	extensionHTML, err := RenderHTML(extensionResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, requirement := range extensionHTML.Requirements().List() {
+		if requirement.ID == "margo.code-copy" {
+			t.Fatalf("extension document unexpectedly projected code-copy requirement: %#v", extensionHTML.Requirements().List())
+		}
+	}
+}
+
 func TestRenderHTMLDependenciesRejectsUnknownMode(t *testing.T) {
 	rendered := mustRenderSource(t, "# Page\n")
 	htmlResult, err := RenderHTML(rendered)
