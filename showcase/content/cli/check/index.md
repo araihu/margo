@@ -36,6 +36,11 @@ margo check docs/guide.md --target pdf --diagnostics json \
 cat docs/guide.md | margo check - --target deck
 ```
 
+For `--target site`, ordinary relative Markdown links are accepted by the
+single-document check because the multi-page site build resolves and validates
+them after indexing all source documents. Other link diagnostics, such as an
+empty destination or an unsupported scheme, still apply to every target.
+
 ## Failures and diagnostics
 
 Warnings remain visible but do not fail the command. Any error finding writes
@@ -50,7 +55,7 @@ the complete report, then exits `1` with internal status `check.failed`.
 | `check.svg_incompatible` | Use a supported static SVG |
 | `check.heading_level_skipped` | Restore a sequential heading outline |
 | `check.link_destination_empty` | Give the link a destination |
-| `check.link_relative` | Review target-specific relative-link behavior |
+| `check.link_relative` | Review target-specific relative-link behavior; ordinary site links are resolved by `margo site` |
 | `check.raw_html` | Remove raw HTML or supply trusted policy authority |
 | `mermaid.configuration_forbidden` | Remove legacy Mermaid configuration |
 
