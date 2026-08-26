@@ -320,7 +320,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			diagnostics = append(diagnostics, imageDiagnostics...)
 		case *goldast.Link:
 			offset := frontmatter.bodyOffset + locator.find(value.Destination)
-			if code, severity, message, hint := checkLinkReference(string(value.Destination)); code != "" {
+			if code, severity, message, hint := checkLinkReference(config.target, string(value.Destination)); code != "" {
 				diagnostics = append(diagnostics, checkDiagnostic(snapshot, code, severity, "/link/destination", message, hint, offset))
 			}
 		case *goldast.FencedCodeBlock:
@@ -584,7 +584,7 @@ func checkImageValidationDiagnostic(source Source, subject string, failure error
 	return checkDiagnostic(source, "check.asset_incompatible", SeverityError, "/image/destination", fmt.Sprintf("%s is incompatible: %v", subject, failure), "Use a supported PNG, JPEG, GIF, WebP, or static SVG image.", offset)
 }
 
-func checkLinkReference(value string) (string, Severity, string, string) {
+func checkLinkReference(target RenderTarget, value string) (string, Severity, string, string) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return "check.link_destination_empty", SeverityWarning, "link destination is empty", "Add a destination URL or remove the link markup."
@@ -597,6 +597,14 @@ func checkLinkReference(value string) (string, Severity, string, string) {
 		return "check.link_unsupported", SeverityError, fmt.Sprintf("link %q is not a supported URL", value), "Use a relative path, fragment, or an http, https, mailto, or tel URL."
 	}
 	if parsed.Scheme == "" {
+		if target == TargetSite {
+			// Relative Markdown links are the input contract for multi-page
+			// sites. The site builder resolves and validates them after it has
+			// indexed every source, so a single-document check cannot add useful
+			// information here. In particular, do not suggest PDF-only link
+			// policies for a target that has no such flags.
+			return "", "", "", ""
+		}
 		return "check.link_relative", SeverityWarning, fmt.Sprintf("relative link %q requires an output policy", value), "Choose a base URL or an explicit strip, error, or keep policy for the target format."
 	}
 	switch strings.ToLower(parsed.Scheme) {

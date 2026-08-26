@@ -346,8 +346,10 @@ schema bytes for the installed Margo version.
 The target defaults to HTML. It reports raw HTML, unavailable images,
 incompatible SVG, invalid frontmatter, legacy Mermaid configuration, empty
 image alternatives, missing document language, skipped headings, empty links,
-and relative links. Findings identify the source, line, field pointer, and a
-remediation hint.
+and relative links for standalone targets. With `--target site`, ordinary
+relative Markdown links are left to the multi-page site build, which resolves
+and validates them after indexing all source documents. Findings identify the
+source, line, field pointer, and a remediation hint.
 
 ### HTML
 

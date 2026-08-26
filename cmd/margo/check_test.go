@@ -67,6 +67,26 @@ func TestCheckCommandSucceedsForCompatibleInput(t *testing.T) {
 	}
 }
 
+func TestCheckCommandSiteAllowsRelativeMarkdownLinks(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "index.md")
+	if err := os.WriteFile(input, []byte("---\nlanguage: en\n---\n\n# Home\n\nRead the [post](post.md).\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{Stdout: &stdout, Stderr: &stderr, WorkingDirectory: root, Build: testBuildInfo()})
+	command.SetArgs([]string{"check", input, "--target", "site", "--diagnostics", "json"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := stdout.String(); got != "{\"diagnostics\":[],\"errors\":0,\"warnings\":0}\n" {
+		t.Fatalf("stdout = %q", got)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
 func TestCheckDeckRunsDeckParser(t *testing.T) {
 	command := NewRootCommand(Dependencies{
 		Stdin: strings.NewReader("<!-- class: unsupported -->\n# One\n"), Stdout: io.Discard, Stderr: io.Discard,
