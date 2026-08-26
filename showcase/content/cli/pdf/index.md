@@ -63,6 +63,92 @@ margo pdf docs/guide.md \
   --base-url https://docs.example.com/manual/
 ```
 
+## Corporate branding
+
+For a repeatable branded PDF artifact, use a configured site. Set the public
+name and a local SVG logo in `site.yaml`, then opt the document into a
+pre-rendered PDF with `margo.actions.pdf: true`:
+
+```text
+publication/
+├── site.yaml
+├── brand/
+│   ├── company-logo.svg       # local SVG used in the PDF header
+│   └── social-preview.jpg     # local 1280x640 JPEG or PNG
+└── docs/
+    └── report.md
+```
+
+```yaml
+# publication/site.yaml
+version: 1
+source: docs
+output: dist
+assets: local
+offline: true
+site:
+  name: Acme Corporation
+  description: Acme's corporate reports.
+  base_url: https://docs.acme.example
+  home: report.md
+  logo: brand/company-logo.svg
+  icon: brand/company-logo.svg
+  social_image:
+    path: brand/social-preview.jpg
+    alt: Acme corporate report
+locales:
+  default: en
+  supported: [en]
+navigation:
+  mode: file-tree
+```
+
+```markdown
+<!-- publication/docs/report.md -->
+---
+title: Quarterly report
+language: en
+margo:
+  actions:
+    pdf: true
+---
+
+# Quarterly report
+
+The report body.
+```
+
+Build the configured publication and find the branded artifact at
+`dist/report.pdf`:
+
+```sh
+margo site ./site.yaml
+```
+
+The configured site's `site.name` and local SVG `site.logo` are materialized
+into the pre-rendered PDF furniture. The logo must be a local safe SVG; remote
+URLs are not a branding path for the offline site builder. `pdf: client` is a
+different mode: it opens the browser print flow, follows the active site theme,
+and does not publish a PDF artifact.
+
+For a one-off standalone `margo pdf`, keep the logo below the Markdown file's
+directory and put it in the document instead. For example, with
+`docs/brand/company-logo.svg` next to `docs/report.md`:
+
+```markdown
+![Acme Corporation](brand/company-logo.svg)
+```
+
+```sh
+margo pdf docs/report.md --output build/report.pdf
+```
+
+That image is part of the document content. Standalone CLI output has no
+`--brand`, `--logo`, or custom-theme flag, so this does not replace its
+standard PDF header and footer. Programmatic PDF brand selection is a
+Go-library concern (`RenderStandalone` with `WithPDFBrand`), not a frontmatter
+or CLI setting.
+
 ## Failures and diagnostics
 
 | Code | Meaning |
