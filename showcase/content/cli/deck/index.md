@@ -89,16 +89,247 @@ For an informative icon, omit `--pagination-icon-decorative` and provide
 `--pagination-icon-label`. `--print-chart-data` includes accessible exact-data
 tables after supported charts.
 
+## Structural layouts
+
+Structural layouts are a closed Markdown contract. A slide uses a class marker,
+the matching `layout` marker, source-ordered `slot` markers, and a closing
+`/layout` marker. Use the `_class` spelling when the class should apply only to
+the current slide; an unprefixed `class` directive is inherited by following
+slides until it changes. There must be no unmarked body text inside a
+structural layout, and every slot must contain non-empty Markdown.
+
+| Layout | Slot names, in source order | Cardinality |
+| --- | --- | --- |
+| `columns` | `left`, `right` | exactly 2 |
+| `sidebar` | `main`, `rail` | exactly 2 |
+| `compare` | `left`, `right` | exactly 2 |
+| `metrics` | `metric-1` through `metric-4` | 3 to 4 |
+| `timeline` | `step-1` through `step-6` | 3 to 6 |
+| `demo` | `code`, `result` | exactly 2 |
+
+The following is one complete deck containing every structural layout. The
+comments are part of the deck source; keep each marker on its own line and do
+not change its name. The `_class` markers make each slide independent when this
+file is copied into another deck.
+
+~~~sh
+mkdir -p build
+cat > build/structural-layouts.md <<'MARKDOWN'
+---
+title: Structural layouts
+description: The six closed structural layouts in the Margo deck profile.
+language: en
+lang: en
+theme: modern
+colorMode: light
+size: 16:9
+---
+
+<!-- _class: columns -->
+<!-- layout: columns -->
+<!-- slot: left -->
+# Context
+
+The left column carries the premise or primary evidence.
+<!-- slot: right -->
+# Decision
+
+The right column carries the consequence or supporting action.
+<!-- /layout -->
+<!-- speaker note: compare the two columns in source order. -->
+
+---
+
+<!-- _class: sidebar -->
+<!-- layout: sidebar -->
+<!-- slot: main -->
+## Main
+
+Use the main slot for the thesis, evidence, and reading flow.
+<!-- slot: rail -->
+### Rail
+
+Use the rail for definitions, context, or a short callout.
+<!-- /layout -->
+<!-- speaker note: keep the rail short enough to remain subordinate. -->
+
+---
+
+<!-- _class: compare -->
+<!-- layout: compare -->
+<!-- slot: left -->
+## Option A
+
+- controlled authoring
+- deterministic output
+<!-- slot: right -->
+## Option B
+
+- familiar Markdown input
+- bounded visual vocabulary
+<!-- /layout -->
+<!-- speaker note: state the decision criteria before comparing options. -->
+
+---
+
+<!-- _class: metrics -->
+<!-- layout: metrics -->
+<!-- slot: metric-1 -->
+### 6
+
+structural layouts
+<!-- slot: metric-2 -->
+### 2
+
+two-column variants
+<!-- slot: metric-3 -->
+### 3–6
+
+timeline slots
+<!-- slot: metric-4 -->
+### 0
+
+arbitrary CSS rules
+<!-- /layout -->
+<!-- speaker note: read the metrics left to right. -->
+
+---
+
+<!-- _class: timeline -->
+<!-- layout: timeline -->
+<!-- slot: step-1 -->
+### Input
+
+Write Markdown and closed directives.
+<!-- slot: step-2 -->
+### Normalize
+
+Resolve the class, slots, and source order.
+<!-- slot: step-3 -->
+### Publish
+
+Render HTML or validate a PDF projection.
+<!-- /layout -->
+<!-- speaker note: pause after each step before advancing. -->
+
+---
+
+<!-- _class: demo -->
+<!-- layout: demo -->
+<!-- slot: code -->
+### Source
+
+```markdown
+<!-- composition: media-split -->
+<!-- slot: media -->
+![Evidence](assets/evidence.svg)
+<!-- slot: content -->
+## Decision
+Keep source order explicit.
+```
+<!-- slot: result -->
+### Result
+
+The same source can produce a navigable HTML deck and a validated PDF.
+<!-- /layout -->
+<!-- speaker note: presenter notes are retained by the Go parser, not painted on the slide. -->
+MARKDOWN
+
+margo check build/structural-layouts.md --target deck --diagnostics json
+margo deck build/structural-layouts.md --output build/structural-layouts.html
+~~~
+
+The sample carries both `language` and the deck directive `lang`: the generic
+Margo check uses `language`, while deck labels and localized chrome use `lang`.
+For a deck that is rendered only through the Go API, `lang` is the deck-local
+language control.
+
+The `layout` and `/layout` markers are structural markers, not free-form CSS.
+`columns` and `compare` intentionally share the `left`/`right` slot contract,
+while `sidebar`, `metrics`, `timeline`, and `demo` use the names in the table.
+Slot order is preserved in the normalized model, HTML reading order, keyboard
+order, and PDF projection; CSS never reorders slots.
+
+### Composition presets are separate
+
+The optional `composition` directive selects the versioned R1 catalog and has
+different slot contracts. For example, `media-split` uses `media` and
+`content`, `compare-grid` uses `item-1` through `item-4`, and `steps` uses
+`step-1` through `step-6`. Do not substitute those names into an uncomposed
+`columns`, `compare`, or `timeline` layout. See the
+[composition reference](https://github.com/araihu/margo/blob/main/docs/reference/deck-compositions-r1.md) for
+the complete preset catalog and its cardinalities.
+
+## Themes, directives, and presenter notes
+
+Deck themes are closed: `modern`, `goshtoso`, and `minimal`. `colorMode` is
+`light` or `dark`, and `lang` is a BCP 47-style language tag. Global directives
+can be placed in frontmatter or in an unprefixed HTML comment outside a fenced
+code block:
+
+```yaml
+---
+title: Themed deck
+lang: pt-BR
+theme: goshtoso
+colorMode: dark
+headingDivider: 2
+size: 4:3
+---
+```
+
+Local directives are `paginate`, `header`, `footer`, `class`, `color`,
+`backgroundColor`, `backgroundImage`, `backgroundPosition`,
+`backgroundRepeat`, `backgroundSize`, `backgroundDecorative`, `backgroundAlt`,
+and `composition`. An unprefixed local directive is inherited by subsequent
+slides; prefix it with `_` for the current slide only, for example
+`<!-- _class: invert -->` or `<!-- _composition: none -->`. Colors use finite
+theme tokens, and backgrounds use a local asset or an approved gradient token.
+Remote URLs, arbitrary CSS, `style`, custom Marpit themes, and unknown
+extension allocators are rejected.
+
+An HTML comment that is not a recognized directive is a presenter note:
+
+```markdown
+<!-- speaker note: explain why the right column follows the left. -->
+```
+
+Notes stay in source order and are available through `deck.Slide.Notes()` in
+the Go API. The CLI deck projection does not render a presenter pane or expose
+notes as visible slide content; keep the comments in the source when a host
+application needs to read them.
+
 ## Failures and diagnostics
 
-`cli.format_invalid` reports a format other than `html` or `pdf`.
-`cli.output_required` reports a PDF deck without an explicit destination.
-`cli.deck_geometry_invalid` reports an incomplete or unsupported slide size;
-`cli.deck_geometry_conflict` reports incompatible slide and legacy page flags.
-`cli.deck_validator_unavailable` reports PDF validation without a supported
-Chromium-compatible validator. Engine failures otherwise use the same `pdf.*`
-codes as `pdf`. Invalid host chrome reports `deck.confidentiality_badge_invalid`
-or `deck.pagination_icon_invalid`. Existing files require `--force`.
+Run the check before rendering to get source locations and recovery hints:
+
+```sh
+margo check build/structural-layouts.md --target deck --diagnostics json
+```
+
+| Code | Meaning | Recovery |
+| --- | --- | --- |
+| `deck.layout_invalid` | Unknown, mismatched, nested, or unclosed structural markers. | Use one matching `layout`/`_class` pair and close it with `<!-- /layout -->`. |
+| `deck.layout_slots_required` | A structural layout has too few or too many slots. | Use the exact slot names and cardinality in the table above. |
+| `deck.slot_invalid` | A slot is duplicated, unknown, or out of order. | Keep each slot once and preserve the required sequence. |
+| `deck.class_unsupported` | The class is outside the closed layout/style vocabulary. | Choose a documented class such as `columns`, `sidebar`, `compare`, `metrics`, `timeline`, or `demo`. |
+| `deck.class_combination_invalid` | Multiple structural/style classes were combined. | Select one structural class, with only the supported `invert` modifier when needed. |
+| `deck.directive_invalid` | A directive value or type is outside its contract. | Use the accepted theme, color, geometry, pagination, and background values. |
+| `deck.directive_unsupported` | An author-authored style or other unsupported directive was used. | Remove it; arbitrary CSS and custom Marpit themes are not part of the profile. |
+| `deck.background_invalid` | A background is remote, malformed, or uses an unsupported value. | Use a local asset or one of the approved gradient tokens. |
+| `deck.fence_unclosed` | A Markdown fence was not closed. | Close the fence before the next slot or slide separator. |
+| `deck.composition_invalid` | A composition name or value is outside the R1 catalog. | Use a documented lowercase composition name or `none`. |
+| `deck.composition_conflict` / `deck.composition_slot_invalid` | A composition disagrees with its class or slot contract. | Use the composition's own family and ordered slot names. |
+| `cli.format_invalid` | A format other than `html` or `pdf` was selected. | Pass `--format html` or `--format pdf`. |
+| `cli.output_required` | PDF output has no explicit destination. | Pass `--format pdf --output PATH` or `--output -`. |
+| `cli.deck_geometry_invalid` | Slide size or custom geometry is incomplete or unsupported. | Use `16:9`, `4:3`, or positive custom width, height, and unit values. |
+| `cli.deck_geometry_conflict` | Slide geometry conflicts with legacy page flags. | Use slide geometry or page geometry, not both. |
+| `cli.deck_validator_unavailable` | PDF validation has no supported Chromium-compatible validator. | Install/select a supported local Chromium and retry, or render HTML. |
+| `deck.confidentiality_badge_invalid` / `deck.pagination_icon_invalid` | Host chrome options are invalid. | Use bounded badge text or a catalog icon; informative icons need a label. |
+
+Existing output files are protected; add `--force` only when replacement is
+intentional. Engine failures otherwise use the same `pdf.*` diagnostics as
+`margo pdf`.
 
 ## Limitations and care
 
