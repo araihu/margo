@@ -47,12 +47,15 @@ func (handler *siteHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 	snapshot := state.snapshot
 	requestPath := path.Clean("/" + strings.TrimPrefix(request.URL.Path, "/"))
 	if snapshot.basePath != "" {
-		if requestPath == "/" || requestPath == snapshot.basePath {
+		// path.Clean removes the trailing slash from the landing route. Keep
+		// the raw URL check so /base/ resolves its index instead of redirecting
+		// to itself.
+		if requestPath == "/" || (requestPath == snapshot.basePath && !strings.HasSuffix(request.URL.Path, "/")) {
 			http.Redirect(writer, request, snapshot.basePath+"/", http.StatusTemporaryRedirect)
 			return
 		}
 		prefix := snapshot.basePath + "/"
-		if !strings.HasPrefix(requestPath, prefix) {
+		if requestPath != snapshot.basePath && !strings.HasPrefix(requestPath, prefix) {
 			http.NotFound(writer, request)
 			return
 		}

@@ -44,6 +44,18 @@ func TestHandlerServesBasePathRoutesWithoutMutatingSnapshot(t *testing.T) {
 		t.Fatalf("redirect = %d %q", redirect.Code, redirect.Header().Get("Location"))
 	}
 
+	basePathRedirect := httptest.NewRecorder()
+	handler.ServeHTTP(basePathRedirect, httptest.NewRequest(http.MethodGet, "/docs", nil))
+	if basePathRedirect.Code != http.StatusTemporaryRedirect || basePathRedirect.Header().Get("Location") != "/docs/" {
+		t.Fatalf("base path redirect = %d %q", basePathRedirect.Code, basePathRedirect.Header().Get("Location"))
+	}
+
+	landing := httptest.NewRecorder()
+	handler.ServeHTTP(landing, httptest.NewRequest(http.MethodGet, "/docs/", nil))
+	if landing.Code != http.StatusOK || !strings.Contains(landing.Body.String(), "home") {
+		t.Fatalf("base path landing = %d %q", landing.Code, landing.Body.String())
+	}
+
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/docs/guide.html", nil))
 	if response.Code != http.StatusOK {
