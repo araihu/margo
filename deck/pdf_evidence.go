@@ -46,6 +46,10 @@ type PDFArtifactValidator interface {
 
 var pdfMediaBoxPattern = regexp.MustCompile(`/MediaBox\s*\[([^\]]+)\]`)
 
+// PDFMediaBoxToleranceMicrometers covers coordinate rounding introduced when
+// Chromium converts CSS pixels to PDF points while preserving material errors.
+const PDFMediaBoxToleranceMicrometers int64 = 100
+
 // ParsePDFMediaBoxes extracts page media boxes from a PDF byte stream and
 // normalizes PDF points into integer micrometres. Chromium emits one media box
 // per page in the artifacts accepted by the deck profile.
@@ -190,5 +194,5 @@ func withinPDFTolerance(actual, expected int64) bool {
 	if difference < 0 {
 		difference = -difference
 	}
-	return difference <= 10
+	return difference <= PDFMediaBoxToleranceMicrometers
 }

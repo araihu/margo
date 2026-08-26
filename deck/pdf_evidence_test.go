@@ -39,12 +39,30 @@ func TestPDFArtifactEvidenceUsesFourEdgesAndCanonicalDigest(t *testing.T) {
 }
 
 func TestPDFArtifactEvidenceRejectsPageCountAndEdgeMismatch(t *testing.T) {
-	report, err := BuildPDFArtifactReport(1280, 720, 2, []PDFMediaBoxMicrometers{{Index: 0, RightMicrometers: 338700, TopMicrometers: 190500}})
+	report, err := BuildPDFArtifactReport(1280, 720, 2, []PDFMediaBoxMicrometers{{Index: 0, RightMicrometers: 338800, TopMicrometers: 190500}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if report.Valid {
 		t.Fatal("mismatched page evidence unexpectedly valid")
+	}
+}
+
+func TestPDFArtifactEvidenceToleratesChromiumMediaBoxRounding(t *testing.T) {
+	report, err := BuildPDFArtifactReport(1440, 900, 1, []PDFMediaBoxMicrometers{{Index: 0, RightMicrometers: 381000, TopMicrometers: 238167}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Valid {
+		t.Fatal("Chromium media box rounding unexpectedly invalid")
+	}
+
+	report, err = BuildPDFArtifactReport(1440, 900, 1, []PDFMediaBoxMicrometers{{Index: 0, RightMicrometers: 381000, TopMicrometers: 238300}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Valid {
+		t.Fatal("material media box mismatch unexpectedly valid")
 	}
 }
 
