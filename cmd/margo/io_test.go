@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -22,6 +23,39 @@ func TestPublishRefusesExistingDestinationWithoutForce(t *testing.T) {
 	}
 	if got, err := os.ReadFile(path); err != nil || string(got) != "old" {
 		t.Fatalf("destination = %q error = %v", got, err)
+	}
+}
+
+func TestPublishExistingDestinationDiagnosticIsActionableInTextAndJSON(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "page.html")
+	if err := os.WriteFile(path, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, failure := publish(context.Background(), []byte("new"), outputOptions{Path: path}, io.Discard)
+	if failure == nil {
+		t.Fatal("publish() error = nil")
+	}
+
+	var text bytes.Buffer
+	if err := writeDiagnostic(&text, diagnosticText, failure); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"margo.atomic.destination_exists", path, "--force", "new destination"} {
+		if !strings.Contains(text.String(), want) {
+			t.Fatalf("text diagnostic %q missing %q", text.String(), want)
+		}
+	}
+
+	var encoded bytes.Buffer
+	if err := writeDiagnostic(&encoded, diagnosticJSON, failure); err != nil {
+		t.Fatal(err)
+	}
+	var projection diagnosticProjection
+	if err := json.Unmarshal(encoded.Bytes(), &projection); err != nil {
+		t.Fatalf("JSON diagnostic = %q: %v", encoded.String(), err)
+	}
+	if projection.Code != "margo.atomic.destination_exists" || !strings.Contains(projection.Message, path) || !strings.Contains(projection.Message, "--force") || !strings.Contains(projection.Message, "new destination") {
+		t.Fatalf("JSON projection = %+v", projection)
 	}
 }
 

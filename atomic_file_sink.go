@@ -59,7 +59,15 @@ func (s *AtomicFileSink) Commit(ctx context.Context, r io.Reader, expected Artif
 		return result, fmt.Errorf("margo.atomic.prior_snapshot: %w", err)
 	}
 	if prior.exists && !s.Force {
-		return result, errors.New("margo.atomic.destination_exists")
+		return result, newDiagnosticError(Diagnostic{
+			Code:     "margo.atomic.destination_exists",
+			Severity: SeverityError,
+			Message: fmt.Sprintf(
+				"%s already exists; pass --force to replace it or choose a new destination",
+				target,
+			),
+			Hint: "Pass --force to replace the existing destination or choose a new destination.",
+		})
 	}
 
 	ops := s.ops
