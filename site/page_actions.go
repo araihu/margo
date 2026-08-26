@@ -363,6 +363,11 @@ func (b *builder) injectPageActions(ctx context.Context, document []byte, page P
 		if err != nil {
 			return nil, diagnostic("site.page_actions_invalid", err.Error(), "Keep the iconpack sprite path relative to the page.", page.Source)
 		}
+	} else {
+		// Configured sites publish their artifacts below base_path. Keep the
+		// external sprite URL on that public path so static deployments mounted
+		// below a subdirectory can resolve every page-action icon.
+		iconSpriteURL = b.publicationArtifactHref(pageActionsIconSpritePath)
 	}
 	toolbar, err := pageActionsNode(ctx, page, iconSpriteURL, iconMode)
 	if err != nil {

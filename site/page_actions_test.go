@@ -211,6 +211,65 @@ locales:
 	}
 }
 
+func TestBuildConfigPageActionSpriteRespectsBasePath(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+title: Base-path guide
+description: A page-action base-path regression.
+margo:
+  actions:
+    pdf: client
+---
+# Base-path guide
+
+Page actions must work when the site is mounted below the domain root.
+`)
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+base_path: /notes
+site:
+  name: Margo
+  description: A base-path guide.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo guide preview
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	for _, symbol := range []string{
+		"heroicons-copy-16-solid-clipboard",
+		"heroicons-document-text-16-solid-document-text",
+		"heroicons-arrow-top-right-16-solid-arrow-top-right-on-square",
+		"heroicons-printer-16-solid-printer",
+	} {
+		want := `href="/notes/margo-assets/icons/page-actions.svg#` + symbol + `"`
+		if !strings.Contains(page, want) {
+			t.Fatalf("base-path action markup missing %q: %s", want, page)
+		}
+	}
+	if strings.Contains(page, `href="/margo-assets/icons/page-actions.svg#`) {
+		t.Fatalf("base-path action markup retained a root-absolute sprite URL: %s", page)
+	}
+	if !artifactExists(result, "margo-assets/icons/page-actions.svg") {
+		t.Fatalf("iconpack sprite artifact missing: %+v", result.Artifacts)
+	}
+}
+
 func TestBuildConfigLayoutKindsPublishDeclaredMarkdownAndPDFWithoutLeakingActions(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
