@@ -52,6 +52,15 @@ func TestSingleFileCommandsReportActionableExistingOutputDiagnostics(t *testing.
 				return []string{"pdf", "-", "--output", output, "--engine", "native"}
 			},
 		},
+		{
+			name:         "pdf text",
+			path:         filepath.Join(root, "page-text.pdf"),
+			diagnostics:  diagnosticText,
+			needsEngines: true,
+			makeArgs: func(output string) []string {
+				return []string{"pdf", "-", "--output", output, "--engine", "native"}
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -90,7 +99,10 @@ func TestSingleFileCommandsReportActionableExistingOutputDiagnostics(t *testing.
 				if err := json.Unmarshal(stderr.Bytes(), &projection); err != nil {
 					t.Fatalf("JSON diagnostic = %q: %v", stderr.String(), err)
 				}
-				if projection.Code != "margo.atomic.destination_exists" || !strings.Contains(projection.Message, test.path) {
+				if projection.Code != "margo.atomic.destination_exists" ||
+					!strings.Contains(projection.Message, test.path) ||
+					!strings.Contains(projection.Message, "--force") ||
+					!strings.Contains(projection.Message, "new destination") {
 					t.Fatalf("JSON projection = %+v", projection)
 				}
 			}
