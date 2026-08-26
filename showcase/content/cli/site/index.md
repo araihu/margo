@@ -122,6 +122,33 @@ and `token_catalog`, then selects that name. `navigation.mode` is currently
 family navigation. Archive, tag, RSS, and Atom generation remain
 consumer-owned.
 
+### Page publication actions
+
+Pages can retain their Markdown source and publish a pre-rendered PDF through
+frontmatter:
+
+```yaml
+margo:
+  actions:
+    markdown: true
+    pdf: true
+```
+
+The PDF action also accepts an object when a branded PDF must include the exact
+chart-data tables used by `margo pdf --print-chart-data`:
+
+```yaml
+margo:
+  actions:
+    pdf:
+      printChartData: true
+```
+
+The object form defaults to `pre-rendered`; existing boolean and string forms
+remain compatible. Use `pdf: client` for browser printing without publishing a
+PDF artifact. See the [`margo pdf` branding guide](../pdf/index.md#corporate-branding)
+for the complete branded publication workflow.
+
 ### Article publication metadata
 
 Site builds project the document metadata fields `authors`, `publishedAt`,

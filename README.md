@@ -258,6 +258,19 @@ margo:
 page and View as Markdown actions. `pdf: true` also publishes a pre-rendered
 PDF and adds Download PDF. PDF publication implies Markdown retention.
 
+To include the exact, accessible chart-data tables in a pre-rendered PDF, use
+the object form of the PDF action. Its mode defaults to `pre-rendered`:
+
+```yaml
+margo:
+  actions:
+    pdf:
+      printChartData: true
+```
+
+The boolean and string forms remain unchanged. `printChartData` is only valid
+for pre-rendered PDFs; client printing follows the browser's print behavior.
+
 Use the browser's current page instead of publishing a PDF artifact:
 
 ```yaml
@@ -397,7 +410,9 @@ All v1 chart families (`bar`, `line`, `pie`, `doughnut`, and `scatter`) accept
 accepts one point or value per declared category. Multi-sample scatter remains
 available through the static renderer. One formatted semantic exact-data table
 follows each chart in HTML. Those tables are omitted from PDF by default;
-`--print-chart-data` includes them.
+`--print-chart-data` includes them for standalone PDFs, while
+`margo.actions.pdf.printChartData: true` includes them in configured
+pre-rendered PDFs.
 
 For corporate PDF branding, use a configured site with `site.name`, a local SVG
 `site.logo`, and `margo.actions.pdf: true`; the resulting pre-rendered page PDF

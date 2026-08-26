@@ -33,9 +33,10 @@ const (
 // PageActions selects optional artifacts and controls emitted by a site
 // generator. PDF publication also retains the Markdown source for the page.
 type PageActions struct {
-	Markdown bool    `json:"markdown,omitempty"`
-	PDF      bool    `json:"pdf,omitempty"`
-	PDFMode  PDFMode `json:"pdfMode,omitempty"`
+	Markdown       bool    `json:"markdown,omitempty"`
+	PDF            bool    `json:"pdf,omitempty"`
+	PDFMode        PDFMode `json:"pdfMode,omitempty"`
+	PrintChartData bool    `json:"printChartData,omitempty"`
 }
 
 func (actions PageActions) EffectivePDFMode() PDFMode {

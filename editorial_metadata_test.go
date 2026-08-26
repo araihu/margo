@@ -56,6 +56,22 @@ margo:
 	if actions.EffectivePDFMode() != PDFModePreRendered || actions.UsesClientPDF() {
 		t.Fatalf("default PDF mode = %#v", actions)
 	}
+	printableDocument, err := New().Compile(context.Background(), Source{Name: "printable.md", Content: []byte(`---
+margo:
+  actions:
+    pdf:
+      mode: pre-rendered
+      printChartData: true
+---
+# Printable chart data
+`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	printableActions := printableDocument.Metadata().Margo.Actions
+	if printableActions == nil || !printableActions.PDF || printableActions.EffectivePDFMode() != PDFModePreRendered || !printableActions.PrintChartData {
+		t.Fatalf("printable page actions = %#v", printableActions)
+	}
 	clientDocument, err := New().Compile(context.Background(), Source{Name: "client.md", Content: []byte(`---
 margo:
   actions:

@@ -100,6 +100,38 @@ func TestFrontmatterRejectsInvalidPageMarginPreferences(t *testing.T) {
 	}
 }
 
+func TestFrontmatterRejectsInvalidPDFActionOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "unknown option",
+			content: "---\nmargo:\n  actions:\n    pdf:\n      mystery: true\n---\n# PDF",
+		},
+		{
+			name:    "invalid print data type",
+			content: "---\nmargo:\n  actions:\n    pdf:\n      printChartData: text\n---\n# PDF",
+		},
+		{
+			name:    "client cannot print chart data",
+			content: "---\nmargo:\n  actions:\n    pdf:\n      mode: client\n      printChartData: true\n---\n# PDF",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := New().Compile(context.Background(), Source{Name: "invalid.pdf.md", Content: []byte(test.content)})
+			diagnostic := unwrapDiagnostic(err)
+			if diagnostic == nil || len(diagnostic.Diagnostics) != 1 || diagnostic.Diagnostics[0].Code != "frontmatter.schema_invalid" {
+				t.Fatalf("diagnostic = %#v, error = %v", diagnostic, err)
+			}
+			if !strings.HasPrefix(diagnostic.Diagnostics[0].Pointer, "/margo/actions/pdf") {
+				t.Fatalf("diagnostic pointer = %q", diagnostic.Diagnostics[0].Pointer)
+			}
+		})
+	}
+}
+
 func TestFrontmatterRejectsDuplicateYAMLKeys(t *testing.T) {
 	_, err := New().Compile(context.Background(), Source{Name: "duplicate.md", Content: []byte("---\ntitle: One\ntitle: Two\n---\n# Duplicate")})
 	if got := diagnosticCode(err); got != "frontmatter.limits" {

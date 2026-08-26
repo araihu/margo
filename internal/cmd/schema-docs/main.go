@@ -61,10 +61,32 @@ func collectRows(root map[string]any) []row {
 			propertyPath := path + "/" + key
 			rows = append(rows, makeRow(propertyPath, merged, required[key]))
 			walk(merged, propertyPath, merged)
+			for _, variant := range objectVariants(resolved) {
+				walk(merge(merged, variant), propertyPath, merged)
+			}
 		}
 	}
 	walk(root, "", map[string]any{})
 	return rows
+}
+
+func objectVariants(schema map[string]any) []map[string]any {
+	variants, _ := schema["oneOf"].([]any)
+	result := make([]map[string]any, 0, len(variants))
+	for _, value := range variants {
+		variant, _ := value.(map[string]any)
+		if variant == nil {
+			continue
+		}
+		if typeName, _ := variant["type"].(string); typeName != "object" {
+			continue
+		}
+		if properties, _ := variant["properties"].(map[string]any); len(properties) == 0 {
+			continue
+		}
+		result = append(result, variant)
+	}
+	return result
 }
 
 func makeRow(path string, schema map[string]any, required bool) row {

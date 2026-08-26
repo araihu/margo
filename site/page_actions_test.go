@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"github.com/araihu/margo/pdf"
 )
 
@@ -359,6 +360,87 @@ locales:
 	}
 	if !artifactExists(result, "mascot.png") {
 		t.Fatalf("site did not retain the local image asset")
+	}
+}
+
+func TestBuildConfigPreRenderedPDFChartDataOptIn(t *testing.T) {
+	tests := []struct {
+		name    string
+		action  string
+		visible bool
+	}{
+		{name: "default hidden", action: "pdf: true", visible: false},
+		{name: "explicitly visible", action: "pdf:\n      printChartData: true", visible: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeConfigFile(t, filepath.Join(root, "docs", "index.md"), `---
+title: Chart report
+description: A report with exact chart data.
+margo:
+  actions:
+    `+test.action+`
+---
+# Chart report
+
+~~~goshtosochart
+schemaVersion: 1
+type: bar
+title: Capital allocation
+categories: [Grid, Water]
+series:
+  - name: Plan
+    values: [18, 12]
+~~~
+`)
+			copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+			copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+			writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+site:
+  name: Margo Reports
+  description: Reports with charts.
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo reports preview
+locales:
+  default: en
+  supported: [en]
+`)
+
+			var pdfRequest pdf.Request
+			_, err := BuildConfig(context.Background(), ConfigRequest{
+				ConfigPath: filepath.Join(root, "site.yaml"),
+				Compiler:   margo.New(margo.WithExtension(charts.Extension(charts.WithExternalizedControlRuntime(true)))),
+				PDFEngine:  siteTestPDFEngine{captured: &pdfRequest},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			pdfHTML := string(pdfRequest.HTML)
+			if !strings.Contains(pdfHTML, `data-margo-chart-data="v1"`) {
+				t.Fatalf("pre-rendered PDF omitted the exact chart table: %s", pdfHTML)
+			}
+			enabledIndex := strings.LastIndex(pdfHTML, `data-margo-chart-print-data="enabled"`)
+			disabledIndex := strings.Index(pdfHTML, `data-margo-chart-print-data="disabled"`)
+			if disabledIndex < 0 {
+				t.Fatalf("chart print policy marker missing: %s", pdfHTML)
+			}
+			if test.visible {
+				if enabledIndex < 0 || enabledIndex < strings.Index(pdfHTML, `data-margo-chart-data="v1"`) {
+					t.Fatalf("opt-in chart print stylesheet missing or precedes the table: %s", pdfHTML)
+				}
+			} else if enabledIndex >= 0 {
+				t.Fatalf("default PDF unexpectedly enabled chart data: %s", pdfHTML)
+			}
+		})
 	}
 }
 

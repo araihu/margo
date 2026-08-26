@@ -155,6 +155,14 @@ func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, er
 			case string:
 				metadata.Margo.Actions.PDF = true
 				metadata.Margo.Actions.PDFMode = PDFMode(value)
+			case map[string]any:
+				metadata.Margo.Actions.PDF = true
+				if mode, ok := value["mode"].(string); ok {
+					metadata.Margo.Actions.PDFMode = PDFMode(mode)
+				}
+				if printChartData, ok := value["printChartData"].(bool); ok {
+					metadata.Margo.Actions.PrintChartData = printChartData
+				}
 			}
 		}
 	}

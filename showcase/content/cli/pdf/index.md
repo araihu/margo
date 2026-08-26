@@ -26,6 +26,11 @@ The document defaults are A4 portrait with margins of 24 mm top, 22 mm right,
 safe projection; `allow` permits overflow. `--print-chart-data` includes the
 accessible exact-data tables that PDF otherwise omits after charts.
 
+For configured pre-rendered PDFs, the equivalent page action is
+`margo.actions.pdf.printChartData: true`; see the corporate branding example
+below. The object form defaults to `pre-rendered` and the existing boolean and
+string forms remain compatible.
+
 ## Examples
 
 Run a compatibility check and engine probe before conversion:
@@ -131,6 +136,20 @@ normalized relative path; remote URLs are not a branding path for the offline
 site builder. Keep the SVG inert because it is embedded as trusted document
 branding. `pdf: client` is a different mode: it opens the browser print flow,
 follows the active site theme, and does not publish a PDF artifact.
+
+To include the exact chart-data tables in a branded pre-rendered PDF, use the
+object form of the action. The object defaults to `pre-rendered`:
+
+```yaml
+margo:
+  actions:
+    pdf:
+      printChartData: true
+```
+
+The boolean and string forms remain compatible with existing documents.
+`printChartData` is only valid for pre-rendered output; browser client printing
+continues to follow the browser's print behavior.
 
 For a one-off standalone `margo pdf`, keep the logo below the Markdown file's
 directory and put it in the document instead. For example, with

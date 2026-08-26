@@ -125,6 +125,14 @@ func chartPrintStyle(options chartRenderOptions) string {
 	return chartPrintHiddenDataStyle
 }
 
+// PrintableAccessibleDataStyle returns the print stylesheet used when exact
+// chart data tables are enabled. Hosts that cannot choose the charts
+// extension's frozen registration options (for example configured site
+// publication) can append this stylesheet to their PDF-only HTML projection.
+func PrintableAccessibleDataStyle() string {
+	return chartPrintVisibleDataStyle
+}
+
 // chartControlConfig maps the extension-level choice to the upstream shared
 // wrapper. Omitted mode is deliberately paired with disabled exports so the
 // static path contains no browser lifecycle or export affordance.

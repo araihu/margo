@@ -15,6 +15,7 @@ import (
 	"github.com/araihu/goshtoso/components/icon"
 	"github.com/araihu/goshtoso/components/splitbutton"
 	margo "github.com/araihu/margo"
+	"github.com/araihu/margo/charts"
 	"github.com/araihu/margo/pdf"
 	"github.com/araihu/margo/pdf/engines"
 	"github.com/araihu/margo/site/appicons"
@@ -639,6 +640,12 @@ func (b *builder) pdfArtifact(ctx context.Context, page Page, document *margo.Do
 	if err != nil {
 		return nil, err
 	}
+	if page.Actions != nil && page.Actions.PrintChartData {
+		materializedHTML, err = appendPDFChartDataStyle(materializedHTML, page)
+		if err != nil {
+			return nil, err
+		}
+	}
 	instance, err := b.pdfInstances.Next()
 	if err != nil {
 		return nil, err
@@ -665,6 +672,35 @@ func (b *builder) pdfArtifact(ctx context.Context, page Page, document *margo.Do
 		return nil, fmt.Errorf("site.pdf_engine_invalid: %w", err)
 	}
 	return append([]byte(nil), result.PDF...), nil
+}
+
+func appendPDFChartDataStyle(document []byte, page Page) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(document))
+	if err != nil {
+		return nil, diagnostic("site.pdf_chart_data_invalid", err.Error(), "Keep the generated PDF HTML valid.", page.Source)
+	}
+	body := firstElement(root, "body")
+	if body == nil {
+		return nil, diagnostic("site.pdf_chart_data_invalid", "generated PDF HTML has no body", "Render a complete HTML document before enabling printable chart data.", page.Source)
+	}
+	contextNode := &html.Node{Type: html.ElementNode, DataAtom: atom.Div, Data: "div"}
+	nodes, err := html.ParseFragment(bytes.NewReader([]byte(charts.PrintableAccessibleDataStyle())), contextNode)
+	if err != nil || len(nodes) != 1 || nodes[0].Type != html.ElementNode || nodes[0].Data != "style" {
+		if err == nil {
+			err = fmt.Errorf("printable chart data stylesheet is malformed")
+		}
+		return nil, diagnostic("site.pdf_chart_data_invalid", err.Error(), "Use a valid chart print stylesheet.", page.Source)
+	}
+	// Chart extensions emit their default print policy next to each chart in
+	// the article. Appending the opt-in stylesheet as the final body child
+	// gives it the final cascade position while leaving the public HTML
+	// projection unchanged.
+	body.AppendChild(nodes[0])
+	var output bytes.Buffer
+	if err := html.Render(&output, root); err != nil {
+		return nil, diagnostic("site.pdf_chart_data_invalid", err.Error(), "Keep the generated PDF HTML valid.", page.Source)
+	}
+	return output.Bytes(), nil
 }
 
 func (b *builder) materializePDFImages(document []byte, page Page) ([]byte, error) {

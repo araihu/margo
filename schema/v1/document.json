@@ -98,7 +98,7 @@
           "description": "Optional site publication controls. PDF publication also retains the Markdown source.",
           "type": "object",
           "additionalProperties": false,
-          "examples": [{"markdown": true, "pdf": true}, {"markdown": true, "pdf": "client"}],
+          "examples": [{"markdown": true, "pdf": true}, {"markdown": true, "pdf": "client"}, {"markdown": true, "pdf": {"mode": "pre-rendered", "printChartData": true}}],
           "x-margo-targets": ["site"],
           "x-margo-precedence": "frontmatter declaration only",
           "x-margo-security": "Publication controls only; does not grant document capabilities or runtime access.",
@@ -110,12 +110,45 @@
               "x-margo-targets": ["site"]
             },
             "pdf": {
-              "description": "Generate a pre-rendered PDF artifact and retain the original Markdown source, or use client browser print without generating a PDF artifact.",
+              "description": "Generate a pre-rendered PDF artifact and retain the original Markdown source, or use client browser print without generating a PDF artifact. The object form can include exact chart-data tables in pre-rendered output.",
               "oneOf": [
                 {"type": "boolean", "default": false},
-                {"type": "string", "enum": ["pre-rendered", "client"], "default": "pre-rendered"}
+                {"type": "string", "enum": ["pre-rendered", "client"], "default": "pre-rendered"},
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "mode": {
+                      "description": "How the PDF action is fulfilled.",
+                      "type": "string",
+                      "enum": ["pre-rendered", "client"],
+                      "default": "pre-rendered",
+                      "examples": ["pre-rendered", "client"]
+                    },
+                    "printChartData": {
+                      "description": "Include the exact chart-data tables in pre-rendered PDF output.",
+                      "type": "boolean",
+                      "default": false,
+                      "x-margo-targets": ["site"],
+                      "x-margo-security": "No capability or privacy effect; exposes values already present in the document's accessible HTML table in the PDF projection."
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "required": ["mode"],
+                        "properties": {"mode": {"const": "client"}}
+                      },
+                      "then": {
+                        "properties": {"printChartData": {"const": false}}
+                      }
+                    }
+                  ],
+                  "default": {}
+                }
               ],
-              "x-margo-targets": ["site"]
+              "x-margo-targets": ["site"],
+              "x-margo-interactions": "The boolean and string forms retain their existing behavior. The object form defaults to pre-rendered; printChartData is valid only for that mode."
             }
           },
           "default": {}
@@ -218,6 +251,7 @@
   },
   "examples": [
     {"title": "Architecture overview", "language": "en"},
-    {"title": "Proposta técnica", "language": "pt-BR", "margo": {"page": {"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}}, "consumerOwner": "docs"}
+    {"title": "Proposta técnica", "language": "pt-BR", "margo": {"page": {"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}}, "consumerOwner": "docs"},
+    {"title": "Branded chart report", "language": "en", "margo": {"actions": {"pdf": {"printChartData": true}}}}
   ]
 }
