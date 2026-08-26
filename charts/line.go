@@ -132,7 +132,8 @@ func renderLineWithOptions(rc margo.RenderContext, model lineModel, options char
 				Title: &sharedchart.TitleOptions{Text: model.Title}, Animation: sharedchart.Bool(false), Controls: controlOptions, Export: exportOptions,
 			},
 		})
-		chartComponent := applyChartPrintPolicy(templ.Component(component), options)
+		chartComponent := applyInteractiveLineLayout(templ.Component(component), model.Title)
+		chartComponent = applyChartPrintPolicy(chartComponent, options)
 		return WithAccessibleData(chartComponent, AccessibleData{Title: model.Title, Rows: rows}, AccessibleRenderPolicy{MaxOutputBytes: rc.EffectivePolicy.OutputBytes}), nil
 	}
 	component := line.Line(line.Config{

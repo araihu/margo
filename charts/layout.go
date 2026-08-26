@@ -16,9 +16,13 @@ const (
 	// Chart titles are painted into a canvas, so CSS cannot make a long title
 	// wrap. This line length is deliberately conservative for both the default
 	// desktop chart width and the 390px narrow contract.
-	interactiveBarTitleLineRunes = 28
+	interactiveChartTitleLineRunes = 28
+	// Keep the bar-specific name as an internal compatibility alias for the
+	// existing layout tests and callers in this package.
+	interactiveBarTitleLineRunes = interactiveChartTitleLineRunes
 
-	interactiveBarLayoutScriptMarker = "let goecharts_"
+	interactiveChartLayoutScriptMarker = "let goecharts_"
+	interactiveBarLayoutScriptMarker   = interactiveChartLayoutScriptMarker
 )
 
 // wrapChartLabel inserts word-boundary breaks for text painted by ECharts.
@@ -58,19 +62,38 @@ func wrapChartLabel(value string, limit int) string {
 // option mutation happens before ECharts paints and again on resize, which
 // keeps PNG print exports and live HTML on the same layout contract.
 func applyInteractiveBarLayout(chart templ.Component, title string) templ.Component {
+	return applyInteractiveCartesianLayout(chart, title, "Bar")
+}
+
+// applyInteractiveLineLayout keeps the title and legend in separate rows for
+// interactive line charts. The line renderer shares ECharts' Cartesian title
+// and legend behavior with bars, but is otherwise left untouched.
+func applyInteractiveLineLayout(chart templ.Component, title string) templ.Component {
+	return applyInteractiveCartesianLayout(chart, title, "Line")
+}
+
+func applyInteractiveCartesianLayout(chart templ.Component, title, family string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		var rendered bytes.Buffer
 		if err := chart.Render(ctx, &rendered); err != nil {
 			return err
 		}
-		markup := rewriteInteractiveBarLayoutScript(rendered.String(), title)
+		markup := rewriteInteractiveCartesianLayoutScript(rendered.String(), title, family)
 		_, err := io.WriteString(out, markup)
 		return err
 	})
 }
 
 func rewriteInteractiveBarLayoutScript(markup, title string) string {
-	initStart := strings.Index(markup, interactiveBarLayoutScriptMarker)
+	return rewriteInteractiveCartesianLayoutScript(markup, title, "Bar")
+}
+
+func rewriteInteractiveLineLayoutScript(markup, title string) string {
+	return rewriteInteractiveCartesianLayoutScript(markup, title, "Line")
+}
+
+func rewriteInteractiveCartesianLayoutScript(markup, title, family string) string {
+	initStart := strings.Index(markup, interactiveChartLayoutScriptMarker)
 	if initStart < 0 {
 		return markup
 	}
@@ -88,8 +111,6 @@ func rewriteInteractiveBarLayoutScript(markup, title string) string {
 	if chartName == "" {
 		return markup
 	}
-	layoutFunctionName := "margoResponsiveBarLayout_" + strings.TrimPrefix(chartName, "goecharts_")
-
 	optionStart := strings.Index(markup[initEnd+1:], "let option_")
 	if optionStart < 0 {
 		return markup
@@ -112,28 +133,41 @@ func rewriteInteractiveBarLayoutScript(markup, title string) string {
 	}
 	setIndex += optionEnd
 
-	quotedTitle, err := json.Marshal(wrapChartLabel(title, interactiveBarTitleLineRunes))
+	quotedTitle, err := json.Marshal(wrapChartLabel(title, interactiveChartTitleLineRunes))
 	if err != nil {
 		return markup
 	}
-	layout := fmt.Sprintf(`
+	layoutFunctionName := "margoResponsive" + family + "Layout_" + strings.TrimPrefix(chartName, "goecharts_")
+	layoutBeforeSetOption := fmt.Sprintf(`
     %s.title = Object.assign({}, %s.title || {}, { text: %s });
 	    %s.legend = Object.assign({}, %s.legend || {}, {
       top: 85,
       textStyle: Object.assign({}, (%s.legend && %s.legend.textStyle) || {}, { width: 250, overflow: "breakAll" })
     });
-    %s.grid = Object.assign({}, %s.grid || {}, { top: 180, bottom: 70, containLabel: true });
-    %s.setOption(%s);
+	    %s.grid = Object.assign({}, %s.grid || {}, { top: 180, bottom: 70, containLabel: true });
     const %s = () => {
       const narrow = %s.getWidth() <= 480;
-      %s.setOption({
-        legend: { top: narrow ? 105 : 85, textStyle: { width: narrow ? 210 : 250, overflow: "breakAll" } },
-        grid: { top: narrow ? 245 : 180, bottom: 70, containLabel: true }
+	      const titleText = String((%s.title && %s.title.text) || "");
+	      const titleLines = Math.max(1, titleText.split("\n").length);
+	      const baseLegendTop = narrow ? 105 : 85;
+	      const legendTop = Math.max(baseLegendTop, baseLegendTop + Math.max(0, titleLines - 2) * 22);
+	      const baseGridTop = narrow ? 245 : 180;
+	      const gridTop = Math.max(baseGridTop, legendTop + (narrow ? 140 : 95));
+	      %s.setOption({
+        legend: { top: legendTop, textStyle: { width: narrow ? 210 : 250, overflow: "breakAll" } },
+        grid: { top: gridTop, bottom: 70, containLabel: true }
       }, { notMerge: false, lazyUpdate: false, silent: true });
     };
+`, optionName, optionName, quotedTitle, optionName, optionName, optionName, optionName, optionName, optionName, layoutFunctionName, chartName, optionName, optionName, chartName)
+	layoutAfterSetOption := fmt.Sprintf(`
     %s();
     window.addEventListener("resize", %s);
-`, optionName, optionName, quotedTitle, optionName, optionName, optionName, optionName, optionName, optionName, chartName, optionName, layoutFunctionName, chartName, chartName, layoutFunctionName, layoutFunctionName)
+    if (window.ResizeObserver) {
+      const %sObserver = new ResizeObserver(%s);
+      %sObserver.observe(%s.getDom());
+    }
+`, layoutFunctionName, layoutFunctionName, layoutFunctionName, layoutFunctionName, layoutFunctionName, chartName)
 
-	return markup[:setIndex] + layout + markup[setIndex:]
+	setCallEnd := setIndex + len(setMarker)
+	return markup[:setIndex] + layoutBeforeSetOption + markup[setIndex:setCallEnd] + layoutAfterSetOption + markup[setCallEnd:]
 }
