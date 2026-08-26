@@ -397,6 +397,12 @@ available through the static renderer. One formatted semantic exact-data table
 follows each chart in HTML. Those tables are omitted from PDF by default;
 `--print-chart-data` includes them.
 
+For corporate PDF branding, use a configured site with `site.name`, a local SVG
+`site.logo`, and `margo.actions.pdf: true`; the resulting pre-rendered page PDF
+uses that name and logo. The complete, copyable configuration and the boundary
+between pre-rendered PDFs, browser printing, and standalone `margo pdf` are in
+the [`margo pdf` branding guide](showcase/content/cli/pdf/index.md#corporate-branding).
+
 Current releases use installed Chromium. `auto` tries an explicit
 `--engine-path`, `MARGO_CHROMIUM_PATH`, discovered Chromium-family executables,
 then a native slot. Native backends are compiled out, so selecting
