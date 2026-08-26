@@ -111,13 +111,16 @@ The command writes `dist/index.html`, `dist/sitemap.xml`,
 `dist/llms.txt`, and `dist/margo-manifest.json`; the report is
 `margo-site-report/v1`. `base_path: /docs` affects public URLs and canonical
 metadata, while `output: dist` remains a filesystem path beside `site.yaml`.
-Set `base_path: /` for a root deployment. `theme.builtin: true` selects the
-built-in `modern` theme; a custom theme instead adds a `themes` entry with a
-local `css_url` and `token_catalog`, then selects that name. `navigation.mode`
-is currently `file-tree`; `locales` must include the default locale in its
-supported list. `layout.kind: docs` owns search, sidebar, table of contents,
-pagination, and family navigation. Archive, tag, RSS, and Atom generation
-remain consumer-owned.
+Set `base_path: /` for a root deployment. `theme.name: modern` selects the
+built-in `modern` theme; `allow_switch_theme` and `color_mode` control its
+runtime controls and color family. The accepted `theme.builtin` boolean is
+shown in the example for the v1 config shape but is not a theme selector by
+itself. A custom theme instead adds a `themes` entry with a local `css_url`
+and `token_catalog`, then selects that name. `navigation.mode` is currently
+`file-tree`; `locales` must include the default locale in its supported list.
+`layout.kind: docs` owns search, sidebar, table of contents, pagination, and
+family navigation. Archive, tag, RSS, and Atom generation remain
+consumer-owned.
 
 ### Article publication metadata
 
