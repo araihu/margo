@@ -239,6 +239,43 @@ site:
 	waitForServeChange(t, changes.Changes())
 }
 
+func TestServeConfiguredProjectWatcherReachesNestedSource(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "content", "docs", "index.md"), "# Configured\n")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: content/docs
+output: dist
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+	project, err := resolveServeProject(normalizeDependencies(Dependencies{WorkingDirectory: root}), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if project.Ignore(filepath.Join(root, "content")) {
+		t.Fatal("ancestor of nested source was ignored")
+	}
+	changes, err := devserver.Watch(project.root, project.Ignore, 20*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer changes.Close()
+
+	if err := os.WriteFile(filepath.Join(root, "content", "docs", "index.md"), []byte("# Changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitForServeChange(t, changes.Changes())
+}
+
 func TestServeConfiguredProjectKeepsArtifactNamedAssetAndSourceWatchable(t *testing.T) {
 	root := t.TempDir()
 	writeSiteFixture(t, filepath.Join(root, "build", "index.md"), "# Configured source\n")

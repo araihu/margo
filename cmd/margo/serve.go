@@ -209,6 +209,20 @@ func (project *serveProject) Ignore(name string) bool {
 			return false
 		}
 	}
+	// Watch must also retain each directory between the project root and a
+	// configured root. The recursive watcher calls Ignore before descending
+	// into a directory, so ignoring an ancestor would make a nested source or
+	// asset tree unreachable (for example, source: content/docs).
+	if pathWithin(project.root, name) {
+		if sourceRoot != "" && pathAncestor(name, sourceRoot) {
+			return false
+		}
+		for _, root := range assetRoots {
+			if pathAncestor(name, root) {
+				return false
+			}
+		}
+	}
 	// Do not watch arbitrary siblings of a configured site. Development
 	// tooling commonly writes screenshots, browser logs, reports, and other
 	// temporary files next to the source tree. None of those files can affect
@@ -267,6 +281,13 @@ func (project *serveProject) BasePath() string {
 func pathWithin(root, name string) bool {
 	relative, err := filepath.Rel(root, name)
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func pathAncestor(ancestor, descendant string) bool {
+	if filepath.Clean(ancestor) == filepath.Clean(descendant) {
+		return false
+	}
+	return pathWithin(ancestor, descendant)
 }
 
 func runDevelopmentServer(ctx context.Context, deps Dependencies, request serveRequest) error {
