@@ -188,8 +188,8 @@ publication behavior around this lower-level API. For programmatic PDF output,
 render the standalone component into bytes, obtain a validated descriptor with
 `rendered.RuntimeDescriptor("ri-00000001")`, create an engine with an explicit
 installed browser path, and call `Export` with a non-empty execution ID such as
-`margo.ExecutionID("pdf-guide-1")`. The [versioned PDF package documentation](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf)
-and [versioned Chromium engine documentation](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/chromium)
+`margo.ExecutionID("pdf-guide-1")`. The [versioned PDF package documentation](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf)
+and [versioned Chromium engine documentation](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf/chromium)
 show the renderer-neutral request fields. `deck.Render` follows the same
 compile/render boundary and exposes `Result.RuntimeDescriptor` for a PDF
 projection. The CLI remains the shortest path when the host does not need to
@@ -678,21 +678,21 @@ engine capabilities without probing external engines. `margo completion SHELL
 
 Every supported package ships in the root module. The links below pin the
 current release line so pkg.go.dev does not resolve an old historical nested
-module; replace `v0.0.16` with the exact release in your `go.mod` when needed:
+module; replace `v0.0.17` with the exact release in your `go.mod` when needed:
 
 | Import path | Purpose | Primary entrypoint |
 | --- | --- | --- |
-| [`github.com/araihu/margo`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16) | Compile Markdown and project rendered documents to HTML. | `margo.New`, then `Compile` and `Render` |
-| [`github.com/araihu/margo/assets`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/assets) | Serve and inspect embedded Muamba runtime assets. | `assets.MuambaHTTPHandler` |
-| [`github.com/araihu/margo/charts`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/charts) | Register optional static and printable interactive Goshtoso chart fences. | `charts.Extension` |
-| [`github.com/araihu/margo/deck`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/deck) | Parse and render accessible HTML presentation decks. | `deck.Render` |
-| [`github.com/araihu/margo/pdf`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf) | Define PDF engine, request, page, and link-policy contracts. | `pdf.Engine.Export` |
-| [`github.com/araihu/margo/pdf/chromium`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/chromium) | Export Margo HTML through an explicitly selected installed Chromium executable. | `chromium.New` |
-| [`github.com/araihu/margo/pdf/engines`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/engines) | Discover and select PDF engine candidates. | `engines.Discover` |
-| [`github.com/araihu/margo/pdf/native`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/native) | Expose the stable platform-native capability boundary. | `native.Probe` |
-| [`github.com/araihu/margo/pdf/platform`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/platform) | Verify locked platform probe contracts for native-engine work. | `platform.Bootstrap` |
-| [`github.com/araihu/margo/ssg`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/ssg) | Define and validate layout-neutral frame, shell, composition, binding, and resource contracts. | `ssg.ResolveComposition` |
-| [`github.com/araihu/margo/site`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/site) | Build deterministic multi-page HTML sites from caller-supplied site-relative sources or a validated config. | `site.Build`, `site.LoadConfig`, `site.BuildConfig` |
+| [`github.com/araihu/margo`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17) | Compile Markdown and project rendered documents to HTML. | `margo.New`, then `Compile` and `Render` |
+| [`github.com/araihu/margo/assets`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/assets) | Serve and inspect embedded Muamba runtime assets. | `assets.MuambaHTTPHandler` |
+| [`github.com/araihu/margo/charts`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/charts) | Register optional static and printable interactive Goshtoso chart fences. | `charts.Extension` |
+| [`github.com/araihu/margo/deck`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/deck) | Parse and render accessible HTML presentation decks. | `deck.Render` |
+| [`github.com/araihu/margo/pdf`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf) | Define PDF engine, request, page, and link-policy contracts. | `pdf.Engine.Export` |
+| [`github.com/araihu/margo/pdf/chromium`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf/chromium) | Export Margo HTML through an explicitly selected installed Chromium executable. | `chromium.New` |
+| [`github.com/araihu/margo/pdf/engines`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf/engines) | Discover and select PDF engine candidates. | `engines.Discover` |
+| [`github.com/araihu/margo/pdf/native`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf/native) | Expose the stable platform-native capability boundary. | `native.Probe` |
+| [`github.com/araihu/margo/pdf/platform`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf/platform) | Verify locked platform probe contracts for native-engine work. | `platform.Bootstrap` |
+| [`github.com/araihu/margo/ssg`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/ssg) | Define and validate layout-neutral frame, shell, composition, binding, and resource contracts. | `ssg.ResolveComposition` |
+| [`github.com/araihu/margo/site`](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/site) | Build deterministic multi-page HTML sites from caller-supplied site-relative sources or a validated config. | `site.Build`, `site.LoadConfig`, `site.BuildConfig` |
 
 `cmd/margo` is the CLI program, not a library API. `internal/...` packages are
 unsupported implementation details. `profiles/`, `tools/optimistic-renderer`,
@@ -729,13 +729,13 @@ mux.Handle(chartassets.Prefix, chartassets.Handler()) // /charts/assets/
 `/margo-assets/`; `chartassets.Handler` owns `/charts/assets/`.
 The Margo handler does not serve either dependency mount.
 
-The [versioned Go API reference](https://pkg.go.dev/github.com/araihu/margo@v0.0.16)
+The [versioned Go API reference](https://pkg.go.dev/github.com/araihu/margo@v0.0.17)
 is the stable release surface. Do not add a separate requirement for a
 historical nested module such as `github.com/araihu/margo/pdf`; select the root
 module instead:
 
 ```sh
-go get github.com/araihu/margo@v0.0.16
+go get github.com/araihu/margo@v0.0.17
 ```
 
 ## Releases and module history

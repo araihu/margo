@@ -72,12 +72,12 @@ calls. Pass a canceled context to stop work at the API boundary.
 Use only the packages your host needs. The `margo` executable is a separate
 command surface built on these same boundaries.
 
-For exported symbols, use the [root Go API reference](https://pkg.go.dev/github.com/araihu/margo@v0.0.16)
-and its [site](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/site),
-[PDF](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf),
-[Chromium](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/chromium),
-[deck](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/deck), and
-[charts](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/charts) package
+For exported symbols, use the [root Go API reference](https://pkg.go.dev/github.com/araihu/margo@v0.0.17)
+and its [site](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/site),
+[PDF](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf),
+[Chromium](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/pdf/chromium),
+[deck](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/deck), and
+[charts](https://pkg.go.dev/github.com/araihu/margo@v0.0.17/charts) package
 pages. These links intentionally pin the root release so the historical nested
 `github.com/araihu/margo/pdf` module is not selected by accident.
 
@@ -144,7 +144,7 @@ The repository and published site now split the contract by task:
    branding.
 4. [Deck output](../cli/deck/index.md) — themes, directives, compositions,
    charts, and overflow validation.
-5. [Policies and security](https://github.com/araihu/margo/blob/v0.0.16/docs/policy.md)
+5. [Policies and security](https://github.com/araihu/margo/blob/v0.0.17/docs/policy.md)
    — host authority, raw HTML, iframe projections, and exact schemas.
 
 For the full exported API, use `go doc github.com/araihu/margo` and the
@@ -170,8 +170,8 @@ repository or Go package imports:
 | [Marpit](https://marpit.marp.app/) | Vocabulary and layout inspiration for decks | Margo implements a versioned profile, not universal Marpit compatibility. |
 | [Dagger](https://dagger.io/) | Portable CI adapters and artifact checks | Development/CI tooling only; it is not a runtime dependency. |
 
-Dependency versions are pinned in [`go.mod`](https://github.com/araihu/margo/blob/v0.0.16/go.mod)
+Dependency versions are pinned in [`go.mod`](https://github.com/araihu/margo/blob/v0.0.17/go.mod)
 for the current release line. An upstream release changes Margo only through an
 intentional dependency or profile update followed by the compatibility and
 browser gates. For the source-level rationale, read the
-[unified-module decision](https://github.com/araihu/margo/blob/v0.0.16/docs/decisions/0001-unified-module-and-cli.md).
+[unified-module decision](https://github.com/araihu/margo/blob/v0.0.17/docs/decisions/0001-unified-module-and-cli.md).

@@ -24,7 +24,7 @@ Install a pinned release in the Go environment that owns the build, then record
 its identity before producing artifacts:
 
 ```sh
-go install github.com/araihu/margo/cmd/margo@v0.0.16
+go install github.com/araihu/margo/cmd/margo@v0.0.17
 margo version
 margo doctor
 ```

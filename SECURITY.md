@@ -5,7 +5,7 @@ Margo is early-stage software. Responsible disclosure is appreciated.
 ## Supported versions
 
 The current supported release line is
-[`v0.0.16`](https://github.com/araihu/margo/releases/tag/v0.0.16). Upgrade to
+[`v0.0.17`](https://github.com/araihu/margo/releases/tag/v0.0.17). Upgrade to
 the latest release before reporting a vulnerability. Development snapshots on
 `main` can contain unreleased changes and are not a substitute for a supported
 release; fixes are applied to `main` first and backported to the supported

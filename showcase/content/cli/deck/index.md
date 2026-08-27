@@ -294,7 +294,7 @@ different slot contracts. For example, `media-split` uses `media` and
 `content`, `compare-grid` uses `item-1` through `item-4`, and `steps` uses
 `step-1` through `step-6`. Do not substitute those names into an uncomposed
 `columns`, `compare`, or `timeline` layout. See the
-[composition reference](https://github.com/araihu/margo/blob/v0.0.16/docs/reference/deck-compositions-r1.md) for
+[composition reference](https://github.com/araihu/margo/blob/v0.0.17/docs/reference/deck-compositions-r1.md) for
 the complete preset catalog and its cardinalities.
 
 ## Themes, directives, and presenter notes

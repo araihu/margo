@@ -142,7 +142,7 @@
           "description": "Optional release or development label displayed by the site shell.",
           "type": "string",
           "maxLength": 64,
-          "examples": ["v0.0.16"]
+          "examples": ["v0.0.17"]
         },
         "repository_url": {
           "description": "Optional absolute HTTPS source repository URL.",

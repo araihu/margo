@@ -38,11 +38,11 @@ explicit `--output-dir` changes only the publication destination.
 `margo schema site` emits the version-matched JSON Schema for the top-level
 `site.yaml` shape; `margo schema policy` and `margo schema document` emit the
 other two editor contracts. A site config is a versioned, closed YAML contract
-with `version: 1`. The generated [site configuration reference](https://github.com/araihu/margo/blob/12d47e594fccdb11f8ab778839a265e17b29ac1b/docs/reference/site-config.md)
+with `version: 1`. The generated [site configuration reference](https://github.com/araihu/margo/blob/v0.0.17/docs/reference/site-config.md)
 lists the v1 fields; runtime validation is implemented by the
-[`site.Config` type](https://github.com/araihu/margo/blob/v0.0.16/site/config.go)
+[`site.Config` type](https://github.com/araihu/margo/blob/v0.0.17/site/config.go)
 in the current release line;
-the repository's [`showcase.yaml`](https://github.com/araihu/margo/blob/v0.0.16/showcase.yaml)
+the repository's [`showcase.yaml`](https://github.com/araihu/margo/blob/v0.0.17/showcase.yaml)
 is a complete, larger example.
 
 The following is a complete minimal documentation site. It expects one
@@ -151,7 +151,7 @@ the schema, digest, semantic layout/color sections, and all six typography roles
 the remaining sections are kept in the catalog so theme consumers have one
 stable vocabulary.
 
-The repository's [Margo token catalog](https://github.com/araihu/margo/blob/v0.0.16/themes/margo.tokens.yaml)
+The repository's [Margo token catalog](https://github.com/araihu/margo/blob/v0.0.17/themes/margo.tokens.yaml)
 is a complete template. Starting from it avoids accidentally omitting a
 required semantic role:
 
@@ -159,8 +159,8 @@ required semantic role:
 mkdir -p themes build
 # From a Margo checkout, use the files already under themes/. Otherwise fetch
 # the same pinned template from the repository before editing it.
-test -f themes/margo.css || curl -fsSL https://raw.githubusercontent.com/araihu/margo/v0.0.16/themes/margo.css -o themes/margo.css
-test -f themes/margo.tokens.yaml || curl -fsSL https://raw.githubusercontent.com/araihu/margo/v0.0.16/themes/margo.tokens.yaml -o themes/margo.tokens.yaml
+test -f themes/margo.css || curl -fsSL https://raw.githubusercontent.com/araihu/margo/v0.0.17/themes/margo.css -o themes/margo.css
+test -f themes/margo.tokens.yaml || curl -fsSL https://raw.githubusercontent.com/araihu/margo/v0.0.17/themes/margo.tokens.yaml -o themes/margo.tokens.yaml
 cp themes/margo.tokens.yaml themes/acme.tokens.yaml
 sed 's/\[data-theme="margo"\]/[data-theme="acme"]/g' themes/margo.css > themes/acme.css
 
