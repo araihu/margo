@@ -3,6 +3,7 @@ package deck
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -130,6 +131,91 @@ backgroundDecorative: true
 		if got, want := frontmatterSlides[index].Directives(), commentSlides[index].Directives(); !reflect.DeepEqual(got, want) {
 			t.Fatalf("slide %d frontmatter directives = %#v, comment directives = %#v", index+1, got, want)
 		}
+	}
+}
+
+func TestParseRejectsRecognizedLegacyDirectiveComments(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{name: "paginate", value: "true"},
+		{name: "theme", value: "modern"},
+		{name: "lang", value: "pt-BR"},
+		{name: "colorMode", value: "dark"},
+		{name: "headingDivider", value: "2"},
+		{name: "size", value: "16:9"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := []byte(fmt.Sprintf("<!-- $%s: %s -->\n# One\n", test.name, test.value))
+			_, err := Parse(test.name+".md", source)
+			if err == nil {
+				t.Fatal("legacy directive comment was accepted")
+			}
+			var diagnosticError *margo.DiagnosticError
+			if !errors.As(err, &diagnosticError) || len(diagnosticError.Diagnostics) != 1 {
+				t.Fatalf("error = %v; want one diagnostic", err)
+			}
+			diagnostic := diagnosticError.Diagnostics[0]
+			if diagnostic.Code != "deck.directive_invalid" {
+				t.Fatalf("code = %q", diagnostic.Code)
+			}
+			wantHint := fmt.Sprintf("Use the unprefixed `%s` directive.", test.name)
+			if diagnostic.Hint != wantHint {
+				t.Fatalf("hint = %q want %q", diagnostic.Hint, wantHint)
+			}
+			if diagnostic.Line != 1 || diagnostic.Source != test.name+".md" {
+				t.Fatalf("location = %s:%d", diagnostic.Source, diagnostic.Line)
+			}
+		})
+	}
+}
+
+func TestParseKeepsUnknownDollarCommentsAsNotes(t *testing.T) {
+	source := []byte("<!-- $custom: true -->\n<!-- A note mentioning $paginate: true -->\n<!-- paginate: true -->\n# One\n")
+	doc, err := Parse("notes.md", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slides := doc.Slides()
+	if len(slides) != 1 {
+		t.Fatalf("slides = %d", len(slides))
+	}
+	if got, want := slides[0].Notes(), []string{"$custom: true", "A note mentioning $paginate: true"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("notes = %#v want %#v", got, want)
+	}
+	if got := slides[0].Directives().Paginate; got != "true" {
+		t.Fatalf("paginate = %q", got)
+	}
+}
+
+func TestParseKeepsUnknownDollarFrontmatter(t *testing.T) {
+	source := []byte("---\n$custom: true\ntitle: One\npaginate: true\n---\n# One\n")
+	doc, err := Parse("frontmatter.md", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.Metadata().Title; got != "One" {
+		t.Fatalf("title = %q", got)
+	}
+	if got := doc.Directives().Paginate; got != "true" {
+		t.Fatalf("paginate = %q", got)
+	}
+}
+
+func TestParseRejectsRecognizedLegacyDirectiveFrontmatter(t *testing.T) {
+	_, err := Parse("frontmatter.md", []byte("---\n$theme: modern\n---\n# One\n"))
+	if err == nil {
+		t.Fatal("legacy frontmatter directive was accepted")
+	}
+	var diagnosticError *margo.DiagnosticError
+	if !errors.As(err, &diagnosticError) || len(diagnosticError.Diagnostics) != 1 {
+		t.Fatalf("error = %v; want one diagnostic", err)
+	}
+	diagnostic := diagnosticError.Diagnostics[0]
+	if diagnostic.Code != "deck.directive_invalid" || diagnostic.Hint != "Use the unprefixed `theme` directive." {
+		t.Fatalf("diagnostic = %+v", diagnostic)
 	}
 }
 

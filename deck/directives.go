@@ -63,6 +63,9 @@ func parseDirectiveComment(name string, line int, comment string) (directiveComm
 	}
 	var document yaml.Node
 	if err := yaml.Unmarshal([]byte(body), &document); err != nil {
+		if legacyName, ok := legacyDirectivePrefix(body); ok {
+			return 0, nil, "", legacyDirectiveError(name, line, legacyName)
+		}
 		if directiveLooksRecognized(body) {
 			return 0, nil, "", deckError("deck.directive_comment_invalid", name, line, err.Error())
 		}
@@ -83,6 +86,9 @@ func parseDirectiveComment(name string, line int, comment string) (directiveComm
 			return 0, nil, "", deckError("deck.directive_comment_invalid", name, line, "directive keys must be strings")
 		}
 		key := keyNode.Value
+		if legacyName, ok := legacyDirectiveName(key); ok {
+			return 0, nil, "", legacyDirectiveError(name, line, legacyName)
+		}
 		spot := strings.HasPrefix(key, "_")
 		if spot {
 			key = strings.TrimPrefix(key, "_")
@@ -108,23 +114,83 @@ func parseDirectiveComment(name string, line int, comment string) (directiveComm
 
 func directiveLooksRecognized(body string) bool {
 	trimmed := strings.TrimSpace(body)
-	if strings.HasPrefix(trimmed, "$") {
-		trimmed = strings.TrimPrefix(trimmed, "$")
-	}
 	if strings.HasPrefix(trimmed, "_") {
 		trimmed = strings.TrimPrefix(trimmed, "_")
 	}
+	_, ok := recognizedDirectivePrefix(trimmed)
+	return ok
+}
+
+// legacyDirectiveName reports a recognized directive key carrying the
+// unsupported dollar prefix. Unknown dollar-prefixed YAML keys remain notes or
+// unrelated frontmatter rather than being treated as deck directives.
+func legacyDirectiveName(key string) (string, bool) {
+	if !strings.HasPrefix(key, "$") {
+		return "", false
+	}
+	name := strings.TrimPrefix(key, "$")
+	if canonical, ok := recognizedDirectiveName(name); ok {
+		return canonical, true
+	}
+	if strings.HasPrefix(name, "_") {
+		if canonical, ok := recognizedDirectiveName(strings.TrimPrefix(name, "_")); ok {
+			return "_" + canonical, true
+		}
+	}
+	return "", false
+}
+
+// legacyDirectivePrefix recognizes the beginning of a malformed directive
+// comment before YAML can be decoded. It deliberately requires a mapping
+// colon, so prose such as "$theme is useful" remains a presenter note.
+func legacyDirectivePrefix(body string) (string, bool) {
+	trimmed := strings.TrimSpace(body)
+	if !strings.HasPrefix(trimmed, "$") {
+		return "", false
+	}
+	value := strings.TrimPrefix(trimmed, "$")
+	spot := ""
+	if strings.HasPrefix(value, "_") {
+		spot = "_"
+		value = strings.TrimPrefix(value, "_")
+	}
+	canonical, ok := recognizedDirectivePrefix(value)
+	if !ok {
+		return "", false
+	}
+	return spot + canonical, true
+}
+
+func recognizedDirectiveName(name string) (string, bool) {
+	if _, ok := globalDirectiveNames[name]; ok {
+		return name, true
+	}
+	if _, ok := localDirectiveNames[name]; ok {
+		return name, true
+	}
+	return "", false
+}
+
+func recognizedDirectivePrefix(value string) (string, bool) {
 	for key := range globalDirectiveNames {
-		if strings.HasPrefix(trimmed, key+":") {
-			return true
+		if directiveKeyPrefix(value, key) {
+			return key, true
 		}
 	}
 	for key := range localDirectiveNames {
-		if strings.HasPrefix(trimmed, key+":") {
-			return true
+		if directiveKeyPrefix(value, key) {
+			return key, true
 		}
 	}
-	return false
+	return "", false
+}
+
+func directiveKeyPrefix(value, key string) bool {
+	if !strings.HasPrefix(value, key) {
+		return false
+	}
+	rest := strings.TrimLeft(value[len(key):], " \t")
+	return strings.HasPrefix(rest, ":")
 }
 
 func validateDirectiveNode(name string, line int, key string, node *yaml.Node) error {

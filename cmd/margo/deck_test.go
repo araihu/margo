@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -27,6 +28,41 @@ func TestDeckDefaultsToHTMLStdout(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `class="margo-deck"`) || !strings.Contains(stdout.String(), "Slide 2 of 2") {
 		t.Fatal("deck HTML missing")
+	}
+}
+
+func TestDeckAndCheckRejectRecognizedLegacyDollarDirectives(t *testing.T) {
+	for _, commandArgs := range [][]string{
+		{"deck", "-", "--diagnostics", "json"},
+		{"check", "-", "--target", "deck", "--diagnostics", "json"},
+	} {
+		t.Run(commandArgs[0], func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			command := NewRootCommand(Dependencies{
+				Stdin:  strings.NewReader("<!-- $paginate: true -->\n# One\n"),
+				Stdout: &stdout, Stderr: &stderr, Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+			})
+			command.SetArgs(commandArgs)
+			if err := command.ExecuteContext(context.Background()); cliDiagnosticCode(err) != "deck.directive_invalid" {
+				t.Fatalf("error = %v, stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+			}
+			var diagnostic struct {
+				Code string `json:"code"`
+				Hint string `json:"hint"`
+			}
+			if err := json.Unmarshal(stderr.Bytes(), &diagnostic); err != nil {
+				t.Fatalf("diagnostic JSON = %q: %v", stderr.String(), err)
+			}
+			if diagnostic.Code != "deck.directive_invalid" {
+				t.Fatalf("diagnostic code = %q", diagnostic.Code)
+			}
+			if diagnostic.Hint != "Use the unprefixed `paginate` directive." {
+				t.Fatalf("diagnostic hint = %q", diagnostic.Hint)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("failed %s published %d stdout bytes", commandArgs[0], stdout.Len())
+			}
+		})
 	}
 }
 

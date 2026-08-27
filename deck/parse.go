@@ -93,8 +93,8 @@ func parseMetadata(name string, lines [][]byte) (Metadata, DirectiveState, int, 
 				metadata.Marp = &active
 				continue
 			}
-			if strings.HasPrefix(key, "$") {
-				return Metadata{}, directives, 0, deckError("deck.directive_invalid", name, 1, "legacy $ directives are not supported; use the unprefixed form")
+			if legacyName, ok := legacyDirectiveName(key); ok {
+				return Metadata{}, directives, 0, legacyDirectiveError(name, 1, legacyName)
 			}
 			if !isDeckDirective(key) {
 				// Existing Margo frontmatter namespaces (for example margo.page)
@@ -554,6 +554,20 @@ func markerRun(value string, marker byte) int {
 }
 
 func deckError(code, source string, line int, message string) error {
+	return deckErrorWithHint(code, source, line, message, "")
+}
+
+func legacyDirectiveError(source string, line int, name string) error {
+	return deckErrorWithHint(
+		"deck.directive_invalid",
+		source,
+		line,
+		"legacy $ directives are not supported; use the unprefixed form",
+		fmt.Sprintf("Use the unprefixed `%s` directive.", name),
+	)
+}
+
+func deckErrorWithHint(code, source string, line int, message, hint string) error {
 	return &margo.DiagnosticError{Diagnostics: []margo.Diagnostic{{
 		Code:     code,
 		Severity: margo.SeverityError,
@@ -561,5 +575,6 @@ func deckError(code, source string, line int, message string) error {
 		Line:     line,
 		Column:   1,
 		Message:  message,
+		Hint:     hint,
 	}}}
 }
