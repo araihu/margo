@@ -116,7 +116,7 @@ func deckUnitFactor(unit DeckUnit) (float64, bool) {
 	case DeckUnitIN:
 		return 96, true
 	case DeckUnitPT:
-		return 96 / 72, true
+		return 96.0 / 72.0, true
 	case DeckUnitPC:
 		return 16, true
 	case DeckUnitQ:

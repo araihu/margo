@@ -48,6 +48,30 @@ func TestPDFArtifactEvidenceRejectsPageCountAndEdgeMismatch(t *testing.T) {
 	}
 }
 
+func TestPDFArtifactEvidenceToleratesCustomCSSUnitPaperQuantization(t *testing.T) {
+	// A 210mm x 118mm custom CSS canvas is emitted by Chromium as 209.889mm
+	// x 117.856mm after its 0.96-point paper-size quantization.
+	report, err := BuildPDFArtifactReport(793.7007874015748, 445.98425196850394, 1, []PDFMediaBoxMicrometers{{
+		Index: 0, RightMicrometers: 209889, TopMicrometers: 117856,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Valid {
+		t.Fatalf("custom CSS unit paper quantization unexpectedly invalid: %#v", report)
+	}
+
+	report, err = BuildPDFArtifactReport(793.7007874015748, 445.98425196850394, 1, []PDFMediaBoxMicrometers{{
+		Index: 0, RightMicrometers: 209600, TopMicrometers: 117856,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Valid {
+		t.Fatal("material custom-page width mismatch unexpectedly valid")
+	}
+}
+
 func TestPDFArtifactEvidenceToleratesChromiumMediaBoxRounding(t *testing.T) {
 	report, err := BuildPDFArtifactReport(1440, 900, 1, []PDFMediaBoxMicrometers{{Index: 0, RightMicrometers: 381000, TopMicrometers: 238167}})
 	if err != nil {

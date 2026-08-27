@@ -46,9 +46,12 @@ type PDFArtifactValidator interface {
 
 var pdfMediaBoxPattern = regexp.MustCompile(`/MediaBox\s*\[([^\]]+)\]`)
 
-// PDFMediaBoxToleranceMicrometers covers coordinate rounding introduced when
-// Chromium converts CSS pixels to PDF points while preserving material errors.
-const PDFMediaBoxToleranceMicrometers int64 = 100
+// PDFMediaBoxToleranceMicrometers covers the paper-size quantization introduced
+// when Chromium converts CSS pixels to PDF points while preserving material
+// geometry errors. Chromium's custom-page projection rounds to a 0.96-point
+// grid (about 169 micrometres at its worst), so allow that renderer
+// quantization without accepting a millimetre-scale mismatch.
+const PDFMediaBoxToleranceMicrometers int64 = 170
 
 // ParsePDFMediaBoxes extracts page media boxes from a PDF byte stream and
 // normalizes PDF points into integer micrometres. Chromium emits one media box

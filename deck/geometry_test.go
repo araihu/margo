@@ -12,6 +12,7 @@ func TestDeckGeometryPresetsAndCustomUnits(t *testing.T) {
 		{value: "4:3", preset: "4:3", width: 960, height: 720},
 		{value: "1280x800px", preset: "custom", width: 1280, height: 800},
 		{value: "10x5in", preset: "custom", width: 960, height: 480},
+		{value: "600x300pt", preset: "custom", width: 800, height: 400},
 	}
 	for _, tc := range cases {
 		t.Run(tc.value, func(t *testing.T) {
