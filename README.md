@@ -130,6 +130,114 @@ remain opt-in for library consumers:
 compiler := margo.New(margo.WithExtension(charts.Extension()))
 ```
 
+### Choose an output from Go
+
+The root module is the compiler and semantic renderer; it is not a single
+`Convert` function and it does not own a filesystem or HTTP server. Compile and
+render once, then choose the projection your host owns:
+
+| Need | Public package and entrypoint | Host responsibility |
+| --- | --- | --- |
+| One standalone HTML document | `margo.RenderStandalone` | Write or serve the rendered component |
+| A composed HTML page | `margo.RenderHTML` and `margo.RenderHTMLPage` | Mount the declared dependency handlers and own the shell |
+| A linked site | `site.Build` or `site.BuildConfig` | Supply sources/config, write `Result.Artifacts`, and deploy |
+| A PDF | `pdf/chromium.New` and `pdf.Engine.Export` | Select an installed Chromium executable and pass the runtime descriptor |
+| A presentation | `deck.Render`, then the PDF engine for PDF output | Use the versioned deck profile and validate the selected geometry |
+
+`site.Build` returns exact, sorted artifacts without writing them. A minimal
+caller-owned publication loop looks like this:
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+    "path/filepath"
+
+    "github.com/araihu/margo"
+    "github.com/araihu/margo/site"
+)
+
+func main() {
+    ctx := context.Background()
+    result, err := site.Build(ctx, site.Request{
+        SourceRoot: ".",
+        Sources:    []site.Source{{Path: "guide.md", Content: []byte("# Guide\n")}},
+        Compiler:   margo.New(),
+        Assets:     site.AssetsInline,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    for _, artifact := range result.Artifacts {
+        filename := filepath.Join("dist", filepath.FromSlash(artifact.Path))
+        if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+            log.Fatal(err)
+        }
+        if err := os.WriteFile(filename, artifact.Content, 0o644); err != nil {
+            log.Fatal(err)
+        }
+    }
+}
+```
+
+The site CLI adds the exact `margo-manifest.json`, staging, and no-replace
+publication behavior around this lower-level API. For programmatic PDF output,
+render the standalone component into bytes, obtain a validated descriptor with
+`rendered.RuntimeDescriptor("ri-00000001")`, create an engine with an explicit
+installed browser path, and call `Export` with a non-empty execution ID such as
+`margo.ExecutionID("pdf-guide-1")`. The [versioned PDF package documentation](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf)
+and [versioned Chromium engine documentation](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/chromium)
+show the renderer-neutral request fields. `deck.Render` follows the same
+compile/render boundary and exposes `Result.RuntimeDescriptor` for a PDF
+projection. The CLI remains the shortest path when the host does not need to
+own these lifecycle seams.
+
+The complete PDF handoff is small enough to keep in an application helper:
+
+```go
+var html bytes.Buffer
+page, err := margo.RenderStandalone(rendered)
+if err != nil {
+    return err
+}
+if err := page.Render(ctx, &html); err != nil {
+    return err
+}
+descriptor, err := rendered.RuntimeDescriptor("ri-00000001")
+if err != nil {
+    return err
+}
+engine, err := chromium.New(chromium.Config{ExecutablePath: os.Getenv("MARGO_CHROMIUM_PATH")})
+if err != nil {
+    return err
+}
+result, err := engine.Export(ctx, pdf.Request{
+    HTML: html.Bytes(), Runtime: descriptor,
+    ExecutionID: margo.ExecutionID("pdf-guide-1"),
+    Page: pdf.PageConfig{Size: pdf.PageA4, Orientation: pdf.Portrait,
+        Margins: pdf.Margins{Top: 24, Right: 22, Bottom: 26, Left: 22}},
+})
+if err != nil {
+    return err
+}
+return os.WriteFile("guide.pdf", result.PDF, 0o644)
+```
+
+The snippet assumes the surrounding function imports `bytes`, `os`,
+`github.com/araihu/margo/pdf`, and `github.com/araihu/margo/pdf/chromium`.
+`MARGO_CHROMIUM_PATH` must point to an installed executable; an empty value is
+rejected rather than downloaded or silently replaced.
+
+Use `go doc github.com/araihu/margo`, `go doc github.com/araihu/margo/site`,
+`go doc github.com/araihu/margo/pdf`, and
+`go doc github.com/araihu/margo/deck` against the exact module version in your
+`go.mod`; the package comments contain the supported lifecycle and security
+boundary. Build the CLI explicitly with `go build -o margo ./cmd/margo`.
+`go build .` builds the root library archive, not the `margo` executable.
+
 ## Build static sites
 
 `margo site` and `margo serve` accept either a Markdown directory or a site
@@ -317,13 +425,69 @@ content and prints a warning. Do not use it in production.
 - Run `margo --help` or `margo help COMMAND` for current CLI help.
 - Read [Host policy and natural iframe embeds](docs/policy.md) before enabling
   privileged raw HTML or iframe embeds.
-- Use the generated [policy schema](docs/reference/policy.md) and
-  [document metadata schema](docs/reference/document-metadata.md) as exact
-  configuration references.
+- Use the generated [policy schema](docs/reference/policy.md),
+  [document metadata schema](docs/reference/document-metadata.md), and
+  [site configuration schema](docs/reference/site-config.md) as exact
+  configuration references. Emit the same bytes for an IDE with
+  `margo schema policy`, `margo schema document`, or `margo schema site`.
 - See the [PDF engine matrix](docs/testing/pdf-engine-matrix.md) for recorded
   browser test evidence. It is not a supported-version policy.
 - Read [ADR 0001](docs/decisions/0001-unified-module-and-cli.md) for the
   unified-module decision and native-PDF boundary.
+
+### Documentation map and upstreams
+
+Start at the [published Margo guide](https://margo.araihu.com/), then choose
+the [CLI workflows](https://margo.araihu.com/cli/) or [Go module guide](https://margo.araihu.com/module/).
+The command pages are executable references: each one pairs the installed
+`margo COMMAND --help` surface with a copyable fixture. The repository README
+is the portable version of that guide for offline or GitHub-first discovery.
+
+Margo is an adapter and policy boundary around upstream projects, not a fork of
+their public contracts:
+
+| Upstream | Where it influences Margo | What Margo pins or constrains |
+| --- | --- | --- |
+| [Goldmark](https://github.com/yuin/goldmark) | CommonMark parsing and fenced extensions | Margo's normalized semantic document and closed metadata |
+| [Goshtoso](https://github.com/araihu/goshtoso) | Accessible document components, themes, tokens, and shell primitives | Host-owned composition and Margo-scoped document styles |
+| [Goshtoso Charts](https://github.com/araihu/goshtoso-charts) | Optional `goshtosochart` extension and exact-data tables | Explicit opt-in registration and static deck projection |
+| [Muamba](https://github.com/araihu/muamba) | Build-time asset materialization and provenance | Locked runtime assets; no runtime download |
+| [Mermaid](https://mermaid.js.org/) | Embedded diagram runtime for Mermaid fences | Vendored version/configuration and sanitized SVG profile |
+| [templ](https://github.com/a-h/templ) | Go component rendering | Margo's semantic fragment and dependency contracts |
+| [Chromedp](https://github.com/chromedp/chromedp) / Chromium | Browser validation and PDF export | Explicit installed executable; no browser download or silent fallback |
+| [Marpit](https://marpit.marp.app/) | Vocabulary inspiration for the deck projection | Versioned Margo profile, not universal Marpit compatibility |
+
+The authoritative dependency versions are in [`go.mod`](go.mod); the
+repository's design record explains the boundaries and rejected alternatives.
+An upstream release can change Margo only through an intentional dependency or
+profile update, followed by the compatibility and browser gates.
+
+### Themes, policies, and IDE validation
+
+Themes are host configuration, not document capabilities. A configured site
+selects a built-in `modern` theme or declares a local theme entry with
+`css_url` and `token_catalog`; the deck profile accepts only its built-in
+`modern`, `goshtoso`, and `minimal` catalog. Start with the [site theme example](showcase/content/cli/site/index.md)
+and [deck theme rules](showcase/content/cli/deck/index.md#themes), then run
+`margo check` before publishing. Arbitrary CSS, remote backgrounds, and unknown
+token names are rejected before artifacts are written.
+
+Policies are trusted host input. Create a JSON file with
+`"schemaVersion": "margo-policy/v1"`, validate it in an IDE against
+`margo schema policy`, and pass it with `--policy` to `check`, `html`, `site`,
+`pdf`, or `deck`. A policy can authorize only the exact HTTPS iframe origins,
+sanitized raw HTML profile, resource ceilings, and per-target projections it
+declares; frontmatter cannot elevate it. The [policy guide](docs/policy.md)
+and generated reference document every field, default, limit, and security
+effect.
+
+For `site.yaml`, emit `margo schema site` once per installed binary and attach
+the resulting file to the YAML language server as a JSON Schema. For Markdown
+frontmatter, attach `margo schema document`; for policy JSON, attach
+`margo schema policy`. These schemas describe field names and types for editor
+completion, while `margo check` and `margo site` remain the authority for
+cross-file checks such as missing assets, route links, duplicate locales, and
+theme availability.
 
 ## CLI commands
 
@@ -341,6 +505,7 @@ margo help [command]
 margo completion SHELL [--no-descriptions]
 margo schema policy
 margo schema document
+margo schema site
 ```
 
 `INPUT` for `check`, `html`, `pdf`, and `deck` is a path or `-` for stdin.
@@ -358,8 +523,8 @@ config's output when the flag is omitted. Site output must not already exist.
 All rendering commands accept `--policy FILE` for a trusted host policy.
 Ordinary Markdown, local images, Mermaid, tables, and code need no policy.
 `html` and `pdf` also accept `--title TEXT` and `--lang TAG`. `margo schema
-policy` and `margo schema document` emit the exact embedded Draft 2020-12
-schema bytes for the installed Margo version.
+policy`, `margo schema document`, and `margo schema site` emit the exact
+embedded Draft 2020-12 schema bytes for the installed Margo version.
 
 ### Check
 
@@ -511,21 +676,23 @@ engine capabilities without probing external engines. `margo completion SHELL
 
 ## Go packages
 
-Every supported package ships in the root module:
+Every supported package ships in the root module. The links below pin the
+current release line so pkg.go.dev does not resolve an old historical nested
+module; replace `v0.0.16` with the exact release in your `go.mod` when needed:
 
 | Import path | Purpose | Primary entrypoint |
 | --- | --- | --- |
-| `github.com/araihu/margo` | Compile Markdown and project rendered documents to HTML. | `margo.New`, then `Compile` and `Render` |
-| `github.com/araihu/margo/assets` | Serve and inspect embedded Muamba runtime assets. | `assets.MuambaHTTPHandler` |
-| `github.com/araihu/margo/charts` | Register optional static and printable interactive Goshtoso chart fences. | `charts.Extension` |
-| `github.com/araihu/margo/deck` | Parse and render accessible HTML presentation decks. | `deck.Render` |
-| `github.com/araihu/margo/pdf` | Define PDF engine, request, page, and link-policy contracts. | `pdf.Engine.Export` |
-| `github.com/araihu/margo/pdf/chromium` | Export Margo HTML through an explicitly selected installed Chromium executable. | `chromium.New` |
-| `github.com/araihu/margo/pdf/engines` | Discover and select PDF engine candidates. | `engines.Discover` |
-| `github.com/araihu/margo/pdf/native` | Expose the stable platform-native capability boundary. | `native.Probe` |
-| `github.com/araihu/margo/pdf/platform` | Verify locked platform probe contracts for native-engine work. | `platform.Bootstrap` |
-| `github.com/araihu/margo/ssg` | Define and validate layout-neutral frame, shell, composition, binding, and resource contracts. | `ssg.ResolveComposition` |
-| `github.com/araihu/margo/site` | Build deterministic multi-page HTML sites from caller-supplied site-relative sources or a validated config. | `site.Build`, `site.LoadConfig`, `site.BuildConfig` |
+| [`github.com/araihu/margo`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16) | Compile Markdown and project rendered documents to HTML. | `margo.New`, then `Compile` and `Render` |
+| [`github.com/araihu/margo/assets`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/assets) | Serve and inspect embedded Muamba runtime assets. | `assets.MuambaHTTPHandler` |
+| [`github.com/araihu/margo/charts`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/charts) | Register optional static and printable interactive Goshtoso chart fences. | `charts.Extension` |
+| [`github.com/araihu/margo/deck`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/deck) | Parse and render accessible HTML presentation decks. | `deck.Render` |
+| [`github.com/araihu/margo/pdf`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf) | Define PDF engine, request, page, and link-policy contracts. | `pdf.Engine.Export` |
+| [`github.com/araihu/margo/pdf/chromium`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/chromium) | Export Margo HTML through an explicitly selected installed Chromium executable. | `chromium.New` |
+| [`github.com/araihu/margo/pdf/engines`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/engines) | Discover and select PDF engine candidates. | `engines.Discover` |
+| [`github.com/araihu/margo/pdf/native`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/native) | Expose the stable platform-native capability boundary. | `native.Probe` |
+| [`github.com/araihu/margo/pdf/platform`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/pdf/platform) | Verify locked platform probe contracts for native-engine work. | `platform.Bootstrap` |
+| [`github.com/araihu/margo/ssg`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/ssg) | Define and validate layout-neutral frame, shell, composition, binding, and resource contracts. | `ssg.ResolveComposition` |
+| [`github.com/araihu/margo/site`](https://pkg.go.dev/github.com/araihu/margo@v0.0.16/site) | Build deterministic multi-page HTML sites from caller-supplied site-relative sources or a validated config. | `site.Build`, `site.LoadConfig`, `site.BuildConfig` |
 
 `cmd/margo` is the CLI program, not a library API. `internal/...` packages are
 unsupported implementation details. `profiles/`, `tools/optimistic-renderer`,
@@ -562,6 +729,15 @@ mux.Handle(chartassets.Prefix, chartassets.Handler()) // /charts/assets/
 `/margo-assets/`; `chartassets.Handler` owns `/charts/assets/`.
 The Margo handler does not serve either dependency mount.
 
+The [versioned Go API reference](https://pkg.go.dev/github.com/araihu/margo@v0.0.16)
+is the stable release surface. Do not add a separate requirement for a
+historical nested module such as `github.com/araihu/margo/pdf`; select the root
+module instead:
+
+```sh
+go get github.com/araihu/margo@v0.0.16
+```
+
 ## Releases and module history
 
 Every supported package belongs to the root module and one root release tag.
@@ -577,12 +753,15 @@ can otherwise shadow the package supplied by the root module.
 
 ## Contribute and verify
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites, generated-file rules,
+local checks, and the pull-request workflow.
+
 Run the repository as one module:
 
 ```sh
 GOWORK=off GOFLAGS=-mod=readonly go test -race ./...
 GOWORK=off GOFLAGS=-mod=readonly go vet ./...
-CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=readonly go build ./cmd/margo
+CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=readonly go build -o margo ./cmd/margo
 ```
 
 ### Local CI with Dagger

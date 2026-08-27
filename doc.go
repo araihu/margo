@@ -27,6 +27,15 @@
 // configuration that created it. Pass WithExtension to New to register
 // optional integrations such as charts.
 //
+// The root package is the common compile/render layer, not a high-level
+// filesystem converter. Choose the boundary after rendering: use
+// RenderStandalone for one offline HTML page, RenderHTML and RenderHTMLPage for
+// a host-composed page, package site for linked-site artifacts, package deck
+// for a presentation, and package pdf with pdf/chromium for browser-backed PDF
+// output. The site, PDF, and deck packages document the additional publication
+// and runtime-descriptor steps; the margo CLI is the shortest path when the
+// host does not need to own those seams.
+//
 // Check performs read-only compatibility analysis without rendering. Host
 // applications own capability policy through WithHostPolicy and
 // WithCheckPolicy; document metadata cannot grant capabilities. Raw HTML is

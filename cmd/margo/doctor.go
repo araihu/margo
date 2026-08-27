@@ -26,7 +26,12 @@ func newDoctorCommand(deps Dependencies) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "doctor",
 		Short: "Report available rendering engines",
-		Args:  diagnosticNoArgs(&diagnostics),
+		Long: "Probe the installed PDF engine candidates without rendering a document.\n" +
+			"Read available=true and the candidate source/path before running pdf or\n" +
+			"deck --format pdf; Margo never downloads a browser.",
+		Example: "  margo doctor\n" +
+			"  mkdir -p build && margo doctor --diagnostics json > build/margo-doctor.json",
+		Args: diagnosticNoArgs(&diagnostics),
 		RunE: func(command *cobra.Command, _ []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {

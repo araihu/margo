@@ -31,8 +31,15 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	deps = normalizeDependencies(deps)
 	version := false
 	cmd := &cobra.Command{
-		Use:           "margo",
-		Short:         "Render Markdown as HTML, PDF, or presentation decks",
+		Use:   "margo",
+		Short: "Render Markdown as HTML, PDF, or presentation decks",
+		Long: "Margo checks and projects Markdown into standalone HTML, linked sites, PDFs,\n" +
+			"and a versioned presentation-deck profile. Use margo help COMMAND for the\n" +
+			"current flags and examples; use margo schema for IDE-facing contracts.",
+		Example: "  margo check guide.md\n" +
+			"  margo html guide.md --output guide.html\n" +
+			"  margo site ./docs --output-dir ./dist\n" +
+			"  margo doctor",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,

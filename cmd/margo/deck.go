@@ -30,8 +30,17 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 	var policyOptions policyFlags
 	command := &cobra.Command{
 		Use:   "deck INPUT",
-		Short: "Render an HTML or PDF presentation deck",
-		Args:  diagnosticExactArgs(1, &diagnostics),
+		Short: "Render the versioned Margo deck profile as HTML or PDF",
+		Long: "Render the versioned Margo Marpit-compatible deck profile. Slides are\n" +
+			"separated by thematic breaks; YAML frontmatter and closed directives select\n" +
+			"themes, geometry, compositions, and presenter notes. Deck charts are static\n" +
+			"and arbitrary HTML/CSS or remote assets are rejected. See\n" +
+			"https://margo.araihu.com/cli/deck/ for the authoring catalog and examples.",
+		Example: "  margo check slides.md --target deck\n" +
+			"  mkdir -p build && margo deck slides.md --format html --output build/slides.html\n" +
+			"  margo deck slides.md --format pdf --output build/slides.pdf --slide-size 16:9\n" +
+			"  margo deck slides.md --format pdf --output - --print-chart-data > slides.pdf",
+		Args: diagnosticExactArgs(1, &diagnostics),
 		RunE: func(command *cobra.Command, args []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {

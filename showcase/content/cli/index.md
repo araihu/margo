@@ -24,7 +24,7 @@ Install a pinned release in the Go environment that owns the build, then record
 its identity before producing artifacts:
 
 ```sh
-go install github.com/araihu/margo/cmd/margo@v0.0.5
+go install github.com/araihu/margo/cmd/margo@v0.0.16
 margo version
 margo doctor
 ```
@@ -205,3 +205,16 @@ deployment rollback strategy.
   server.
 - Use the installed binary's `--help`, embedded schemas, JSON diagnostics, and
   manifest as the automation contract. README examples can lag a newer binary.
+  For editor validation, capture all three version-matched schemas:
+
+  ```sh
+  mkdir -p .schemas
+  margo schema policy > .schemas/margo-policy.schema.json
+  margo schema document > .schemas/margo-document.schema.json
+  margo schema site > .schemas/margo-site.schema.json
+  ```
+
+  Attach the policy schema to policy JSON, the document schema to Markdown
+  frontmatter, and the site schema to `site.yaml`. Schemas provide completion
+  and local shape checks; `margo check` and `margo site` still enforce
+  cross-file constraints such as links, assets, locales, and theme availability.

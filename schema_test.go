@@ -7,7 +7,7 @@ import (
 )
 
 func TestEmbeddedSchemasCompileAndValidateExamples(t *testing.T) {
-	for _, kind := range []SchemaKind{SchemaPolicy, SchemaDocument} {
+	for _, kind := range []SchemaKind{SchemaPolicy, SchemaDocument, SchemaSite} {
 		data, err := Schema(kind)
 		if err != nil {
 			t.Fatal(err)

@@ -27,7 +27,13 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "check INPUT",
 		Short: "Check Markdown compatibility without rendering",
-		Args:  diagnosticExactArgs(1, &diagnostics),
+		Long: "Check one Markdown source before rendering it. The target controls\n" +
+			"target-specific findings: use site for multi-page link validation and\n" +
+			"pdf or deck to catch projection restrictions before producing bytes.",
+		Example: "  margo check guide.md\n" +
+			"  margo check guide.md --target pdf --diagnostics json\n" +
+			"  margo check docs/index.md --target site --policy policy.json",
+		Args: diagnosticExactArgs(1, &diagnostics),
 		RunE: func(command *cobra.Command, args []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {

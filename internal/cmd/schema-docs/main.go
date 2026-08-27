@@ -22,6 +22,7 @@ func main() {
 	}{
 		{"schema/v1/policy.json", "docs/reference/policy.md", "Host policy reference"},
 		{"schema/v1/document.json", "docs/reference/document-metadata.md", "Document metadata reference"},
+		{"schema/v1/site.json", "docs/reference/site-config.md", "Site configuration reference"},
 	} {
 		data, err := os.ReadFile(item.schema)
 		must(err)

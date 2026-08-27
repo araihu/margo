@@ -1,12 +1,15 @@
 # Security Policy
 
-Margo is unreleased alpha-stage software. Responsible disclosure is
-appreciated.
+Margo is early-stage software. Responsible disclosure is appreciated.
 
 ## Supported versions
 
-Margo has no released versions yet. Until the initial release, security fixes
-apply to the latest commit on `main` only.
+The current supported release line is
+[`v0.0.16`](https://github.com/araihu/margo/releases/tag/v0.0.16). Upgrade to
+the latest release before reporting a vulnerability. Development snapshots on
+`main` can contain unreleased changes and are not a substitute for a supported
+release; fixes are applied to `main` first and backported to the supported
+release when appropriate.
 
 ## Reporting a vulnerability
 

@@ -35,11 +35,14 @@ explicit `--output-dir` changes only the publication destination.
 
 ### Minimal configured site
 
-`margo schema` currently emits only the `policy` and `document` JSON Schemas;
-there is no `site` schema command. A site config is a versioned, closed YAML
-contract with `version: 1`. The authoritative v1 field names and validation
-are the [`site.Config` definition](https://github.com/araihu/margo/blob/main/site/config.go);
-the repository's [`showcase.yaml`](https://github.com/araihu/margo/blob/main/showcase.yaml)
+`margo schema site` emits the version-matched JSON Schema for the top-level
+`site.yaml` shape; `margo schema policy` and `margo schema document` emit the
+other two editor contracts. A site config is a versioned, closed YAML contract
+with `version: 1`. The generated [site configuration reference](https://github.com/araihu/margo/blob/main/docs/reference/site-config.md)
+lists the v1 fields; runtime validation is implemented by the
+[`site.Config` type](https://github.com/araihu/margo/blob/v0.0.16/site/config.go)
+in the current release line;
+the repository's [`showcase.yaml`](https://github.com/araihu/margo/blob/v0.0.16/showcase.yaml)
 is a complete, larger example.
 
 The following is a complete minimal documentation site. It expects one
@@ -107,6 +110,18 @@ MARKDOWN
 margo site ./site.yaml --diagnostics json > build/site-report.json
 ```
 
+Before committing a config, capture the exact schema for the installed binary
+and attach it to `site.yaml` in your YAML language server:
+
+```sh
+mkdir -p .schemas
+margo schema site > .schemas/margo-site.schema.json
+```
+
+The schema gives editor completion and local type checks. The build remains the
+authority for source existence, image dimensions, cross-page links, family
+resolution, and whether a declared theme asset is present.
+
 The command writes `dist/index.html`, `dist/sitemap.xml`,
 `dist/llms.txt`, and `dist/margo-manifest.json`; the report is
 `margo-site-report/v1`. `base_path: /docs` affects public URLs and canonical
@@ -121,6 +136,65 @@ and `token_catalog`, then selects that name. `navigation.mode` is currently
 `layout.kind: docs` owns search, sidebar, table of contents, pagination, and
 family navigation. Archive, tag, RSS, and Atom generation remain
 consumer-owned.
+
+### Create a custom site theme
+
+Site themes are extensible; deck themes are not. A site theme is a CSS file plus
+a `margo.theme.tokens/v1` YAML (or JSON) sidecar. The sidecar is deliberately
+larger than a color palette so every responsive and accessible projection has a
+bounded value. The complete catalog template contains these top-level sections:
+`schema`, `css_digest`, `fonts`, `minimum_text_size`, `touch_target`,
+`typography` (`display`, `headline`, `title`, `body`, `label`, and `caption`),
+`reading_measure`, `layout`, `spacing`, `breakpoints`, `grid`, `drawer`,
+`colors`, `mermaid`, `states`, `feedback`, and `contrast_pairs`. Margo requires
+the schema, digest, semantic layout/color sections, and all six typography roles;
+the remaining sections are kept in the catalog so theme consumers have one
+stable vocabulary.
+
+The repository's [Margo token catalog](https://github.com/araihu/margo/blob/v0.0.16/themes/margo.tokens.yaml)
+is a complete template. Starting from it avoids accidentally omitting a
+required semantic role:
+
+```sh
+mkdir -p themes build
+# From a Margo checkout, use the files already under themes/. Otherwise fetch
+# the same pinned template from the repository before editing it.
+test -f themes/margo.css || curl -fsSL https://raw.githubusercontent.com/araihu/margo/v0.0.16/themes/margo.css -o themes/margo.css
+test -f themes/margo.tokens.yaml || curl -fsSL https://raw.githubusercontent.com/araihu/margo/v0.0.16/themes/margo.tokens.yaml -o themes/margo.tokens.yaml
+cp themes/margo.tokens.yaml themes/acme.tokens.yaml
+sed 's/\[data-theme="margo"\]/[data-theme="acme"]/g' themes/margo.css > themes/acme.css
+
+# shasum is available on macOS and most Go build environments.
+digest="$(shasum -a 256 themes/acme.css | awk '{print $1}')"
+awk -v digest="$digest" 'BEGIN { updated = 0 }
+  /^css_digest:/ { print "css_digest: sha256-" digest; updated = 1; next }
+  { print }
+  END { if (!updated) exit 1 }' themes/acme.tokens.yaml > build/acme.tokens.yaml
+mv build/acme.tokens.yaml themes/acme.tokens.yaml
+```
+
+Select the catalog from `site.yaml` and keep the paths relative to that file:
+
+```yaml
+themes:
+  - name: acme
+    css_url: themes/acme.css
+    token_catalog: themes/acme.tokens.yaml
+theme:
+  builtin: false
+  name: acme
+  allow_switch_theme: true
+  color_mode: system
+```
+
+`css_digest` is the raw SHA-256 of the exact CSS bytes with the
+`sha256-` prefix. Margo checks the digest, required sections, typography roles,
+both color modes, state/feedback entries, and contrast pairs before staging
+any artifact. A missing section or stale digest reports `site.theme_catalog_invalid`
+or `site.theme_css_digest`; fix the sidecar/CSS pair rather than weakening the
+validator. Run `margo check` and then `margo site` with a new destination. Deck
+authors instead choose only `modern`, `goshtoso`, or `minimal` and cannot load a
+custom Marpit theme.
 
 ### Page publication actions
 

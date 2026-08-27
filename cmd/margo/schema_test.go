@@ -8,7 +8,7 @@ import (
 )
 
 func TestSchemaCommandEmitsExactEmbeddedBytes(t *testing.T) {
-	for _, kind := range []margo.SchemaKind{margo.SchemaPolicy, margo.SchemaDocument} {
+	for _, kind := range []margo.SchemaKind{margo.SchemaPolicy, margo.SchemaDocument, margo.SchemaSite} {
 		var output bytes.Buffer
 		command := NewRootCommand(Dependencies{Stdout: &output})
 		command.SetArgs([]string{"schema", string(kind)})

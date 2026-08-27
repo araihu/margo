@@ -17,11 +17,13 @@ type SchemaKind string
 const (
 	SchemaPolicy   SchemaKind = "policy"
 	SchemaDocument SchemaKind = "document"
+	SchemaSite     SchemaKind = "site"
 )
 
 const (
 	policySchemaID   = "https://araihu.github.io/margo/schema/v1/policy.json"
 	documentSchemaID = "https://araihu.github.io/margo/schema/v1/document.json"
+	siteSchemaID     = "https://araihu.github.io/margo/schema/v1/site.json"
 )
 
 var (
@@ -30,6 +32,9 @@ var (
 
 	//go:embed schema/v1/document.json
 	documentSchemaBytes []byte
+
+	//go:embed schema/v1/site.json
+	siteSchemaBytes []byte
 
 	compiledSchemasOnce sync.Once
 	compiledSchemas     map[SchemaKind]*jsonschema.Schema
@@ -44,6 +49,8 @@ func Schema(kind SchemaKind) ([]byte, error) {
 		source = policySchemaBytes
 	case SchemaDocument:
 		source = documentSchemaBytes
+	case SchemaSite:
+		source = siteSchemaBytes
 	default:
 		return nil, fmt.Errorf("schema.kind_invalid: unsupported schema %q", kind)
 	}
@@ -72,7 +79,7 @@ func compiledSchema(kind SchemaKind) (*jsonschema.Schema, error) {
 	compiledSchemasOnce.Do(func() {
 		compiler := jsonschema.NewCompiler()
 		compiler.AssertFormat()
-		compiledSchemas = make(map[SchemaKind]*jsonschema.Schema, 2)
+		compiledSchemas = make(map[SchemaKind]*jsonschema.Schema, 3)
 		for _, item := range []struct {
 			kind SchemaKind
 			id   string
@@ -80,6 +87,7 @@ func compiledSchema(kind SchemaKind) (*jsonschema.Schema, error) {
 		}{
 			{kind: SchemaPolicy, id: policySchemaID, data: policySchemaBytes},
 			{kind: SchemaDocument, id: documentSchemaID, data: documentSchemaBytes},
+			{kind: SchemaSite, id: siteSchemaID, data: siteSchemaBytes},
 		} {
 			document, err := jsonschema.UnmarshalJSON(bytes.NewReader(item.data))
 			if err != nil {
@@ -94,7 +102,7 @@ func compiledSchema(kind SchemaKind) (*jsonschema.Schema, error) {
 		for _, item := range []struct {
 			kind SchemaKind
 			id   string
-		}{{SchemaPolicy, policySchemaID}, {SchemaDocument, documentSchemaID}} {
+		}{{SchemaPolicy, policySchemaID}, {SchemaDocument, documentSchemaID}, {SchemaSite, siteSchemaID}} {
 			compiled, err := compiler.Compile(item.id)
 			if err != nil {
 				compiledSchemasErr = fmt.Errorf("schema.compile_failed: %s: %w", item.kind, err)

@@ -55,8 +55,16 @@ func newSiteCommand(deps Dependencies) *cobra.Command {
 	var policyOptions policyFlags
 	command := &cobra.Command{
 		Use:   "site INPUT_DIR|CONFIG",
-		Short: "Build a linked HTML site from a Markdown directory",
-		Args:  diagnosticExactArgs(1, &diagnostics),
+		Short: "Build a linked HTML site from a directory or config",
+		Long: "Build and validate a linked static site. INPUT_DIR recursively discovers\n" +
+			"Markdown and requires --output-dir; a .yaml/.yml CONFIG supplies the\n" +
+			"source, identity, layout, theme, and output settings. The destination must\n" +
+			"be new; publication is atomic and never deploys the result. See\n" +
+			"https://margo.araihu.com/cli/site/ for the config and publication guide.",
+		Example: "  margo site ./docs --output-dir ./build/site\n" +
+			"  mkdir -p build && margo site ./site.yaml --diagnostics json > build/site-report.json\n" +
+			"  margo site ./docs --output-dir ./build/inline --assets inline",
+		Args: diagnosticExactArgs(1, &diagnostics),
 		RunE: func(command *cobra.Command, args []string) error {
 			format, err := parseDiagnosticFormat(diagnostics)
 			if err != nil {

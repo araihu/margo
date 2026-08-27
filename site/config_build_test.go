@@ -663,7 +663,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("Tour contains forbidden landing markup %q", forbidden)
 		}
 	}
-	for _, required := range []string{"Compiler lifecycle", "Public package map", "Installation and versioning", "Testing"} {
+	for _, required := range []string{"Compiler and render lifecycle", "Public package map", "Select the projection", "Dependencies and upstream boundaries"} {
 		if !strings.Contains(module, required) {
 			t.Fatalf("Module outline missing %q", required)
 		}
@@ -671,6 +671,18 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	for _, required := range []string{"Command map", "Configuration and policy layering", "Operational gotchas", "check", "completion"} {
 		if !strings.Contains(cli, required) {
 			t.Fatalf("CLI outline missing %q", required)
+		}
+	}
+	siteGuide := string(artifacts["cli/site/index.html"])
+	for _, required := range []string{"margo schema site", "margo.theme.tokens/v1", "css_digest", "custom Marpit theme"} {
+		if !strings.Contains(siteGuide, required) {
+			t.Fatalf("site guide missing %q", required)
+		}
+	}
+	schemaGuide := string(artifacts["cli/schema/index.html"])
+	for _, required := range []string{"yaml.schemas", "json.schemas", "top-level", "$schema", "x-margo-*"} {
+		if !strings.Contains(schemaGuide, required) {
+			t.Fatalf("schema guide missing %q", required)
 		}
 	}
 	for _, command := range commandNames {

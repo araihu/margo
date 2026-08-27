@@ -49,6 +49,8 @@ func newServeCommand(deps Dependencies) *cobra.Command {
 		Short: "Serve a site with live reload for development",
 		Long: "Build, watch, and serve a Margo site with live reload for development.\n\n" +
 			"This development server is not for production use.",
+		Example: "  margo serve ./docs --host 127.0.0.1 --port 8080\n" +
+			"  margo serve ./site.yaml --open",
 		Args: func(command *cobra.Command, args []string) error {
 			if len(args) <= 1 {
 				return nil

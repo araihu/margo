@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/site.json",
+  "title": "Margo site configuration v1",
+  "description": "Closed YAML/JSON configuration for a Margo documentation site.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "source", "site"],
+  "properties": {
+    "version": {
+      "description": "Exact site configuration contract version.",
+      "const": 1,
+      "examples": [1]
+    },
+    "source": {
+      "description": "Normalized relative directory containing Markdown sources.",
+      "type": "string",
+      "minLength": 1,
+      "examples": ["docs", "content"]
+    },
+    "output": {
+      "description": "Normalized relative directory receiving the published artifact tree.",
+      "type": "string",
+      "minLength": 1,
+      "default": "dist",
+      "examples": ["dist", "build/site"]
+    },
+    "assets": {
+      "description": "Whether generated pages reference copied assets or embed supported assets.",
+      "type": "string",
+      "enum": ["local", "inline"],
+      "default": "local",
+      "examples": ["local"]
+    },
+    "offline": {
+      "description": "Keep the generated publication independent of network fetches.",
+      "type": "boolean",
+      "default": true,
+      "examples": [true]
+    },
+    "base_path": {
+      "description": "Normalized public path prefix used by routes and canonical URLs.",
+      "type": "string",
+      "pattern": "^(|/.*)$",
+      "default": "/",
+      "examples": ["/", "/docs", "/journal"]
+    },
+    "site": {
+      "$ref": "#/$defs/siteIdentity"
+    },
+    "layout": {
+      "description": "Typed site layout and its closed kind-specific values.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {"const": "article", "examples": ["article"]},
+            "default": {"$ref": "#/$defs/articleLayoutValues"},
+            "values": {"$ref": "#/$defs/articleLayoutValues"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {"const": "landing", "examples": ["landing"]},
+            "default": {"$ref": "#/$defs/landingLayoutValues"},
+            "values": {"$ref": "#/$defs/landingLayoutValues"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {"const": "docs", "examples": ["docs"]},
+            "default": {"$ref": "#/$defs/docsLayoutDefault"},
+            "values": {"$ref": "#/$defs/docsLayoutValues"}
+          }
+        }
+      ]
+    },
+    "frame": {
+      "$ref": "#/$defs/layoutSelection",
+      "description": "Legacy frame presentation authority; mutually exclusive with layout and shell."
+    },
+    "shell": {
+      "$ref": "#/$defs/layoutSelection",
+      "description": "Legacy shell presentation authority; mutually exclusive with layout and frame."
+    },
+    "locales": {
+      "$ref": "#/$defs/locales"
+    },
+    "navigation": {
+      "$ref": "#/$defs/navigation"
+    },
+    "bindings": {
+      "description": "Named host binding declarations keyed by semantic provider kind.",
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/binding"},
+      "examples": [{"navigation": {"area": "top-nav", "slot": "primary"}}]
+    },
+    "themes": {
+      "description": "Additional local or approved HTTPS theme entries.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/theme"},
+      "default": [],
+      "examples": [[{"name": "brand", "css_url": "themes/brand.css", "token_catalog": "themes/brand.tokens.yaml"}]]
+    },
+    "custom_css": {
+      "description": "Additional local or approved HTTPS stylesheets.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/css"},
+      "default": [],
+      "examples": [[{"css_url": "themes/overrides.css"}]]
+    },
+    "theme": {
+      "$ref": "#/$defs/themeSelection"
+    }
+  },
+  "$defs": {
+    "siteIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "logo", "icon", "social_image"],
+      "properties": {
+        "name": {
+          "description": "Public site name.",
+          "type": "string",
+          "minLength": 1,
+          "examples": ["Example Docs"]
+        },
+        "description": {
+          "description": "Public site description used in page and social metadata.",
+          "type": "string",
+          "examples": ["A small configured documentation site."]
+        },
+        "version": {
+          "description": "Optional release or development label displayed by the site shell.",
+          "type": "string",
+          "maxLength": 64,
+          "examples": ["v0.0.16"]
+        },
+        "repository_url": {
+          "description": "Optional absolute HTTPS source repository URL.",
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://",
+          "examples": ["https://github.com/araihu/margo"]
+        },
+        "base_url": {
+          "description": "Optional absolute HTTPS origin used for canonical URLs and feeds.",
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://",
+          "examples": ["https://docs.example.com"]
+        },
+        "home": {
+          "description": "Markdown path below source used as the public home route.",
+          "type": "string",
+          "pattern": "^(|.*\\.(md|markdown))$",
+          "default": "index.md",
+          "examples": ["index.md", "guides/home.md"]
+        },
+        "logo": {
+          "description": "Normalized local SVG logo path below the config directory.",
+          "type": "string",
+          "minLength": 1,
+          "examples": ["assets/logo.svg"]
+        },
+        "icon": {
+          "description": "Normalized local favicon or site icon path below the config directory.",
+          "type": "string",
+          "minLength": 1,
+          "examples": ["assets/logo.svg"]
+        },
+        "social_image": {
+          "$ref": "#/$defs/socialImage"
+        }
+      }
+    },
+    "socialImage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "alt"],
+      "properties": {
+        "path": {
+          "description": "Local JPEG or PNG social preview path; Margo validates a 1280x640 image.",
+          "type": "string",
+          "minLength": 1,
+          "examples": ["assets/social.jpg"]
+        },
+        "alt": {
+          "description": "Non-empty alternative text for the social preview image.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "examples": ["Example Docs preview"]
+        }
+      }
+    },
+    "locales": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "description": "Canonical BCP 47 default locale.",
+          "type": "string",
+          "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+          "default": "en",
+          "examples": ["en", "pt-BR"]
+        },
+        "supported": {
+          "description": "Unique canonical BCP 47 locales; must include default.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$"},
+          "examples": [["en", "pt-BR"]]
+        }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "Navigation strategy for the configured site.",
+          "type": "string",
+          "enum": ["file-tree"],
+          "default": "file-tree"
+        },
+        "exclude": {
+          "description": "Normalized glob patterns omitted from generated navigation.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "examples": [["drafts/**"]]
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area"],
+      "properties": {
+        "area": {"type": "string", "minLength": 1, "examples": ["top-nav"]},
+        "slot": {"type": "string", "examples": ["primary"]},
+        "props": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "css_url", "token_catalog"],
+      "properties": {
+        "name": {
+          "description": "Lowercase theme identifier.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "examples": ["brand"]
+        },
+        "css_url": {
+          "description": "Normalized local stylesheet path or approved HTTPS stylesheet URL.",
+          "type": "string",
+          "minLength": 1,
+          "examples": ["themes/brand.css"]
+        },
+        "token_catalog": {
+          "description": "Normalized local token catalog path.",
+          "type": "string",
+          "minLength": 1,
+          "examples": ["themes/brand.tokens.yaml"]
+        }
+      }
+    },
+    "css": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["css_url"],
+      "properties": {
+        "css_url": {"type": "string", "minLength": 1, "examples": ["themes/overrides.css"]}
+      }
+    },
+    "themeSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "builtin": {"type": "boolean", "default": false},
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$", "default": "modern", "examples": ["modern", "brand"]},
+        "allow_switch_theme": {"type": "boolean", "default": false},
+        "color_mode": {"type": "string", "enum": ["system", "light", "dark"], "default": "system", "examples": ["system"]}
+      }
+    },
+    "layoutContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "layout": {"const": "article", "examples": ["article"]}
+      }
+    },
+    "articleLayoutValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "content": {"$ref": "#/$defs/layoutContent"}
+      },
+      "examples": [{"content": {"layout": "article"}}]
+    },
+    "landingLayoutValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shell": {"type": "boolean"},
+        "navigation": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "content": {"$ref": "#/$defs/layoutContent"}
+      },
+      "examples": [{"shell": true, "navigation": ["module/index.md"], "content": {"layout": "article"}}]
+    },
+    "docsLayoutDefault": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "families": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "sidebar": {"type": "boolean"},
+        "toc": {"type": "boolean"},
+        "content": {"$ref": "#/$defs/layoutContent"}
+      },
+      "examples": [{"families": ["default"], "sidebar": true, "toc": true, "content": {"layout": "article"}}]
+    },
+    "docsLayoutValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "family": {"type": "string", "minLength": 1},
+        "sidebar": {"type": "boolean"},
+        "toc": {"type": "boolean"},
+        "content": {"$ref": "#/$defs/layoutContent"}
+      },
+      "examples": [{"family": "default"}]
+    },
+    "layoutSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "builtin": {"type": "string", "examples": ["main", "componentdocshell"]},
+        "command": {"type": "string", "examples": ["my-layout"]},
+        "protocol": {"type": "string", "examples": ["margo.ssg.frame/v1", "margo.ssg.shell/v1"]},
+        "values": {"type": "object", "additionalProperties": true},
+        "go_module": {"$ref": "#/$defs/goModule"}
+      },
+      "oneOf": [
+        {"required": ["builtin"]},
+        {"required": ["command", "protocol"]},
+        {"required": ["go_module"]}
+      ]
+    },
+    "goModule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["import", "version", "constructor"],
+      "properties": {
+        "import": {"type": "string", "minLength": 1, "examples": ["example.com/docs/layout"]},
+        "version": {"type": "string", "minLength": 1, "examples": ["v1.2.3"]},
+        "constructor": {"type": "string", "minLength": 1, "examples": ["New"]},
+        "values": {"type": "object", "additionalProperties": true}
+      }
+    }
+  },
+  "examples": [
+    {
+      "version": 1,
+      "source": "docs",
+      "site": {
+        "name": "Example Docs",
+        "logo": "assets/logo.svg",
+        "icon": "assets/logo.svg",
+        "social_image": {"path": "assets/social.jpg", "alt": "Example Docs preview"}
+      }
+    },
+    {
+      "version": 1,
+      "source": "content",
+      "output": "dist",
+      "assets": "local",
+      "offline": true,
+      "base_path": "/docs",
+      "site": {
+        "name": "Example Docs",
+        "description": "A small configured documentation site.",
+        "base_url": "https://docs.example.com",
+        "home": "index.md",
+        "logo": "assets/logo.svg",
+        "icon": "assets/logo.svg",
+        "social_image": {"path": "assets/social.jpg", "alt": "Example Docs preview"}
+      },
+      "layout": {
+        "kind": "docs",
+        "default": {"families": ["default"], "sidebar": true, "toc": true, "content": {"layout": "article"}},
+        "values": {"family": "default"}
+      },
+      "locales": {"default": "en", "supported": ["en"]},
+      "navigation": {"mode": "file-tree"},
+      "theme": {"builtin": true, "name": "modern", "allow_switch_theme": false, "color_mode": "light"}
+    }
+  ]
+}

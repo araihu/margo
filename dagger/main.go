@@ -352,7 +352,8 @@ test ! -e /tmp/should-not-exist.pdf
 const pagesScript = `
 mkdir -p _site/schema
 cp -R schema/v1 _site/schema/v1
-test "$(find _site -type f | LC_ALL=C sort)" = "$(printf '_site/schema/v1/document.json\n_site/schema/v1/policy.json')"
+test "$(find _site -type f | LC_ALL=C sort)" = "$(printf '_site/schema/v1/document.json\n_site/schema/v1/policy.json\n_site/schema/v1/site.json')"
 cmp schema/v1/document.json _site/schema/v1/document.json
 cmp schema/v1/policy.json _site/schema/v1/policy.json
+cmp schema/v1/site.json _site/schema/v1/site.json
 `

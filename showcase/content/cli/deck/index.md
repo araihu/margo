@@ -294,7 +294,7 @@ different slot contracts. For example, `media-split` uses `media` and
 `content`, `compare-grid` uses `item-1` through `item-4`, and `steps` uses
 `step-1` through `step-6`. Do not substitute those names into an uncomposed
 `columns`, `compare`, or `timeline` layout. See the
-[composition reference](https://github.com/araihu/margo/blob/main/docs/reference/deck-compositions-r1.md) for
+[composition reference](https://github.com/araihu/margo/blob/v0.0.16/docs/reference/deck-compositions-r1.md) for
 the complete preset catalog and its cardinalities.
 
 ## Themes, directives, and presenter notes
@@ -324,6 +324,20 @@ slides; prefix it with `_` for the current slide only, for example
 theme tokens, and backgrounds use a local asset or an approved gradient token.
 Remote URLs, arbitrary CSS, `style`, custom Marpit themes, and unknown
 extension allocators are rejected.
+
+The `color` and `backgroundColor` directives accept only these finite tokens:
+
+| Kind | Tokens |
+| --- | --- |
+| Text (`color`) | `surface`, `surface-alt`, `ink`, `ink-muted`, `accent`, `accent-strong`, `positive`, `warning`, `negative`, `info`, `transparent` |
+| Background (`backgroundColor`) | `surface`, `surface-alt`, `accent`, `accent-strong`, `positive`, `warning`, `negative`, `info`, `transparent` |
+| Gradient background (`backgroundImage`) | `gradient-blue`, `gradient-violet`, `gradient-sunset`, `gradient-forest` |
+
+`color` and `backgroundColor` resolve against the selected theme and color mode;
+the token names do not expose raw CSS values. `backgroundImage` may instead be
+a normalized local asset path. If a token fails contrast validation, keep the
+same semantic role and switch `colorMode`, theme, or the `invert` class rather
+than adding arbitrary CSS.
 
 An HTML comment that is not a recognized directive is a presenter note:
 

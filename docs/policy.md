@@ -9,7 +9,10 @@ The canonical contract is the shipped
 [`schema/v1/policy.json`](../schema/v1/policy.json). The exhaustive generated
 [policy reference](reference/policy.md) lists every field, default, target,
 limit, precedence rule, and security effect. Print the exact embedded schema
-offline with `margo schema policy`.
+offline with `margo schema policy` and attach the result to the policy file in
+an IDE. The same binary emits `margo schema document` for Markdown frontmatter
+and `margo schema site` for `site.yaml`; schemas provide local completion while
+the CLI remains authoritative for cross-file and asset validation.
 
 ## Library API
 
@@ -73,6 +76,43 @@ rejected so document stdin cannot also become policy authority.
 Omission selects schema-documented defaults. Explicit `0` is invalid for byte
 ceilings. Unknown properties fail. The normalized policy is hashed; CLI JSON
 reports and site manifests record its `sha256:...` identity.
+
+### IDE and external validator workflow
+
+Capture schemas from the same binary that CI runs and associate them externally;
+do not add a `$schema` property to the policy JSON because the closed runtime
+contract rejects unknown root fields:
+
+```sh
+mkdir -p .schemas
+margo schema policy > .schemas/margo-policy.schema.json
+margo schema document > .schemas/margo-document.schema.json
+margo schema site > .schemas/margo-site.schema.json
+```
+
+For VS Code's YAML extension, a workspace association can point `site.yaml` at
+the site schema:
+
+```json
+{
+  "yaml.schemas": {
+    "./.schemas/margo-site.schema.json": ["site.yaml"]
+  },
+  "json.schemas": [
+    {"fileMatch": ["**/*.policy.json"], "url": "./.schemas/margo-policy.schema.json"}
+  ]
+}
+```
+
+Attach the document schema to the frontmatter block through an editor that
+supports Markdown frontmatter (or validate an extracted YAML object). The
+schemas include `x-margo-*` annotations; strict JSON Schema validators must
+register those annotation names or disable unknown-keyword checks. Generic
+schema validation also cannot model Margo's duplicate-key check, byte limits,
+or exact HTTPS-origin canonicalization: paths, queries, fragments, credentials,
+wildcards, and noncanonical IP forms can satisfy a generic URI format but are
+rejected by Margo. Run `margo check guide.md --policy policy.json` as the final
+gate.
 
 ## Raw HTML
 

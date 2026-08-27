@@ -106,6 +106,26 @@ func TestCheckPolicyUsesHostOwnedRawHTMLAuthority(t *testing.T) {
 	}
 }
 
+func TestCheckPolicyResourceLimitDiagnosticPointsToInputCeiling(t *testing.T) {
+	source := Source{Name: "large.md", Content: []byte("---\nlanguage: en\n---\n\n# a document larger than one byte\n")}
+	diagnostics, err := Check(context.Background(), source, WithCheckPolicy(Policy{
+		RawHTML: RawHTMLDeny, InputBytes: 1, OutputBytes: MaxOutputBytes,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diagnostics) != 1 {
+		t.Fatalf("diagnostics = %+v", diagnostics)
+	}
+	got := diagnostics[0]
+	if got.Code != "policy.resource.document_too_large" || got.Pointer != "/policy/inputBytes" {
+		t.Fatalf("diagnostic = %+v", got)
+	}
+	if !strings.Contains(got.Hint, "inputBytes") || strings.Contains(got.Hint, "raw HTML") {
+		t.Fatalf("diagnostic hint = %q", got.Hint)
+	}
+}
+
 func TestCheckPolicyMatchesCompileAndRenderRawHTMLFailures(t *testing.T) {
 	tests := []struct {
 		name   string

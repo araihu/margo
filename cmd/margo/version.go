@@ -76,7 +76,11 @@ func newVersionCommand(deps Dependencies) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print version and compiled engine capabilities",
-		Args:  cobra.NoArgs,
+		Long: "Print the release identity and engines compiled into this binary.\n" +
+			"This does not probe the host; run margo doctor for external browser\n" +
+			"discovery. margo --version is an exact alias.",
+		Example: "  margo version\n  margo --version",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return writeVersion(cmd.OutOrStdout(), deps.Build)
 		},

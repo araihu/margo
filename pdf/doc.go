@@ -13,6 +13,12 @@
 //		RelativeLinks: pdf.RelativeLinksStrip,
 //	})
 //
+// A typical Margo pipeline obtains html from RenderStandalone, obtains the
+// descriptor from rendered.RuntimeDescriptor("ri-00000001"), and chooses a
+// non-empty execution ID such as margo.ExecutionID("pdf-guide-1"). Construct
+// pdf/chromium with an explicit installed browser path; neither package
+// downloads or discovers a browser for the host.
+//
 // Engines never select or fall back to another engine. Package pdf also does
 // not discover or download a browser. Use package pdf/engines for deterministic
 // discovery, or construct package pdf/chromium with an explicitly selected

@@ -433,11 +433,37 @@ func checkPolicyCompatibility(config checkConfig, source Source, frontmatter fro
 		diagnostics[index].Line = 1
 		diagnostics[index].Column = 1
 		if diagnostics[index].Pointer == "" {
-			diagnostics[index].Pointer = "/policy/rawHTML"
+			diagnostics[index].Pointer, diagnostics[index].Hint = policyDiagnosticContext(diagnostics[index].Code)
 		}
-		diagnostics[index].Hint = "Update the trusted host policy or replace raw HTML with Markdown."
+		if diagnostics[index].Pointer == "" {
+			diagnostics[index].Pointer = "/policy"
+		}
+		if diagnostics[index].Hint == "" {
+			diagnostics[index].Hint = "Update the trusted host policy."
+		}
 	}
 	return EffectivePolicy{}, diagnostics
+}
+
+func policyDiagnosticContext(code string) (pointer, hint string) {
+	switch code {
+	case "policy.schema_version_invalid":
+		return "/policy/schemaVersion", "Use schemaVersion: margo-policy/v1 in the trusted host policy."
+	case "policy.raw_html.invalid":
+		return "/policy/rawHTML", "Use rawHTML: deny or rawHTML: sanitized in the trusted host policy."
+	case "policy.raw_html.denied":
+		return "/policy/rawHTML", "Set rawHTML: sanitized in the trusted host policy or replace raw HTML with Markdown."
+	case "policy.input_bytes_invalid", "policy.resource.document_too_large":
+		return "/policy/inputBytes", "Increase policy.inputBytes within the allowed limit or reduce the Markdown source."
+	case "policy.output_bytes_invalid":
+		return "/policy/outputBytes", "Set policy.outputBytes between 1 and 67108864 bytes."
+	case "policy.iframe_invalid":
+		return "/policy/iframe", "Correct the trusted iframe origins, sandbox, referrer policy, and target projections."
+	case "policy.host.invalid":
+		return "/policy", "Provide a valid trusted host policy object."
+	default:
+		return "", ""
+	}
 }
 
 func actionableCheckFailure(source Source, failure error) []Diagnostic {

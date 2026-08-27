@@ -63,7 +63,11 @@ func newPDFCommand(deps Dependencies) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "pdf INPUT",
 		Short: "Render a PDF document",
-		Long:  "Render a PDF document. Run margo check before conversion and margo doctor when no PDF engine is discovered.",
+		Long: "Render a PDF document. Run margo check before conversion and margo doctor when no PDF engine is discovered.\n\n" +
+			"Standalone output uses Margo's document furniture. For a corporate name,\n" +
+			"logo, and pre-rendered page artifact, configure site.yaml and use\n" +
+			"margo site; this command has no --brand or --logo flag. See\n" +
+			"https://margo.araihu.com/cli/pdf/#corporate-branding for that workflow.",
 		Example: "  margo check guide.md\n" +
 			"  margo doctor\n" +
 			"  margo pdf guide.md --output guide.pdf\n" +

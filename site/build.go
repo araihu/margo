@@ -1,4 +1,23 @@
 // Package site builds deterministic multi-page HTML sites from Markdown inputs.
+//
+// Build validates and returns exact artifacts without writing them. The caller
+// owns the destination and publication policy:
+//
+//	result, err := site.Build(ctx, site.Request{
+//		SourceRoot: ".",
+//		Sources: []site.Source{{Path: "guide.md", Content: markdown}},
+//		Compiler: compiler,
+//	})
+//	if err != nil {
+//		return err
+//	}
+//	for _, artifact := range result.Artifacts {
+//		// write artifact.Path and artifact.Content in a host-owned staging tree
+//	}
+//
+// Use BuildConfig when site.yaml should own source roots, identity, routes,
+// themes, and publication metadata. The margo CLI adds filesystem staging,
+// the exact manifest, and no-replace destination semantics around this API.
 package site
 
 import (
