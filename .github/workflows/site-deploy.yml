@@ -60,6 +60,22 @@ jobs:
           check-latest: false
           cache: true
 
+      - name: Select standalone Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome_path="$(command -v google-chrome || command -v google-chrome-stable || true)"
+          test -n "$chrome_path"
+          test -x "$chrome_path"
+          case "$(readlink -f "$chrome_path")" in
+            /snap/*) exit 1 ;;
+          esac
+          browser_bin="$RUNNER_TEMP/margo-browser-bin"
+          mkdir -p "$browser_bin"
+          ln -s "$chrome_path" "$browser_bin/chromium"
+          printf '%s\n' "$browser_bin" >> "$GITHUB_PATH"
+          "$browser_bin/chromium" --version
+
       - name: Test site pipeline
         shell: bash
         run: |
