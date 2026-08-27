@@ -246,6 +246,17 @@ func pagePDFOutput(output string) string {
 	return strings.TrimSuffix(output, path.Ext(output)) + ".pdf"
 }
 
+// pageActionPageOutput preserves source-derived publication artifact names
+// when the configured home HTML page is projected to index.html. This keeps
+// an explicit home report's Markdown/PDF downloads at report.md/report.pdf
+// while its canonical HTML route remains the static host root.
+func (b *builder) pageActionPageOutput(page Page) string {
+	if b.config != nil && page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
+		return configuredOutputPath(page.Source, b.config.Locales)
+	}
+	return page.Output
+}
+
 func (b *builder) ensurePageActionAssets() error {
 	if err := b.addArtifact(pageActionsScriptPath, []byte(pageActionsScript)); err != nil {
 		return err
@@ -267,8 +278,9 @@ func (b *builder) addDeclaredPageArtifacts(ctx context.Context, source Source, p
 	if page.Actions == nil {
 		return nil
 	}
+	actionOutput := b.pageActionPageOutput(page)
 	if page.Actions.Markdown {
-		if err := b.addArtifact(pageMarkdownOutput(page.Output), source.Content); err != nil {
+		if err := b.addArtifact(pageMarkdownOutput(actionOutput), source.Content); err != nil {
 			return err
 		}
 	}
@@ -282,7 +294,7 @@ func (b *builder) addDeclaredPageArtifacts(ctx context.Context, source Source, p
 	if err != nil {
 		return err
 	}
-	return b.addArtifact(pagePDFOutput(page.Output), pdfBytes)
+	return b.addArtifact(pagePDFOutput(actionOutput), pdfBytes)
 }
 
 func (b *builder) injectPageActions(ctx context.Context, document []byte, page Page) ([]byte, error) {
@@ -369,7 +381,7 @@ func (b *builder) injectPageActions(ctx context.Context, document []byte, page P
 		// below a subdirectory can resolve every page-action icon.
 		iconSpriteURL = b.publicationArtifactHref(pageActionsIconSpritePath)
 	}
-	toolbar, err := pageActionsNode(ctx, page, iconSpriteURL, iconMode)
+	toolbar, err := pageActionsNode(ctx, page, iconSpriteURL, iconMode, b.pageActionPageOutput(page))
 	if err != nil {
 		return nil, err
 	}
@@ -441,9 +453,9 @@ func hasClass(node *html.Node, expected string) bool {
 	return strings.Contains(" "+attributeValue(node, "class")+" ", " "+expected+" ")
 }
 
-func pageActionsNode(ctx context.Context, page Page, iconSpriteURL string, iconMode icon.Mode) (*html.Node, error) {
+func pageActionsNode(ctx context.Context, page Page, iconSpriteURL string, iconMode icon.Mode, actionOutput string) (*html.Node, error) {
 	ids := pageActionIDsFor(page)
-	markdownURL := relativeAssetPath(path.Dir(page.Output), pageMarkdownOutput(page.Output))
+	markdownURL := relativeAssetPath(path.Dir(page.Output), pageMarkdownOutput(actionOutput))
 	items := make([]dropdown.Item, 0, 2)
 	if page.Actions != nil && page.Actions.Markdown {
 		items = append(items, dropdown.Item{
@@ -471,7 +483,7 @@ func pageActionsNode(ctx context.Context, page Page, iconSpriteURL string, iconM
 				ID:      ids.download,
 				Label:   "Download PDF",
 				Caption: "Download the pre-rendered document",
-				Href:    relativeAssetPath(path.Dir(page.Output), pagePDFOutput(page.Output)),
+				Href:    relativeAssetPath(path.Dir(page.Output), pagePDFOutput(actionOutput)),
 				Icon:    pageActionIcon(iconSpriteURL, iconMode, appicons.IconHeroiconsArrowDownTray16SolidArrowDownTray),
 			})
 		}

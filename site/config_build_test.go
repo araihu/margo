@@ -212,6 +212,93 @@ theme:
 	}
 }
 
+func TestBuildConfigPublishesNonIndexHomeAtCanonicalRoot(t *testing.T) {
+	root := t.TempDir()
+	writeConfigFile(t, filepath.Join(root, "docs", "reports", "quarterly.md"), `---
+title: Q3 Operations Briefing
+description: Board-ready quarterly operations briefing.
+language: en
+margo:
+  actions:
+    markdown: true
+---
+# Q3 Operations Briefing
+
+![Briefing mark](../assets/briefing.svg)
+
+[Read the guide](../guide.md)
+`)
+	writeConfigFile(t, filepath.Join(root, "docs", "guide.md"), "# Guide\n\n[Back to briefing](reports/quarterly.md)\n")
+	copyMargoAsset(t, filepath.Join(root, "docs", "assets", "briefing.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+offline: true
+base_path: /briefing
+site:
+  name: Northstar Holdings
+  description: Board-ready quarterly operations briefing.
+  base_url: https://briefing.northstar.example
+  home: reports/quarterly.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Northstar quarterly operations briefing
+locales:
+  default: en
+  supported: [en]
+navigation:
+  mode: file-tree
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !artifactExists(result, "index.html") {
+		t.Fatalf("canonical home artifact missing: %+v", result.Artifacts)
+	}
+	if artifactExists(result, "reports/quarterly.html") {
+		t.Fatalf("source-derived home HTML artifact was published: %+v", result.Artifacts)
+	}
+	if !artifactExists(result, "reports/quarterly.md") {
+		t.Fatalf("home Markdown action artifact missing: %+v", result.Artifacts)
+	}
+	if len(result.Pages) != 2 || result.Pages[0].Source != "reports/quarterly.md" || result.Pages[0].Output != "index.html" {
+		t.Fatalf("home page route = %+v, want source reports/quarterly.md at index.html", result.Pages)
+	}
+	if result.Pages[0].Canonical != "https://briefing.northstar.example/briefing/" {
+		t.Fatalf("home canonical = %q", result.Pages[0].Canonical)
+	}
+	index := string(configArtifact(t, result, "index.html"))
+	for _, want := range []string{
+		"Q3 Operations Briefing",
+		`src="assets/briefing.svg"`,
+		`href="guide.html"`,
+		`data-margo-markdown-url="reports/quarterly.md"`,
+	} {
+		if !strings.Contains(index, want) {
+			t.Fatalf("canonical home missing %q: %s", want, index)
+		}
+	}
+	guide := string(configArtifact(t, result, "guide.html"))
+	if !strings.Contains(guide, `href="index.html"`) {
+		t.Fatalf("guide home link does not target canonical index: %s", guide)
+	}
+	sitemap := string(configArtifact(t, result, SitemapPath))
+	if !strings.Contains(sitemap, "<loc>https://briefing.northstar.example/briefing/</loc>") {
+		t.Fatalf("sitemap does not advertise canonical home: %s", sitemap)
+	}
+	llms := string(configArtifact(t, result, LLMSPath))
+	if !strings.Contains(llms, "[Q3 Operations Briefing](<https://briefing.northstar.example/briefing/>)") {
+		t.Fatalf("llms.txt does not advertise canonical home: %s", llms)
+	}
+}
+
 func TestBuildConfigPublishesExistingLinkedAssets(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\n[Download](assets/format-study.pdf?download=1#page=2)\n")

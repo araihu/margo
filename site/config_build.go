@@ -1928,7 +1928,7 @@ func (b *builder) breadcrumbFragment(page Page) string {
 
 func (b *builder) localeHomeOutput(page Page) string {
 	if page.Locale == b.config.Locales.Default {
-		return configuredOutputPath(b.config.Site.Home, b.config.Locales)
+		return b.pageOutput(b.config.Site.Home)
 	}
 	homeRoute := routeKey(b.config.Site.Home, b.config.Locales)
 	for _, candidate := range b.configPages {
@@ -1936,7 +1936,7 @@ func (b *builder) localeHomeOutput(page Page) string {
 			return candidate.Output
 		}
 	}
-	return configuredOutputPath(b.config.Site.Home, b.config.Locales)
+	return b.pageOutput(b.config.Site.Home)
 }
 
 func (b *builder) paginationFragment(page Page) string {

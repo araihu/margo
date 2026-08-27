@@ -609,7 +609,17 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 				if configured, exists := b.configuredAssets[assetPath]; exists {
 					asset, cached = configured, true
 				} else {
-					return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read image %q: %v", assetPath, readErr), "Add a readable regular image below the input directory.", source.Path)
+					// Layout-owned images are emitted relative to the page
+					// artifact, while Markdown images are relative to the source.
+					// A configured home can map a nested source to index.html, so
+					// try the page-relative configured asset path as well.
+					pageAssetPath := path.Clean(path.Join(path.Dir(b.pageOutput(source.Path)), parsed.Path))
+					if configured, pageExists := b.configuredAssets[pageAssetPath]; pageExists {
+						assetPath = pageAssetPath
+						asset, cached = configured, true
+					} else {
+						return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read image %q: %v", assetPath, readErr), "Add a readable regular image below the input directory.", source.Path)
+					}
 				}
 			} else {
 				return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read image %q: %v", assetPath, readErr), "Add a readable regular image below the input directory.", source.Path)
@@ -643,6 +653,13 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 	if err := b.addArtifact(assetPath, asset.content); err != nil {
 		return err
 	}
+	relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), assetPath)
+	if err != nil {
+		return err
+	}
+	parsed.Path = relative
+	parsed.RawPath = ""
+	node.Attr[index].Val = parsed.String()
 	return nil
 }
 
@@ -786,6 +803,16 @@ func (b *builder) result() Result {
 func (b *builder) pageOutput(name string) string {
 	if b.config == nil {
 		return outputPath(name)
+	}
+	// The configured home is published at the static host's directory root.
+	// Keep the source-derived output for every other page, but always give the
+	// default-locale home the index artifact that ordinary static hosts serve
+	// for the canonical base route.
+	if name == b.config.Site.Home {
+		locale, _ := sourceLocale(name, b.config.Locales)
+		if locale == b.config.Locales.Default {
+			return "index.html"
+		}
 	}
 	return configuredOutputPath(name, b.config.Locales)
 }
