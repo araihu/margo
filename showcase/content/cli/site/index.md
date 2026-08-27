@@ -38,7 +38,7 @@ explicit `--output-dir` changes only the publication destination.
 `margo schema site` emits the version-matched JSON Schema for the top-level
 `site.yaml` shape; `margo schema policy` and `margo schema document` emit the
 other two editor contracts. A site config is a versioned, closed YAML contract
-with `version: 1`. The generated [site configuration reference](https://github.com/araihu/margo/blob/main/docs/reference/site-config.md)
+with `version: 1`. The generated [site configuration reference](https://github.com/araihu/margo/blob/12d47e594fccdb11f8ab778839a265e17b29ac1b/docs/reference/site-config.md)
 lists the v1 fields; runtime validation is implemented by the
 [`site.Config` type](https://github.com/araihu/margo/blob/v0.0.16/site/config.go)
 in the current release line;
