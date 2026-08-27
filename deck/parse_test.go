@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/araihu/margo"
@@ -131,6 +132,21 @@ backgroundDecorative: true
 		if got, want := frontmatterSlides[index].Directives(), commentSlides[index].Directives(); !reflect.DeepEqual(got, want) {
 			t.Fatalf("slide %d frontmatter directives = %#v, comment directives = %#v", index+1, got, want)
 		}
+	}
+}
+
+func TestParseBoundsHeaderAndFooterDirectiveBytes(t *testing.T) {
+	for _, key := range []string{"header", "footer"} {
+		t.Run(key, func(t *testing.T) {
+			accepted := strings.Repeat("x", 240)
+			if _, err := Parse(key+"-accepted.md", []byte("<!-- "+key+": "+accepted+" -->\n# One\n")); err != nil {
+				t.Fatalf("240-byte value rejected: %v", err)
+			}
+			overLimit := strings.Repeat("x", 241)
+			if _, err := Parse(key+"-over-limit.md", []byte("<!-- "+key+": "+overLimit+" -->\n# One\n")); deckDiagnosticCode(err) != "deck.directive_invalid" {
+				t.Fatalf("241-byte value code = %q; err = %v", deckDiagnosticCode(err), err)
+			}
+		})
 	}
 }
 

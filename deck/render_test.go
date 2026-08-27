@@ -110,6 +110,59 @@ More visible content.
 	}
 }
 
+func TestRenderChromeProjectsBoundedInlineMarkdown(t *testing.T) {
+	result, err := Render(context.Background(), margo.New(), RenderInput{
+		Name: "inline-chrome.md",
+		Markdown: []byte("<!-- paginate: true -->\n" +
+			"<!-- header: \"**Bold header** and [deck docs](https://example.com/docs)\" -->\n" +
+			"<!-- footer: \"*Italic footer* with `code` & text\" -->\n" +
+			"# Inline chrome\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result.HTML())
+	for _, fragment := range []string{
+		`<header class="margo-deck__header"><strong>Bold header</strong> and <a href="https://example.com/docs">deck docs</a></header>`,
+		`<footer class="margo-deck__footer"><em>Italic footer</em> with <code>code</code> &amp; text</footer>`,
+	} {
+		if !strings.Contains(markup, fragment) {
+			t.Fatalf("inline chrome missing %q: %s", fragment, markup)
+		}
+	}
+	for _, literal := range []string{"**Bold header**", "*Italic footer*", "`code`"} {
+		if strings.Contains(markup, literal) {
+			t.Fatalf("inline Markdown marker leaked into deck HTML: %q", literal)
+		}
+	}
+}
+
+func TestRenderRejectsUnsafeInlineChrome(t *testing.T) {
+	tests := []struct {
+		name    string
+		header  string
+		wantErr string
+	}{
+		{name: "raw HTML", header: `<script>alert(1)</script>`, wantErr: "policy.raw_html.denied"},
+		{name: "unsafe link", header: `[unsafe](javascript:alert(1))`, wantErr: "render.link_invalid"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Render(context.Background(), margo.New(), RenderInput{
+				Name:     "unsafe-inline-chrome.md",
+				Markdown: []byte("<!-- header: " + quoteDirectiveValue(test.header) + " -->\n# Unsafe chrome\n"),
+			})
+			if result != nil || err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("result = %#v, err = %v; want %q", result, err, test.wantErr)
+			}
+		})
+	}
+}
+
+func quoteDirectiveValue(value string) string {
+	return `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
+}
+
 func TestRenderDarkDeckActivatesGoshtosoDarkSelectors(t *testing.T) {
 	result, err := Render(context.Background(), margo.New(), RenderInput{
 		Name:     "dark-table.md",

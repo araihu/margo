@@ -13,6 +13,8 @@ import (
 	"github.com/araihu/goshtoso/components/badge"
 	"github.com/araihu/goshtoso/components/icon"
 	"github.com/araihu/margo"
+	nethtml "golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 type RenderInput struct {
@@ -136,6 +138,31 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 		}
 		requirementGroups[index] = requirements
 	}
+	headerFragments := make([][]byte, len(slides))
+	footerFragments := make([][]byte, len(slides))
+	chromeRequirements := make([]margo.HTMLRequirements, 0, len(slides)*2)
+	for index, slide := range slides {
+		directives := slide.Directives()
+		if directives.Header != "" {
+			scope := scopedIDAllocator{root: allocator, scope: fmt.Sprintf("slide-%04d-header", slide.Ordinal())}
+			header, requirements, err := renderDeckInlineMarkdown(ctx, compiler, input.Name+fmt.Sprintf("#slide-%d-header", slide.Ordinal()), directives.Header, input.BaseURL, scope, "header")
+			if err != nil {
+				return nil, err
+			}
+			headerFragments[index] = header
+			chromeRequirements = append(chromeRequirements, requirements)
+		}
+		if directives.Footer != "" {
+			scope := scopedIDAllocator{root: allocator, scope: fmt.Sprintf("slide-%04d-footer", slide.Ordinal())}
+			footer, requirements, err := renderDeckInlineMarkdown(ctx, compiler, input.Name+fmt.Sprintf("#slide-%d-footer", slide.Ordinal()), directives.Footer, input.BaseURL, scope, "footer")
+			if err != nil {
+				return nil, err
+			}
+			footerFragments[index] = footer
+			chromeRequirements = append(chromeRequirements, requirements)
+		}
+	}
+	requirementGroups = append(requirementGroups, chromeRequirements...)
 	requirements, err := margo.MergeHTMLRequirements(requirementGroups...)
 	if err != nil {
 		return nil, err
@@ -156,7 +183,7 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 			return nil, err
 		}
 	}
-	article := renderDeckArticle(slides, fragments, slotFragments, geometry, lang, confidentialityBadge, paginationIcon, paginationIconPlacement)
+	article := renderDeckArticle(slides, fragments, slotFragments, headerFragments, footerFragments, geometry, lang, confidentialityBadge, paginationIcon, paginationIconPlacement)
 	page, err := renderDeckPage(document.Metadata(), theme, colorMode, lang, geometry, article, requirements, paginationIconSprite)
 	if err != nil {
 		return nil, err
@@ -205,6 +232,102 @@ func renderDeckFragment(ctx context.Context, compiler *margo.Compiler, name stri
 		return nil, nil, margo.HTMLRequirements{}, fmt.Errorf("deck.fragment_render: %w", err)
 	}
 	return append([]byte(nil), fragment.Bytes()...), renderResult, htmlResult.Requirements(), nil
+}
+
+// renderDeckInlineMarkdown projects one bounded directive value through the
+// same compiler and policy pipeline as slide content, then removes the
+// synthetic paragraph wrapper. Reusing the compiler keeps links, images, raw
+// HTML, and host policy behavior aligned with ordinary deck Markdown.
+func renderDeckInlineMarkdown(ctx context.Context, compiler *margo.Compiler, name, value, baseURL string, allocator margo.RenderIDAllocator, field string) ([]byte, margo.HTMLRequirements, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, margo.HTMLRequirements{}, nil
+	}
+	fragment, _, requirements, err := renderDeckFragment(ctx, compiler, name, []byte(value), baseURL, allocator)
+	if err != nil {
+		return nil, margo.HTMLRequirements{}, fmt.Errorf("deck.%s_render: %w", field, err)
+	}
+	inline, err := extractDeckInlineMarkdown(fragment)
+	if err != nil {
+		return nil, margo.HTMLRequirements{}, fmt.Errorf("deck.%s_invalid: %w", field, err)
+	}
+	return inline, requirements, nil
+}
+
+func extractDeckInlineMarkdown(fragment []byte) ([]byte, error) {
+	contextNode := &nethtml.Node{Type: nethtml.ElementNode, DataAtom: atom.Div, Data: "div"}
+	nodes, err := nethtml.ParseFragment(bytes.NewReader(fragment), contextNode)
+	if err != nil {
+		return nil, fmt.Errorf("inline Markdown fragment is malformed: %w", err)
+	}
+	var article *nethtml.Node
+	for _, node := range nodes {
+		if node.Type == nethtml.TextNode && strings.TrimSpace(node.Data) == "" {
+			continue
+		}
+		if node.Type != nethtml.ElementNode || node.Data != "article" || article != nil || !hasDeckHTMLClass(node, "margo-document") {
+			return nil, fmt.Errorf("inline Markdown must produce one document paragraph")
+		}
+		article = node
+	}
+	if article == nil {
+		return nil, fmt.Errorf("inline Markdown must not be empty")
+	}
+	var paragraph *nethtml.Node
+	for child := article.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == nethtml.TextNode && strings.TrimSpace(child.Data) == "" {
+			continue
+		}
+		if child.Type != nethtml.ElementNode || child.Data != "p" || paragraph != nil {
+			return nil, fmt.Errorf("inline Markdown must contain exactly one paragraph")
+		}
+		paragraph = child
+	}
+	if paragraph == nil {
+		return nil, fmt.Errorf("inline Markdown must contain visible content")
+	}
+	if err := validateDeckInlineNodes(paragraph); err != nil {
+		return nil, err
+	}
+	var output bytes.Buffer
+	for child := paragraph.FirstChild; child != nil; child = child.NextSibling {
+		if err := nethtml.Render(&output, child); err != nil {
+			return nil, fmt.Errorf("serialize inline Markdown: %w", err)
+		}
+	}
+	if output.Len() == 0 {
+		return nil, fmt.Errorf("inline Markdown must contain visible content")
+	}
+	return append([]byte(nil), output.Bytes()...), nil
+}
+
+func validateDeckInlineNodes(node *nethtml.Node) error {
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == nethtml.ElementNode {
+			switch child.Data {
+			case "a", "br", "code", "del", "em", "img", "input", "sup", "strong":
+			default:
+				return fmt.Errorf("inline Markdown emitted unsupported <%s> element", child.Data)
+			}
+			if err := validateDeckInlineNodes(child); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func hasDeckHTMLClass(node *nethtml.Node, expected string) bool {
+	for _, attribute := range node.Attr {
+		if attribute.Key != "class" {
+			continue
+		}
+		for _, class := range strings.Fields(attribute.Val) {
+			if class == expected {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func resolvePresentation(input RenderInput, options renderOptions, directives DirectiveState) (margo.ThemeName, margo.ColorMode, error) {
@@ -362,7 +485,7 @@ func renderPaginationIconSprite() ([]byte, error) {
 	return append([]byte(nil), output.Bytes()...), nil
 }
 
-func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]byte, geometry DeckGeometry, documentLang string, confidentialityBadge, paginationIcon []byte, paginationIconPlacement PaginationIconPlacement) []byte {
+func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]byte, headerFragments, footerFragments [][]byte, geometry DeckGeometry, documentLang string, confidentialityBadge, paginationIcon []byte, paginationIconPlacement PaginationIconPlacement) []byte {
 	var output bytes.Buffer
 	compositionCatalogAttribute := ""
 	for _, slide := range slides {
@@ -453,8 +576,10 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 				_, _ = fmt.Fprintf(&output, `<div class="margo-deck__background" role="img" aria-label="%s"%s>%s</div>`, html.EscapeString(background.Alt), backgroundAttributes, backgroundContent)
 			}
 		}
-		if stateDirectives.Header != "" {
-			_, _ = fmt.Fprintf(&output, `<header class="margo-deck__header">%s</header>`, html.EscapeString(stateDirectives.Header))
+		if index < len(headerFragments) && len(headerFragments[index]) > 0 {
+			_, _ = output.WriteString(`<header class="margo-deck__header">`)
+			_, _ = output.Write(headerFragments[index])
+			_, _ = output.WriteString(`</header>`)
 		}
 		layout := slide.Layout()
 		if layout == nil {
@@ -513,8 +638,10 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 		paginated := stateDirectives.Paginate != "" && stateDirectives.Paginate != "false"
 		if paginated && (len(confidentialityBadge) > 0 || len(paginationIcon) > 0) {
 			_, _ = output.WriteString(`<div class="margo-deck__bottom-chrome">`)
-			if stateDirectives.Footer != "" {
-				_, _ = fmt.Fprintf(&output, `<footer class="margo-deck__footer">%s</footer>`, html.EscapeString(stateDirectives.Footer))
+			if index < len(footerFragments) && len(footerFragments[index]) > 0 {
+				_, _ = output.WriteString(`<footer class="margo-deck__footer">`)
+				_, _ = output.Write(footerFragments[index])
+				_, _ = output.WriteString(`</footer>`)
 			}
 			_, _ = output.WriteString(`<div class="margo-deck__pagination-cluster">`)
 			_, _ = output.Write(confidentialityBadge)
@@ -527,8 +654,10 @@ func renderDeckArticle(slides []Slide, fragments [][]byte, slotFragments [][][]b
 			}
 			_, _ = output.WriteString(`</div></div>`)
 		} else {
-			if stateDirectives.Footer != "" {
-				_, _ = fmt.Fprintf(&output, `<footer class="margo-deck__footer">%s</footer>`, html.EscapeString(stateDirectives.Footer))
+			if index < len(footerFragments) && len(footerFragments[index]) > 0 {
+				_, _ = output.WriteString(`<footer class="margo-deck__footer">`)
+				_, _ = output.Write(footerFragments[index])
+				_, _ = output.WriteString(`</footer>`)
 			}
 			if paginated {
 				_, _ = fmt.Fprintf(&output, `<span class="margo-deck__pagination" aria-hidden="true">%s</span>`, strconv.Itoa(slide.Ordinal()))
