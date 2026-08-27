@@ -191,9 +191,14 @@ const chartControlWrapperStart = `<div class="goshtoso-charts-control-wrapper" d
 const chartExtensionStyleAttribute = `data-margo-extension-style="charts"`
 const chartExtensionScriptAttribute = `data-margo-extension-script="charts"`
 
+type chartIconSymbol struct {
+	attributes []html.Attribute
+	markup     []byte
+}
+
 var chartIconSymbolsState struct {
 	sync.Once
-	symbols map[string][]byte
+	symbols map[string]chartIconSymbol
 	err     error
 }
 
@@ -240,16 +245,17 @@ func inlineChartIconReferences(data []byte) ([]byte, error) {
 			return nil
 		}
 		id := strings.TrimPrefix(attribute, prefix)
-		markup, found := symbols[id]
+		symbol, found := symbols[id]
 		if !found {
 			return fmt.Errorf("chart icon symbol %q is unavailable", id)
 		}
-		children, err := html.ParseFragment(bytes.NewReader(markup), contextNode)
-		if err != nil {
-			return fmt.Errorf("parse chart icon symbol %q: %w", id, err)
-		}
 		if node.Parent == nil {
 			return fmt.Errorf("chart icon symbol %q has no parent", id)
+		}
+		applyChartIconSymbolAttributes(node.Parent, symbol.attributes)
+		children, err := html.ParseFragment(bytes.NewReader(symbol.markup), contextNode)
+		if err != nil {
+			return fmt.Errorf("parse chart icon symbol %q: %w", id, err)
 		}
 		for _, child := range children {
 			node.Parent.InsertBefore(child, node)
@@ -271,7 +277,30 @@ func inlineChartIconReferences(data []byte) ([]byte, error) {
 	return output.Bytes(), nil
 }
 
-func chartIconSymbolMarkup() (map[string][]byte, error) {
+func applyChartIconSymbolAttributes(parent *html.Node, attributes []html.Attribute) {
+	if parent.Type != html.ElementNode || parent.Data != "svg" {
+		return
+	}
+	for _, symbolAttribute := range attributes {
+		if symbolAttribute.Key == "id" {
+			continue
+		}
+		updated := false
+		for index := range parent.Attr {
+			if parent.Attr[index].Key != symbolAttribute.Key {
+				continue
+			}
+			parent.Attr[index].Val = symbolAttribute.Val
+			updated = true
+			break
+		}
+		if !updated {
+			parent.Attr = append(parent.Attr, symbolAttribute)
+		}
+	}
+}
+
+func chartIconSymbolMarkup() (map[string]chartIconSymbol, error) {
 	chartIconSymbolsState.Do(func() {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, "http://margo.invalid"+chartassets.ChartIconsSpriteURL, nil)
@@ -285,7 +314,7 @@ func chartIconSymbolMarkup() (map[string][]byte, error) {
 			chartIconSymbolsState.err = fmt.Errorf("parse chart icon sprite: %w", err)
 			return
 		}
-		symbols := make(map[string][]byte)
+		symbols := make(map[string]chartIconSymbol)
 		var visit func(*html.Node)
 		visit = func(node *html.Node) {
 			if node.Type == html.ElementNode && node.Data == "symbol" {
@@ -304,7 +333,10 @@ func chartIconSymbolMarkup() (map[string][]byte, error) {
 							return
 						}
 					}
-					symbols[id] = markup.Bytes()
+					symbols[id] = chartIconSymbol{
+						attributes: append([]html.Attribute(nil), node.Attr...),
+						markup:     markup.Bytes(),
+					}
 				}
 			}
 			for child := node.FirstChild; child != nil; child = child.NextSibling {

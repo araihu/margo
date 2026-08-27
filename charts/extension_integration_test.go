@@ -81,14 +81,27 @@ func TestRootEmbedsChartControlIconPaths(t *testing.T) {
 	if strings.Contains(markup, chartassets.ChartIconsSpriteURL) {
 		t.Fatalf("chart controls retained an external sprite reference: %s", markup)
 	}
+	iconStart := strings.Index(markup, `<svg xmlns="http://www.w3.org/2000/svg" class="size-4 shrink-0"`)
+	if iconStart < 0 {
+		t.Fatalf("embedded chart control icon is missing: %s", markup)
+	}
+	iconEnd := strings.IndexByte(markup[iconStart:], '>')
+	if iconEnd < 0 {
+		t.Fatalf("embedded chart control icon opening tag is incomplete: %s", markup)
+	}
+	iconOpening := markup[iconStart : iconStart+iconEnd+1]
 	for _, marker := range []string{
-		`<path xmlns="http://www.w3.org/2000/svg"`,
-		`stroke-linecap="round"`,
-		`d="M3.75 3.75v4.5`,
+		`viewBox="0 0 24 24"`,
+		`fill="none"`,
+		`stroke-width="1.5"`,
+		`stroke="currentColor"`,
 	} {
-		if !strings.Contains(markup, marker) {
+		if !strings.Contains(iconOpening, marker) {
 			t.Fatalf("embedded chart icon is missing %q: %s", marker, markup)
 		}
+	}
+	if !strings.Contains(markup[iconStart+iconEnd+1:], `<path xmlns="http://www.w3.org/2000/svg" stroke-linecap="round"`) {
+		t.Fatalf("embedded chart icon path is missing: %s", markup)
 	}
 }
 
