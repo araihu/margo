@@ -128,14 +128,15 @@ func legacyDirectiveName(key string) (string, bool) {
 	if !strings.HasPrefix(key, "$") {
 		return "", false
 	}
-	name := strings.TrimPrefix(key, "$")
-	if canonical, ok := recognizedDirectiveName(name); ok {
-		return canonical, true
-	}
+	name := strings.TrimLeft(strings.TrimPrefix(key, "$"), " \t")
+	spot := ""
 	if strings.HasPrefix(name, "_") {
-		if canonical, ok := recognizedDirectiveName(strings.TrimPrefix(name, "_")); ok {
-			return "_" + canonical, true
-		}
+		spot = "_"
+		name = strings.TrimLeft(strings.TrimPrefix(name, "_"), " \t")
+	}
+	name = strings.TrimSpace(name)
+	if canonical, ok := recognizedDirectiveName(name); ok {
+		return spot + canonical, true
 	}
 	return "", false
 }
@@ -148,11 +149,11 @@ func legacyDirectivePrefix(body string) (string, bool) {
 	if !strings.HasPrefix(trimmed, "$") {
 		return "", false
 	}
-	value := strings.TrimPrefix(trimmed, "$")
+	value := strings.TrimLeft(strings.TrimPrefix(trimmed, "$"), " \t")
 	spot := ""
 	if strings.HasPrefix(value, "_") {
 		spot = "_"
-		value = strings.TrimPrefix(value, "_")
+		value = strings.TrimLeft(strings.TrimPrefix(value, "_"), " \t")
 	}
 	canonical, ok := recognizedDirectivePrefix(value)
 	if !ok {

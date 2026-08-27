@@ -172,8 +172,43 @@ func TestParseRejectsRecognizedLegacyDirectiveComments(t *testing.T) {
 	}
 }
 
+func TestParseRejectsWhitespaceSeparatedLegacyDirectiveComments(t *testing.T) {
+	tests := []struct {
+		name    string
+		comment string
+		hint    string
+	}{
+		{name: "space", comment: "$ paginate: true", hint: "paginate"},
+		{name: "multiple-spaces", comment: "$  paginate: true", hint: "paginate"},
+		{name: "tab", comment: "$	paginate: true", hint: "paginate"},
+		{name: "spot-space", comment: "$ _paginate: true", hint: "_paginate"},
+		{name: "flow-map", comment: "{ $ paginate: true }", hint: "paginate"},
+		{name: "quoted-flow-map-key", comment: `{ "$ paginate": true }`, hint: "paginate"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Parse(test.name+".md", []byte("<!-- "+test.comment+" -->\n# One\n"))
+			if err == nil {
+				t.Fatal("legacy directive comment was accepted")
+			}
+			var diagnosticError *margo.DiagnosticError
+			if !errors.As(err, &diagnosticError) || len(diagnosticError.Diagnostics) != 1 {
+				t.Fatalf("error = %v; want one diagnostic", err)
+			}
+			diagnostic := diagnosticError.Diagnostics[0]
+			if diagnostic.Code != "deck.directive_invalid" {
+				t.Fatalf("code = %q", diagnostic.Code)
+			}
+			wantHint := fmt.Sprintf("Use the unprefixed `%s` directive.", test.hint)
+			if diagnostic.Hint != wantHint {
+				t.Fatalf("hint = %q want %q", diagnostic.Hint, wantHint)
+			}
+		})
+	}
+}
+
 func TestParseKeepsUnknownDollarCommentsAsNotes(t *testing.T) {
-	source := []byte("<!-- $custom: true -->\n<!-- A note mentioning $paginate: true -->\n<!-- paginate: true -->\n# One\n")
+	source := []byte("<!-- $custom: true -->\n<!-- $ unknown: true -->\n<!-- $ paginate is useful -->\n<!-- A note mentioning $paginate: true -->\n<!-- paginate: true -->\n# One\n")
 	doc, err := Parse("notes.md", source)
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +217,7 @@ func TestParseKeepsUnknownDollarCommentsAsNotes(t *testing.T) {
 	if len(slides) != 1 {
 		t.Fatalf("slides = %d", len(slides))
 	}
-	if got, want := slides[0].Notes(), []string{"$custom: true", "A note mentioning $paginate: true"}; !reflect.DeepEqual(got, want) {
+	if got, want := slides[0].Notes(), []string{"$custom: true", "$ unknown: true", "$ paginate is useful", "A note mentioning $paginate: true"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("notes = %#v want %#v", got, want)
 	}
 	if got := slides[0].Directives().Paginate; got != "true" {
