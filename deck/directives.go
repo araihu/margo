@@ -31,6 +31,14 @@ var (
 	}
 )
 
+func isDeckDirective(name string) bool {
+	if _, ok := globalDirectiveNames[name]; ok {
+		return true
+	}
+	_, ok := localDirectiveNames[name]
+	return ok
+}
+
 type directiveEvent struct {
 	name string
 	spot bool

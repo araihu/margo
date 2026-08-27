@@ -93,20 +93,10 @@ func parseMetadata(name string, lines [][]byte) (Metadata, DirectiveState, int, 
 				metadata.Marp = &active
 				continue
 			}
-			if key == "composition" {
-				event := directiveEvent{name: key, node: mapping.Content[index+1], line: 1}
-				if err := validateDirectiveNode(name, 1, key, event.node); err != nil {
-					return Metadata{}, directives, 0, err
-				}
-				if err := applyDirectiveEvent(&directives, event); err != nil {
-					return Metadata{}, directives, 0, err
-				}
-				continue
-			}
 			if strings.HasPrefix(key, "$") {
 				return Metadata{}, directives, 0, deckError("deck.directive_invalid", name, 1, "legacy $ directives are not supported; use the unprefixed form")
 			}
-			if _, ok := globalDirectiveNames[key]; !ok {
+			if !isDeckDirective(key) {
 				// Existing Margo frontmatter namespaces (for example margo.page)
 				// remain host metadata. Deck-owned keys are validated below while
 				// unrelated frontmatter is preserved for the CLI projection.

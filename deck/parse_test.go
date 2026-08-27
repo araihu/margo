@@ -3,6 +3,7 @@ package deck
 import (
 	"bytes"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/araihu/margo"
@@ -76,6 +77,59 @@ func TestDeckActivationDetectionAndConflict(t *testing.T) {
 	}
 	if _, err := Parse("contradictory.md", []byte("---\nmarp: false\n---\n# One\n")); deckDiagnosticCode(err) != "deck.activation_conflict" {
 		t.Fatalf("conflict error = %v", err)
+	}
+}
+
+func TestParseFrontmatterLocalDirectivesMatchDirectiveComments(t *testing.T) {
+	frontmatter := []byte(`---
+paginate: true
+header: Atlas review
+footer: Internal review
+class: lead
+color: ink
+backgroundColor: surface
+backgroundImage: gradient-blue
+backgroundPosition: bottom-right
+backgroundRepeat: no-repeat
+backgroundSize: cover
+backgroundDecorative: true
+---
+# One
+---
+# Two
+`)
+	comments := []byte(`<!-- paginate: true -->
+<!-- header: Atlas review -->
+<!-- footer: Internal review -->
+<!-- class: lead -->
+<!-- color: ink -->
+<!-- backgroundColor: surface -->
+<!-- backgroundImage: gradient-blue -->
+<!-- backgroundPosition: bottom-right -->
+<!-- backgroundRepeat: no-repeat -->
+<!-- backgroundSize: cover -->
+<!-- backgroundDecorative: true -->
+# One
+---
+# Two
+`)
+	frontmatterDocument, err := Parse("frontmatter.md", frontmatter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commentDocument, err := Parse("comments.md", comments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frontmatterSlides := frontmatterDocument.Slides()
+	commentSlides := commentDocument.Slides()
+	if len(frontmatterSlides) != 2 || len(commentSlides) != 2 {
+		t.Fatalf("slide counts = %d and %d, want 2", len(frontmatterSlides), len(commentSlides))
+	}
+	for index := range frontmatterSlides {
+		if got, want := frontmatterSlides[index].Directives(), commentSlides[index].Directives(); !reflect.DeepEqual(got, want) {
+			t.Fatalf("slide %d frontmatter directives = %#v, comment directives = %#v", index+1, got, want)
+		}
 	}
 }
 

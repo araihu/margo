@@ -68,6 +68,48 @@ func TestRenderEmitsLogicalStageGeometryAndLocalizedLanguage(t *testing.T) {
 	}
 }
 
+func TestRenderFrontmatterDirectivesEnableHostChrome(t *testing.T) {
+	result, err := Render(context.Background(), margo.New(), RenderInput{
+		Name: "frontmatter-chrome.md",
+		Markdown: []byte(`---
+title: Chrome probe
+paginate: true
+header: Atlas review
+footer: Internal review
+---
+# First slide
+
+Visible content.
+
+---
+
+# Second slide
+
+More visible content.
+`),
+	}, WithConfidentialityBadge("Internal"), WithPaginationIcon(PaginationIconConfig{
+		Symbol:     "hi-16-solid-clock",
+		Placement:  PaginationIconBefore,
+		Decorative: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(result.HTML())
+	if strings.Count(markup, `data-margo-paginate="true"`) != 2 {
+		t.Fatalf("frontmatter pagination markers = %d, want 2: %s", strings.Count(markup, `data-margo-paginate="true"`), markup)
+	}
+	if strings.Count(markup, `class="margo-deck__header">Atlas review</header>`) != 2 || strings.Count(markup, `class="margo-deck__footer">Internal review</footer>`) != 2 {
+		t.Fatalf("frontmatter header/footer chrome missing: %s", markup)
+	}
+	badge := strings.Index(markup, `margo-deck__confidentiality-badge`)
+	icon := strings.Index(markup, `href="#hi-16-solid-clock"`)
+	ordinal := strings.Index(markup, `class="margo-deck__pagination" aria-hidden="true">1</span>`)
+	if badge < 0 || icon < 0 || ordinal < 0 || badge > icon || icon > ordinal {
+		t.Fatalf("frontmatter host chrome is not emitted in contract order: %s", markup)
+	}
+}
+
 func TestRenderDarkDeckActivatesGoshtosoDarkSelectors(t *testing.T) {
 	result, err := Render(context.Background(), margo.New(), RenderInput{
 		Name:     "dark-table.md",
