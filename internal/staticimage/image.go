@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -51,6 +52,9 @@ func DetectContext(ctx context.Context, data []byte) (string, error) {
 	case "image/png", "image/jpeg", "image/gif", "image/webp":
 		return mediaType, nil
 	}
+	if isAVIF(data) {
+		return "image/avif", nil
+	}
 	trimmed := bytes.TrimSpace(data)
 	if mediaType == "text/xml" || bytes.HasPrefix(trimmed, []byte("<svg")) || bytes.HasPrefix(trimmed, []byte("<?xml")) {
 		if err := validateSVG(ctx, data); err != nil {
@@ -59,6 +63,59 @@ func DetectContext(ctx context.Context, data []byte) (string, error) {
 		return "image/svg+xml", nil
 	}
 	return "", &Error{Kind: FormatUnsupported, Message: fmt.Sprintf("detected %s", mediaType)}
+}
+
+// isAVIF recognizes an AV1 Image File Format file by its ISO-BMFF ftyp box.
+// The standard library's content sniffer does not currently recognize AVIF,
+// so this check deliberately requires a complete, well-formed ftyp header and
+// an avif/avis major or compatible brand instead of trusting a file extension.
+func isAVIF(data []byte) bool {
+	if len(data) < 16 || string(data[4:8]) != "ftyp" {
+		return false
+	}
+
+	boxEnd := uint64(len(data))
+	brandsStart := 16 // size, type, major brand, minor version
+	size := uint64(binary.BigEndian.Uint32(data[:4]))
+	switch size {
+	case 0:
+		// A zero-sized box extends to the end of the file.
+	case 1:
+		if len(data) < 24 {
+			return false
+		}
+		size = binary.BigEndian.Uint64(data[8:16])
+		brandsStart = 24 // extended size precedes the major brand
+		if size < uint64(brandsStart) {
+			return false
+		}
+		boxEnd = size
+	default:
+		if size < uint64(brandsStart) {
+			return false
+		}
+		boxEnd = size
+	}
+	if boxEnd > uint64(len(data)) || boxEnd < uint64(brandsStart) {
+		return false
+	}
+
+	// The major brand is followed by the minor version; compatible brands
+	// begin at brandsStart and occupy four-byte entries.
+	majorStart := brandsStart - 8
+	if hasAVIFBrand(data[majorStart : majorStart+4]) {
+		return true
+	}
+	for cursor := brandsStart; cursor+4 <= int(boxEnd); cursor += 4 {
+		if hasAVIFBrand(data[cursor : cursor+4]) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAVIFBrand(brand []byte) bool {
+	return string(brand) == "avif" || string(brand) == "avis"
 }
 
 func ValidateDataURL(ctx context.Context, value string, limit int64) ([]byte, string, error) {

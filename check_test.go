@@ -448,6 +448,28 @@ func TestCheckValidatesAssetContentAndDataSVG(t *testing.T) {
 	}
 }
 
+func TestCheckAcceptsLocalAVIFImage(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("examples", "blog", "site", "assets", "atelier-hero.avif"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Clean("/workspace/docs")
+	source := Source{
+		Name:    filepath.Join(root, "guide.md"),
+		BaseURL: root,
+		Content: []byte("---\nlanguage: en\n---\n\n![Atelier hero](assets/atelier-hero.avif)\n"),
+	}
+	diagnostics, err := Check(context.Background(), source, WithCheckAssetReader(checkMapReader{
+		filepath.Join(root, "assets", "atelier-hero.avif"): data,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diagnostics) != 0 {
+		t.Fatalf("AVIF diagnostics = %+v", diagnostics)
+	}
+}
+
 func TestCheckRejectsMislabeledDataImage(t *testing.T) {
 	png := []byte("\x89PNG\r\n\x1a\n")
 	mislabeled := "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(png)

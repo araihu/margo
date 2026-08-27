@@ -111,6 +111,7 @@ func TestMaterializeLocalImagesSupportsPopularRasterFormats(t *testing.T) {
 		"sample.jpg":  "../../examples/blog/site/assets/atelier-hero.jpg",
 		"sample.webp": "../../examples/blog/site/assets/atelier-hero.webp",
 		"sample.gif":  "../../examples/blog/site/assets/format-study.gif",
+		"sample.avif": "../../examples/blog/site/assets/atelier-hero.avif",
 	}
 	var images strings.Builder
 	for name, fixture := range fixtures {
@@ -127,7 +128,7 @@ func TestMaterializeLocalImagesSupportsPopularRasterFormats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mediaType := range []string{"image/png", "image/jpeg", "image/webp", "image/gif"} {
+	for _, mediaType := range []string{"image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"} {
 		if !strings.Contains(string(output), "data:"+mediaType+";base64,") {
 			t.Fatalf("output missing %s", mediaType)
 		}

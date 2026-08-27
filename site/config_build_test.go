@@ -348,6 +348,50 @@ locales:
 	}
 }
 
+func TestBuildConfigPublishesLocalAVIFImage(t *testing.T) {
+	root := t.TempDir()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime caller unavailable")
+	}
+	avif, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "..", "examples", "blog", "site", "assets", "atelier-hero.avif"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\n![Atelier hero](assets/atelier-hero.avif)\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "assets", "atelier-hero.avif"), string(avif))
+	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  home: index.md
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+locales:
+  default: en
+  supported: [en]
+`)
+
+	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(configArtifact(t, result, "index.html"))
+	if !strings.Contains(page, `src="assets/atelier-hero.avif"`) {
+		t.Fatalf("configured page did not publish AVIF reference: %s", page)
+	}
+	if got := configArtifact(t, result, "assets/atelier-hero.avif"); !bytes.Equal(got, avif) {
+		t.Fatalf("published AVIF differs from source: got %d bytes, want %d", len(got), len(avif))
+	}
+}
+
 func TestBuildConfigRejectsSourceAssetShadowingConfiguredCache(t *testing.T) {
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\n[Stylesheet](assets/site.css)\n")
