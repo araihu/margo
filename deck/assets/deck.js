@@ -208,8 +208,60 @@
     deck.style.marginBlockEnd = `${((quantized - 1) * logicalHeight / 2).toFixed(2)}px`;
   };
 
+  const isVisible = (element) => {
+    if (element.hidden) return false;
+    const style = getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden";
+  };
+
+  const isPresentationChrome = (element) => element.matches(
+    ".margo-deck__background, .margo-deck__header, .margo-deck__footer, " +
+    ".margo-deck__bottom-chrome, .margo-deck__pagination, .margo-mermaid__accessible-source"
+  ) || Boolean(element.closest(
+    ".margo-deck__background, .margo-deck__header, .margo-deck__footer, " +
+    ".margo-deck__bottom-chrome, .margo-deck__pagination, .margo-mermaid__accessible-source"
+  ));
+
+  const isLocalScrollContainer = (element) => {
+    const style = getComputedStyle(element);
+    return [style.overflowX, style.overflowY].some((value) => value === "auto" || value === "scroll");
+  };
+
+  const hasLocalScrollAncestor = (element, slide) => {
+    for (let ancestor = element.parentElement; ancestor && ancestor !== slide; ancestor = ancestor.parentElement) {
+      if (isLocalScrollContainer(ancestor)) return true;
+    }
+    return false;
+  };
+
+  const exceeds = (inner, outer, tolerance = 1) => inner.left < outer.left - tolerance ||
+    inner.right > outer.right + tolerance || inner.top < outer.top - tolerance ||
+    inner.bottom > outer.bottom + tolerance;
+
+  const hasVisibleOverflow = (slide) => {
+    const slideRect = slide.getBoundingClientRect();
+    for (const element of [slide, ...slide.querySelectorAll("*")]) {
+      if (element !== slide && (!isVisible(element) || isPresentationChrome(element))) continue;
+      if (element !== slide && hasLocalScrollAncestor(element, slide)) continue;
+      const rect = element.getBoundingClientRect();
+      if (element !== slide && rect.width > 0 && rect.height > 0 && exceeds(rect, slideRect)) return true;
+      // The slide's own scroll dimensions include intrinsic grid tracks and
+      // local scroll regions. Those are not visual overflow when their
+      // rendered boxes remain inside the fixed canvas. Horizontal scroll
+      // metrics remain useful for unwrapped text, while vertical metrics on
+      // visible-flow elements include normal line-box ink in Chromium and
+      // would make ordinary headings fail. Clipped descendants still fail.
+      if (element !== slide && !isLocalScrollContainer(element)) {
+        const style = getComputedStyle(element);
+        if (element.scrollWidth > element.clientWidth + 1 ||
+            (["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1)) return true;
+      }
+    }
+    return false;
+  };
+
   const validateScreenLayout = () => {
-    const overflowing = slides.filter((slide) => slide.scrollWidth > slide.clientWidth + 1 || slide.scrollHeight > slide.clientHeight + 1);
+    const overflowing = slides.filter((slide) => hasVisibleOverflow(slide));
     const failed = overflowing.length > 0;
     deck.dataset.margoScreenRuntime = failed ? "failed" : "ready";
     let diagnostic = document.querySelector("[data-margo-screen-diagnostic]");

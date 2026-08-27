@@ -1,0 +1,70 @@
+<style>
+  :root {
+    --margo-surface: #fff;
+    --margo-surface-alt: #f7f7f7;
+    --margo-ink: #1a1a1a;
+    --margo-ink-muted: #555;
+    --margo-accent: #137a72;
+    --margo-accent-strong: #075e59;
+    --margo-font-body: system-ui, sans-serif;
+    --margo-body-size: 24px;
+    --margo-body-line: 1.35;
+    --color-on-surface: #1a1a1a;
+    --color-on-surface-strong: #111;
+    --color-surface-alt: #f7f7f7;
+    --color-outline: #ccc;
+    --color-outline-strong: #888;
+    --document-page-background: #fff;
+    --document-font-body: system-ui, sans-serif;
+    --document-font-heading: system-ui, sans-serif;
+    --document-line-height: 1.35;
+    --document-content-width: 100%;
+    --spacing: 4px;
+    --radius-radius: 8px;
+    --font-weight-bold: 700;
+    --font-weight-semibold: 600;
+    --text-sm: 14px;
+    --text-sm--line-height: 1.35;
+    --text-lg: 24px;
+    --text-lg--line-height: 1.35;
+    --text-xl: 28px;
+    --text-xl--line-height: 1.2;
+    --text-2xl: 40px;
+    --text-2xl--line-height: 1.1;
+    --text-4xl: 64px;
+    --text-4xl--line-height: 1.05;
+  }
+</style>
+<div class="margo-deck-stage">
+  <article class="margo-deck" data-margo-width="1280" data-margo-height="720">
+    <section id="opening" class="margo-deck__slide" role="region" aria-label="Slide 1 of 2" tabindex="-1" data-margo-slide="0" aria-current="page">
+      <article class="margo-document"><h1>Opening</h1></article>
+    </section>
+    <section id="sidebar" class="margo-deck__slide margo-deck__slide--sidebar" role="region" aria-label="Slide 2 of 2" tabindex="-1" data-margo-slide="1" hidden>
+      <div class="margo-layout margo-layout--sidebar" data-margo-slot-count="2">
+        <div class="margo-layout__slots">
+          <div class="margo-layout__slot margo-layout__slot--main">
+            <article class="margo-document">
+              <h2>Main narrative</h2>
+              <p>The main slot carries the thesis and reading flow.</p>
+              <figure class="margo-runtime-task margo-mermaid">
+                <div class="margo-mermaid__canvas" role="img">
+                  <svg width="640" height="397" viewBox="0 0 640 397" style="display:block;min-inline-size:40rem;max-inline-size:none">
+                    <rect width="640" height="397"></rect>
+                  </svg>
+                </div>
+                <span class="margo-mermaid__overflow-cue">Scroll diagram horizontally to inspect all labels.</span>
+              </figure>
+            </article>
+          </div>
+          <div class="margo-layout__slot margo-layout__slot--rail">
+            <article class="margo-document">
+              <h3>Rail</h3>
+              <ul><li>source order</li><li>fixed canvas</li><li>explicit evidence</li></ul>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+  </article>
+</div>
