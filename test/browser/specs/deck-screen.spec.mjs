@@ -47,6 +47,36 @@ test("narrow sidebar Mermaid overflow cue does not fail a contained slide", asyn
   expect(state.diagnostic).toBe(false);
 });
 
+test("screen validator tolerates only the real layout track bleed", async ({page}) => {
+  await loadDeck(page);
+  const state = await page.evaluate(() => {
+    const slide = document.querySelector("#sidebar");
+    const layout = slide.querySelector(".margo-layout");
+    // The real 15-slide deck's narrow sidebar track ends 5.78px below the
+    // clipped slide edge. Reproduce that intrinsic layout bleed without
+    // moving its visible content outside the canvas.
+    layout.style.transform = "translateY(65px)";
+    const slideRect = slide.getBoundingClientRect();
+    const layoutRect = layout.getBoundingClientRect();
+    return {
+      validation: globalThis.margoValidateDeckScreen(),
+      bleed: layoutRect.bottom - slideRect.bottom,
+      layoutBottom: layoutRect.bottom,
+      slideBottom: slideRect.bottom,
+      oversizedValidation: (() => {
+        layout.style.transform = "translateY(100px)";
+        return globalThis.margoValidateDeckScreen();
+      })(),
+    };
+  });
+
+  expect(state.bleed).toBeGreaterThan(5);
+  expect(state.bleed).toBeLessThan(8);
+  expect(state.layoutBottom).toBeGreaterThan(state.slideBottom);
+  expect(state.validation).toBe(true);
+  expect(state.oversizedValidation).toBe(false);
+});
+
 test("screen validator still rejects a visible descendant outside the slide", async ({page}) => {
   await loadDeck(page);
   await page.evaluate(() => {
@@ -54,7 +84,9 @@ test("screen validator still rejects a visible descendant outside the slide", as
     overflow.id = "real-overflow";
     overflow.textContent = "Visible overflow";
     overflow.style.cssText = "position:absolute;inset-block-start:700px;inset-inline-start:0;width:100px;height:50px;background:red";
-    document.querySelector("#sidebar").append(overflow);
+    // Keep the overflow in the non-scrolling layout wrapper. The validator
+    // must not let the renderer-owned layout exception hide it.
+    document.querySelector("#sidebar .margo-layout").append(overflow);
   });
 
   const state = await screenState(page);

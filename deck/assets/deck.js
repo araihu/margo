@@ -234,6 +234,26 @@
     return false;
   };
 
+  const isIntrinsicLayoutBox = (element) => element.matches(".margo-layout, .margo-layout__slot") &&
+    Boolean(element.closest(".margo-layout"));
+
+  // Narrow fixed-canvas projections can make the layout grid and its local
+  // scroll slots bleed a few physical pixels past the clipped slide edge.
+  // Keep this exception local to renderer-owned layout boxes: visible
+  // descendants outside the slide are still checked below.
+  const intrinsicLayoutBleedLimit = 8;
+  const containedLayoutBleed = (element, rect, slideRect) => {
+    if (!isIntrinsicLayoutBox(element)) return false;
+    const bleed = Math.max(
+      slideRect.left - rect.left,
+      rect.right - slideRect.right,
+      slideRect.top - rect.top,
+      rect.bottom - slideRect.bottom,
+      0,
+    );
+    return bleed > 0 && bleed <= intrinsicLayoutBleedLimit;
+  };
+
   const exceeds = (inner, outer, tolerance = 1) => inner.left < outer.left - tolerance ||
     inner.right > outer.right + tolerance || inner.top < outer.top - tolerance ||
     inner.bottom > outer.bottom + tolerance;
@@ -244,10 +264,12 @@
       if (element !== slide && (!isVisible(element) || isPresentationChrome(element))) continue;
       if (element !== slide && hasLocalScrollAncestor(element, slide)) continue;
       const rect = element.getBoundingClientRect();
-      if (element !== slide && rect.width > 0 && rect.height > 0 && exceeds(rect, slideRect)) return true;
+      if (element !== slide && rect.width > 0 && rect.height > 0 && exceeds(rect, slideRect) &&
+          !containedLayoutBleed(element, rect, slideRect)) return true;
       // The slide's own scroll dimensions include intrinsic grid tracks and
       // local scroll regions. Those are not visual overflow when their
-      // rendered boxes remain inside the fixed canvas. Horizontal scroll
+      // rendered boxes remain inside (or have bounded layout bleed at) the
+      // fixed canvas. Horizontal scroll
       // metrics remain useful for unwrapped text, while vertical metrics on
       // visible-flow elements include normal line-box ink in Chromium and
       // would make ordinary headings fail. Clipped descendants still fail.
