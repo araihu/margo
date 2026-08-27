@@ -299,12 +299,14 @@ fails when it cannot be bound. `--open` opens the chosen URL in the default
 browser.
 
 Margo watches configured Markdown, YAML, CSS, images, and other local assets
-recursively. Conventional sibling directories used for build outputs, logs,
-reports, and temporary artifacts (including `build/`) are ignored for
-configured sites. A successful rebuild atomically replaces the in-memory
-snapshot and reloads connected browsers. A failed rebuild prints diagnostics
-and keeps serving the last successful site. The configured output directory is
-excluded from watching and is never written by `serve`.
+recursively. For configured sites, only the source tree, site config, and
+declared local asset roots are watched; unrelated top-level siblings are
+ignored, including conventional build-output, log, report, and temporary
+directories such as `build/` and `screenshots/`. A successful rebuild
+atomically replaces the in-memory snapshot and reloads connected browsers. A
+failed rebuild prints diagnostics and keeps serving the last successful site.
+The configured output directory is excluded from watching and is never written
+by `serve`.
 
 The development server has no TLS, authentication, authorization, rate
 limiting, or deployment contract. Binding a non-loopback `--host` exposes the

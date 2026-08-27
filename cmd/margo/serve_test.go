@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/araihu/margo/internal/devserver"
 )
@@ -163,6 +164,7 @@ site:
 		"logs/serve.log",
 		"reports/site.json",
 		"artifacts/screenshot.png",
+		"screenshots/browser.png",
 		"dist/index.html",
 	} {
 		if !project.Ignore(filepath.Join(root, filepath.FromSlash(name))) {
@@ -179,6 +181,62 @@ site:
 			t.Errorf("configured input %q was ignored", name)
 		}
 	}
+}
+
+func TestServeConfiguredProjectWatcherIgnoresUnconfiguredSiblings(t *testing.T) {
+	root := t.TempDir()
+	writeSiteFixture(t, filepath.Join(root, "docs", "index.md"), "# Configured\n")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copySiteConfigAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
+	writeSiteFixture(t, filepath.Join(root, "site.yaml"), `version: 1
+source: docs
+output: dist
+assets: local
+site:
+  name: Margo
+  base_url: https://margo.example
+  logo: assets/logo.svg
+  icon: assets/logo.svg
+  social_image:
+    path: assets/social.jpg
+    alt: Margo documentation preview
+`)
+	project, err := resolveServeProject(normalizeDependencies(Dependencies{WorkingDirectory: root}), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changes, err := devserver.Watch(project.root, project.Ignore, 20*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer changes.Close()
+
+	// Browser validation commonly writes to a top-level screenshots directory.
+	// Creating and updating it must not trigger a publication rebuild.
+	screenshots := filepath.Join(root, "screenshots")
+	if err := os.MkdirAll(screenshots, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(screenshots, "watch-probe.txt"), []byte("first\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	assertNoServeChange(t, changes.Changes(), 100*time.Millisecond)
+	if err := os.WriteFile(filepath.Join(screenshots, "watch-probe.txt"), []byte("second\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	assertNoServeChange(t, changes.Changes(), 100*time.Millisecond)
+
+	// The configured roots remain active even though unrelated siblings are
+	// ignored.
+	if err := os.WriteFile(filepath.Join(root, "docs", "index.md"), []byte("# Changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitForServeChange(t, changes.Changes())
+	drainServeChanges(changes.Changes())
+	if err := os.WriteFile(filepath.Join(root, "assets", "logo.svg"), []byte("<svg></svg>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitForServeChange(t, changes.Changes())
 }
 
 func TestServeConfiguredProjectKeepsArtifactNamedAssetAndSourceWatchable(t *testing.T) {
@@ -308,8 +366,8 @@ site:
 	if !project.Ignore(filepath.Join(root, "public", "index.html")) {
 		t.Fatal("new configured output is not ignored after failed build")
 	}
-	if project.Ignore(filepath.Join(root, "dist", "index.html")) {
-		t.Fatal("stale configured output remains ignored")
+	if !project.Ignore(filepath.Join(root, "dist", "index.html")) {
+		t.Fatal("stale configured output is not ignored as an unrelated sibling")
 	}
 }
 
@@ -325,5 +383,36 @@ func assertSnapshotRoute(t *testing.T, snapshot devserver.Snapshot, requestPath,
 	}
 	if response.Code != http.StatusOK || !strings.Contains(string(data), required) {
 		t.Fatalf("route %s = %d %q, missing %q", requestPath, response.Code, data, required)
+	}
+}
+
+func waitForServeChange(t *testing.T, changes <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-changes:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for filesystem change")
+	}
+}
+
+func assertNoServeChange(t *testing.T, changes <-chan struct{}, duration time.Duration) {
+	t.Helper()
+	select {
+	case _, ok := <-changes:
+		if !ok {
+			t.Fatal("filesystem changes channel closed unexpectedly")
+		}
+		t.Fatal("unexpected filesystem change")
+	case <-time.After(duration):
+	}
+}
+
+func drainServeChanges(changes <-chan struct{}) {
+	for {
+		select {
+		case <-changes:
+		default:
+			return
+		}
 	}
 }

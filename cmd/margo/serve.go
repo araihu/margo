@@ -209,7 +209,12 @@ func (project *serveProject) Ignore(name string) bool {
 			return false
 		}
 	}
-	return isSiblingArtifactPath(project.root, name)
+	// Do not watch arbitrary siblings of a configured site. Development
+	// tooling commonly writes screenshots, browser logs, reports, and other
+	// temporary files next to the source tree. None of those files can affect
+	// the publication, so treating only a fixed list of conventional names as
+	// artifacts would still allow unrelated output to trigger rebuilds.
+	return true
 }
 
 // configuredAssetRoots returns the top-level directories containing assets
@@ -251,24 +256,6 @@ func configuredAssetRoots(configDir string, config site.Config) []string {
 		roots = append(roots, root)
 	}
 	return roots
-}
-
-// isSiblingArtifactPath filters the conventional directories used by the
-// documented CLI examples and development tooling. It intentionally applies
-// only to top-level siblings of a configured source tree; source descendants
-// and declared asset roots are handled by Ignore before this function.
-func isSiblingArtifactPath(root, name string) bool {
-	relative, err := filepath.Rel(root, name)
-	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return false
-	}
-	component := strings.Split(relative, string(filepath.Separator))[0]
-	switch strings.ToLower(component) {
-	case "artifact", "artifacts", "build", "builds", "cache", "caches", "coverage", "log", "logs", "report", "reports", "temp", "tmp":
-		return true
-	default:
-		return false
-	}
 }
 
 func (project *serveProject) BasePath() string {

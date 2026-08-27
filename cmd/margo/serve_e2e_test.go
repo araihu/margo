@@ -117,6 +117,13 @@ site:
 		t.Fatal(err)
 	}
 	assertNoReloadEvent(t, reload, 350*time.Millisecond)
+	if err := os.MkdirAll(filepath.Join(root, "screenshots"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "screenshots", "watch-probe.txt"), []byte("ignored\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	assertNoReloadEvent(t, reload, 350*time.Millisecond)
 
 	if err := os.WriteFile(filepath.Join(root, "docs", "index.md"), []byte("# Second version\n"), 0o644); err != nil {
 		t.Fatal(err)
