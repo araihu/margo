@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/runtime-descriptor.json",
+  "title": "Margo runtime descriptor v1/v2",
+  "description": "The immutable task descriptor supplied to a Margo browser runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "documentFingerprint", "renderInstanceID", "tasks"],
+  "properties": {
+    "protocol": {"type": "string", "enum": ["margo-runtime/v1", "margo-runtime/v2"]},
+    "documentFingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "renderInstanceID": {"type": "string", "pattern": "^ri-[0-9a-z]{8,32}$"},
+    "tasks": {"type": "array", "items": {"$ref": "#/$defs/task"}},
+    "validationRequest": {"$ref": "#/$defs/validationRequest"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"protocol": {"const": "margo-runtime/v2"}}},
+      "then": {"required": ["validationRequest"]}
+    },
+    {
+      "if": {"properties": {"protocol": {"const": "margo-runtime/v1"}}},
+      "then": {"not": {"required": ["validationRequest"]}}
+    }
+  ],
+  "$defs": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "inputSHA256", "dependsOn"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^ri-[0-9a-z]{8,32}:[a-z][a-z0-9-]{0,31}:[0-9]{8}:[0-9a-f]{64}$"},
+        "kind": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"},
+        "inputSHA256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "dependsOn": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "validationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewportWidth", "viewportHeight", "deviceScaleFactor", "zoom", "browserProfile", "expectedFontBundleDigest"],
+      "properties": {
+        "viewportWidth": {"type": "integer", "minimum": 1},
+        "viewportHeight": {"type": "integer", "minimum": 1},
+        "deviceScaleFactor": {"type": "number", "exclusiveMinimum": 0},
+        "zoom": {"type": "number", "exclusiveMinimum": 0},
+        "browserProfile": {"type": "string", "minLength": 1},
+        "expectedFontBundleDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

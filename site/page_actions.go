@@ -744,6 +744,11 @@ func (b *builder) materializePDFImages(document []byte, page Page) ([]byte, erro
 				}
 			}
 		}
+		if node.Type == html.ElementNode && node.Data == "iframe" {
+			if err := b.materializePDFAuthoredIframe(node, page); err != nil {
+				return err
+			}
+		}
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			if err := visit(child); err != nil {
 				return err
@@ -759,6 +764,44 @@ func (b *builder) materializePDFImages(document []byte, page Page) ([]byte, erro
 		return nil, diagnostic("site.pdf_asset_invalid", err.Error(), "Use local images that can be embedded in the pre-rendered PDF.", page.Source)
 	}
 	return output.Bytes(), nil
+}
+
+// materializePDFAuthoredIframe keeps pre-rendered PDFs offline when an
+// explicitly unsafe document contains an iframe. Local HTML assets are moved
+// into srcdoc; remote or missing targets receive a deterministic explanatory
+// fallback instead of a network request. The HTML/site projection is left
+// untouched, so interactive embeds remain available there.
+func (b *builder) materializePDFAuthoredIframe(node *html.Node, page Page) error {
+	index := attributeIndex(node, "src")
+	if index < 0 {
+		return nil
+	}
+	source := strings.TrimSpace(node.Attr[index].Val)
+	if source == "" || strings.HasPrefix(strings.ToLower(source), "data:") || strings.HasPrefix(source, "#") {
+		return nil
+	}
+	if attributeIndex(node, "srcdoc") >= 0 {
+		node.Attr = removeHTMLAttribute(node.Attr, "src")
+		return nil
+	}
+	var content []byte
+	parsed, parseErr := url.Parse(source)
+	if parseErr == nil && parsed.Scheme == "" && parsed.Host == "" && !strings.HasPrefix(source, "//") && !strings.HasPrefix(parsed.Path, "/") && !strings.Contains(parsed.Path, "\\") {
+		assetPath := path.Clean(path.Join(path.Dir(page.Source), parsed.Path))
+		if assetPath != "." && assetPath != ".." && !strings.HasPrefix(assetPath, "../") {
+			if asset, exists := b.assets[assetPath]; exists {
+				content = asset.content
+			} else if asset, exists := b.configuredAssets[assetPath]; exists {
+				content = asset.content
+			}
+		}
+	}
+	if len(content) == 0 {
+		content = []byte(`<p>Interactive HTML content is available in the HTML projection.</p>`)
+	}
+	node.Attr = removeHTMLAttribute(node.Attr, "src")
+	node.Attr = append(node.Attr, html.Attribute{Key: "srcdoc", Val: string(content)})
+	return nil
 }
 
 func (b *builder) materializePDFImageURL(value string, page Page) (string, error) {

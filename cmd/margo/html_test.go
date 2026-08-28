@@ -107,3 +107,24 @@ func TestHTMLCommandUsesInteractiveProjectionFromTrustedPolicy(t *testing.T) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 }
+
+func TestHTMLCommandAllowsUnsafeHTMLOnlyWithExplicitFlag(t *testing.T) {
+	markdown := "---\nlanguage: en\n---\n\n<div data-example=\"yes\"><iframe src=\"preview.html\" allow=\"fullscreen\"></iframe><script>window.example = true</script></div>\n"
+	var stdout, stderr bytes.Buffer
+	command := NewRootCommand(Dependencies{
+		Stdin: strings.NewReader(markdown), Stdout: &stdout, Stderr: &stderr,
+		Build: testBuildInfo(), WorkingDirectory: t.TempDir(),
+	})
+	command.SetArgs([]string{"html", "-", "--allow-unsafe-html"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<div data-example="yes">`, `<iframe src="preview.html" allow="fullscreen"></iframe>`, `<script>window.example = true</script>`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("HTML output missing %q: %s", want, stdout.String())
+		}
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}

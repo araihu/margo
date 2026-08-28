@@ -11,13 +11,25 @@ import (
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-// SchemaKind identifies one public, version-matched configuration schema.
+// SchemaKind identifies one public, version-matched configuration or output
+// schema. Output schemas describe the stable JSON envelopes emitted by the
+// CLI and runtime integrations.
 type SchemaKind string
 
 const (
 	SchemaPolicy   SchemaKind = "policy"
 	SchemaDocument SchemaKind = "document"
 	SchemaSite     SchemaKind = "site"
+
+	SchemaDiagnostic            SchemaKind = "diagnostic"
+	SchemaDoctorReport          SchemaKind = "doctor-report"
+	SchemaCheckReport           SchemaKind = "check-report"
+	SchemaSiteReport            SchemaKind = "site-report"
+	SchemaSiteManifest          SchemaKind = "site-manifest"
+	SchemaRuntimeDescriptor     SchemaKind = "runtime-descriptor"
+	SchemaRuntimeReport         SchemaKind = "runtime-report"
+	SchemaDeckLayoutEvidence    SchemaKind = "deck-layout-evidence"
+	SchemaDeckPDFArtifactReport SchemaKind = "deck-pdf-artifact-report"
 )
 
 const (
@@ -52,6 +64,9 @@ func Schema(kind SchemaKind) ([]byte, error) {
 	case SchemaSite:
 		source = siteSchemaBytes
 	default:
+		if output, err := OutputSchema(kind); err == nil {
+			return output, nil
+		}
 		return nil, fmt.Errorf("schema.kind_invalid: unsupported schema %q", kind)
 	}
 	return append([]byte(nil), source...), nil

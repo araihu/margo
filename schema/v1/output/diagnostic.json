@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/diagnostic.json",
+  "title": "Margo diagnostic output v1",
+  "description": "One structured diagnostic emitted by a Margo command failure or compatibility report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message"],
+  "properties": {
+    "code": {"description": "Stable machine-readable diagnostic code.", "type": "string", "minLength": 1},
+    "message": {"description": "Human-readable diagnostic message.", "type": "string", "minLength": 1},
+    "severity": {"description": "Diagnostic severity when present.", "type": "string", "enum": ["info", "warning", "error"]},
+    "source": {"description": "Source path associated with the diagnostic.", "type": "string"},
+    "line": {"description": "One-based source line.", "type": "integer", "minimum": 1},
+    "column": {"description": "One-based source column.", "type": "integer", "minimum": 1},
+    "pointer": {"description": "JSON Pointer identifying the affected field.", "type": "string"},
+    "hint": {"description": "Actionable remediation hint.", "type": "string"}
+  }
+}

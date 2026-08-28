@@ -39,7 +39,8 @@
 // Check performs read-only compatibility analysis without rendering. Host
 // applications own capability policy through WithHostPolicy and
 // WithCheckPolicy; document metadata cannot grant capabilities. Raw HTML is
-// denied by default.
+// denied by default; a trusted host can explicitly opt into authored HTML and
+// iframe passthrough with WithUnsafeHTML.
 //
 // RenderHTML exposes a semantic fragment and its dependency requirements.
 // RenderHTMLPage composes that result into a host-owned page, while

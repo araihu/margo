@@ -25,18 +25,33 @@ const (
 )
 
 type loadedPolicy struct {
-	Host   margo.Policy
-	Digest string
+	Host            margo.Policy
+	Digest          string
+	AllowUnsafeHTML bool
 }
 
-type policyFlags struct{ Path string }
+type policyFlags struct {
+	Path            string
+	AllowUnsafeHTML bool
+}
 
 func (flags *policyFlags) bind(command *cobra.Command) {
 	command.Flags().StringVar(&flags.Path, "policy", "", "trusted host policy JSON file")
+	bindUnsafeHTMLFlag(command, &flags.AllowUnsafeHTML)
+}
+
+func bindUnsafeHTMLFlag(command *cobra.Command, target *bool) {
+	command.Flags().BoolVar(target, "allow-unsafe-html", false, "allow arbitrary document HTML and iframe markup (unsafe; disabled by default)")
+	// Keep the raw-HTML vocabulary available for scripts that already use it;
+	// both spellings intentionally share one opt-in switch.
+	command.Flags().BoolVar(target, "allow-raw-html", false, "alias for --allow-unsafe-html")
 }
 
 func (flags policyFlags) load(ctx context.Context, reader SourceReader) (*loadedPolicy, error) {
 	if strings.TrimSpace(flags.Path) == "" {
+		if flags.AllowUnsafeHTML {
+			return &loadedPolicy{AllowUnsafeHTML: true}, nil
+		}
 		return nil, nil
 	}
 	if flags.Path == "-" {
@@ -56,6 +71,7 @@ func (flags policyFlags) load(ctx context.Context, reader SourceReader) (*loaded
 	if err != nil {
 		return nil, err
 	}
+	policy.AllowUnsafeHTML = flags.AllowUnsafeHTML
 	return &policy, nil
 }
 
@@ -78,8 +94,12 @@ func compilerForPolicy(policy *loadedPolicy, target policyTarget, chartOptions .
 		// accessible data table, but do not ship browser-only chart controls.
 		chartOptions = append(chartOptions, charts.WithDeckProjection(true), charts.WithControlWrapper(false))
 	}
-	if policy == nil {
-		return newCompilerWithChartOptions(chartOptions)
+	options := make([]margo.Option, 0, 2)
+	if policy != nil && policy.Digest != "" {
+		options = append(options, margo.WithHostPolicy(policy.Host))
 	}
-	return newCompilerWithChartOptions(chartOptions, margo.WithHostPolicy(policy.Host))
+	if policy != nil && policy.AllowUnsafeHTML {
+		options = append(options, margo.WithUnsafeHTML())
+	}
+	return newCompilerWithChartOptions(chartOptions, options...)
 }

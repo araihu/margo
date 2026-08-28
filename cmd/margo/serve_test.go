@@ -54,6 +54,24 @@ func TestServeCommandPassesInputAndDevelopmentFlags(t *testing.T) {
 	}
 }
 
+func TestServeCommandPassesUnsafeHTMLOptIn(t *testing.T) {
+	var got serveRequest
+	command := NewRootCommand(Dependencies{
+		Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Build: testBuildInfo(),
+		ServeSite: func(_ context.Context, request serveRequest) error {
+			got = request
+			return nil
+		},
+	})
+	command.SetArgs([]string{"serve", "--allow-unsafe-html"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !got.AllowUnsafeHTML {
+		t.Fatalf("serve request = %+v, want unsafe HTML opt-in", got)
+	}
+}
+
 func TestServeCommandRejectsTooManyInputsAndInvalidPorts(t *testing.T) {
 	for _, args := range [][]string{
 		{"serve", "one", "two"},

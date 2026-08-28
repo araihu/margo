@@ -23,10 +23,14 @@ output is stdout. `--format pdf` requires an explicit `--output PATH` or
 `--output -`. HTML or PDF bytes go to the selected output; failures go to
 stderr.
 
-PDF decks reuse the PDF engine, page, image-overflow, and atomic output
+PDF decks reuse the PDF renderer, page, image-overflow, and atomic output
 contracts. Their page margins default to zero, and relative PDF links use
 `strip`. Page metadata in the document still applies unless an explicit page
 or slide-geometry flag overrides it.
+
+Raw HTML and iframe markup are denied by default. Pass
+`--allow-unsafe-html` (or `--allow-raw-html`) when the deck source intentionally
+contains an embedded HTML surface.
 
 ## Examples
 
@@ -61,6 +65,20 @@ margo deck slides.md \
   --engine auto
 ```
 
+The HTML command produces one self-contained, accessible deck with both slides
+and keyboard controls. The examples below use ordinary HTML `iframe` elements
+to embed the generated deck files, so the published controls and slide geometry
+remain interactive instead of being represented by a cropped image. Because
+raw HTML is an explicit capability, build this page with
+`--allow-unsafe-html` (disabled by default).
+
+> **Live HTML deck**
+>
+> [Open the two-slide deck with keyboard and print controls](../../examples/deck-workspace/slides.html)
+>
+> The artifact keeps both slides, pagination, and the print action together in
+> one file, so it is the closest preview of what `margo deck` publishes.
+
 Preset geometry selects a logical canvas: `16:9` is 1280×720 and `4:3` is
 960×720. Custom geometry requires all four declarations:
 
@@ -85,17 +103,25 @@ margo deck slides.md \
   --output build/slides-internal.html
 ```
 
+The resulting slide shows the host-owned badge and pagination icon alongside
+the deck controls:
+
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="chrome-pagination.html" title="Deck with host-owned Internal badge and pagination icon" width="1280" height="720" loading="lazy"></iframe>
+</div>
+
 For an informative icon, omit `--pagination-icon-decorative` and provide
 `--pagination-icon-label`. `--print-chart-data` includes accessible exact-data
 tables after supported charts.
 
 ### Charts in decks
 
-Deck HTML and PDF are static slide projections. Use the default renderer or
-write `renderer: static`; `renderer: interactive` is intentionally rejected for
-the `deck` target because browser chart controls are not part of the deck
-artifact contract. Run the target check first to get the same actionable
-diagnostic that rendering would produce:
+Deck slide content is a static projection; the HTML wrapper adds navigation and
+print controls. Use the default renderer or write `renderer: static`;
+`renderer: interactive` is intentionally rejected for the `deck` target because
+browser chart controls are not part of the deck artifact contract. Run the
+target check first to get the same actionable diagnostic that rendering would
+produce:
 
 ~~~sh
 cat > slides.md <<'MARKDOWN'
@@ -125,6 +151,12 @@ the tabular fallback. PDF decks apply compact print styling and let the table
 reflow to its natural height, keeping all declared rows visible in the fixed
 slide canvas. If a larger table still cannot fit, Margo reports the affected
 slide and suggests reducing the chart data or choosing a larger slide size.
+
+This is the static chart projection produced by the example above:
+
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="chart-slides.html" title="Rendered static Weekly revenue chart in a deck" width="1280" height="720" loading="lazy"></iframe>
+</div>
 
 ## Structural layouts
 
@@ -276,6 +308,13 @@ margo check build/structural-layouts.md --target deck --diagnostics json
 margo deck build/structural-layouts.md --output build/structural-layouts.html
 ~~~
 
+The generated deck gives each structural layout its own slide. This embedded
+deck shows the six slide variants in source order:
+
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="structural-layouts.html" title="Structural layout slides: columns, sidebar, compare, metrics, timeline, and demo" width="1280" height="720" loading="lazy"></iframe>
+</div>
+
 The sample carries both `language` and the deck directive `lang`: the generic
 Margo check uses `language`, while deck labels and localized chrome use `lang`.
 For a deck that is rendered only through the Go API, `lang` is the deck-local
@@ -289,13 +328,49 @@ order, and PDF projection; CSS never reorders slots.
 
 ### Composition presets are separate
 
-The optional `composition` directive selects the versioned R1 catalog and has
-different slot contracts. For example, `media-split` uses `media` and
-`content`, `compare-grid` uses `item-1` through `item-4`, and `steps` uses
-`step-1` through `step-6`. Do not substitute those names into an uncomposed
-`columns`, `compare`, or `timeline` layout. See the
-[composition reference](https://github.com/araihu/margo/blob/v0.0.17/docs/reference/deck-compositions-r1.md) for
-the complete preset catalog and its cardinalities.
+Select a preset with the `composition` directive in frontmatter or in an HTML
+comment. The preset supplies its layout family and slot contract; structural
+presets still use named slot markers, while body presets use the ordinary slide
+body. Keep these preset slots separate from the contracts for an uncomposed
+`columns`, `compare`, or `timeline` layout.
+
+| Preset | Best for | Slot markers | Cardinality |
+| --- | --- | --- | --- |
+| `content` | Text, tables, code, charts, or diagrams | body | implicit |
+| `agenda` | Roadmaps and tables of contents | `item-1` … `item-6` | 3–6 |
+| `media-split` | Media beside explanatory content | `media`, `content` | exactly 2 |
+| `media-stage` | A media-led split with a larger media area | `media`, `content` | exactly 2 |
+| `steps` | An ordered process or implementation sequence | `step-1` … `step-6` | 3–6 |
+| `highlight` | One conclusion, quote, or takeaway | body | implicit |
+| `compare-grid` | A symmetric comparison | `item-1` … `item-4` | 2–4 |
+| `hero` | An opening, closing, or high-emphasis statement | body | implicit |
+| `image-grid` | An ordered collection of media cards | `image-1` … `image-4` | 2–4 |
+
+For example, a composed media slide names its two roles directly:
+
+```markdown
+<!-- composition: media-split -->
+<!-- slot: media -->
+![Architecture](assets/architecture.svg)
+<!-- slot: content -->
+## Decision
+
+Keep the source order explicit.
+```
+
+The [composition reference](https://github.com/araihu/margo/blob/v0.0.17/docs/reference/deck-compositions-r1.md)
+documents the complete R1 catalog, validation rules, and rendering contract.
+
+The complete R1 fixture below renders one slide for each catalog preset, making
+the differences in layout family and slot treatment visible at a glance:
+
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="compositions-r1.html" title="R1 composition preset gallery" width="1280" height="720" loading="lazy"></iframe>
+</div>
+
+The gallery is ordered as `content`, the uncomposed override, `agenda`,
+`media-split`, `media-stage`, `steps`, `highlight`, `compare-grid`, `hero`, and
+`image-grid`.
 
 ## Themes, directives, and presenter notes
 
@@ -314,6 +389,18 @@ headingDivider: 2
 size: 4:3
 ---
 ```
+
+These three theme choices produce deliberately different slide surfaces. The
+modern light variant is shown in the basic example above; the other two are
+embedded here at their declared color mode and geometry:
+
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="theme-goshtoso.html" title="Goshtoso dark deck theme" width="1280" height="720" loading="lazy"></iframe>
+</div>
+
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="theme-minimal.html" title="Minimal light 4:3 deck theme" width="960" height="720" loading="lazy"></iframe>
+</div>
 
 Local directives are `paginate`, `header`, `footer`, `class`, `color`,
 `backgroundColor`, `backgroundImage`, `backgroundPosition`,
@@ -379,7 +466,7 @@ margo check build/structural-layouts.md --target deck --diagnostics json
 | `deck.confidentiality_badge_invalid` / `deck.pagination_icon_invalid` | Host chrome options are invalid. | Use bounded badge text or a catalog icon; informative icons need a label. |
 
 Existing output files are protected; add `--force` only when replacement is
-intentional. Engine failures otherwise use the same `pdf.*` diagnostics as
+intentional. Renderer failures otherwise use the same `pdf.*` diagnostics as
 `margo pdf`.
 
 ## Limitations and care

@@ -175,6 +175,7 @@ func (c *Compiler) Render(ctx context.Context, document *Document, options ...Re
 		documentFingerprint: document.documentFingerprint,
 		runtimeTasks:        cloneRuntimeTaskTemplates(runtimeTasks),
 		target:              renderTarget(renderConfig),
+		allowUnsafeHTML:     document.effectivePolicy.AllowUnsafeHTML,
 	}, nil
 }
 

@@ -76,6 +76,47 @@ func TestBuildLocalSiteRewritesLinksAndSharesAssets(t *testing.T) {
 	}
 }
 
+func TestBuildLocalSitePublishesRelativeIframeHTMLWhenUnsafeHTMLIsEnabled(t *testing.T) {
+	root := filepath.Clean("/workspace/docs")
+	preview := []byte(`<!doctype html><html><body><h1>Interactive preview</h1></body></html>`)
+	request := Request{
+		SourceRoot:  root,
+		Sources:     []Source{{Path: "index.md", Content: []byte("# Home\n\n<div class=\"preview\"><iframe src=\"preview.html\" title=\"Interactive preview\"></iframe></div>\n")}},
+		Compiler:    margo.New(margo.WithUnsafeHTML()),
+		Assets:      AssetsLocal,
+		AssetReader: mapAssetReader{filepath.Join(root, "preview.html"): preview},
+	}
+	result, err := Build(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "index.html")
+	if !strings.Contains(page, `<iframe src="preview.html" title="Interactive preview"></iframe>`) {
+		t.Fatalf("local iframe was not preserved: %s", page)
+	}
+	if got := artifactBytes(t, result, "preview.html"); !bytes.Equal(got, preview) {
+		t.Fatalf("preview artifact = %q, want %q", got, preview)
+	}
+}
+
+func TestBuildInlineSiteEmbedsRelativeIframeHTMLWhenUnsafeHTMLIsEnabled(t *testing.T) {
+	root := filepath.Clean("/workspace/docs")
+	preview := []byte(`<main>Inline preview</main>`)
+	result, err := Build(context.Background(), Request{
+		SourceRoot: root,
+		Sources:    []Source{{Path: "index.md", Content: []byte("# Home\n\n<iframe src=\"preview.html\" title=\"Inline preview\"></iframe>\n")}},
+		Compiler:   margo.New(margo.WithUnsafeHTML()), Assets: AssetsInline,
+		AssetReader: mapAssetReader{filepath.Join(root, "preview.html"): preview},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := artifactContent(t, result, "index.html")
+	if !strings.Contains(page, `srcdoc="&lt;main&gt;Inline preview&lt;/main&gt;"`) || strings.Contains(page, `src="preview.html"`) {
+		t.Fatalf("inline iframe was not embedded: %s", page)
+	}
+}
+
 func TestBuildLocalSiteRewritesLinksInsideTableCells(t *testing.T) {
 	result, err := Build(context.Background(), Request{
 		SourceRoot: "/workspace/docs",

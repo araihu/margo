@@ -125,7 +125,7 @@ func TestDocumentCSSSpacesConsecutiveGoshtosoCodeBlocks(t *testing.T) {
 	}
 }
 
-func TestDocumentCSSSpacesGoshtosoTableFromFollowingProse(t *testing.T) {
+func TestDocumentCSSSpacesGoshtosoTableFromSurroundingProse(t *testing.T) {
 	css, err := os.ReadFile("assets/document.css")
 	if err != nil {
 		t.Fatal(err)
@@ -134,8 +134,13 @@ func TestDocumentCSSSpacesGoshtosoTableFromFollowingProse(t *testing.T) {
 	if len(rule) != 2 {
 		t.Fatal("document stylesheet is missing the scoped Goshtoso table rhythm rule")
 	}
-	if want := []byte("margin-block-end: calc(var(--spacing) * 4)"); !bytes.Contains(rule[1], want) {
-		t.Fatalf("document stylesheet missing table rhythm rule %q", want)
+	for _, want := range [][]byte{
+		[]byte("margin-block-start: calc(var(--spacing) * 6)"),
+		[]byte("margin-block-end: calc(var(--spacing) * 4)"),
+	} {
+		if !bytes.Contains(rule[1], want) {
+			t.Fatalf("document stylesheet missing table rhythm rule %q", want)
+		}
 	}
 }
 
@@ -190,10 +195,21 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 		t.Fatal("document stylesheet is missing the scoped inline-code rule")
 	}
 	for _, want := range [][]byte{
+		[]byte("display: inline-block"),
+		[]byte("box-sizing: border-box"),
+		[]byte("max-inline-size: 100%"),
+		[]byte("overflow: hidden"),
+		[]byte("text-overflow: ellipsis"),
+		[]byte("white-space: nowrap"),
+		[]byte("vertical-align: bottom"),
+		[]byte("line-height: 1.2"),
+		[]byte("margin-block: calc(var(--spacing) / 4)"),
+		[]byte("margin-inline: calc(var(--spacing) / 4)"),
 		[]byte("color: var(--color-on-surface-strong)"),
 		[]byte("background: color-mix(in oklch, var(--color-surface-alt) 50%, var(--color-outline) 50%)"),
 		[]byte("border: 1px solid var(--color-outline)"),
-		[]byte("padding-block: calc(var(--spacing) / 2)"),
+		[]byte("padding-inline: calc(var(--spacing) / 2)"),
+		[]byte("padding-block: calc(var(--spacing) / 4)"),
 	} {
 		if !bytes.Contains(rule[1], want) {
 			t.Fatalf("document stylesheet missing inline-code contrast rule %q", want)
@@ -203,6 +219,45 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 		!bytes.Contains(css, []byte("background: color-mix(in oklch, var(--color-surface-dark-alt) 50%, var(--color-outline-dark) 50%)")) ||
 		!bytes.Contains(css, []byte("border-color: var(--color-outline-dark)")) {
 		t.Fatal("document stylesheet is missing the dark inline-code boundary token")
+	}
+}
+
+func TestDocumentCSSStylesJSONSchemaAsIndentedTree(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(".margo-jsonschema__tree-list"),
+		[]byte("border-inline-start: 1px solid var(--color-outline)"),
+		[]byte(".margo-jsonschema__tree-row"),
+		[]byte(".margo-jsonschema__tree-path"),
+		[]byte("text-overflow: ellipsis"),
+		[]byte("background: transparent"),
+		[]byte("font-style: italic"),
+		[]byte("color: var(--color-danger)"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document stylesheet missing JSON Schema tree rule %q", want)
+		}
+	}
+}
+
+func TestDocumentCSSGivesLiveDeckLinkAVisibleSurface(t *testing.T) {
+	css, err := os.ReadFile("assets/document.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range [][]byte{
+		[]byte(`blockquote:has(a[href*="deck-workspace/slides.html"])`),
+		[]byte("border-inline-start: calc(var(--spacing) * 1) solid var(--color-primary)"),
+		[]byte("background: color-mix(in oklch, var(--color-surface-alt) 72%, var(--color-outline) 28%)"),
+		[]byte("border-radius: 999px"),
+		[]byte("text-decoration: none"),
+	} {
+		if !bytes.Contains(css, want) {
+			t.Fatalf("document stylesheet missing live deck surface rule %q", want)
+		}
 	}
 }
 

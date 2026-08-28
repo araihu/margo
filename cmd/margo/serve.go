@@ -17,11 +17,12 @@ import (
 )
 
 type serveRequest struct {
-	Input        string
-	Host         string
-	Port         int
-	PortExplicit bool
-	Open         bool
+	Input           string
+	Host            string
+	Port            int
+	PortExplicit    bool
+	Open            bool
+	AllowUnsafeHTML bool
 }
 
 type serveFunc func(context.Context, serveRequest) error
@@ -32,23 +33,26 @@ type serveProject struct {
 	inputDir   string
 	configPath string
 
-	mu         sync.RWMutex
-	output     string
-	basePath   string
-	sourceRoot string
-	assetRoots []string
+	mu              sync.RWMutex
+	output          string
+	basePath        string
+	sourceRoot      string
+	assetRoots      []string
+	allowUnsafeHTML bool
 }
 
 func newServeCommand(deps Dependencies) *cobra.Command {
 	host := "127.0.0.1"
 	port := 0
 	open := false
+	allowUnsafeHTML := false
 	diagnostics := string(diagnosticText)
 	command := &cobra.Command{
 		Use:   "serve [INPUT_DIR|CONFIG]",
 		Short: "Serve a site with live reload for development",
 		Long: "Build, watch, and serve a Margo site with live reload for development.\n\n" +
-			"This development server is not for production use.",
+			"This development server is not for production use. Raw HTML and iframe\n" +
+			"markup require the explicit --allow-unsafe-html opt-in.",
 		Example: "  margo serve ./docs --host 127.0.0.1 --port 8080\n" +
 			"  margo serve ./site.yaml --open",
 		Args: func(command *cobra.Command, args []string) error {
@@ -69,7 +73,7 @@ func newServeCommand(deps Dependencies) *cobra.Command {
 			if deps.ServeSite == nil {
 				return reportCommandError(command, diagnosticText, fmt.Errorf("serve.unavailable: development server is unavailable"))
 			}
-			if err := deps.ServeSite(command.Context(), serveRequest{Input: input, Host: host, Port: port, PortExplicit: explicitPort, Open: open}); err != nil {
+			if err := deps.ServeSite(command.Context(), serveRequest{Input: input, Host: host, Port: port, PortExplicit: explicitPort, Open: open, AllowUnsafeHTML: allowUnsafeHTML}); err != nil {
 				return reportCommandError(command, diagnosticText, err)
 			}
 			return nil
@@ -78,6 +82,7 @@ func newServeCommand(deps Dependencies) *cobra.Command {
 	command.Flags().StringVar(&host, "host", host, "development server bind host")
 	command.Flags().IntVar(&port, "port", port, "development server port; omitted selects an available port")
 	command.Flags().BoolVar(&open, "open", open, "open the development site in the default browser")
+	bindUnsafeHTMLFlag(command, &allowUnsafeHTML)
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
@@ -139,7 +144,7 @@ func (project *serveProject) Build(ctx context.Context) (devserver.Snapshot, err
 		project.updateConfig(config, "")
 		result, err = site.BuildConfig(ctx, site.ConfigRequest{
 			ConfigPath:  project.configPath,
-			Compiler:    compilerForPolicy(nil, policyTargetSite),
+			Compiler:    compilerForPolicy(&loadedPolicy{AllowUnsafeHTML: project.allowUnsafeHTML}, policyTargetSite),
 			AssetReader: project.deps.CheckAssetReader,
 		})
 		if err == nil {
@@ -153,7 +158,7 @@ func (project *serveProject) Build(ctx context.Context) (devserver.Snapshot, err
 		result, err = site.Build(ctx, site.Request{
 			SourceRoot:  root,
 			Sources:     sources,
-			Compiler:    compilerForPolicy(nil, policyTargetSite),
+			Compiler:    compilerForPolicy(&loadedPolicy{AllowUnsafeHTML: project.allowUnsafeHTML}, policyTargetSite),
 			Assets:      site.AssetsLocal,
 			AssetReader: project.deps.CheckAssetReader,
 		})
@@ -297,6 +302,7 @@ func runDevelopmentServer(ctx context.Context, deps Dependencies, request serveR
 	if err != nil {
 		return err
 	}
+	project.allowUnsafeHTML = request.AllowUnsafeHTML
 	listener, port, err := devserver.Listen(request.Host, request.Port, request.PortExplicit, nil)
 	if err != nil {
 		return err

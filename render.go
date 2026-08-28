@@ -292,7 +292,8 @@ func (r markdownRenderer) renderInline(node goldast.Node) error {
 		_, err := io.WriteString(r.out, html.EscapeString(string(value.Value)))
 		return err
 	case *goldast.CodeSpan:
-		if _, err := io.WriteString(r.out, `<code>`); err != nil {
+		label := inlineText(value, r.source)
+		if _, err := fmt.Fprintf(r.out, `<code title="%s">`, html.EscapeString(label)); err != nil {
 			return err
 		}
 		if err := r.renderInlineChildren(value); err != nil {
@@ -362,6 +363,21 @@ func (r markdownRenderer) renderInline(node goldast.Node) error {
 	default:
 		return r.renderInlineChildren(node)
 	}
+}
+
+func inlineText(node goldast.Node, source []byte) string {
+	var value strings.Builder
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		switch child := child.(type) {
+		case *goldast.Text:
+			value.Write(child.Value(source))
+		case *goldast.String:
+			value.Write(child.Value)
+		default:
+			value.WriteString(inlineText(child, source))
+		}
+	}
+	return value.String()
 }
 
 func (r markdownRenderer) renderLink(destination, title []byte, labelNode goldast.Node) error {
@@ -582,6 +598,10 @@ func naturalLanguageList(values []string) string {
 }
 
 func (r markdownRenderer) renderRawHTML(fragment []byte) error {
+	if r.policy.AllowUnsafeHTML {
+		_, err := r.out.Write(fragment)
+		return err
+	}
 	remaining, err := stripHTMLComments(fragment)
 	if err != nil {
 		return fmt.Errorf("source.html_comment_malformed: %w", err)

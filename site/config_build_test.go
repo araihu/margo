@@ -507,7 +507,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	root := filepath.Join(filepath.Dir(filename), "..")
 	result, err := BuildConfig(context.Background(), ConfigRequest{
 		ConfigPath: filepath.Join(root, "showcase.yaml"),
-		Compiler: margo.New(margo.WithExtension(charts.Extension(
+		Compiler: margo.New(margo.WithUnsafeHTML(), margo.WithExtension(charts.Extension(
 			charts.WithExternalizedControlRuntime(true),
 		))),
 		PDFEngine: siteTestPDFEngine{},
@@ -516,6 +516,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	commandNames := []string{"check", "completion", "deck", "doctor", "html", "pdf", "schema", "serve", "site", "version"}
+	schemaNames := []string{"check-report", "deck-layout-evidence", "deck-pdf-artifact-report", "diagnostic", "doctor-report", "document", "policy", "runtime-descriptor", "runtime-report", "site", "site-manifest", "site-report"}
 
 	htmlRoutes := make([]string, 0)
 	artifacts := make(map[string][]byte, len(result.Artifacts))
@@ -526,10 +527,19 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	sort.Strings(htmlRoutes)
-	wantHTMLRoutes := []string{"cli/index.html", "index.html", "module/index.html"}
+	wantHTMLRoutes := []string{
+		"cli/index.html", "examples/cli-workspace/guide.html", "examples/deck-workspace/slides.html",
+		"cli/deck/chart-slides.html", "cli/deck/chrome-pagination.html", "cli/deck/compositions-r1.html",
+		"cli/deck/structural-layouts.html", "cli/deck/theme-goshtoso.html", "cli/deck/theme-minimal.html",
+		"index.html", "module/index.html",
+	}
 	for _, command := range commandNames {
 		wantHTMLRoutes = append(wantHTMLRoutes, "cli/"+command+"/index.html")
 	}
+	for _, schema := range schemaNames {
+		wantHTMLRoutes = append(wantHTMLRoutes, "schemas/"+schema+"/index.html")
+	}
+	wantHTMLRoutes = append(wantHTMLRoutes, "schemas/index.html")
 	sort.Strings(wantHTMLRoutes)
 	if got, want := htmlRoutes, wantHTMLRoutes; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HTML routes = %v, want exactly %v", got, want)
@@ -539,7 +549,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("retired route artifact %q exists", retired+".html")
 		}
 	}
-	if got, want := len(result.Site.Routes), len(wantHTMLRoutes); got != want {
+	if got, want := len(result.Site.Routes), 3+len(commandNames)+len(schemaNames)+1; got != want {
 		t.Fatalf("configured routes = %d, want %d: %+v", got, want, result.Site.Routes)
 	}
 	wantRoutes := map[string]struct {
@@ -547,9 +557,10 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		family string
 		layout string
 	}{
-		"index.md":        {output: "index.html", family: "", layout: "landing"},
-		"module/index.md": {output: "module/index.html", family: "module", layout: "docs"},
-		"cli/index.md":    {output: "cli/index.html", family: "cli", layout: "docs"},
+		"index.md":         {output: "index.html", family: "", layout: "landing"},
+		"module/index.md":  {output: "module/index.html", family: "module", layout: "docs"},
+		"cli/index.md":     {output: "cli/index.html", family: "cli", layout: "docs"},
+		"schemas/index.md": {output: "schemas/index.html", family: "schemas", layout: "docs"},
 	}
 	for _, command := range commandNames {
 		wantRoutes["cli/"+command+"/index.md"] = struct {
@@ -557,6 +568,13 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			family string
 			layout string
 		}{output: "cli/" + command + "/index.html", family: "cli", layout: "docs"}
+	}
+	for _, schema := range schemaNames {
+		wantRoutes["schemas/"+schema+"/index.md"] = struct {
+			output string
+			family string
+			layout string
+		}{output: "schemas/" + schema + "/index.html", family: "schemas", layout: "docs"}
 	}
 	for _, route := range result.Site.Routes {
 		want, ok := wantRoutes[route.Source]
@@ -586,13 +604,15 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	landing := string(artifacts["index.html"])
 	module := string(artifacts["module/index.html"])
 	cli := string(artifacts["cli/index.html"])
+	schemas := string(artifacts["schemas/index.html"])
 	publicationPages := map[string]struct {
 		content string
 		route   string
 	}{
-		"Tour":   {content: landing, route: "https://margo.araihu.com/"},
-		"Module": {content: module, route: "https://margo.araihu.com/module/"},
-		"CLI":    {content: cli, route: "https://margo.araihu.com/cli/"},
+		"Tour":    {content: landing, route: "https://margo.araihu.com/"},
+		"Module":  {content: module, route: "https://margo.araihu.com/module/"},
+		"CLI":     {content: cli, route: "https://margo.araihu.com/cli/"},
+		"Schemas": {content: schemas, route: "https://margo.araihu.com/schemas/"},
 	}
 	for _, command := range commandNames {
 		publicationPages[command] = struct {
@@ -601,6 +621,15 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}{
 			content: string(artifacts["cli/"+command+"/index.html"]),
 			route:   "https://margo.araihu.com/cli/" + command + "/",
+		}
+	}
+	for _, schema := range schemaNames {
+		publicationPages[schema] = struct {
+			content string
+			route   string
+		}{
+			content: string(artifacts["schemas/"+schema+"/index.html"]),
+			route:   "https://margo.araihu.com/schemas/" + schema + "/",
 		}
 	}
 	for name, page := range publicationPages {
@@ -612,7 +641,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("%s h1 count = %d", name, strings.Count(page.content, "<h1"))
 		}
 	}
-	for _, required := range []string{`href="/module/"`, `href="/cli/"`, `One source, several projections`} {
+	for _, required := range []string{`href="/module/"`, `href="/cli/"`, `href="/schemas/"`, `One source, several projections`} {
 		if !strings.Contains(landing, required) {
 			t.Fatalf("Tour missing %q", required)
 		}
@@ -673,10 +702,58 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("CLI outline missing %q", required)
 		}
 	}
+	for _, required := range []string{"Configuration schemas", "Output and runtime schemas", "property tree", "margo schema"} {
+		if !strings.Contains(schemas, required) {
+			t.Fatalf("Schemas outline missing %q", required)
+		}
+	}
+	for _, required := range []string{`Generated HTML preview`, `href="../examples/cli-workspace/guide.html"`, `src="../examples/cli-workspace/guide.png"`} {
+		if !strings.Contains(cli, required) {
+			t.Fatalf("CLI visual example missing %q", required)
+		}
+	}
 	siteGuide := string(artifacts["cli/site/index.html"])
 	for _, required := range []string{"margo schema site", "margo.theme.tokens/v1", "css_digest", "custom Marpit theme"} {
 		if !strings.Contains(siteGuide, required) {
 			t.Fatalf("site guide missing %q", required)
+		}
+	}
+	deckGuide := string(artifacts["cli/deck/index.html"])
+	for _, required := range []string{"Live HTML deck", `href="../../examples/deck-workspace/slides.html"`, `src="chart-slides.html"`, `src="structural-layouts.html"`, `src="compositions-r1.html"`, `src="chrome-pagination.html"`, `src="theme-goshtoso.html"`, `src="theme-minimal.html"`} {
+		if !strings.Contains(deckGuide, required) {
+			t.Fatalf("deck guide visual example missing %q", required)
+		}
+	}
+	visualArtifacts := []string{
+		"margo-mascot.png",
+		"cli/page-actions.png",
+		"cli/deck/chart-slides.html",
+		"cli/deck/structural-layouts.html",
+		"cli/deck/compositions-r1.html",
+		"cli/deck/chrome-pagination.html",
+		"cli/deck/theme-goshtoso.html",
+		"cli/deck/theme-minimal.html",
+		"examples/cli-workspace/guide.png",
+		"examples/cli-workspace/guide.html",
+		"examples/deck-workspace/slides.html",
+	}
+	for _, visualPath := range visualArtifacts {
+		sourcePath := filepath.Join(root, "showcase", "content", filepath.FromSlash(visualPath))
+		want, readErr := os.ReadFile(sourcePath)
+		if readErr != nil {
+			t.Fatalf("visual source %q could not be read: %v", visualPath, readErr)
+		}
+		got, exists := artifacts[visualPath]
+		if !exists {
+			t.Fatalf("visual asset %q was not staged", visualPath)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("visual asset %q was changed while staging", visualPath)
+		}
+		for _, route := range result.Site.Routes {
+			if route.Output == visualPath {
+				t.Fatalf("visual asset %q was advertised as a page route", visualPath)
+			}
 		}
 	}
 	schemaGuide := string(artifacts["cli/schema/index.html"])
@@ -697,12 +774,20 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	sitemap := string(artifacts[SitemapPath])
-	if strings.Count(sitemap, "<url>") != len(wantHTMLRoutes) {
-		t.Fatalf("sitemap URL count = %d, want %d: %s", strings.Count(sitemap, "<url>"), len(wantHTMLRoutes), sitemap)
+	if got, want := strings.Count(sitemap, "<url>"), 3+len(commandNames)+len(schemaNames)+1; got != want {
+		t.Fatalf("sitemap URL count = %d, want %d: %s", got, want, sitemap)
 	}
-	publicRoutes := []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/"}
+	for _, visualPath := range visualArtifacts {
+		if strings.Contains(sitemap, visualPath) {
+			t.Fatalf("sitemap unexpectedly advertises visual artifact %q: %s", visualPath, sitemap)
+		}
+	}
+	publicRoutes := []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/", "https://margo.araihu.com/schemas/"}
 	for _, command := range commandNames {
 		publicRoutes = append(publicRoutes, "https://margo.araihu.com/cli/"+command+"/")
+	}
+	for _, schema := range schemaNames {
+		publicRoutes = append(publicRoutes, "https://margo.araihu.com/schemas/"+schema+"/")
 	}
 	for _, route := range publicRoutes {
 		if !strings.Contains(sitemap, "<loc>"+route+"</loc>") {
@@ -710,7 +795,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	llms := string(artifacts[LLMSPath])
-	wantTitles := []string{"[Margo]", "[Go module]", "[CLI workflows]"}
+	wantTitles := []string{"[Margo]", "[Go module]", "[CLI workflows]", "[Schemas]"}
 	for _, command := range commandNames {
 		wantTitles = append(wantTitles, "["+command+"]")
 	}

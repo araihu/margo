@@ -31,8 +31,8 @@ margo doctor
 
 `go install` places the binary in `GOBIN`, or in the Go bin directory when
 `GOBIN` is unset. Pinning a tag avoids silently changing renderer behavior in
-CI. `version` reports the installed build; `doctor` separately probes local PDF
-engines.
+CI. `version` reports the installed build; `doctor` separately checks available
+PDF renderers.
 
 ## A runnable example workspace
 
@@ -71,6 +71,14 @@ MARKDOWN
 cd margo-cli-example
 ```
 
+### Generated HTML preview
+
+Running `margo html docs/guide.md --output build/guide.html` produces a
+self-contained document like the one below. [Open the generated HTML in a new
+page](../examples/cli-workspace/guide.html) to inspect the actual browser output.
+
+[![Rendered Publishing guide document produced by the example workspace](../examples/cli-workspace/guide.png)](../examples/cli-workspace/guide.html)
+
 The examples never require raw HTML or an iframe policy. Commands that accept a
 single document can replace the path with `-` to read Markdown from stdin.
 
@@ -88,7 +96,7 @@ Margo's process contract is stable across the main commands:
 | `version`, `doctor`, `schema`, `completion` | Requested report or bytes | Command failure |
 
 Successful commands exit `0`. Any rejected argument, invalid source, policy
-failure, unavailable engine, render failure, or protected destination exits
+failure, unavailable renderer, render failure, or protected destination exits
 `1`. There are no command-specific numeric exit codes; use the stable diagnostic
 `code` when automation needs to distinguish failures.
 
@@ -120,13 +128,16 @@ Each command has its own page in this CLI family:
 - [`version`](version/index.md) identifies the installed binary.
 - [`check`](check/index.md) checks compatibility without rendering.
 - [`html`](html/index.md) renders one standalone HTML document.
-- [`pdf`](pdf/index.md) exports one document through a local engine.
+- [`pdf`](pdf/index.md) exports one document through a local PDF renderer.
 - [`deck`](deck/index.md) renders an experimental presentation.
 - [`site`](site/index.md) builds linked pages from a directory or config.
 - [`serve`](serve/index.md) previews a site with live reload.
-- [`doctor`](doctor/index.md) probes PDF engine candidates.
+- [`doctor`](doctor/index.md) checks available PDF renderer candidates.
 - [`schema`](schema/index.md) emits an embedded JSON Schema.
 - [`completion`](completion/index.md) generates shell completion.
+
+For the rendered contract trees and their consumers, see the
+[Schemas family](../schemas/index.md).
 
 ## Shared input, policy, and diagnostic rules
 
@@ -138,8 +149,11 @@ directory where the command supports relative resources.
 The same four render paths plus `site` accept `--policy FILE`. A policy is
 trusted host authority, must be a regular JSON file, cannot come from stdin,
 and is limited to 64 KiB. Ordinary Markdown, local static images, Mermaid,
-tables, and code do not need a policy. Raw HTML and iframe projections remain
-denied unless the policy explicitly authorizes them.
+tables, and code do not need a policy. Raw HTML and iframe markup remain
+denied unless the command is explicitly run with `--allow-unsafe-html` (or its
+`--allow-raw-html` alias). That opt-in is intentionally disabled by default,
+is separate from `--policy`, and should only be used when the publishing host
+has reviewed the embedded content.
 
 Shared failures include:
 
@@ -189,7 +203,7 @@ deployment rollback strategy.
 
 ## Operational gotchas
 
-- Run `margo check` for the intended target; an HTML check is not a PDF engine
+- Run `margo check` for the intended target; an HTML check is not a PDF renderer
   probe or a full multi-page site validation.
 - Redirect only documented stdout. `check`, `site`, and `doctor` write reports,
   while `html`, PDF output to `-`, decks, schemas, and completions write bytes.
@@ -197,10 +211,8 @@ deployment rollback strategy.
   content and review its digest in reports where available.
 - Relative assets depend on the input base. Prefer file input when a document
   references neighboring images.
-- PDF and PDF deck output require a usable installed engine. Margo never
-  downloads Chromium and never falls back after the selected engine starts.
-- Site destinations are immutable per invocation. Choose a fresh path before
-  building; do not pre-create it.
+- PDF and PDF deck output use an installed Chromium browser. Margo never
+  downloads Chromium or falls back after the browser starts.
 - `serve` is a loopback development preview by default, not a production web
   server.
 - Use the installed binary's `--help`, embedded schemas, JSON diagnostics, and

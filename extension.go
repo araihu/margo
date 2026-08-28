@@ -30,6 +30,7 @@ type ExtensionCheck func(context.Context, ExtensionNode) error
 
 type extensionCompileContext struct {
 	normalized sourceNormalization
+	source     Source
 }
 
 type extensionCompileHook func(extensionCompileContext, ExtensionNode, uint32) (ExtensionNode, error)
@@ -54,9 +55,19 @@ type SourcePosition struct {
 
 // ExtensionNode is an immutable detached fence payload.
 type ExtensionNode struct {
-	Fence   string
+	Fence string
+	// Info is the complete fenced-code info string, including the fence name
+	// and any optional key/value arguments after it. Extensions that need a
+	// source reference (for example, jsonschema) can interpret it without
+	// having to re-parse Goldmark nodes.
+	Info    string
 	Payload []byte
 	Source  SourcePosition
+	// BaseURL and AssetReader are populated for compatibility checks. They are
+	// intentionally optional so existing third-party extensions remain source
+	// compatible while extensions can safely resolve bounded local resources.
+	BaseURL     string
+	AssetReader CheckAssetReader
 	// Target identifies the output projection being checked. Rendered
 	// extension nodes leave this unset because render options are applied
 	// after compilation; compatibility checkers can use it for target-specific

@@ -121,6 +121,15 @@ frontmatter declaration is needed or read. Margo parses the fragment, rejects
 unknown elements and attributes, and serializes a fresh canonical fragment;
 original HTML bytes are never passed through.
 
+When a trusted documentation project intentionally needs arbitrary HTML (for
+example, a local interactive deck), opt in at the process boundary with
+`--allow-unsafe-html` (the `--allow-raw-html` spelling is an alias), or with
+`margo.WithUnsafeHTML()` in Go. This switch is disabled by default, bypasses
+the iframe allowlist and HTML sanitizer, and passes the authored bytes through
+to the selected output. It is deliberately not a document declaration or a
+reusable policy-file grant: each consumer must make and review the same
+security decision for its own publishing surface.
+
 The profile includes common semantic text, heading, list, details, table, and
 link elements. It excludes scripts, styles, images, iframes, event handlers,
 classes, IDs, arbitrary `data-*`, arbitrary `aria-*`, namespaces, and unknown

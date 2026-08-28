@@ -14,12 +14,12 @@ margo:
 
 `margo version` prints release identity and capabilities compiled into the
 binary. `margo --version` is an exact alias. Neither form searches for a browser
-or probes an external engine.
+or probes an external renderer.
 
 ## Input and output
 
 The command accepts no input. Its text report goes to stdout and includes the
-Margo version, module, commit, Go version, platform, compiled engines, and a
+Margo version, module, commit, Go version, platform, compiled renderers, and a
 reminder to run `doctor` for external discovery. Argument errors go to stderr.
 
 ## Examples
@@ -42,4 +42,4 @@ report exits `0`; there are no command-specific numeric exit codes.
 
 A source build can report `dev`, `unknown`, and `compiled engines none`; those
 values describe build metadata, not whether Chromium is installed. Use
-`margo doctor` to inspect external engine candidates.
+`margo doctor` to inspect external renderer candidates.

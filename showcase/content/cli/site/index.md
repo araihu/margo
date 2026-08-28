@@ -28,6 +28,25 @@ The report on stdout contains `margo-site-report/v1`, artifact count, manifest
 digest, page records, and an optional policy digest. Build and publication
 failures go to stderr.
 
+Raw HTML and iframe markup are denied by default. Add
+`--allow-unsafe-html` (or `--allow-raw-html`) for a deliberately embedded HTML
+surface; this is a process-level opt-in and is not stored in `site.yaml`.
+
+Both the report and the generated `margo-manifest.json` have versioned output
+schemas. The trees below are generated at build time from those contracts:
+
+```jsonschema ref=margo://schema/v1/output/site-report.json
+```
+
+See the [site report schema reference](../../schemas/site-report/index.md) for
+the full tree and its other consumers.
+
+```jsonschema ref=margo://schema/v1/output/site-manifest.json
+```
+
+See the [site manifest schema reference](../../schemas/site-manifest/index.md)
+for the full tree and its other consumers.
+
 Config mode takes source, output, assets, site identity, base URL or path,
 layout, navigation, locale, theme, and publication settings from the config.
 Without `--output-dir`, configured output is resolved beside that file. An
@@ -35,9 +54,10 @@ explicit `--output-dir` changes only the publication destination.
 
 ### Minimal configured site
 
-`margo schema site` emits the version-matched JSON Schema for the top-level
-`site.yaml` shape; `margo schema policy` and `margo schema document` emit the
-other two editor contracts. A site config is a versioned, closed YAML contract
+[`margo schema site`](../../schemas/site/index.md) emits the version-matched
+JSON Schema for the top-level `site.yaml` shape; [`margo schema policy`](../../schemas/policy/index.md)
+and [`margo schema document`](../../schemas/document/index.md) emit the other
+two editor contracts. A site config is a versioned, closed YAML contract
 with `version: 1`. The generated [site configuration reference](https://github.com/araihu/margo/blob/v0.0.17/docs/reference/site-config.md)
 lists the v1 fields; runtime validation is implemented by the
 [`site.Config` type](https://github.com/araihu/margo/blob/v0.0.17/site/config.go)

@@ -119,6 +119,12 @@
 
 /* Inline code in a lead keeps the document's semantic text visible. */
 [data-theme="margo"] .margo-document .margo-document__lead code {
+  display: inline;
+  max-inline-size: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: inherit;
   padding: 0;
   border: 0;
   color: var(--margo-accent);

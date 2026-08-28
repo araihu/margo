@@ -1,6 +1,6 @@
 ---
 title: doctor
-description: Probe the PDF rendering engines visible to the current Margo environment.
+description: Check the PDF renderers available in the current Margo environment.
 language: en
 margo:
   actions:
@@ -12,14 +12,20 @@ margo:
 
 ## Purpose
 
-`doctor` probes rendering engine candidates without rendering a document.
+`doctor` checks renderer candidates without rendering a document.
 
 ## Input and output
 
 The command accepts no input. Text or JSON output goes to stdout; command
-failures go to stderr. Each candidate records its engine name, discovery
-source, compiled and available states, executable path, version, diagnostic
-code, and reason.
+failures go to stderr. The JSON envelope is described from the same versioned
+schema that ships with Margo, so this page does not duplicate the output
+contract:
+
+```jsonschema ref=margo://schema/v1/output/doctor-report.json
+```
+
+See the [doctor report schema reference](../../schemas/doctor-report/index.md)
+for the full tree and its other consumers.
 
 ## Examples
 

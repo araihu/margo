@@ -29,7 +29,8 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 		Short: "Check Markdown compatibility without rendering",
 		Long: "Check one Markdown source before rendering it. The target controls\n" +
 			"target-specific findings: use site for multi-page link validation and\n" +
-			"pdf or deck to catch projection restrictions before producing bytes.",
+			"pdf or deck to catch projection restrictions before producing bytes.\n" +
+			"Raw HTML and iframe markup require the explicit --allow-unsafe-html opt-in.",
 		Example: "  margo check guide.md\n" +
 			"  margo check guide.md --target pdf --diagnostics json\n" +
 			"  margo check docs/index.md --target site --policy policy.json",
@@ -62,8 +63,11 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 				margo.WithCheckTarget(margo.RenderTarget(target)),
 				margo.WithCheckExtension(charts.Extension()),
 			}
-			if policy != nil {
+			if policy != nil && policy.Digest != "" {
 				checkOptions = append(checkOptions, margo.WithCheckPolicy(policy.Host))
+			}
+			if policy != nil && policy.AllowUnsafeHTML {
+				checkOptions = append(checkOptions, margo.WithCheckUnsafeHTML())
 			}
 			findings, err := margo.Check(command.Context(), source, checkOptions...)
 			if err != nil {

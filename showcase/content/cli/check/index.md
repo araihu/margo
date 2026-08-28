@@ -24,8 +24,21 @@ warning counts go to stdout in text mode. JSON mode emits an object with
 `diagnostics`, `errors`, `warnings`, and an optional policy digest. Each finding
 can carry a source, line, column, field pointer, and remediation hint.
 
+The JSON output contract is rendered directly from the versioned schema shipped
+with Margo:
+
+```jsonschema ref=margo://schema/v1/output/check-report.json
+```
+
+See the [check report schema reference](../../schemas/check-report/index.md)
+for the full tree and its other consumers.
+
 Command failures that prevent a report go to stderr. See the [CLI overview](../index.md)
 for shared input limits, policy rules, and stream behavior.
+
+Raw HTML and iframe markup are denied by default. Pass
+`--allow-unsafe-html` when checking a trusted document that intentionally uses
+arbitrary HTML; the alias `--allow-raw-html` is equivalent.
 
 ## Examples
 

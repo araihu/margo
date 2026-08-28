@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/site-report.json",
+  "title": "Margo site report v1",
+  "description": "The JSON envelope emitted by margo site --diagnostics json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "artifacts", "manifest", "pages"],
+  "properties": {
+    "schemaVersion": {"const": "margo-site-report/v1"},
+    "artifacts": {"description": "Number of published artifacts.", "type": "integer", "minimum": 0},
+    "manifest": {"description": "Digest of the exact artifact manifest.", "type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy": {"description": "Digest of the trusted host policy when one was supplied.", "type": "string"},
+    "pages": {"description": "Source-to-output page records.", "type": "array", "items": {"$ref": "#/$defs/page"}}
+  },
+  "$defs": {
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "output"],
+      "properties": {
+        "source": {"description": "Site-relative Markdown source path.", "type": "string"},
+        "output": {"description": "Site-relative generated HTML path.", "type": "string"},
+        "locale": {"type": "string"},
+        "family": {"type": "string"},
+        "layout": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "authors": {"type": "array", "items": {"type": "string"}},
+        "publishedAt": {"type": "string"},
+        "modifiedAt": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "canonical": {"type": "string"},
+        "documentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "imageOverflow": {"type": "string", "enum": ["limit", "allow"]},
+        "actions": {"$ref": "#/$defs/actions"},
+        "alternates": {"type": "array", "items": {"$ref": "#/$defs/alternate"}}
+      }
+    },
+    "alternate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locale", "url"],
+      "properties": {"locale": {"type": "string"}, "url": {"type": "string"}}
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "markdown": {"type": "boolean"},
+        "pdf": {"type": "boolean"},
+        "pdfMode": {"type": "string", "enum": ["pre-rendered", "client"]},
+        "printChartData": {"type": "boolean"}
+      }
+    }
+  }
+}

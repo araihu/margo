@@ -3,6 +3,7 @@ package margo
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -48,5 +49,36 @@ func TestRawHTMLFailsClosedWithoutHostGrant(t *testing.T) {
 		if got := diagnosticCode(err); got != "policy.raw_html.denied" {
 			t.Fatalf("markup %q diagnostic code = %q, err = %v", markup, got, err)
 		}
+	}
+}
+
+func TestUnsafeHTMLOptInPassesThroughArbitraryMarkup(t *testing.T) {
+	source := Source{Name: "unsafe.md", Content: []byte("---\nlanguage: en\n---\n\n<div data-example=\"yes\"><iframe src=\"preview.html\" allow=\"fullscreen\">fallback</iframe><script>window.example = true</script></div>")}
+	compiler := New(WithUnsafeHTML())
+	document, err := compiler.Compile(context.Background(), source)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	result, err := compiler.Render(context.Background(), document)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	markup := renderComponent(t, result.Content())
+	for _, want := range []string{
+		`<div data-example="yes">`,
+		`<iframe src="preview.html" allow="fullscreen">fallback</iframe>`,
+		`<script>window.example = true</script>`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("unsafe markup missing %q: %s", want, markup)
+		}
+	}
+
+	checkDiagnostics, err := Check(context.Background(), source, WithCheckUnsafeHTML())
+	if err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	if len(checkDiagnostics) != 0 {
+		t.Fatalf("unsafe check diagnostics = %+v", checkDiagnostics)
 	}
 }

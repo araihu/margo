@@ -17,7 +17,8 @@ func newHTMLCommand(deps Dependencies) *cobra.Command {
 		Short: "Render standalone HTML",
 		Long: "Render one Markdown source as a self-contained HTML document.\n" +
 			"Use - as INPUT or --output to choose the byte stream explicitly; the\n" +
-			"command never replaces an existing file unless --force is supplied.",
+			"command never replaces an existing file unless --force is supplied.\n" +
+			"Raw HTML and iframe markup require --allow-unsafe-html.",
 		Example: "  margo check guide.md\n" +
 			"  mkdir -p build && margo html guide.md --output build/guide.html\n" +
 			"  printf '# Status\\n' | margo html - > status.html",

@@ -34,7 +34,8 @@ func newDeckCommand(deps Dependencies) *cobra.Command {
 		Long: "Render the versioned Margo Marpit-compatible deck profile. Slides are\n" +
 			"separated by thematic breaks; YAML frontmatter and closed directives select\n" +
 			"themes, geometry, compositions, and presenter notes. Deck charts are static\n" +
-			"and arbitrary HTML/CSS or remote assets are rejected. See\n" +
+			"and arbitrary HTML/CSS or remote assets are rejected unless\n" +
+			"--allow-unsafe-html is supplied. See\n" +
 			"https://margo.araihu.com/cli/deck/ for the authoring catalog and examples.",
 		Example: "  margo check slides.md --target deck\n" +
 			"  mkdir -p build && margo deck slides.md --format html --output build/slides.html\n" +

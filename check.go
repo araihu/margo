@@ -100,12 +100,13 @@ func (FilesystemCheckAssetReader) ReadAsset(ctx context.Context, root, name stri
 }
 
 type checkConfig struct {
-	assetReader CheckAssetReader
-	assetBytes  int64
-	policy      Policy
-	policySet   bool
-	extensions  []ExtensionRegistration
-	target      RenderTarget
+	assetReader     CheckAssetReader
+	assetBytes      int64
+	policy          Policy
+	policySet       bool
+	allowUnsafeHTML bool
+	extensions      []ExtensionRegistration
+	target          RenderTarget
 }
 
 // WithCheckTarget selects the output projection analyzed by Check.
@@ -151,6 +152,16 @@ func WithCheckPolicy(policy Policy) CheckOption {
 		}
 		config.policy = clonePolicy(frozen)
 		config.policySet = true
+		return nil
+	}
+}
+
+// WithCheckUnsafeHTML mirrors WithUnsafeHTML for the read-only compatibility
+// checker. It is intentionally opt-in because raw HTML and iframe content are
+// otherwise denied before any renderer is invoked.
+func WithCheckUnsafeHTML() CheckOption {
+	return func(config *checkConfig) error {
+		config.allowUnsafeHTML = true
 		return nil
 	}
 }
@@ -220,7 +231,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 	}
 	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
 	effectivePolicy, policyDiagnostics := checkPolicyCompatibility(config, snapshot, frontmatter, root)
-	allowRawHTML := config.policySet && len(policyDiagnostics) == 0 && effectivePolicy.RawHTML == RawHTMLSanitized
+	allowRawHTML := config.allowUnsafeHTML || (config.policySet && len(policyDiagnostics) == 0 && effectivePolicy.RawHTML == RawHTMLSanitized)
 	extensionChecks := make(map[string]ExtensionCheck)
 	for _, registration := range config.extensions {
 		for _, fence := range registration.Fences {
@@ -261,6 +272,9 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			if strings.TrimSpace(string(remaining)) == "" {
 				break
 			}
+			if config.allowUnsafeHTML {
+				break
+			}
 			if embed, recognized, embedErr := parseIframeFragment(remaining); recognized {
 				offset := frontmatter.bodyOffset + segmentAtStart(value.Lines())
 				diagnostics = append(diagnostics, checkIframeDiagnostics(snapshot, config.target, effectivePolicy.Iframe, embed, embedErr, offset)...)
@@ -287,6 +301,9 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 				break
 			}
 			if strings.TrimSpace(string(remaining)) == "" {
+				break
+			}
+			if config.allowUnsafeHTML {
 				break
 			}
 			if embed, recognized, embedErr := parseIframeFragment(remaining); recognized {
@@ -328,15 +345,23 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			payloadStart := segmentAtStart(value.Lines())
 			if checker := extensionChecks[language]; checker != nil {
 				node := ExtensionNode{
-					Fence: language, Payload: append([]byte(nil), value.Lines().Value(frontmatter.body)...),
+					Fence: language, Info: fencedInfo(value, frontmatter.body), Payload: append([]byte(nil), value.Lines().Value(frontmatter.body)...),
 					Source: SourcePosition{Source: snapshot.Name, Line: lineAtOffset(snapshot.Content, frontmatter.bodyOffset+payloadStart), Column: 1},
-					Target: config.target,
+					Target: config.target, BaseURL: snapshot.BaseURL, AssetReader: config.assetReader,
 				}
 				failure := checker(ctx, node)
 				if errors.Is(failure, context.Canceled) || errors.Is(failure, context.DeadlineExceeded) {
 					return goldast.WalkStop, failure
 				}
 				diagnostics = append(diagnostics, extensionCheckDiagnostics(snapshot, node, failure)...)
+			}
+			if isJSONSchemaFence(language) && extensionChecks[language] == nil {
+				node := ExtensionNode{
+					Fence: language, Info: fencedInfo(value, frontmatter.body), Payload: append([]byte(nil), value.Lines().Value(frontmatter.body)...),
+					Source: SourcePosition{Source: snapshot.Name, Line: lineAtOffset(snapshot.Content, frontmatter.bodyOffset+payloadStart), Column: 1},
+					Target: config.target, BaseURL: snapshot.BaseURL, AssetReader: config.assetReader,
+				}
+				diagnostics = append(diagnostics, extensionCheckDiagnostics(snapshot, node, checkJSONSchemaFence(ctx, node))...)
 			}
 			if language != "mermaid" {
 				break
@@ -412,10 +437,21 @@ func extensionCheckDiagnostics(source Source, node ExtensionNode, failure error)
 
 func checkPolicyCompatibility(config checkConfig, source Source, frontmatter frontmatterResult, root goldast.Node) (EffectivePolicy, []Diagnostic) {
 	if !config.policySet {
+		if config.allowUnsafeHTML {
+			return EffectivePolicy{RawHTML: RawHTMLSanitized, InputBytes: MaxDocumentBytes, OutputBytes: MaxOutputBytes, AllowUnsafeHTML: true}, nil
+		}
 		return EffectivePolicy{}, nil
 	}
 	compilerConfig := newCompilerConfig()
-	compilerConfig.values["hostPolicy"] = config.policy
+	policy := clonePolicy(config.policy)
+	if config.allowUnsafeHTML {
+		// Keep all declared resource limits and schema validation, but make the
+		// explicit CLI/API opt-in authoritative for raw HTML and iframe markup.
+		policy.RawHTML = RawHTMLSanitized
+		policy.Iframe = nil
+		compilerConfig.values["allowUnsafeHTML"] = true
+	}
+	compilerConfig.values["hostPolicy"] = policy
 	normalized := sourceNormalization{
 		parsed: normalizedMarkdown{frontmatter: frontmatter, root: root}, sourceBytes: int64(len(source.Content)), skipRemoteImages: true,
 	}

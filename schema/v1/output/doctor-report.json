@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/doctor-report.json",
+  "title": "Margo doctor report v1",
+  "description": "The JSON envelope emitted by margo doctor --diagnostics json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["build", "candidates"],
+  "properties": {
+    "build": {"$ref": "#/$defs/build"},
+    "candidates": {
+      "description": "PDF engine candidates in deterministic discovery order.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/candidate"}
+    }
+  },
+  "$defs": {
+    "build": {
+      "description": "Identity of the Margo binary that produced the report.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "commit", "goVersion", "os", "arch"],
+      "properties": {
+        "version": {"description": "Margo release or development version.", "type": "string"},
+        "commit": {"description": "Source commit used to build the binary.", "type": "string"},
+        "goVersion": {"description": "Go toolchain identity.", "type": "string"},
+        "os": {"description": "Target operating system.", "type": "string"},
+        "arch": {"description": "Target architecture.", "type": "string"}
+      }
+    },
+    "candidate": {
+      "description": "One discovered or compiled PDF engine candidate.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "source", "compiled", "available"],
+      "properties": {
+        "name": {"description": "Engine name.", "type": "string"},
+        "source": {"description": "How the candidate was discovered.", "type": "string", "enum": ["flag", "environment", "path", "known-location", "native"]},
+        "compiled": {"description": "Whether this candidate is compiled into the binary.", "type": "boolean"},
+        "path": {"description": "Executable path when the candidate is external.", "type": "string"},
+        "version": {"description": "Detected executable version.", "type": "string"},
+        "available": {"description": "Whether the candidate can be selected for rendering.", "type": "boolean"},
+        "code": {"description": "Stable diagnostic code when discovery or probing failed.", "type": "string"},
+        "reason": {"description": "Human-readable discovery or probe explanation.", "type": "string"}
+      }
+    }
+  }
+}

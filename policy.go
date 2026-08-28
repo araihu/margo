@@ -35,10 +35,11 @@ type Policy struct {
 // Document. It is a value, not a pointer, so renderers cannot mutate the
 // compiler's decision after Compile.
 type EffectivePolicy struct {
-	RawHTML     RawHTMLMode   `json:"rawHTML"`
-	InputBytes  int64         `json:"inputBytes"`
-	OutputBytes int64         `json:"outputBytes"`
-	Iframe      *IframePolicy `json:"iframe,omitempty"`
+	RawHTML         RawHTMLMode   `json:"rawHTML"`
+	InputBytes      int64         `json:"inputBytes"`
+	OutputBytes     int64         `json:"outputBytes"`
+	Iframe          *IframePolicy `json:"iframe,omitempty"`
+	AllowUnsafeHTML bool          `json:"allowUnsafeHTML,omitempty"`
 }
 
 // DefaultPolicy returns the least-authoritative host policy and documented
@@ -77,6 +78,17 @@ func WithHostPolicy(policy Policy) Option {
 	return func(config *compilerConfig) error {
 		config.values["hostPolicy"] = clonePolicy(frozen)
 		config.values["hostPolicySet"] = true
+		return nil
+	}
+}
+
+// WithUnsafeHTML opts a compiler into passing through document-authored HTML,
+// including arbitrary iframe markup. The option is intentionally separate
+// from Policy so a project cannot accidentally persist this capability in a
+// reusable policy file; callers must make the decision at compiler setup.
+func WithUnsafeHTML() Option {
+	return func(config *compilerConfig) error {
+		config.values["allowUnsafeHTML"] = true
 		return nil
 	}
 }
@@ -120,17 +132,18 @@ func defaultEvaluatePolicy(config compilerConfig, normalized sourceNormalization
 		host.Iframe = &normalized
 	}
 
-	effective := EffectivePolicy{RawHTML: host.RawHTML, InputBytes: host.InputBytes, OutputBytes: host.OutputBytes, Iframe: cloneIframePolicy(host.Iframe)}
+	allowUnsafeHTML, _ := config.values["allowUnsafeHTML"].(bool)
+	effective := EffectivePolicy{RawHTML: host.RawHTML, InputBytes: host.InputBytes, OutputBytes: host.OutputBytes, Iframe: cloneIframePolicy(host.Iframe), AllowUnsafeHTML: allowUnsafeHTML}
 
 	if normalized.sourceBytes > effective.InputBytes {
 		return EffectivePolicy{}, policyDiagnostic("policy.resource.document_too_large", "document exceeds the maximum byte limit")
 	}
-	rawHTML, err := inspectSourceHTML(normalized, effective.Iframe)
+	rawHTML, err := inspectSourceHTML(normalized, effective.Iframe, effective.AllowUnsafeHTML)
 	if err != nil {
 		return EffectivePolicy{}, err
 	}
 	if rawHTML {
-		if effective.RawHTML == RawHTMLDeny {
+		if effective.RawHTML == RawHTMLDeny && !effective.AllowUnsafeHTML {
 			return EffectivePolicy{}, policyDiagnostic("policy.raw_html.denied", "raw HTML is denied by the host policy")
 		}
 	}

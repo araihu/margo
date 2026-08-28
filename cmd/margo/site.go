@@ -60,7 +60,8 @@ func newSiteCommand(deps Dependencies) *cobra.Command {
 			"Markdown and requires --output-dir; a .yaml/.yml CONFIG supplies the\n" +
 			"source, identity, layout, theme, and output settings. The destination must\n" +
 			"be new; publication is atomic and never deploys the result. See\n" +
-			"https://margo.araihu.com/cli/site/ for the config and publication guide.",
+			"https://margo.araihu.com/cli/site/ for the config and publication guide.\n" +
+			"Raw HTML and iframe markup require --allow-unsafe-html.",
 		Example: "  margo site ./docs --output-dir ./build/site\n" +
 			"  mkdir -p build && margo site ./site.yaml --diagnostics json > build/site-report.json\n" +
 			"  margo site ./docs --output-dir ./build/inline --assets inline",

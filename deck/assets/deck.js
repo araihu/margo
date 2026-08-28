@@ -12,6 +12,7 @@
   const previous = document.querySelector("[data-margo-deck-previous]");
   const next = document.querySelector("[data-margo-deck-next]");
   const print = document.querySelector("[data-margo-deck-print]");
+  const controls = document.querySelector(".margo-deck-controls");
   const status = document.querySelector("[data-margo-deck-status]");
   let current = 0;
   const chartPrintReplacements = [];
@@ -197,15 +198,23 @@
     if (!stage) return;
     const logicalWidth = Number(deck.dataset.margoWidth || 1280);
     const logicalHeight = Number(deck.dataset.margoHeight || 720);
-    const availableWidth = Math.max(0, stage.clientWidth - 32);
-    const availableHeight = Math.max(0, stage.clientHeight - 64 - 32);
+    const style = getComputedStyle(stage);
+    const number = (value) => Number.parseFloat(value) || 0;
+    const paddingInline = number(style.paddingInlineStart) + number(style.paddingInlineEnd);
+    const paddingBlock = number(style.paddingBlockStart) + number(style.paddingBlockEnd);
+    const gap = number(style.rowGap);
+    const controlsHeight = controls?.getBoundingClientRect().height || 0;
+    const availableWidth = Math.max(0, stage.clientWidth - paddingInline);
+    const availableHeight = Math.max(0, stage.clientHeight - paddingBlock - gap - controlsHeight);
     const scale = Math.min(1.5, availableWidth / logicalWidth, availableHeight / logicalHeight);
-    const quantized = Math.max(0.01, Math.round(scale * 64) / 64);
+    // Round down so a narrow embed never gains a scrollbar from a fractional
+    // pixel of transformed deck height.
+    const quantized = Math.max(0.01, Math.floor(scale * 64) / 64);
     deck.style.setProperty("--margo-stage-scale", String(quantized));
     // CSS transforms do not change flex layout size. Reserve the scaled
     // canvas height so the control rail follows the visible deck instead of
     // being pushed below a narrow viewport.
-    deck.style.marginBlockEnd = `${((quantized - 1) * logicalHeight / 2).toFixed(2)}px`;
+    deck.style.marginBlockEnd = `${((quantized - 1) * logicalHeight).toFixed(2)}px`;
   };
 
   const isVisible = (element) => {

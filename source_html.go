@@ -34,7 +34,7 @@ func stripHTMLComments(fragment []byte) ([]byte, error) {
 	}
 }
 
-func inspectSourceHTML(normalized sourceNormalization, iframePolicy *IframePolicy) (bool, error) {
+func inspectSourceHTML(normalized sourceNormalization, iframePolicy *IframePolicy, allowUnsafeHTML bool) (bool, error) {
 	parsed, ok := normalized.parsed.(normalizedMarkdown)
 	if !ok || parsed.root == nil {
 		return false, nil
@@ -68,6 +68,9 @@ func inspectSourceHTML(normalized sourceNormalization, iframePolicy *IframePolic
 		}
 		embed, recognized, embedErr := parseIframeFragment(remaining)
 		if recognized {
+			if allowUnsafeHTML {
+				return goldast.WalkContinue, nil
+			}
 			if embedErr == nil {
 				embedErr = authorizeIframe(iframePolicy, embed)
 			}

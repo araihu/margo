@@ -46,7 +46,13 @@ func installDefaultExtensions(config *compilerConfig) error {
 		Factory: func(RenderContext) (ExtensionSession, error) { return mermaidSession{}, nil },
 		compile: compileMermaidNode,
 	}
-	return WithExtension(registration)(config)
+	if err := WithExtension(registration)(config); err != nil {
+		return err
+	}
+	if err := WithExtension(jsonSchemaExtensionRegistration())(config); err != nil {
+		return err
+	}
+	return nil
 }
 
 var mermaidBrowserCapabilityCache struct {

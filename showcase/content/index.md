@@ -84,13 +84,13 @@ lifecycle actions.
 
 ## Is Margo a fit?
 
-### Good fit
+**Good fit**
 
 - Teams keeping Markdown in Git while publishing several projections.
 - Go applications that need a compiler with host-owned navigation and assets.
 - Documentation sites that value deterministic, inspectable output.
 
-### Not a fit
+**Not a fit**
 
 - A hosted CMS, collaborative editor, or production web server.
 - A workflow that needs Margo to download browsers or deploy generated files.
@@ -101,4 +101,5 @@ lifecycle actions.
 
 - [Start with the CLI guide — commands, configuration, and operational boundaries](cli/index.md)
 - [Continue with the Module guide — compiler APIs and host-owned composition](module/index.md)
+- [Browse the Schemas — versioned contracts and rendered property trees](schemas/index.md)
 - [Trace dependencies and upstream boundaries](module/index.md#dependencies-and-upstream-boundaries)

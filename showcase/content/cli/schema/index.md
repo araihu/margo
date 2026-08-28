@@ -13,14 +13,21 @@ margo:
 ## Purpose
 
 `schema` writes version-matched embedded JSON Schema bytes to stdout. The
-available schema kinds are `policy`, `document`, and `site`; all use JSON Schema
-Draft 2020-12. The site schema describes the top-level `site.yaml` shape for
-YAML-language-server and IDE completion.
+configuration kinds are `policy`, `document`, and `site`; output kinds include
+`doctor-report`, `check-report`, `site-report`, `site-manifest`, `diagnostic`,
+`runtime-descriptor`, `runtime-report`, `deck-layout-evidence`, and
+`deck-pdf-artifact-report`. All use JSON Schema Draft 2020-12. The site schema
+describes the top-level `site.yaml` shape for YAML-language-server and IDE
+completion, while output schemas keep generated documentation and automation
+contracts in sync with the binary that emits them.
+
+Browse the [Schemas family](../../schemas/index.md) for a rendered tree of each
+kind and links to the places that consume it.
 
 ## Input and output
 
-The required positional input is one schema kind: `policy`, `document`, or `site`. The
-exact embedded schema bytes go to stdout. Argument errors go to stderr.
+The required positional input is one schema kind. The exact embedded schema
+bytes go to stdout. Argument errors go to stderr.
 
 ## Examples
 
@@ -29,6 +36,10 @@ mkdir -p build
 margo schema policy > build/margo-policy.schema.json
 margo schema document > build/margo-document.schema.json
 margo schema site > build/margo-site.schema.json
+margo schema doctor-report > build/margo-doctor-report.schema.json
+margo schema check-report > build/margo-check-report.schema.json
+margo schema runtime-descriptor > build/margo-runtime-descriptor.schema.json
+margo schema deck-pdf-artifact-report > build/margo-deck-pdf-artifact-report.schema.json
 ```
 
 ## Failures and diagnostics

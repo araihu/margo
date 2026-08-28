@@ -74,6 +74,13 @@ margo pdf docs/index.md --output document.pdf
 `html` produces a standalone page. PDF output requires a supported installed
 Chromium executable; `margo doctor` reports available engines.
 
+Raw HTML and iframe markup are denied by default. For a trusted documentation
+build that intentionally embeds HTML, opt in explicitly at the command
+boundary, for example `margo serve ./docs --allow-unsafe-html` or
+`margo site ./docs --allow-unsafe-html`. The alias `--allow-raw-html` is also
+accepted. The switch is not persisted in document frontmatter or policy JSON;
+each consuming application must review that security decision.
+
 ## Start with the Go library
 
 Install the root module:
@@ -121,6 +128,10 @@ func main() {
 	}
 }
 ```
+
+The equivalent Go opt-in is `margo.New(margo.WithUnsafeHTML())`. It passes
+through document-authored HTML, including arbitrary iframes, so only enable it
+for content and hosts you trust.
 
 Use `margo.Check` for the same preflight available through `margo check`.
 Supply `margo.WithCheckAssetReader` when checks must read local assets. Charts
@@ -492,12 +503,12 @@ theme availability.
 ## CLI commands
 
 ```text
-margo check INPUT [--target html|site|pdf|deck]
-margo html INPUT [--output PATH|-] [--force]
-margo site INPUT_DIR|CONFIG [--output-dir OUTPUT_DIR] [--assets local|inline]
-margo serve [INPUT_DIR|CONFIG] [--host HOST] [--port PORT] [--open]
-margo pdf INPUT --output PATH|- [PDF flags]
-margo deck INPUT [--format html|pdf] [--output PATH|-] [PDF flags]
+margo check INPUT [--target html|site|pdf|deck] [--allow-unsafe-html]
+margo html INPUT [--output PATH|-] [--force] [--allow-unsafe-html]
+margo site INPUT_DIR|CONFIG [--output-dir OUTPUT_DIR] [--assets local|inline] [--allow-unsafe-html]
+margo serve [INPUT_DIR|CONFIG] [--host HOST] [--port PORT] [--open] [--allow-unsafe-html]
+margo pdf INPUT --output PATH|- [PDF flags] [--allow-unsafe-html]
+margo deck INPUT [--format html|pdf] [--output PATH|-] [PDF flags] [--allow-unsafe-html]
 margo doctor
 margo version
 margo --version
@@ -506,6 +517,12 @@ margo completion SHELL [--no-descriptions]
 margo schema policy
 margo schema document
 margo schema site
+margo schema doctor-report
+margo schema check-report
+margo schema runtime-descriptor
+margo schema runtime-report
+margo schema deck-layout-evidence
+margo schema deck-pdf-artifact-report
 ```
 
 `INPUT` for `check`, `html`, `pdf`, and `deck` is a path or `-` for stdin.
@@ -520,16 +537,21 @@ and `deck` refuse to replace existing output unless `--force` is present.
 Directory-based `site` builds require `--output-dir`; configured builds use the
 config's output when the flag is omitted. Site output must not already exist.
 
-All rendering commands accept `--policy FILE` for a trusted host policy.
+All rendering commands accept `--policy FILE` for a trusted host policy. They
+also accept `--allow-unsafe-html` (or the `--allow-raw-html` alias) to opt into
+passing through arbitrary authored HTML and iframe markup; the default remains
+deny.
 Ordinary Markdown, local images, Mermaid, tables, and code need no policy.
-`html` and `pdf` also accept `--title TEXT` and `--lang TAG`. `margo schema
-policy`, `margo schema document`, and `margo schema site` emit the exact
-embedded Draft 2020-12 schema bytes for the installed Margo version.
+`html` and `pdf` also accept `--title TEXT` and `--lang TAG`. `margo schema`
+emits the exact embedded Draft 2020-12 schema bytes for the installed Margo
+version, including configuration, command-report, runtime, and deck-evidence
+kinds.
 
 ### Check
 
 `margo check INPUT [--target html|site|pdf|deck] [--policy FILE]
-[--diagnostics text|json]` checks Markdown compatibility without rendering.
+[--allow-unsafe-html] [--diagnostics text|json]` checks Markdown compatibility
+without rendering.
 The target defaults to HTML. It reports raw HTML, unavailable images,
 incompatible SVG, invalid frontmatter, legacy Mermaid configuration, empty
 image alternatives, missing document language, skipped headings, empty links,
@@ -541,15 +563,16 @@ source, line, field pointer, and a remediation hint.
 ### HTML
 
 `margo html INPUT [--output PATH|-] [--force] [--title TEXT] [--lang TAG]
-[--policy FILE] [--diagnostics text|json]` renders one standalone HTML page.
+[--policy FILE] [--allow-unsafe-html] [--diagnostics text|json]` renders one
+standalone HTML page.
 The output default is `-`.
 
 ### Site
 
 `margo site INPUT_DIR|CONFIG [--output-dir OUTPUT_DIR] [--assets local|inline]
-[--policy FILE] [--diagnostics text|json]` builds a linked site. Output is
-staged beside the destination and published by rename only after a successful
-build.
+[--policy FILE] [--allow-unsafe-html] [--diagnostics text|json]` builds a
+linked site. Output is staged beside the destination and published by rename
+only after a successful build.
 
 ### PDF
 
@@ -558,7 +581,7 @@ build.
 [--margin-top MM] [--margin-right MM] [--margin-bottom MM] [--margin-left MM]
 [--image-overflow limit|allow]
 [--relative-links strip|error|keep|resolve] [--base-url URL] [--title TEXT]
-[--lang TAG] [--print-chart-data] [--policy FILE]
+[--lang TAG] [--print-chart-data] [--policy FILE] [--allow-unsafe-html]
 [--diagnostics text|json]` renders a PDF.
 
 Defaults are `--engine auto`, A4 portrait, and readable document margins of 24 mm top,
@@ -625,6 +648,7 @@ it to `0` for full bleed on that edge.
 [--margin-bottom MM] [--margin-left MM] [--image-overflow limit|allow]
 [--slide-size 16:9|4:3|custom] [--slide-width N --slide-height N]
 [--slide-unit px|mm|cm|in|pt|pc|Q] [--print-chart-data] [--policy FILE]
+[--allow-unsafe-html]
 [--diagnostics text|json]` renders the versioned Margo
 Marpit-compatible v0.0.1 deck profile.
 

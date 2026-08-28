@@ -1,6 +1,6 @@
 ---
 title: pdf
-description: Export a Markdown document to PDF through an installed local rendering engine.
+description: Export a Markdown document to PDF through an installed local renderer.
 language: en
 margo:
   actions:
@@ -13,7 +13,7 @@ margo:
 ## Purpose
 
 `pdf` renders one Markdown document, then exports it through a selected local
-PDF engine.
+PDF renderer.
 
 ## Input and output
 
@@ -31,9 +31,13 @@ For configured pre-rendered PDFs, the equivalent page action is
 below. The object form defaults to `pre-rendered` and the existing boolean and
 string forms remain compatible.
 
+Raw HTML and iframe markup are denied by default. Pass
+`--allow-unsafe-html` only when the PDF input is trusted and arbitrary HTML is
+part of the intended output.
+
 ## Examples
 
-Run a compatibility check and engine probe before conversion:
+Run a compatibility check and renderer check before conversion:
 
 ```sh
 margo check docs/guide.md --target pdf
@@ -190,11 +194,12 @@ render time).
 Existing output requires `--force`. All command failures exit `1` and report to
 stderr without replacing a protected destination.
 
-## Limitations and care
+## Renderer selection and failure behavior
 
-Engine mode is `auto`, `chromium`, or `native`. Auto discovery checks an
-explicit `--engine-path`, `MARGO_CHROMIUM_PATH`, executables on `PATH`, known
-platform locations, then the native slot. Margo never downloads a browser. A
-selected engine that fails does not fall back to another candidate. `doctor`
-reports candidates but cannot guarantee a later document-specific render will
-succeed.
+PDF export uses a renderer that is already installed. With `auto`, Margo checks
+an explicit `--engine-path`, `MARGO_CHROMIUM_PATH`, executables on `PATH`, known
+platform locations, and finally the compiled native slot. It never downloads a
+browser. Once a renderer is selected, a render failure stops the command; Margo
+does not silently retry with another candidate. `doctor` shows what is
+available, but a successful probe cannot guarantee that a particular document
+will render.

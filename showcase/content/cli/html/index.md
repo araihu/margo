@@ -25,6 +25,28 @@ stderr and never mix with HTML bytes.
 for the standalone artifact; unsupported or external resource forms are
 rejected instead of producing a silently broken page.
 
+## Built-in page actions
+
+HTML documentation pages can expose source and export controls. The primary
+**Copy page** control copies the published Markdown source, while its menu
+offers **View as Markdown** and **Download PDF** for the same page. The
+controls follow the active theme and remain keyboard-accessible.
+
+Enable them in a page's frontmatter:
+
+```yaml
+margo:
+  actions:
+    markdown: true
+    pdf: true
+```
+
+![Margo's built-in Copy page and export controls](../page-actions.png)
+
+Raw HTML and iframe markup are denied by default. Use
+`--allow-unsafe-html` (or `--allow-raw-html`) only when the host has reviewed
+the document's arbitrary HTML content.
+
 ## Examples
 
 ```sh

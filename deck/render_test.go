@@ -124,7 +124,7 @@ func TestRenderChromeProjectsBoundedInlineMarkdown(t *testing.T) {
 	markup := string(result.HTML())
 	for _, fragment := range []string{
 		`<header class="margo-deck__header"><strong>Bold header</strong> and <a href="https://example.com/docs">deck docs</a></header>`,
-		`<footer class="margo-deck__footer"><em>Italic footer</em> with <code>code</code> &amp; text</footer>`,
+		`<footer class="margo-deck__footer"><em>Italic footer</em> with <code title="code">code</code> &amp; text</footer>`,
 	} {
 		if !strings.Contains(markup, fragment) {
 			t.Fatalf("inline chrome missing %q: %s", fragment, markup)

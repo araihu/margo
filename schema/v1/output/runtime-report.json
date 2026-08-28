@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/runtime-report.json",
+  "title": "Margo runtime report v1",
+  "description": "Terminal browser-runtime evidence collected for a rendered document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "documentFingerprint", "renderInstanceID", "executionID", "status", "tasks", "fontChecks", "blockedRequests", "layout", "diagnostic"],
+  "properties": {
+    "protocol": {"type": "string", "enum": ["margo-runtime/v1", "margo-runtime/v2"]},
+    "documentFingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "renderInstanceID": {"type": "string", "pattern": "^ri-[0-9a-z]{8,32}$"},
+    "executionID": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["ready", "failed"]},
+    "tasks": {"type": "array", "items": {"$ref": "#/$defs/task"}},
+    "fontChecks": {"type": "array", "items": {"$ref": "#/$defs/font"}},
+    "blockedRequests": {"type": "array", "items": {"$ref": "#/$defs/blocked"}},
+    "layout": {"$ref": "#/$defs/layout"},
+    "diagnostic": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/diagnostic"}]},
+    "validationIdentity": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/validationIdentity"}]}
+  },
+  "$defs": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "inputSHA256", "outputSHA256", "outputBytes", "status", "errorCode"],
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"type": "string"},
+        "inputSHA256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "outputSHA256": {"type": "string"},
+        "outputBytes": {"type": "integer", "minimum": 0},
+        "status": {"type": "string", "enum": ["succeeded", "failed"]},
+        "errorCode": {"type": "string"}
+      }
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "query", "loaded"],
+      "properties": {"family": {"type": "string"}, "query": {"type": "string"}, "loaded": {"type": "boolean"}}
+    },
+    "blocked": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "resourceType"],
+      "properties": {"url": {"type": "string"}, "resourceType": {"type": "string"}}
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["scrollWidth", "scrollHeight"],
+      "properties": {"scrollWidth": {"type": "number", "minimum": 0}, "scrollHeight": {"type": "number", "minimum": 0}}
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "source", "line", "column", "pointer", "message", "hint"],
+      "properties": {
+        "code": {"type": "string"}, "severity": {"type": "string"}, "source": {"type": "string"},
+        "line": {"type": "integer"}, "column": {"type": "integer"}, "pointer": {"type": "string"},
+        "message": {"type": "string"}, "hint": {"type": "string"}
+      }
+    },
+    "validationIdentity": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {"browserProfile": {"type": "string"}, "engineName": {"type": "string"}, "engineVersion": {"type": "string"}, "fontBundleDigest": {"type": "string"}, "platformProfile": {"type": "string"}}
+    }
+  }
+}

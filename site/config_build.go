@@ -261,7 +261,6 @@ const configuredLandingCSS = `[data-margo-layout="landing"].margo-frame--main { 
 .margo-landing-section > * { max-inline-size: var(--margo-reading-measure); margin-inline: auto; }
 .margo-landing-section > h2 { margin-block: 0 1rem; color: var(--margo-text-strong); font-size: clamp(1.75rem, 3vw, 2.5rem); letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance; }
 .margo-landing-section > p:not(.margo-landing-media) { margin-inline: 0 auto; }
-.margo-landing-section > h3, .margo-landing-section > h3 + ul { inline-size: min(100%, 48rem); max-inline-size: 48rem; }
 .margo-landing-section > .margo-landing-media { max-inline-size: min(100%, 64rem); }
 .margo-landing-section > .margo-landing-media > img, .margo-landing-section > .margo-landing-media > svg { display: block; max-inline-size: 100%; block-size: auto; margin-inline: auto; }
 .margo-landing-section > .margo-landing-media + p { margin-block-start: 1rem; }
@@ -281,6 +280,31 @@ const configuredDocsCSS = `.margo-showcase-article {
 }
 .margo-showcase-article .margo-document { color: var(--margo-text, var(--color-on-surface, #17202a)); }
 .margo-showcase-article .margo-document a { color: var(--margo-accent, var(--color-primary, #155eef)); }
+.margo-showcase-article .margo-deck-preview {
+  max-inline-size: 100%;
+  margin-block: 2rem;
+  padding: 0.75rem;
+  border: 1px solid var(--margo-outline, var(--color-outline, #7b8794));
+  border-radius: 0.75rem;
+  background: var(--margo-surface-alt, var(--color-surface-alt, #f5f7fa));
+  break-inside: avoid;
+}
+.margo-showcase-article .margo-deck-preview__frame {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  block-size: auto;
+  min-block-size: 18rem;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--margo-surface, var(--color-surface, #fff));
+}
+.margo-showcase-article .margo-deck-preview__caption {
+  margin-block-start: 0.5rem;
+  color: var(--margo-text, var(--color-on-surface, #17202a));
+  font-size: 0.875rem;
+}
 .margo-showcase-article .margo-pagination ul {
   display: flex;
   flex-wrap: wrap;

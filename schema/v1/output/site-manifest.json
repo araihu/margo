@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/site-manifest.json",
+  "title": "Margo site manifest v1",
+  "description": "The exact publication identity emitted as margo-manifest.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "digest", "entries"],
+  "properties": {
+    "schemaVersion": {"const": "margo-site-manifest/v1"},
+    "digest": {"description": "Domain-separated digest of the artifact entries.", "type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy": {"description": "Digest of the trusted host policy when one was supplied.", "type": "string"},
+    "configVersion": {"type": "integer", "minimum": 1},
+    "layout": {"type": "string"},
+    "layoutSchemaHash": {"type": "string"},
+    "baseURL": {"type": "string"},
+    "basePath": {"type": "string"},
+    "documentStyleDigest": {"type": "string"},
+    "routes": {"type": "array", "items": {"$ref": "#/$defs/page"}},
+    "entries": {"description": "Sorted site-relative artifact paths and their exact digests.", "type": "array", "items": {"$ref": "#/$defs/entry"}}
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "output"],
+      "properties": {
+        "source": {"type": "string"},
+        "output": {"type": "string"},
+        "locale": {"type": "string"},
+        "family": {"type": "string"},
+        "layout": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "authors": {"type": "array", "items": {"type": "string"}},
+        "publishedAt": {"type": "string"},
+        "modifiedAt": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "canonical": {"type": "string"},
+        "documentDigest": {"type": "string"},
+        "imageOverflow": {"type": "string"},
+        "actions": {"type": "object"},
+        "alternates": {"type": "array", "items": {"type": "object"}}
+      }
+    }
+  }
+}

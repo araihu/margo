@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/deck-layout-evidence.json",
+  "title": "Margo deck layout evidence v1",
+  "description": "Quantized screen or print-DOM geometry captured while validating a deck.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "mode", "logicalCanvas", "slides", "stage", "validationRequest"],
+  "properties": {
+    "version": {"const": 1},
+    "mode": {"type": "string", "enum": ["screen", "print-dom"]},
+    "logicalCanvas": {"$ref": "#/$defs/canvas"},
+    "slides": {"type": "array", "items": {"$ref": "#/$defs/slide"}},
+    "stage": {"$ref": "#/$defs/stage"},
+    "validationRequest": {"$ref": "#/$defs/validationRequest"},
+    "compositionCatalogVersion": {"const": "r1"}
+  },
+  "$defs": {
+    "number": {"type": "number", "minimum": 0},
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {"width": {"$ref": "#/$defs/positiveNumber"}, "height": {"$ref": "#/$defs/positiveNumber"}}
+    },
+    "positiveNumber": {"type": "number", "exclusiveMinimum": 0},
+    "rect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bottom", "left", "right", "top"],
+      "properties": {"bottom": {"$ref": "#/$defs/number"}, "left": {"$ref": "#/$defs/number"}, "right": {"$ref": "#/$defs/number"}, "top": {"$ref": "#/$defs/number"}}
+    },
+    "slide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "clientHeight", "clientWidth", "contentHeight", "contentWidth", "descendantUnion", "scrollHeight", "scrollWidth"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "clientHeight": {"$ref": "#/$defs/number"},
+        "clientWidth": {"$ref": "#/$defs/number"},
+        "contentHeight": {"$ref": "#/$defs/number"},
+        "contentWidth": {"$ref": "#/$defs/number"},
+        "descendantUnion": {"$ref": "#/$defs/rect"},
+        "scrollHeight": {"$ref": "#/$defs/number"},
+        "scrollWidth": {"$ref": "#/$defs/number"}
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlsReserved", "originX", "originY", "scale"],
+      "properties": {
+        "controlsReserved": {"$ref": "#/$defs/number"},
+        "originX": {"$ref": "#/$defs/number"},
+        "originY": {"$ref": "#/$defs/number"},
+        "scale": {"$ref": "#/$defs/positiveNumber"}
+      }
+    },
+    "validationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewportWidth", "viewportHeight", "deviceScaleFactor", "zoom", "browserProfile", "expectedFontBundleDigest"],
+      "properties": {
+        "viewportWidth": {"type": "integer", "minimum": 1},
+        "viewportHeight": {"type": "integer", "minimum": 1},
+        "deviceScaleFactor": {"type": "number", "exclusiveMinimum": 0},
+        "zoom": {"type": "number", "exclusiveMinimum": 0},
+        "browserProfile": {"type": "string", "minLength": 1},
+        "expectedFontBundleDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

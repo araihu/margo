@@ -64,7 +64,9 @@ The first release does not include:
 - interactive deck navigation, presenter mode, transitions, or fragments;
 - arbitrary markdown-it plugins or complete Marpit engine compatibility;
 - arbitrary JavaScript execution;
-- raw HTML passthrough or document-authored arbitrary CSS;
+- raw HTML passthrough, arbitrary CSS, and active embeds in the default profile;
+  an explicit host/process opt-in may enable authored HTML, iframes, and
+  arbitrary CSS when the host accepts that risk;
 - server-backed table pagination, filtering, lazy loading, or actions;
 - all Goshtoso chart types;
 - automatic Chromium download or bundling;
@@ -288,7 +290,8 @@ The default profile is:
 - footnotes;
 - deterministic heading IDs;
 - YAML frontmatter;
-- raw HTML disabled unless both declared and allowed;
+- raw HTML disabled unless the host explicitly opts into the sanitized profile or
+  the separate unsafe process-level passthrough option;
 - no pagination and no slide semantics.
 
 Ordinary headings, paragraphs, lists, quotes, links, and images render as
@@ -433,7 +436,9 @@ Raw HTML has only two levels in v0.0.1:
 - `deny`, the default;
 - `sanitized`, using the versioned `margo-html-v1` profile.
 
-There is no passthrough mode. The sanitized path parses HTML into a DOM,
+The default profile has no passthrough mode. A host may explicitly enable the
+separate unsafe process-level passthrough option; it is not document authority
+and is disabled by default. The sanitized path parses HTML into a DOM,
 validates it, fails on any disallowed node or attribute, and then sanitizes the
 accepted tree as defense in depth. The same profile applies to standalone and
 embedded output.
@@ -762,11 +767,35 @@ interactive renderer before rendering. The output includes an accessible name
 and text alternative. Point counts, series counts, label lengths, numeric
 finiteness, and output dimensions are bounded.
 
+## JSON Schema documentation fences
+
+Margo also owns a static `jsonschema` fence for documenting machine-readable
+contracts without copying their fields into prose:
+
+````markdown
+```jsonschema ref=margo://schema/v1/output/doctor-report.json
+```
+````
+
+The body may instead contain an inline JSON Schema. A local `ref=path.json` is
+resolved relative to the Markdown source directory, bounded by the same asset
+reader used for local resources; `margo://schema/v1/...` addresses one of the
+embedded configuration (`policy.json`, `document.json`, `site.json`) or output
+schemas. An optional `#/pointer` fragment selects a subschema. Compilation
+validates the schema and renders a deterministic, accessible property tree
+with paths, types, requiredness, descriptions, and constraints. The embedded
+catalog covers command diagnostics and reports,
+runtime descriptors/reports, site manifests, and deck layout/PDF evidence.
+This keeps command documentation synchronized with the exact versioned
+contracts emitted by the binary; it does not execute or fetch schema URLs.
+
 The CLI exposes the exact schemas:
 
 ```console
-margo schema chart bar
-margo schema chart bar --output bar.schema.json
+margo schema policy
+margo schema doctor-report
+margo schema runtime-report
+margo schema deck-pdf-artifact-report
 ```
 
 ## Asset supply chain and overrides
@@ -1314,8 +1343,9 @@ Version v0.0.1 is complete only when:
 - Markdown tables use Goshtoso Table and `auto|none|server|client` behavior is
   backward-compatible and validated;
 - frontmatter cannot elevate host permissions and every mismatch fails closed;
-- raw HTML is either denied or accepted only by `margo-html-v1`; passthrough,
-  active content, and arbitrary CSS do not exist in v0.0.1;
+- raw HTML is denied by default or accepted through `margo-html-v1`; explicit
+  unsafe process opt-in is required for passthrough, active content, and
+  arbitrary CSS, and no document can grant that permission itself;
 - native PDF works on supported Windows and macOS runners, Linux behavior is
   explicitly reported, and Chromium remains opt-in;
 - whitelabel PDF and deck output uses the same document/theme pipeline;

@@ -94,3 +94,13 @@ func TestPolicyFlagsRejectStdinAsPolicyAuthority(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestPolicyFlagsAllowUnsafeHTMLWithoutPolicyFile(t *testing.T) {
+	policy, err := (policyFlags{AllowUnsafeHTML: true}).load(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy == nil || !policy.AllowUnsafeHTML || policy.Digest != "" {
+		t.Fatalf("loaded policy = %+v", policy)
+	}
+}

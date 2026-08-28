@@ -28,7 +28,7 @@ If the change touches the site or generated references, also run:
 
 ```sh
 GOWORK=off go generate ./...
-GOWORK=off go run ./cmd/margo site showcase.yaml --output-dir showcase/dist --assets local
+GOWORK=off go run ./cmd/margo site showcase.yaml --output-dir showcase/dist --assets local --allow-unsafe-html
 ```
 
 The Dagger adapters expose the same gates used in CI. Run `dagger call

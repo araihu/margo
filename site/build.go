@@ -399,6 +399,10 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 				if err := b.rewriteImage(ctx, source, node); err != nil {
 					return err
 				}
+			case "iframe":
+				if err := b.rewriteLocalIframe(ctx, source, node); err != nil {
+					return err
+				}
 			}
 		}
 		for child := node.FirstChild; child != nil; {
@@ -424,6 +428,80 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 		return nil, err
 	}
 	return output.Bytes(), nil
+}
+
+// rewriteLocalIframe publishes a relative HTML iframe source when it points at
+// a source-tree artifact. Remote iframes remain untouched and are governed by
+// the compiler's host policy. The helper is intentionally permissive once the
+// caller has opted into raw HTML; it only normalizes the publication path.
+func (b *builder) rewriteLocalIframe(ctx context.Context, source Source, node *html.Node) error {
+	index := attributeIndex(node, "src")
+	if index < 0 || strings.TrimSpace(node.Attr[index].Val) == "" {
+		return nil
+	}
+	value := node.Attr[index].Val
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || strings.HasPrefix(value, "//") || strings.HasPrefix(parsed.Path, "/") || strings.Contains(parsed.Path, "\\") {
+		return nil
+	}
+	assetPath := path.Clean(path.Join(path.Dir(source.Path), parsed.Path))
+	if assetPath == "." || assetPath == ".." || strings.HasPrefix(assetPath, "../") {
+		return nil
+	}
+	extension := strings.ToLower(path.Ext(assetPath))
+	if extension != ".html" && extension != ".htm" {
+		return nil
+	}
+	if _, generatedPage := b.outputs[strings.ToLower(assetPath)]; generatedPage {
+		return nil
+	}
+	asset, cached := b.assets[assetPath]
+	if !cached {
+		remaining := margo.MaxDocumentBytes - b.assetBytes
+		data, readErr := b.request.AssetReader.ReadAsset(ctx, b.request.SourceRoot, assetPath, remaining)
+		if readErr != nil {
+			if errors.Is(readErr, context.Canceled) || errors.Is(readErr, context.DeadlineExceeded) {
+				return readErr
+			}
+			if errors.Is(readErr, margo.ErrCheckAssetOutsideRoot) {
+				return diagnostic("site.asset_outside_root", fmt.Sprintf("iframe %q resolves outside the site root", value), "Keep local iframe HTML below the site root.", source.Path)
+			}
+			if errors.Is(readErr, margo.ErrCheckAssetTooLarge) {
+				return diagnostic("site.asset_too_large", fmt.Sprintf("iframe %q exceeds the remaining site asset limit", value), "Reduce the HTML asset size or remove other local assets.", source.Path)
+			}
+			if errors.Is(readErr, os.ErrNotExist) {
+				// Relative iframe URLs can target a route that another host
+				// publishes. Leave missing targets unchanged rather than turning
+				// an otherwise valid raw HTML document into a site build error.
+				return nil
+			}
+			return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read local iframe %q: %v", value, readErr), "Add a readable HTML asset below the site root.", source.Path)
+		}
+		asset, err = b.cacheSourceAsset(ctx, assetPath, data)
+		if err != nil {
+			return err
+		}
+	}
+	if b.request.Assets == AssetsInline {
+		if srcdoc := attributeIndex(node, "srcdoc"); srcdoc >= 0 {
+			node.Attr[srcdoc].Val = string(asset.content)
+		} else {
+			node.Attr = append(node.Attr, html.Attribute{Key: "srcdoc", Val: string(asset.content)})
+		}
+		node.Attr = removeHTMLAttribute(node.Attr, "src")
+	} else {
+		if err := b.addArtifact(assetPath, asset.content); err != nil {
+			return err
+		}
+		relative, err := relativeSitePath(path.Dir(b.pageOutput(source.Path)), assetPath)
+		if err != nil {
+			return err
+		}
+		parsed.Path = relative
+		parsed.RawPath = ""
+		node.Attr[index].Val = parsed.String()
+	}
+	return nil
 }
 
 func (b *builder) rewriteDependency(source Source, node *html.Node) error {
@@ -863,6 +941,16 @@ func attributeIndex(node *html.Node, key string) int {
 		}
 	}
 	return -1
+}
+
+func removeHTMLAttribute(attributes []html.Attribute, key string) []html.Attribute {
+	for index := range attributes {
+		if attributes[index].Key != key {
+			continue
+		}
+		return append(attributes[:index], attributes[index+1:]...)
+	}
+	return attributes
 }
 
 func relativeSitePath(fromDirectory, target string) (string, error) {

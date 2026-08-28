@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://araihu.github.io/margo/schema/v1/output/deck-pdf-artifact-report.json",
+  "title": "Margo deck PDF artifact report v1",
+  "description": "Media-box evidence and composition identity returned after validating a deck PDF.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pageCount", "mediaBoxesMicrometers", "evidenceSHA256", "evidenceBytes", "valid"],
+  "properties": {
+    "pageCount": {"type": "integer", "minimum": 0},
+    "mediaBoxesMicrometers": {"type": "array", "items": {"$ref": "#/$defs/mediaBox"}},
+    "evidenceSHA256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidenceBytes": {"type": "integer", "minimum": 0},
+    "valid": {"type": "boolean"},
+    "compositionCatalogVersion": {"const": "r1"},
+    "compositions": {"type": "array", "items": {"$ref": "#/$defs/composition"}}
+  },
+  "$defs": {
+    "mediaBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "leftMicrometers", "bottomMicrometers", "rightMicrometers", "topMicrometers"],
+      "properties": {
+        "index": {"type": "integer", "minimum": 0},
+        "leftMicrometers": {"type": "integer"},
+        "bottomMicrometers": {"type": "integer"},
+        "rightMicrometers": {"type": "integer"},
+        "topMicrometers": {"type": "integer"}
+      }
+    },
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "variant", "class", "family"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "variant": {"type": "string", "minLength": 1},
+        "class": {"type": "string", "minLength": 1},
+        "family": {"type": "string", "minLength": 1},
+        "slots": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

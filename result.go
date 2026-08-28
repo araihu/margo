@@ -12,6 +12,7 @@ type RenderResult struct {
 	documentFingerprint DocumentFingerprint
 	runtimeTasks        []runtimeTaskTemplate
 	target              RenderTarget
+	allowUnsafeHTML     bool
 }
 
 // Target returns the normalized output target used for this render.

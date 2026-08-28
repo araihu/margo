@@ -83,7 +83,7 @@ func RenderHTML(result *RenderResult, options ...HTMLOption) (*HTMLResult, error
 	if err != nil {
 		return nil, fmt.Errorf("html.fragment_render: %w", err)
 	}
-	inspection, err := inspectHTMLFragment(fragment)
+	inspection, err := inspectHTMLFragment(fragment, result.allowUnsafeHTML)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func RenderHTML(result *RenderResult, options ...HTMLOption) (*HTMLResult, error
 		if err != nil {
 			return nil, err
 		}
-		inspection, err = inspectHTMLFragment(fragment)
+		inspection, err = inspectHTMLFragment(fragment, result.allowUnsafeHTML)
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +199,7 @@ type htmlFragmentInspection struct {
 	plainText string
 }
 
-func inspectHTMLFragment(fragment []byte) (htmlFragmentInspection, error) {
+func inspectHTMLFragment(fragment []byte, allowUnsafeHTML bool) (htmlFragmentInspection, error) {
 	contextNode := &xhtml.Node{Type: xhtml.ElementNode, DataAtom: atom.Div, Data: "div"}
 	nodes, err := xhtml.ParseFragment(bytes.NewReader(fragment), contextNode)
 	if err != nil {
@@ -227,12 +227,16 @@ func inspectHTMLFragment(fragment []byte) (htmlFragmentInspection, error) {
 		if node.Type == xhtml.ElementNode {
 			switch node.Data {
 			case "html", "head", "body", "script":
-				return htmlError("html.metadata_invalid", fmt.Sprintf("HTML fragment contains forbidden <%s>", node.Data))
+				if !allowUnsafeHTML {
+					return htmlError("html.metadata_invalid", fmt.Sprintf("HTML fragment contains forbidden <%s>", node.Data))
+				}
 			case "style":
-				if !htmlAttributeEquals(node, "data-margo-extension-style", "charts") {
+				if !allowUnsafeHTML && !htmlAttributeEquals(node, "data-margo-extension-style", "charts") {
 					return htmlError("html.metadata_invalid", "HTML fragment contains an unowned <style>")
 				}
-				skip = true
+				if !allowUnsafeHTML {
+					skip = true
+				}
 			case "article":
 				articleCount++
 			case "template", "button", "svg", "canvas":

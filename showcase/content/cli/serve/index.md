@@ -31,6 +31,10 @@ siblings—including conventional build-output, report, log, and temporary
 directories such as `build/` and `screenshots/`—are ignored. The command
 always emits text diagnostics; it has no `--diagnostics` flag.
 
+Raw HTML and iframe markup are denied by default. Use
+`--allow-unsafe-html` (or `--allow-raw-html`) when a development preview needs
+to embed a trusted local HTML artifact.
+
 ## Examples
 
 ```sh

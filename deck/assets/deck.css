@@ -6,8 +6,10 @@
 
 html,
 body {
+  block-size: 100%;
   min-block-size: 100%;
   margin: 0;
+  overflow: hidden;
 }
 
 body {
@@ -28,7 +30,9 @@ body {
   flex-direction: column;
   gap: var(--margo-stage-gap);
   justify-content: center;
-  min-block-size: 100vh;
+  block-size: 100%;
+  max-block-size: 100%;
+  min-block-size: 0;
   overflow: hidden;
   padding: clamp(18px, 3vw, 40px);
   inline-size: 100%;
@@ -48,7 +52,7 @@ body {
   border-radius: 18px;
   box-shadow: 0 28px 72px color-mix(in srgb, var(--margo-ink, CanvasText) 16%, transparent);
   transform: scale(var(--margo-stage-scale));
-  transform-origin: center;
+  transform-origin: center top;
 }
 
 .margo-deck__slide {
@@ -738,10 +742,13 @@ body {
 @media print {
   html,
   body {
+    block-size: auto;
     min-block-size: auto;
   }
 
   .margo-deck-stage {
+    block-size: auto;
+    max-block-size: none;
     display: block;
     min-block-size: auto;
     overflow: visible !important;

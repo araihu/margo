@@ -76,7 +76,7 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		}
 		hasTable := false
 		hasCopyableCodeBlock := false
-		compileContext := extensionCompileContext{normalized: normalized}
+		compileContext := extensionCompileContext{normalized: normalized, source: source}
 		var missing *Diagnostic
 		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 			if !entering {
@@ -119,8 +119,10 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 			payload := append([]byte(nil), segment.Value(body)...)
 			extensionNode := ExtensionNode{
 				Fence:   fence,
+				Info:    fencedInfo(fenced, body),
 				Payload: payload,
 				Source:  SourcePosition{Source: source.Name, Line: lineAtOffset(source.Content, parsed.frontmatter.bodyOffset+segmentAtStart(segment)), Column: 1},
+				BaseURL: source.BaseURL,
 			}
 			registration := plan.registrations[registrationIndex]
 			if _, used := usedRegistrations[registrationIndex]; !used {
@@ -176,6 +178,13 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		plan.htmlRequirements = requirements
 	}
 	return plan, nil
+}
+
+func fencedInfo(node *ast.FencedCodeBlock, source []byte) string {
+	if node == nil || node.Info == nil {
+		return ""
+	}
+	return string(node.Info.Text(source))
 }
 
 func segmentAtStart(segments *text.Segments) int {

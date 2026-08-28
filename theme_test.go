@@ -1,6 +1,7 @@
 package margo
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -23,6 +24,26 @@ func TestThemeTokens(t *testing.T) {
 	}
 	if err := ValidateDocumentToken(TokenPageBackground, "red; background: url(https://evil.example)"); err == nil {
 		t.Fatal("unsafe token value unexpectedly accepted")
+	}
+}
+
+func TestMargoThemeKeepsLeadCodeInline(t *testing.T) {
+	css, err := os.ReadFile("themes/margo.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := string(css)
+	for _, declaration := range []string{
+		"display: inline;",
+		"max-inline-size: none;",
+		"overflow: visible;",
+		"text-overflow: clip;",
+		"white-space: normal;",
+		"line-height: inherit;",
+	} {
+		if !strings.Contains(rule, declaration) {
+			t.Fatalf("Margo lead-code override is missing %q", declaration)
+		}
 	}
 }
 

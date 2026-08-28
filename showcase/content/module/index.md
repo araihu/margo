@@ -144,7 +144,9 @@ The repository and published site now split the contract by task:
    branding.
 4. [Deck output](../cli/deck/index.md) — themes, directives, compositions,
    charts, and overflow validation.
-5. [Policies and security](https://github.com/araihu/margo/blob/v0.0.17/docs/policy.md)
+5. [Schemas](../schemas/index.md) — versioned configuration, output, and runtime
+   contracts rendered as property trees.
+6. [Policies and security](https://github.com/araihu/margo/blob/v0.0.17/docs/policy.md)
    — host authority, raw HTML, iframe projections, and exact schemas.
 
 For the full exported API, use `go doc github.com/araihu/margo` and the
