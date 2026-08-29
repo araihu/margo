@@ -6,7 +6,7 @@ offline: true
 site:
   name: Margo
   description: A visual guide to Margo's Markdown compiler, Go module, and publishing CLI.
-  version: v0.0.17
+  version: dev
   repository_url: https://github.com/araihu/margo
   base_url: https://margo.araihu.com
   home: index.md
