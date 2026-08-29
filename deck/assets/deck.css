@@ -744,6 +744,7 @@ body {
   body {
     block-size: auto;
     min-block-size: auto;
+    overflow: visible;
   }
 
   .margo-deck-stage {
