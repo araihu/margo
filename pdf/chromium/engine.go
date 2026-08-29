@@ -123,6 +123,13 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	var runtimeOutput browserRuntimeOutput
 	var printOverflow string
 	var pdfBytes []byte
+	stage := "initializing"
+	stageAction := func(name string, action chromedp.Action) chromedp.Action {
+		return chromedp.ActionFunc(func(ctx context.Context) error {
+			stage = name
+			return action.Do(ctx)
+		})
+	}
 	actions := []chromedp.Action{}
 	if request.Runtime.Protocol == margo.RuntimeProtocolV2 {
 		validationRequest := request.Runtime.ValidationRequest
@@ -131,33 +138,35 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 		))
 	}
 	actions = append(actions,
-		chromedp.Navigate(server.URL),
-		chromedp.Evaluate(runtimeExpression, &runtimeOutput, awaitPromise),
-		chromedp.Evaluate(`(async () => {
+		stageAction("navigate", chromedp.Navigate(server.URL)),
+		stageAction("runtime tasks", chromedp.Evaluate(runtimeExpression, &runtimeOutput, awaitPromise)),
+		stageAction("print preparation", chromedp.Evaluate(`(async () => {
 			if (typeof globalThis.margoPreparePrint === "function") await globalThis.margoPreparePrint();
 			if (typeof globalThis.margoPrepareDeckPrint === "function") await globalThis.margoPrepareDeckPrint();
 			return true;
-		})()`, nil, awaitPromise),
-		emulation.SetEmulatedMedia().WithMedia("print"),
-		chromedp.Evaluate(`(async () => {
+		})()`, nil, awaitPromise)),
+		stageAction("print media", emulation.SetEmulatedMedia().WithMedia("print")),
+		stageAction("wait for fonts and images", chromedp.Evaluate(`(async () => {
 			await document.fonts.ready;
 			await Promise.all(Array.from(document.images).map((image) => image.complete ? true : new Promise((resolve, reject) => {
 				image.addEventListener("load", resolve, {once: true});
 				image.addEventListener("error", reject, {once: true});
-			})));
+			})))
 			return {scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight};
-		})()`, &metrics, awaitPromise),
-		chromedp.Evaluate(`(() => {
+		})()`, &metrics, awaitPromise)),
+		stageAction("validate print overflow", chromedp.Evaluate(`(() => {
 			if (typeof globalThis.margoValidateDeckPrint !== "function") return "";
 			return globalThis.margoValidateDeckPrint();
-		})()`, &printOverflow),
+		})()`, &printOverflow)),
 		chromedp.ActionFunc(func(context.Context) error {
+			stage = "check print overflow"
 			if printOverflow != "" {
 				return fmt.Errorf("deck print overflow")
 			}
 			return nil
 		}),
 		chromedp.ActionFunc(func(ctx context.Context) error {
+			stage = "print PDF"
 			params := page.PrintToPDF().
 				WithPrintBackground(true).
 				WithPreferCSSPageSize(true).
@@ -172,7 +181,7 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 		if printOverflow != "" {
 			return pdf.Result{}, chromiumError("pdf.deck_print_overflow", printOverflow)
 		}
-		return pdf.Result{}, chromiumError("pdf.chromium.export_failed", err.Error())
+		return pdf.Result{}, chromiumError("pdf.chromium.export_failed", fmt.Sprintf("stage=%s executable=%s timeout=%s html_bytes=%d mermaid_tasks=%d: %v", stage, engine.executablePath, engine.timeout, len(request.HTML), mermaidTasks, err))
 	}
 	if printOverflow != "" {
 		return pdf.Result{}, chromiumError("pdf.deck_print_overflow", printOverflow)

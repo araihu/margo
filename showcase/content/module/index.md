@@ -148,6 +148,8 @@ The repository and published site now split the contract by task:
    contracts rendered as property trees.
 6. [Policies and security](https://github.com/araihu/margo/blob/v0.0.17/docs/policy.md)
    — host authority, raw HTML, iframe projections, and exact schemas.
+7. [Fenced types](../fenced-types/index.md) — diagrams, charts, schema trees,
+   and highlighted code blocks.
 
 For the full exported API, use `go doc github.com/araihu/margo` and the
 package-specific docs for `site`, `pdf`, `pdf/chromium`, `deck`, and `charts`.

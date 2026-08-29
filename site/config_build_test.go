@@ -516,7 +516,8 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	commandNames := []string{"check", "completion", "deck", "doctor", "html", "pdf", "schema", "serve", "site", "version"}
-	schemaNames := []string{"check-report", "deck-layout-evidence", "deck-pdf-artifact-report", "diagnostic", "doctor-report", "document", "policy", "runtime-descriptor", "runtime-report", "site", "site-manifest", "site-report"}
+	schemaNames := []string{"check-report", "deck-layout-evidence", "deck-pdf-artifact-report", "diagnostic", "doctor-report", "document", "goshtoso-chart", "policy", "runtime-descriptor", "runtime-report", "site", "site-manifest", "site-report"}
+	fencedTypeNames := []string{"code", "goshtoso-chart", "jsonschema", "mermaid"}
 
 	htmlRoutes := make([]string, 0)
 	artifacts := make(map[string][]byte, len(result.Artifacts))
@@ -540,6 +541,10 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		wantHTMLRoutes = append(wantHTMLRoutes, "schemas/"+schema+"/index.html")
 	}
 	wantHTMLRoutes = append(wantHTMLRoutes, "schemas/index.html")
+	wantHTMLRoutes = append(wantHTMLRoutes, "fenced-types/index.html")
+	for _, fencedType := range fencedTypeNames {
+		wantHTMLRoutes = append(wantHTMLRoutes, "fenced-types/"+fencedType+"/index.html")
+	}
 	sort.Strings(wantHTMLRoutes)
 	if got, want := htmlRoutes, wantHTMLRoutes; !reflect.DeepEqual(got, want) {
 		t.Fatalf("HTML routes = %v, want exactly %v", got, want)
@@ -549,7 +554,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("retired route artifact %q exists", retired+".html")
 		}
 	}
-	if got, want := len(result.Site.Routes), 3+len(commandNames)+len(schemaNames)+1; got != want {
+	if got, want := len(result.Site.Routes), 3+len(commandNames)+len(schemaNames)+1+len(fencedTypeNames)+1; got != want {
 		t.Fatalf("configured routes = %d, want %d: %+v", got, want, result.Site.Routes)
 	}
 	wantRoutes := map[string]struct {
@@ -557,10 +562,11 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		family string
 		layout string
 	}{
-		"index.md":         {output: "index.html", family: "", layout: "landing"},
-		"module/index.md":  {output: "module/index.html", family: "module", layout: "docs"},
-		"cli/index.md":     {output: "cli/index.html", family: "cli", layout: "docs"},
-		"schemas/index.md": {output: "schemas/index.html", family: "schemas", layout: "docs"},
+		"index.md":              {output: "index.html", family: "", layout: "landing"},
+		"module/index.md":       {output: "module/index.html", family: "module", layout: "docs"},
+		"cli/index.md":          {output: "cli/index.html", family: "cli", layout: "docs"},
+		"schemas/index.md":      {output: "schemas/index.html", family: "schemas", layout: "docs"},
+		"fenced-types/index.md": {output: "fenced-types/index.html", family: "fenced-types", layout: "docs"},
 	}
 	for _, command := range commandNames {
 		wantRoutes["cli/"+command+"/index.md"] = struct {
@@ -575,6 +581,13 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			family string
 			layout string
 		}{output: "schemas/" + schema + "/index.html", family: "schemas", layout: "docs"}
+	}
+	for _, fencedType := range fencedTypeNames {
+		wantRoutes["fenced-types/"+fencedType+"/index.md"] = struct {
+			output string
+			family string
+			layout string
+		}{output: "fenced-types/" + fencedType + "/index.html", family: "fenced-types", layout: "docs"}
 	}
 	for _, route := range result.Site.Routes {
 		want, ok := wantRoutes[route.Source]
@@ -605,14 +618,16 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	module := string(artifacts["module/index.html"])
 	cli := string(artifacts["cli/index.html"])
 	schemas := string(artifacts["schemas/index.html"])
+	fencedTypes := string(artifacts["fenced-types/index.html"])
 	publicationPages := map[string]struct {
 		content string
 		route   string
 	}{
-		"Tour":    {content: landing, route: "https://margo.araihu.com/"},
-		"Module":  {content: module, route: "https://margo.araihu.com/module/"},
-		"CLI":     {content: cli, route: "https://margo.araihu.com/cli/"},
-		"Schemas": {content: schemas, route: "https://margo.araihu.com/schemas/"},
+		"Tour":         {content: landing, route: "https://margo.araihu.com/"},
+		"Module":       {content: module, route: "https://margo.araihu.com/module/"},
+		"CLI":          {content: cli, route: "https://margo.araihu.com/cli/"},
+		"Schemas":      {content: schemas, route: "https://margo.araihu.com/schemas/"},
+		"Fenced types": {content: fencedTypes, route: "https://margo.araihu.com/fenced-types/"},
 	}
 	for _, command := range commandNames {
 		publicationPages[command] = struct {
@@ -631,6 +646,12 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			content: string(artifacts["schemas/"+schema+"/index.html"]),
 			route:   "https://margo.araihu.com/schemas/" + schema + "/",
 		}
+	}
+	for _, fencedType := range fencedTypeNames {
+		publicationPages[fencedType] = struct {
+			content string
+			route   string
+		}{content: string(artifacts["fenced-types/"+fencedType+"/index.html"]), route: "https://margo.araihu.com/fenced-types/" + fencedType + "/"}
 	}
 	for name, page := range publicationPages {
 		route := page.route
@@ -707,6 +728,11 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("Schemas outline missing %q", required)
 		}
 	}
+	for _, required := range []string{"Built-in and optional fences", "Mermaid", "Goshtoso charts", "JSON Schema", "Code blocks"} {
+		if !strings.Contains(fencedTypes, required) {
+			t.Fatalf("Fenced types outline missing %q", required)
+		}
+	}
 	for _, required := range []string{`Generated HTML preview`, `href="../examples/cli-workspace/guide.html"`, `src="../examples/cli-workspace/guide.png"`} {
 		if !strings.Contains(cli, required) {
 			t.Fatalf("CLI visual example missing %q", required)
@@ -774,7 +800,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	sitemap := string(artifacts[SitemapPath])
-	if got, want := strings.Count(sitemap, "<url>"), 3+len(commandNames)+len(schemaNames)+1; got != want {
+	if got, want := strings.Count(sitemap, "<url>"), 3+len(commandNames)+len(schemaNames)+1+len(fencedTypeNames)+1; got != want {
 		t.Fatalf("sitemap URL count = %d, want %d: %s", got, want, sitemap)
 	}
 	for _, visualPath := range visualArtifacts {
@@ -782,12 +808,15 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 			t.Fatalf("sitemap unexpectedly advertises visual artifact %q: %s", visualPath, sitemap)
 		}
 	}
-	publicRoutes := []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/", "https://margo.araihu.com/schemas/"}
+	publicRoutes := []string{"https://margo.araihu.com/", "https://margo.araihu.com/module/", "https://margo.araihu.com/cli/", "https://margo.araihu.com/schemas/", "https://margo.araihu.com/fenced-types/"}
 	for _, command := range commandNames {
 		publicRoutes = append(publicRoutes, "https://margo.araihu.com/cli/"+command+"/")
 	}
 	for _, schema := range schemaNames {
 		publicRoutes = append(publicRoutes, "https://margo.araihu.com/schemas/"+schema+"/")
+	}
+	for _, fencedType := range fencedTypeNames {
+		publicRoutes = append(publicRoutes, "https://margo.araihu.com/fenced-types/"+fencedType+"/")
 	}
 	for _, route := range publicRoutes {
 		if !strings.Contains(sitemap, "<loc>"+route+"</loc>") {
@@ -795,7 +824,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	llms := string(artifacts[LLMSPath])
-	wantTitles := []string{"[Margo]", "[Go module]", "[CLI workflows]", "[Schemas]"}
+	wantTitles := []string{"[Margo]", "[Go module]", "[CLI workflows]", "[Schemas]", "[Fenced types]"}
 	for _, command := range commandNames {
 		wantTitles = append(wantTitles, "["+command+"]")
 	}
