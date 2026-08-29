@@ -106,7 +106,9 @@ margo deck slides.md \
 The resulting slide shows the host-owned badge and pagination icon alongside
 the deck controls:
 
-<iframe src="chrome-pagination.html" title="Deck with host-owned Internal badge and pagination icon" width="1280" height="720"></iframe>
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="chrome-pagination.html" title="Deck with host-owned Internal badge and pagination icon" width="1280" height="720" loading="lazy"></iframe>
+</div>
 
 For an informative icon, omit `--pagination-icon-decorative` and provide
 `--pagination-icon-label`. `--print-chart-data` includes accessible exact-data
@@ -152,7 +154,9 @@ slide and suggests reducing the chart data or choosing a larger slide size.
 
 This is the static chart projection produced by the example above:
 
-<iframe src="chart-slides.html" title="Rendered static Weekly revenue chart in a deck" width="1280" height="720"></iframe>
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="chart-slides.html" title="Rendered static Weekly revenue chart in a deck" width="1280" height="720" loading="lazy"></iframe>
+</div>
 
 ## Structural layouts
 
@@ -307,7 +311,9 @@ margo deck build/structural-layouts.md --output build/structural-layouts.html
 The generated deck gives each structural layout its own slide. This embedded
 deck shows the six slide variants in source order:
 
-<iframe src="structural-layouts.html" title="Structural layout slides: columns, sidebar, compare, metrics, timeline, and demo" width="1280" height="720"></iframe>
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="structural-layouts.html" title="Structural layout slides: columns, sidebar, compare, metrics, timeline, and demo" width="1280" height="720" loading="lazy"></iframe>
+</div>
 
 The sample carries both `language` and the deck directive `lang`: the generic
 Margo check uses `language`, while deck labels and localized chrome use `lang`.
@@ -358,7 +364,9 @@ documents the complete R1 catalog, validation rules, and rendering contract.
 The complete R1 fixture below renders one slide for each catalog preset, making
 the differences in layout family and slot treatment visible at a glance:
 
-<iframe src="compositions-r1.html" title="R1 composition preset gallery" width="1280" height="720"></iframe>
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="compositions-r1.html" title="R1 composition preset gallery" width="1280" height="720" loading="lazy"></iframe>
+</div>
 
 The gallery is ordered as `content`, the uncomposed override, `agenda`,
 `media-split`, `media-stage`, `steps`, `highlight`, `compare-grid`, `hero`, and
@@ -386,9 +394,13 @@ These three theme choices produce deliberately different slide surfaces. The
 modern light variant is shown in the basic example above; the other two are
 embedded here at their declared color mode and geometry:
 
-<iframe src="theme-goshtoso.html" title="Goshtoso dark deck theme" width="1280" height="720"></iframe>
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="theme-goshtoso.html" title="Goshtoso dark deck theme" width="1280" height="720" loading="lazy"></iframe>
+</div>
 
-<iframe src="theme-minimal.html" title="Minimal light 4:3 deck theme" width="960" height="720"></iframe>
+<div class="margo-deck-preview">
+<iframe class="margo-deck-preview__frame" src="theme-minimal.html" title="Minimal light 4:3 deck theme" width="960" height="720" loading="lazy"></iframe>
+</div>
 
 Local directives are `paginate`, `header`, `footer`, `class`, `color`,
 `backgroundColor`, `backgroundImage`, `backgroundPosition`,
