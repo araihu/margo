@@ -18,7 +18,7 @@ site:
 layout:
   kind: docs
   default:
-    families: [module, cli, schemas]
+    families: [module, cli, schemas, fenced-types]
     sidebar: true
     toc: true
     content:

@@ -1,6 +1,6 @@
 ---
 title: Schemas
-description: Versioned Margo JSON Schemas, rendered as trees with their usage across the documentation.
+description: Versioned Margo JSON Schemas, rendered as trees for inspection.
 language: en
 margo:
   actions:
@@ -11,14 +11,16 @@ margo:
 # Schemas
 
 Margo ships version-matched JSON Schemas for configuration, diagnostics, CLI
-reports, and runtime evidence. Each schema has its own page with a rendered
-property tree and links to the documentation and commands that use it.
+reports, runtime evidence, and chart payloads. Each schema has its own page
+with a rendered property tree for inspection.
 
 ## Configuration schemas
 
 - [Policy](policy/index.md) — trusted host capabilities and resource limits.
 - [Document](document/index.md) — Markdown frontmatter and page actions.
 - [Site](site/index.md) — the closed `site.yaml` publication contract.
+- [Goshtoso charts](goshtoso-chart/index.md) — chart payload schemas for bar,
+  line, pie/doughnut, and scatter charts.
 
 ## Output and runtime schemas
 
