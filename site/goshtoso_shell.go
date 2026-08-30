@@ -915,11 +915,7 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 		familyTitle = family.Overview.Title
 	}
 	families := b.typedComponentDocShellFamilies(page)
-	brand := componentdocshell.Brand{
-		Name:       b.config.Site.Name,
-		HomeURL:    b.siteHomeHref(page),
-		FaviconURL: shellassets.GoshtosoFaviconURL(b.shellAssetPrefix),
-	}
+	brand := b.componentDocShellBrand(b.siteHomeHref(page))
 	if b.config.Site.Version != "" {
 		brand.Badge = &componentdocshell.BrandBadge{
 			Label:     b.config.Site.Version,
@@ -1160,11 +1156,7 @@ func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config
 		}
 		items = append(items, sidebar.Item{ID: componentDocShellPageID(b, page), Label: page.Title, Href: b.shellPageHref(page)})
 	}
-	brand := componentdocshell.Brand{
-		Name:       b.config.Site.Name,
-		HomeURL:    b.shellPageHref(home),
-		FaviconURL: shellassets.GoshtosoFaviconURL(b.shellAssetPrefix),
-	}
+	brand := b.componentDocShellBrand(b.shellPageHref(home))
 	if b.config.Site.Version != "" {
 		brand.Badge = &componentdocshell.BrandBadge{
 			Label:     b.config.Site.Version,
@@ -1203,6 +1195,20 @@ func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config
 		Footer:        b.componentDocShellFooter(),
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   b.shellAssetPrefix,
+	}
+}
+
+func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand {
+	logoURL := b.publicationArtifactHref(b.config.Site.Logo)
+	iconURL := b.publicationArtifactHref(b.config.Site.Icon)
+	return componentdocshell.Brand{
+		Name:       b.config.Site.Name,
+		HomeURL:    homeURL,
+		FaviconURL: iconURL,
+		ManagedLogo: &componentdocshell.ManagedBrandAsset{
+			URL: logoURL, Alt: b.config.Site.Name, Width: 100, Height: 40,
+		},
+		CompactLogo: templ.Raw(`<img src="` + stdhtml.EscapeString(iconURL) + `" alt="">`),
 	}
 }
 

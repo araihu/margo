@@ -10,8 +10,8 @@ site:
   repository_url: https://github.com/araihu/margo
   base_url: https://margo.araihu.com
   home: index.md
-  logo: assets/logo.svg
-  icon: assets/logo.svg
+  logo: assets/icon.svg
+  icon: assets/icon.svg
   social_image:
     path: assets/social/margo-social-v2.jpg
     alt: "Margo showcase: Markdown flowing into HTML, sites, PDFs, and decks."
