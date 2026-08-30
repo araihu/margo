@@ -111,9 +111,13 @@
   min-block-size: 2.75rem;
 }
 
-[data-theme="margo"] .landing-shell__brand > img,
-[data-theme="margo"] .component-doc-shell__managed-logo {
+[data-theme="margo"] .landing-shell__brand > img {
   width: 2.5rem;
+  height: 2.5rem;
+}
+
+[data-theme="margo"] .component-doc-shell__managed-logo {
+  width: auto;
   height: 2.5rem;
 }
 

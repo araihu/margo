@@ -937,7 +937,7 @@ func TestBuildConfigRendersSharedFamilyNavigationAndScopedPagination(t *testing.
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
-	copyMargoAsset(t, filepath.Join(root, "assets", "icon.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "icon.svg"), "icon.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
 source: docs
@@ -1419,7 +1419,7 @@ func TestBuildConfigRendersGoshtosoComponentDocShell(t *testing.T) {
 	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Showcase\n\nA public feature tour.\n\n## A section\n\nA section for the shell TOC.\n")
 	writeConfigFile(t, filepath.Join(root, "showcase", "markdown.md"), "# Markdown\n\nThe compiler path.\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
-	copyMargoAsset(t, filepath.Join(root, "assets", "icon.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "icon.svg"), "icon.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
 source: showcase
