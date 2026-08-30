@@ -20,19 +20,19 @@ to confirm flags for the exact binary in an automation environment.
 
 ## Install and check the version
 
-Install a pinned release in the Go environment that owns the build, then record
-its identity before producing artifacts:
+Install the latest release in the Go environment that owns the build, then
+record its identity before producing artifacts:
 
 ```sh
-go install github.com/araihu/margo/cmd/margo@v0.0.17
+go install github.com/araihu/margo/cmd/margo@latest
 margo version
 margo doctor
 ```
 
 `go install` places the binary in `GOBIN`, or in the Go bin directory when
-`GOBIN` is unset. Pinning a tag avoids silently changing renderer behavior in
-CI. `version` reports the installed build; `doctor` separately checks available
-PDF renderers.
+`GOBIN` is unset. The `@latest` suffix resolves the newest published release.
+`version` reports the installed build; `doctor` separately checks available PDF
+renderers.
 
 ## A runnable example workspace
 
