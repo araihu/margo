@@ -483,8 +483,8 @@ func TestLocalizedLabelFallsBackToEnglish(t *testing.T) {
 }
 
 func TestApplyLandingShellSemanticsLocalizesSkipLink(t *testing.T) {
-	document := []byte(`<!doctype html><html><body><a class="landing-shell__skip" href="#main-content">Skip to main content</a><main id="main-content">Content</main></body></html>`)
-	got, err := applyLandingShellSemantics(document, Page{Locale: "pt-BR", Source: "index.md"})
+	document := []byte(`<!doctype html><html><body><a class="landing-shell__skip" href="#main-content">Skip to main content</a><main id="main-content">Content</main><footer><div class="landing-shell__footer-inner">Old footer</div></footer></body></html>`)
+	got, err := applyLandingShellSemantics(document, Page{Locale: "pt-BR", Source: "index.md"}, []byte(`<p>Footer</p>`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -496,6 +496,9 @@ func TestApplyLandingShellSemanticsLocalizesSkipLink(t *testing.T) {
 	}
 	if strings.Contains(page, "Skip to main content") {
 		t.Fatalf("landing skip link retained English text: %s", page)
+	}
+	if !strings.Contains(page, `<p>Footer</p>`) || strings.Contains(page, "Old footer") {
+		t.Fatalf("landing footer was not replaced: %s", page)
 	}
 }
 
@@ -677,7 +680,11 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	for _, required := range []string{
-		`aria-label="Footer navigation"`,
+		`<p class="margo-shell-footer">Margo · <strong>Buildt</strong> by `,
+		`href="https://araihu.com/"`, `<strong>Arai Hû</strong>`,
+		`href="https://goshtoso.araihu.com/"`, `>Goshtoso</a>`,
+		`href="/llms.txt"><strong>llms.txt</strong>`,
+		`href="/sitemap.xml"><strong>sitemap.xml</strong>`,
 	} {
 		if !strings.Contains(landing, required) {
 			t.Fatalf("Tour missing Goshtoso link/footer contract %q", required)
@@ -824,7 +831,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	llms := string(artifacts[LLMSPath])
-	wantTitles := []string{"[Margo]", "[Go module]", "[CLI workflows]", "[Schemas]", "[Fenced types]"}
+	wantTitles := []string{"[Margo]", "[Go module]", "[CLI]", "[Schemas]", "[Fenced types]"}
 	for _, command := range commandNames {
 		wantTitles = append(wantTitles, "["+command+"]")
 	}
@@ -1462,9 +1469,10 @@ locales:
 		`data-search-id="margo-doc-search"`, `data-search-global-shortcut="true"`, `<kbd`, `⌘ K`,
 		`data-search-title="Markdown"`, `data-search-href="/markdown.html"`,
 		`data-toc-heading`, `src="margo-assets/goshtoso/margo-scroll-spy.js"`,
-		`href="https://goshtoso.araihu.com/"`, `Built with Goshtoso`,
-		`href="https://araihu.com/"`, `Arai Hû`,
-		`href="/llms.txt">llms.txt`, `href="/sitemap.xml">sitemap.xml`,
+		`Margo · <strong>Buildt</strong> by `,
+		`href="https://araihu.com/"`, `<strong>Arai Hû</strong>`,
+		`href="https://goshtoso.araihu.com/"`, `>Goshtoso</a>`,
+		`href="/llms.txt"><strong>llms.txt</strong>`, `href="/sitemap.xml"><strong>sitemap.xml</strong>`,
 		`<title>Showcase</title>`, `<meta name="description" content="A public feature tour."`,
 		`<link rel="canonical" href="https://margo.example/"`, `property="og:image"`,
 		`name="twitter:card" content="summary_large_image"`,
@@ -2605,7 +2613,8 @@ layout:
   kind: landing
   values:
     shell: true
-    navigation: [module/index.md, cli/index.md]
+    navigation: [cli/index.md]
+    navigation_label: Docs
 ---
 # Landing
 
@@ -2661,10 +2670,8 @@ theme:
 		`class="landing-shell__header`,
 		`class="landing-shell__brand-badge"`,
 		`>v0.0.5</span>`,
-		`href="/module/"`,
-		`>Go module</a>`,
 		`href="/cli/"`,
-		`>CLI workflows</a>`,
+		`>Docs</a>`,
 		`id="landingshell-dark-mode"`,
 		`aria-label="Source repository"`,
 		`class="landing-shell__footer"`,

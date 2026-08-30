@@ -138,9 +138,10 @@ func builtinLayoutRegistry() layoutRegistry {
 	landingSchema := layoutValueSchema{
 		Type: layoutObject,
 		Properties: map[string]layoutValueSchema{
-			"shell":      {Type: layoutBool},
-			"navigation": {Type: layoutStringList},
-			"content":    content(),
+			"shell":            {Type: layoutBool},
+			"navigation":       {Type: layoutStringList},
+			"navigation_label": {Type: layoutString},
+			"content":          content(),
 		},
 	}
 	docsSchema := layoutValueSchema{

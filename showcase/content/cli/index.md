@@ -1,5 +1,5 @@
 ---
-title: CLI workflows
+title: CLI
 description: Run, automate, diagnose, and safely publish Margo HTML, sites, PDFs, and decks from Markdown.
 language: en
 margo:
@@ -8,7 +8,7 @@ margo:
     pdf: true
 ---
 
-# CLI workflows
+# CLI
 
 The `margo` command checks Markdown, renders standalone artifacts, builds linked
 sites, and serves development previews. Its command boundary is deliberately
