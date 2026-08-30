@@ -714,7 +714,11 @@ func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source S
 	if err := component.Render(ctx, &rendered); err != nil {
 		return err
 	}
-	withSemantics, err := applyLandingShellSemantics(rendered.Bytes(), page)
+	footer, err := renderComponentBytes(b.shellFooter())
+	if err != nil {
+		return err
+	}
+	withSemantics, err := applyLandingShellSemantics(rendered.Bytes(), page, footer)
 	if err != nil {
 		return err
 	}
@@ -771,7 +775,7 @@ func (b *builder) typedLandingShellConfig(prepared configuredPage) landingshell.
 		Navigation:    links,
 		Appearance:    appearance,
 		Interactions:  landingshell.InteractionConfig{LocalRuntime: true},
-		Footer:        landingshell.Footer{Links: links, HideBrand: true},
+		Footer:        landingshell.Footer{HideBrand: true},
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   landingShellAssetPrefix(b.config.BasePath),
 	}
@@ -781,9 +785,14 @@ func (b *builder) typedLandingShellConfig(prepared configuredPage) landingshell.
 func (b *builder) typedLandingShellLinks(prepared configuredPage) []landingshell.Link {
 	targets := resolvedLayoutStrings(prepared.layout, "navigation")
 	links := make([]landingshell.Link, 0, len(targets))
+	labelOverride, _ := prepared.layout.Values["navigation_label"].(string)
 	for _, target := range targets {
 		candidate := b.configured[target].page
-		links = append(links, landingshell.Link{Label: candidate.Title, Href: b.sitePageHref(candidate)})
+		label := candidate.Title
+		if len(targets) == 1 && strings.TrimSpace(labelOverride) != "" {
+			label = strings.TrimSpace(labelOverride)
+		}
+		links = append(links, landingshell.Link{Label: label, Href: b.sitePageHref(candidate)})
 	}
 	return links
 }
@@ -857,11 +866,12 @@ func (b *builder) renderResolvedLandingShellHead(page Page, layout ResolvedLayou
 	return builder.String(), nil
 }
 
-func applyLandingShellSemantics(document []byte, page Page) ([]byte, error) {
+func applyLandingShellSemantics(document []byte, page Page, footer []byte) ([]byte, error) {
 	root, err := html.Parse(bytes.NewReader(document))
 	if err != nil {
 		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated landing shell defect.", page.Source)
 	}
+	var footerInner *html.Node
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
 		if node.Type == html.ElementNode {
@@ -873,6 +883,8 @@ func applyLandingShellSemantics(document []byte, page Page) ([]byte, error) {
 				setHTMLAttribute(node, "data-margo-layout", "landing")
 			case node.Data == "main":
 				setHTMLAttribute(node, "id", "margo-document")
+			case node.Data == "div" && hasClass(node, "landing-shell__footer-inner"):
+				footerInner = node
 			case node.Data == "a" && hasClass(node, "landing-shell__skip"):
 				setHTMLAttribute(node, "href", "#margo-document")
 				setHTMLText(node, localizedLabel(page.Locale, "skip_content"))
@@ -883,6 +895,19 @@ func applyLandingShellSemantics(document []byte, page Page) ([]byte, error) {
 		}
 	}
 	walk(root)
+	if footerInner == nil {
+		return nil, diagnostic("site.html_invalid", "landing shell footer is missing", "Report the generated landing shell defect.", page.Source)
+	}
+	for footerInner.FirstChild != nil {
+		footerInner.RemoveChild(footerInner.FirstChild)
+	}
+	footerNodes, err := html.ParseFragment(bytes.NewReader(footer), footerInner)
+	if err != nil {
+		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated landing shell defect.", page.Source)
+	}
+	for _, node := range footerNodes {
+		footerInner.AppendChild(node)
+	}
 	var output bytes.Buffer
 	if err := html.Render(&output, root); err != nil {
 		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated landing shell defect.", page.Source)
@@ -954,7 +979,7 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 		},
 		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: false, LocalRuntime: true},
 		HeaderActions: componentDocShellSearchWithConfig(searchConfig),
-		Footer:        b.componentDocShellFooter(),
+		Footer:        b.shellFooter(),
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   b.shellAssetPrefix,
 	}
@@ -1192,7 +1217,7 @@ func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config
 		},
 		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
 		HeaderActions: b.componentDocShellSearch(current.Locale),
-		Footer:        b.componentDocShellFooter(),
+		Footer:        b.shellFooter(),
 		RepositoryURL: b.config.Site.RepositoryURL,
 		AssetPrefix:   b.shellAssetPrefix,
 	}
@@ -1260,42 +1285,49 @@ func (b *builder) componentDocShellSearchItems(locale string) []search.Item {
 	return items
 }
 
-func (b *builder) componentDocShellFooter() templ.Component {
+func (b *builder) shellFooter() templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		if _, err := io.WriteString(w, `<p class="margo-shell-footer">Margo · `); err != nil {
 			return err
 		}
 
-		renderLink := func(href, label string, external bool) error {
+		renderLink := func(href, label string, external, strong bool) error {
 			options := make([]link.Option, 0, 1)
 			if external {
 				options = append(options, link.WithTarget("_blank"))
 			}
+			label = stdhtml.EscapeString(label)
+			if strong {
+				label = "<strong>" + label + "</strong>"
+			}
 			return link.Link(href, options...).Render(
-				templ.WithChildren(ctx, templ.Raw(stdhtml.EscapeString(label))),
+				templ.WithChildren(ctx, templ.Raw(label)),
 				w,
 			)
 		}
 
-		if err := renderLink("https://goshtoso.araihu.com/", "Built with Goshtoso", true); err != nil {
+		if _, err := io.WriteString(w, `<strong>Buildt</strong> by `); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, ` by `); err != nil {
+		if err := renderLink("https://araihu.com/", "Arai Hû", true, true); err != nil {
 			return err
 		}
-		if err := renderLink("https://araihu.com/", "Arai Hû", true); err != nil {
+		if _, err := io.WriteString(w, ` with `); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, ` · `); err != nil {
-			return err
-		}
-		if err := renderLink(b.publicationArtifactHref(LLMSPath), "llms.txt", false); err != nil {
+		if err := renderLink("https://goshtoso.araihu.com/", "Goshtoso", true, false); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, ` · `); err != nil {
 			return err
 		}
-		if err := renderLink(b.publicationArtifactHref(SitemapPath), "sitemap.xml", false); err != nil {
+		if err := renderLink(b.publicationArtifactHref(LLMSPath), "llms.txt", false, true); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, ` · `); err != nil {
+			return err
+		}
+		if err := renderLink(b.publicationArtifactHref(SitemapPath), "sitemap.xml", false, true); err != nil {
 			return err
 		}
 		_, err := io.WriteString(w, `</p>`)

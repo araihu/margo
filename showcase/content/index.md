@@ -6,7 +6,8 @@ layout:
   kind: landing
   values:
     shell: true
-    navigation: [module/index.md, cli/index.md]
+    navigation: [cli/index.md]
+    navigation_label: Docs
 ---
 
 # Margo
