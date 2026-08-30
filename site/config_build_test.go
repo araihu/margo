@@ -937,6 +937,7 @@ func TestBuildConfigRendersSharedFamilyNavigationAndScopedPagination(t *testing.
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "icon.svg"), "icon.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
 source: docs
@@ -948,7 +949,7 @@ site:
   base_url: https://margo.example
   home: index.md
   logo: assets/logo.svg
-  icon: assets/logo.svg
+  icon: assets/icon.svg
   social_image:
     path: assets/social.jpg
     alt: Margo preview
@@ -979,6 +980,11 @@ theme:
 		"cli/index.md":    string(configArtifact(t, result, "cli/index.html")),
 	}
 	for source, page := range map[string]string{"module/index.md": pages["module/index.md"], "cli/index.md": pages["cli/index.md"]} {
+		for _, required := range []string{`class="component-doc-shell__managed-logo"`, `src="../assets/logo.svg"`, `<link rel="icon" href="../assets/icon.svg"`} {
+			if !strings.Contains(page, required) {
+				t.Fatalf("%s missing configured brand asset %q: %s", source, required, page)
+			}
+		}
 		if !strings.Contains(page, `data-margo-layout="`) {
 			t.Fatalf("%s missing semantic layout hook: %s", source, page)
 		}
@@ -1413,6 +1419,7 @@ func TestBuildConfigRendersGoshtosoComponentDocShell(t *testing.T) {
 	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Showcase\n\nA public feature tour.\n\n## A section\n\nA section for the shell TOC.\n")
 	writeConfigFile(t, filepath.Join(root, "showcase", "markdown.md"), "# Markdown\n\nThe compiler path.\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
+	copyMargoAsset(t, filepath.Join(root, "assets", "icon.svg"), "icon.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
 source: showcase
@@ -1424,7 +1431,7 @@ site:
   base_url: https://margo.example
   home: index.md
   logo: assets/logo.svg
-  icon: assets/logo.svg
+  icon: assets/icon.svg
   social_image:
     path: assets/social.jpg
     alt: Margo showcase preview.
@@ -1499,8 +1506,10 @@ locales:
 	if shellScript == -1 || firstPageDependency == -1 || shellScript > firstPageDependency {
 		t.Fatalf("page dependencies run before the component shell: shell=%d dependency=%d resources=%+v", shellScript, firstPageDependency, resources)
 	}
-	if strings.Contains(page, `component-doc-shell__brand-logo`) {
-		t.Fatalf("shell page unexpectedly includes a brand image: %s", page)
+	for _, required := range []string{`class="component-doc-shell__managed-logo"`, `src="assets/logo.svg"`, `<link rel="icon" href="assets/icon.svg"`} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("shell page missing configured brand asset %q: %s", required, page)
+		}
 	}
 	footerStart := strings.Index(page, `<p class="margo-shell-footer">`)
 	if footerStart == -1 {

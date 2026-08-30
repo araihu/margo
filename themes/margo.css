@@ -111,6 +111,16 @@
   min-block-size: 2.75rem;
 }
 
+[data-theme="margo"] .landing-shell__brand > img {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+[data-theme="margo"] .component-doc-shell__managed-logo {
+  width: auto;
+  height: 2.5rem;
+}
+
 /* Keep the pink signal visible without turning the reading surface into a
  * candy wrapper: it marks feature-page entry rails only. */
 [data-theme="margo"] .margo-document .margo-document__lead {
