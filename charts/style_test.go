@@ -36,27 +36,21 @@ func TestChartStyleDefaultsToThemeTokensAndMapsOverrides(t *testing.T) {
 	}
 }
 
-func TestChartStyleValidationRejectsUnsafeOrUnsupportedOverrides(t *testing.T) {
+func TestChartClassValidationRejectsUnsafeOverrides(t *testing.T) {
 	cases := []struct {
 		name  string
 		style chartStyleModel
 		want  string
 	}{
-		{name: "palette", style: chartStyleModel{Palette: "future"}, want: "chart.style_palette_invalid"},
 		{name: "class", style: chartStyleModel{Class: `custom;bad`}, want: "chart.style_class_invalid"},
 		{name: "blank class", style: chartStyleModel{Class: "   "}, want: "chart.style_class_invalid"},
-		{name: "color", style: chartStyleModel{Colors: []string{"red"}}, want: "chart.style_color_invalid"},
-		{name: "count", style: chartStyleModel{Colors: make([]string, maxChartStyleColors+1)}, want: "chart.style_colors_invalid"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := validateChartStyle(tc.style); err == nil || !strings.Contains(err.Error(), tc.want) {
+			if err := validateChartClass(tc.style.Class, "chart style"); err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error = %v, want %s", err, tc.want)
 			}
 		})
-	}
-	if err := validateChartPaint(chartPaintModel{Class: "custom", Color: "#123456"}, "series"); err == nil || !strings.Contains(err.Error(), "chart.style_conflict") {
-		t.Fatalf("paint conflict error = %v", err)
 	}
 }
 

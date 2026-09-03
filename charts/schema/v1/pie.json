@@ -7,16 +7,32 @@
     "schemaVersion": {"const": 1},
     "type": {"enum": ["pie", "doughnut"]},
     "renderer": {"description": "Use static SVG by default. interactive is supported by HTML, site, and standalone PDF; deck HTML and PDF require static.", "enum": ["static", "interactive"]},
-    "title": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1, "pattern": "\\S"},
     "style": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "palette": {"enum": ["auto", "araihu", "bold", "neutral", "pastel", "status"]},
-        "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\\"'<>;]+$"},
+        "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?:[^\\\"'<>;]*\\S[^\\\"'<>;]*)$"},
         "colors": {"type": "array", "maxItems": 12, "items": {"type": "string", "pattern": "^(|#[0-9A-Fa-f]{3,4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8})$"}}
       }
     },
-    "slices": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["name", "value"], "properties": {"name": {"type": "string", "minLength": 1}, "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\\"'<>;]+$"}, "color": {"type": "string", "pattern": "^(?:#[0-9A-Fa-f]{3,4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8})$"}, "value": {"type": "number", "minimum": 0}}}}
+    "slices": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value"],
+        "not": {"required": ["class", "color"]},
+        "properties": {
+          "name": {"type": "string", "minLength": 1, "pattern": "\\S"},
+          "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?:[^\\\"'<>;]*\\S[^\\\"'<>;]*)$"},
+          "color": {"type": "string", "pattern": "^(?:#[0-9A-Fa-f]{3,4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8})$"},
+          "value": {"type": "number", "minimum": 0}
+        }
+      }
+    }
   }
 }

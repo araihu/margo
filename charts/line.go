@@ -2,7 +2,6 @@ package charts
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -29,35 +28,17 @@ type lineSeriesModel struct {
 	chartPaintModel `yaml:",inline"`
 }
 
-func validateLineModel(model lineModel) error {
-	if err := validateChartStyle(model.Style); err != nil {
+func validateLineSemantics(model lineModel) error {
+	if err := validateChartClass(model.Style.Class, "chart style"); err != nil {
 		return err
-	}
-	if model.SchemaVersion != 1 || model.Type != "line" {
-		return chartDiagnostic("chart.schema_invalid", "line model envelope is invalid")
-	}
-	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
-		return chartDiagnostic("chart.renderer_invalid", "line renderer must be static or interactive")
-	}
-	if strings.TrimSpace(model.Title) == "" {
-		return chartDiagnostic("chart.semantic_title_invalid", "line title is required")
-	}
-	if err := validateLineCategories(model.Categories); err != nil {
-		return err
-	}
-	if len(model.Series) == 0 || len(model.Series) > 256 {
-		return chartDiagnostic("chart.resource_series_invalid", "line chart requires 1 to 256 series")
 	}
 	seen := make(map[string]struct{}, len(model.Series))
 	for _, series := range model.Series {
-		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("line series %q", series.Name)); err != nil {
+		if err := validateChartClass(series.Class, fmt.Sprintf("line series %q", series.Name)); err != nil {
 			return err
 		}
 		if model.Renderer == "interactive" && strings.TrimSpace(series.Class) != "" {
 			return chartDiagnostic("chart.renderer_style_unsupported", "interactive line series do not support class")
-		}
-		if strings.TrimSpace(series.Name) == "" {
-			return chartDiagnostic("chart.semantic_series_invalid", "line series name is required")
 		}
 		if _, exists := seen[series.Name]; exists {
 			return chartDiagnostic("chart.semantic_series_duplicate", "line series names must be unique")
@@ -66,28 +47,6 @@ func validateLineModel(model lineModel) error {
 		if len(series.Values) != len(model.Categories) {
 			return chartDiagnostic("chart.semantic_alignment_invalid", "line series values must align with categories")
 		}
-		for _, value := range series.Values {
-			if math.IsNaN(value) || math.IsInf(value, 0) {
-				return chartDiagnostic("chart.value_non_finite", "line values must be finite")
-			}
-		}
-	}
-	return nil
-}
-
-func validateLineCategories(categories []string) error {
-	if len(categories) == 0 || len(categories) > 4096 {
-		return chartDiagnostic("chart.resource_categories_invalid", "line chart requires 1 to 4096 categories")
-	}
-	seen := make(map[string]struct{}, len(categories))
-	for _, category := range categories {
-		if strings.TrimSpace(category) == "" {
-			return chartDiagnostic("chart.semantic_category_invalid", "line category cannot be empty")
-		}
-		if _, exists := seen[category]; exists {
-			return chartDiagnostic("chart.semantic_category_duplicate", "line categories must be unique")
-		}
-		seen[category] = struct{}{}
 	}
 	return nil
 }
@@ -97,7 +56,7 @@ func renderLine(rc margo.RenderContext, model lineModel) (templ.Component, error
 }
 
 func renderLineWithOptions(rc margo.RenderContext, model lineModel, options chartRenderOptions) (templ.Component, error) {
-	if err := validateLineModel(model); err != nil {
+	if err := validateLineSemantics(model); err != nil {
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {

@@ -94,7 +94,6 @@ func TestBarSemanticValidationRejectsInvalidModels(t *testing.T) {
 		code    string
 	}{
 		{name: "alignment", payload: "schemaVersion: 1\ntype: bar\ntitle: T\ncategories: [A, B]\nseries: [{name: S, values: [1]}]\n", code: "chart.semantic_alignment_invalid"},
-		{name: "duplicate category", payload: "schemaVersion: 1\ntype: bar\ntitle: T\ncategories: [A, A]\nseries: [{name: S, values: [1, 2]}]\n", code: "chart.semantic_category_duplicate"},
 		{name: "duplicate series", payload: "schemaVersion: 1\ntype: bar\ntitle: T\ncategories: [A]\nseries: [{name: S, values: [1]}, {name: S, values: [2]}]\n", code: "chart.semantic_series_duplicate"},
 		{name: "nonfinite", payload: "schemaVersion: 1\ntype: bar\ntitle: T\ncategories: [A]\nseries: [{name: S, values: [.nan]}]\n", code: "chart.semantic_value_invalid"},
 	}

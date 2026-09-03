@@ -2,7 +2,6 @@ package charts
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -28,43 +27,22 @@ type pieSliceModel struct {
 	chartPaintModel `yaml:",inline"`
 }
 
-func validatePieModel(model pieModel) error {
-	if err := validateChartStyle(model.Style); err != nil {
+func validatePieSemantics(model pieModel) error {
+	if err := validateChartClass(model.Style.Class, "chart style"); err != nil {
 		return err
-	}
-	if model.SchemaVersion != 1 || (model.Type != "pie" && model.Type != "doughnut") {
-		return chartDiagnostic("chart.schema_invalid", "pie model envelope is invalid")
-	}
-	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
-		return chartDiagnostic("chart.renderer_invalid", "pie renderer must be static or interactive")
-	}
-	if strings.TrimSpace(model.Title) == "" {
-		return chartDiagnostic("chart.semantic_title_invalid", "pie title is required")
-	}
-	if len(model.Slices) == 0 || len(model.Slices) > 256 {
-		return chartDiagnostic("chart.resource_slices_invalid", "pie chart requires 1 to 256 slices")
 	}
 	seen := make(map[string]struct{}, len(model.Slices))
 	for _, slice := range model.Slices {
-		if err := validateChartPaint(slice.chartPaintModel, fmt.Sprintf("pie slice %q", slice.Name)); err != nil {
+		if err := validateChartClass(slice.Class, fmt.Sprintf("pie slice %q", slice.Name)); err != nil {
 			return err
 		}
 		if model.Renderer == "interactive" && strings.TrimSpace(slice.Class) != "" {
 			return chartDiagnostic("chart.renderer_style_unsupported", "interactive pie slices do not support class")
 		}
-		if strings.TrimSpace(slice.Name) == "" {
-			return chartDiagnostic("chart.semantic_slice_invalid", "pie slice name is required")
-		}
 		if _, exists := seen[slice.Name]; exists {
 			return chartDiagnostic("chart.semantic_slice_duplicate", "pie slice names must be unique")
 		}
 		seen[slice.Name] = struct{}{}
-		if math.IsNaN(slice.Value) || math.IsInf(slice.Value, 0) {
-			return chartDiagnostic("chart.value_non_finite", "pie slice values must be finite")
-		}
-		if slice.Value < 0 {
-			return chartDiagnostic("chart.semantic_value_negative", "pie slice values must be non-negative")
-		}
 	}
 	return nil
 }
@@ -74,7 +52,7 @@ func renderPie(rc margo.RenderContext, model pieModel) (templ.Component, error) 
 }
 
 func renderPieWithOptions(rc margo.RenderContext, model pieModel, options chartRenderOptions) (templ.Component, error) {
-	if err := validatePieModel(model); err != nil {
+	if err := validatePieSemantics(model); err != nil {
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {

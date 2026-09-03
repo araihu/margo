@@ -7,47 +7,58 @@
     "schemaVersion": {"const": 1},
     "type": {"const": "scatter"},
     "renderer": {"description": "Use static SVG by default. interactive is supported by HTML, site, and standalone PDF; deck HTML and PDF require static.", "enum": ["static", "interactive"]},
-    "title": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1, "pattern": "\\S"},
     "style": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "palette": {"enum": ["auto", "araihu", "bold", "neutral", "pastel", "status"]},
-        "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\\"'<>;]+$"},
+        "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?:[^\\\"'<>;]*\\S[^\\\"'<>;]*)$"},
         "colors": {"type": "array", "maxItems": 12, "items": {"type": "string", "pattern": "^(|#[0-9A-Fa-f]{3,4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8})$"}}
       }
     },
-    "categories": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "categories": {"type": "array", "minItems": 1, "maxItems": 4096, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "pattern": "\\S"}},
     "series": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 256,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["name"],
+        "not": {"required": ["class", "color"]},
+        "oneOf": [
+          {"required": ["points"]},
+          {"required": ["values"]}
+        ],
+        "dependentRequired": {"samples": ["values"]},
         "properties": {
-          "name": {"type": "string", "minLength": 1},
-          "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\\"'<>;]+$"},
+          "name": {"type": "string", "minLength": 1, "pattern": "\\S"},
+          "class": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?:[^\\\"'<>;]*\\S[^\\\"'<>;]*)$"},
           "color": {"type": "string", "pattern": "^(?:#[0-9A-Fa-f]{3,4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8})$"},
           "points": {
             "type": "array",
+            "minItems": 1,
+            "maxItems": 65536,
             "items": {
               "type": "object",
               "additionalProperties": false,
               "required": ["category", "value"],
               "properties": {
-                "category": {"type": "string", "minLength": 1},
+                "category": {"type": "string", "minLength": 1, "pattern": "\\S"},
                 "value": {"type": "number"}
               }
             }
           },
           "values": {
             "type": "array",
+            "minItems": 1,
+            "contains": {"type": "array", "minItems": 1},
             "items": {"type": "array", "items": {"type": "number"}}
           },
           "samples": {
             "type": "array",
-            "items": {"type": "array", "items": {"type": "string", "minLength": 1}}
+            "items": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "pattern": "\\S"}}
           }
         }
       }

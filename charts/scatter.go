@@ -2,7 +2,6 @@ package charts
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -14,9 +13,7 @@ import (
 )
 
 const (
-	maxScatterCategories = 4096
-	maxScatterSeries     = 256
-	maxScatterSamples    = 65536
+	maxScatterSamples = 65536
 )
 
 type scatterModel struct {
@@ -42,72 +39,31 @@ type scatterPointModel struct {
 	Value    float64 `yaml:"value"`
 }
 
-func validateScatterModel(model scatterModel) error {
-	if err := validateChartStyle(model.Style); err != nil {
+func validateScatterSemantics(model scatterModel) error {
+	if err := validateChartClass(model.Style.Class, "chart style"); err != nil {
 		return err
-	}
-	if model.SchemaVersion != 1 || model.Type != "scatter" {
-		return chartDiagnostic("chart.schema_invalid", "scatter model envelope is invalid")
-	}
-	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
-		return chartDiagnostic("chart.renderer_invalid", "scatter renderer must be static or interactive")
-	}
-	if strings.TrimSpace(model.Title) == "" {
-		return chartDiagnostic("chart.semantic_title_invalid", "scatter title is required")
-	}
-	if len(model.Categories) == 0 || len(model.Categories) > maxScatterCategories {
-		return chartDiagnostic("chart.resource_categories_invalid", "scatter chart requires 1 to 4096 categories")
 	}
 	categorySet := make(map[string]struct{}, len(model.Categories))
 	for _, category := range model.Categories {
-		if strings.TrimSpace(category) == "" {
-			return chartDiagnostic("chart.semantic_category_invalid", "scatter category cannot be empty")
-		}
-		if _, exists := categorySet[category]; exists {
-			return chartDiagnostic("chart.semantic_category_duplicate", "scatter categories must be unique")
-		}
 		categorySet[category] = struct{}{}
-	}
-	if len(model.Series) == 0 || len(model.Series) > maxScatterSeries {
-		return chartDiagnostic("chart.resource_series_invalid", "scatter chart requires 1 to 256 series")
 	}
 	seenSeries := make(map[string]struct{}, len(model.Series))
 	totalSamples := 0
 	for _, series := range model.Series {
-		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("scatter series %q", series.Name)); err != nil {
+		if err := validateChartClass(series.Class, fmt.Sprintf("scatter series %q", series.Name)); err != nil {
 			return err
 		}
 		if model.Renderer == "interactive" && strings.TrimSpace(series.Class) != "" {
 			return chartDiagnostic("chart.renderer_style_unsupported", "interactive scatter series do not support class")
 		}
-		if strings.TrimSpace(series.Name) == "" {
-			return chartDiagnostic("chart.semantic_series_invalid", "scatter series name is required")
-		}
 		if _, exists := seenSeries[series.Name]; exists {
 			return chartDiagnostic("chart.semantic_series_duplicate", "scatter series names must be unique")
 		}
 		seenSeries[series.Name] = struct{}{}
-		hasPoints := series.Points != nil
-		hasValues := series.Values != nil
-		if hasPoints == hasValues {
-			return chartDiagnostic("chart.scatter_data_mode_invalid", "scatter series requires exactly one of points or values")
-		}
-		if hasPoints {
-			if series.Samples != nil {
-				return chartDiagnostic("chart.scatter_samples_invalid", "scatter point series cannot declare samples")
-			}
-			if len(series.Points) == 0 {
-				return chartDiagnostic("chart.resource_points_invalid", "scatter point series requires at least one point")
-			}
-			for pointIndex, point := range series.Points {
+		if series.Points != nil {
+			for _, point := range series.Points {
 				if _, exists := categorySet[point.Category]; !exists {
 					return chartDiagnostic("chart.scatter.category_unknown", "scatter point references an unknown category")
-				}
-				if math.IsNaN(point.Value) || math.IsInf(point.Value, 0) {
-					return chartDiagnostic("chart.value_non_finite", "scatter point values must be finite")
-				}
-				if pointIndex >= maxScatterSamples {
-					return chartDiagnostic("chart.resource_points_invalid", "scatter point count exceeds 65536")
 				}
 			}
 			totalSamples += len(series.Points)
@@ -127,29 +83,10 @@ func validateScatterModel(model scatterModel) error {
 			if series.Samples != nil && len(series.Samples[categoryIndex]) != len(values) {
 				return chartDiagnostic("chart.semantic_alignment_invalid", "scatter samples must align with values")
 			}
-			seenSamples := make(map[string]struct{}, len(values))
-			for sampleIndex, value := range values {
-				if math.IsNaN(value) || math.IsInf(value, 0) {
-					return chartDiagnostic("chart.value_non_finite", "scatter aligned values must be finite")
-				}
-				if series.Samples != nil {
-					sample := series.Samples[categoryIndex][sampleIndex]
-					if strings.TrimSpace(sample) == "" {
-						return chartDiagnostic("chart.semantic_sample_invalid", "scatter sample name is required")
-					}
-					if _, exists := seenSamples[sample]; exists {
-						return chartDiagnostic("chart.semantic_sample_duplicate", "scatter sample names must be unique within a category")
-					}
-					seenSamples[sample] = struct{}{}
-				}
-				seriesSamples++
-				if totalSamples+seriesSamples > maxScatterSamples {
-					return chartDiagnostic("chart.resource_points_invalid", "scatter sample count exceeds 65536")
-				}
+			seriesSamples += len(values)
+			if totalSamples+seriesSamples > maxScatterSamples {
+				return chartDiagnostic("chart.resource_points_invalid", "scatter sample count exceeds 65536")
 			}
-		}
-		if seriesSamples == 0 {
-			return chartDiagnostic("chart.resource_points_invalid", "scatter aligned series requires at least one value")
 		}
 		totalSamples += seriesSamples
 	}
@@ -182,7 +119,7 @@ func renderScatter(rc margo.RenderContext, model scatterModel) (templ.Component,
 }
 
 func renderScatterWithOptions(rc margo.RenderContext, model scatterModel, options chartRenderOptions) (templ.Component, error) {
-	if err := validateScatterModel(model); err != nil {
+	if err := validateScatterSemantics(model); err != nil {
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {

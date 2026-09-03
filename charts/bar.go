@@ -2,7 +2,6 @@ package charts
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -30,54 +29,17 @@ type barSeriesModel struct {
 	chartPaintModel `yaml:",inline"`
 }
 
-func validateBarModel(model barModel) error {
-	if err := validateChartStyle(model.Style); err != nil {
+func validateBarSemantics(model barModel) error {
+	if err := validateChartClass(model.Style.Class, "chart style"); err != nil {
 		return err
-	}
-	if model.SchemaVersion != 1 || model.Type != "bar" {
-		return chartDiagnostic("chart.schema_invalid", "bar model envelope is invalid")
-	}
-	if model.Renderer != "" && model.Renderer != "static" && model.Renderer != "interactive" {
-		return chartDiagnostic("chart.renderer_invalid", "bar renderer must be static or interactive")
-	}
-	if strings.TrimSpace(model.Title) == "" {
-		return chartDiagnostic("chart.semantic_title_invalid", "bar title is required")
-	}
-	if len(model.Categories) == 0 || len(model.Categories) > 4096 {
-		return chartDiagnostic("chart.resource_categories_invalid", "bar chart requires 1 to 4096 categories")
-	}
-	seenCategories := make(map[string]struct{}, len(model.Categories))
-	for index, category := range model.Categories {
-		if strings.TrimSpace(category) == "" {
-			return chartDiagnostic("chart.semantic_category_invalid", "bar category cannot be empty")
-		}
-		if _, exists := seenCategories[category]; exists {
-			return chartDiagnostic("chart.semantic_category_duplicate", "bar categories must be unique")
-		}
-		seenCategories[category] = struct{}{}
-		if index >= 4096 {
-			return chartDiagnostic("chart.resource_categories_invalid", "bar chart has too many categories")
-		}
-	}
-	if model.Orientation == "" {
-		model.Orientation = "vertical"
-	}
-	if model.Orientation != "vertical" && model.Orientation != "horizontal" {
-		return chartDiagnostic("chart.semantic_orientation_invalid", "bar orientation must be vertical or horizontal")
-	}
-	if len(model.Series) == 0 || len(model.Series) > 256 {
-		return chartDiagnostic("chart.resource_series_invalid", "bar chart requires 1 to 256 series")
 	}
 	seenSeries := make(map[string]struct{}, len(model.Series))
 	for _, series := range model.Series {
-		if err := validateChartPaint(series.chartPaintModel, fmt.Sprintf("bar series %q", series.Name)); err != nil {
+		if err := validateChartClass(series.Class, fmt.Sprintf("bar series %q", series.Name)); err != nil {
 			return err
 		}
 		if model.Renderer == "interactive" && strings.TrimSpace(series.Class) != "" {
 			return chartDiagnostic("chart.renderer_style_unsupported", "interactive bar series do not support class")
-		}
-		if strings.TrimSpace(series.Name) == "" {
-			return chartDiagnostic("chart.semantic_series_invalid", "bar series name is required")
 		}
 		if _, exists := seenSeries[series.Name]; exists {
 			return chartDiagnostic("chart.semantic_series_duplicate", "bar series names must be unique")
@@ -86,17 +48,12 @@ func validateBarModel(model barModel) error {
 		if len(series.Values) != len(model.Categories) {
 			return chartDiagnostic("chart.semantic_alignment_invalid", "bar series values must align with categories")
 		}
-		for _, value := range series.Values {
-			if math.IsNaN(value) || math.IsInf(value, 0) {
-				return chartDiagnostic("chart.semantic_value_invalid", "bar values must be finite")
-			}
-		}
 	}
 	return nil
 }
 
 func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartRenderOptions) (templ.Component, error) {
-	if err := validateBarModel(model); err != nil {
+	if err := validateBarSemantics(model); err != nil {
 		return nil, err
 	}
 	if model.Renderer == "interactive" && !options.controlWrapper {

@@ -310,6 +310,9 @@ func decodeEnvelope(payload []byte) (decodedEnvelope, error) {
 	if err := typeNode.Decode(&chartType); err != nil || chartType == "" {
 		return decodedEnvelope{}, chartDiagnosticAt("chart.schema_invalid", "type must be a non-empty string", typeNode.Line, typeNode.Column)
 	}
+	if err := validateChartSchema(chartType, node); err != nil {
+		return decodedEnvelope{}, err
+	}
 	var model any
 	switch chartType {
 	case "bar":

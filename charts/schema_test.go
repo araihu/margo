@@ -2,8 +2,11 @@ package charts
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+
+	margo "github.com/araihu/margo"
 )
 
 func TestSchemaReturnsExactBarV1(t *testing.T) {
@@ -117,6 +120,45 @@ func TestEveryChartSchemaExposesRendererChoice(t *testing.T) {
 			enum, ok := renderer["enum"].([]any)
 			if !ok || len(enum) != 2 || enum[0] != "static" || enum[1] != "interactive" {
 				t.Fatalf("renderer enum = %#v", renderer["enum"])
+			}
+		})
+	}
+}
+
+func TestDecodeEnvelopeValidatesEveryChartSchema(t *testing.T) {
+	for chartType, payload := range map[string]string{
+		"bar":      "schemaVersion: 1\ntype: bar\nstyle: null\ntitle: T\ncategories: [A]\nseries: [{name: S, values: [1]}]\n",
+		"line":     "schemaVersion: 1\ntype: line\nstyle: null\ntitle: T\ncategories: [A]\nseries: [{name: S, values: [1]}]\n",
+		"pie":      "schemaVersion: 1\ntype: pie\nstyle: null\ntitle: T\nslices: [{name: A, value: 1}]\n",
+		"doughnut": "schemaVersion: 1\ntype: doughnut\nstyle: null\ntitle: T\nslices: [{name: A, value: 1}]\n",
+		"scatter":  "schemaVersion: 1\ntype: scatter\nstyle: null\ntitle: T\ncategories: [A]\nseries: [{name: S, points: [{category: A, value: 1}]}]\n",
+	} {
+		t.Run(chartType, func(t *testing.T) {
+			_, err := decodeEnvelope([]byte(payload))
+			if err == nil || !strings.Contains(err.Error(), "chart.schema_invalid") {
+				t.Fatalf("error = %v, want chart.schema_invalid", err)
+			}
+			var diagnostic *margo.DiagnosticError
+			if !errors.As(err, &diagnostic) || len(diagnostic.Diagnostics) != 1 || diagnostic.Diagnostics[0].Pointer != "/style" {
+				t.Fatalf("diagnostic = %#v, want /style pointer", diagnostic)
+			}
+		})
+	}
+}
+
+func TestSchemasOwnDeclarativeChartValidation(t *testing.T) {
+	for name, payload := range map[string]string{
+		"bar categories are unique":      "schemaVersion: 1\ntype: bar\ntitle: T\ncategories: [A, A]\nseries: [{name: S, values: [1, 2]}]\n",
+		"line names contain text":        "schemaVersion: 1\ntype: line\ntitle: T\ncategories: [A]\nseries: [{name: ' ', values: [1]}]\n",
+		"pie paint is exclusive":         "schemaVersion: 1\ntype: pie\ntitle: T\nslices: [{name: A, value: 1, class: custom, color: '#123'}]\n",
+		"doughnut paint is exclusive":    "schemaVersion: 1\ntype: doughnut\ntitle: T\nslices: [{name: A, value: 1, class: custom, color: '#123'}]\n",
+		"scatter data mode is exclusive": "schemaVersion: 1\ntype: scatter\ntitle: T\ncategories: [A]\nseries: [{name: S, points: [{category: A, value: 1}], values: [[1]]}]\n",
+		"scatter samples require values": "schemaVersion: 1\ntype: scatter\ntitle: T\ncategories: [A]\nseries: [{name: S, points: [{category: A, value: 1}], samples: [[one]]}]\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := decodeEnvelope([]byte(payload))
+			if err == nil || !strings.Contains(err.Error(), "chart.schema_invalid") {
+				t.Fatalf("error = %v, want chart.schema_invalid", err)
 			}
 		})
 	}

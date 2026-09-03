@@ -16,7 +16,6 @@ import (
 
 const (
 	maxChartStyleClassBytes = 256
-	maxChartStyleColors     = 12
 )
 
 // chartStyleModel is the closed, renderer-neutral appearance contract exposed
@@ -43,43 +42,8 @@ func (paint chartPaintModel) normalized() chartPaintModel {
 
 var chartPaintElementPattern = regexp.MustCompile(`<(?:path|circle|rect|line|polyline|polygon|text)\b[^>]*>`)
 
-func validateChartStyle(style chartStyleModel) error {
-	switch style.Palette {
-	case "", "auto", "araihu", "bold", "neutral", "pastel", "status":
-	default:
-		return chartDiagnostic("chart.style_palette_invalid", fmt.Sprintf("unsupported chart palette %q", style.Palette))
-	}
-	if err := validateChartClass(style.Class, "chart style"); err != nil {
-		return err
-	}
-	if len(style.Colors) > maxChartStyleColors {
-		return chartDiagnostic("chart.style_colors_invalid", fmt.Sprintf("chart style supports at most %d colors", maxChartStyleColors))
-	}
-	for index, color := range style.Colors {
-		if color == "" {
-			continue
-		}
-		if !isHexColor(color) {
-			return chartDiagnostic("chart.style_color_invalid", fmt.Sprintf("chart style color %d must be a hex color", index))
-		}
-	}
-	return nil
-}
-
-func validateChartPaint(paint chartPaintModel, subject string) error {
-	paint = paint.normalized()
-	if strings.TrimSpace(paint.Class) != "" && strings.TrimSpace(paint.Color) != "" {
-		return chartDiagnostic("chart.style_conflict", fmt.Sprintf("%s cannot set both class and color", subject))
-	}
-	if err := validateChartClass(paint.Class, subject); err != nil {
-		return err
-	}
-	if strings.TrimSpace(paint.Color) != "" && !isHexColor(paint.Color) {
-		return chartDiagnostic("chart.style_color_invalid", fmt.Sprintf("%s color must be a hex color", subject))
-	}
-	return nil
-}
-
+// validateChartClass adds byte and control-character checks that JSON Schema
+// cannot express portably and protects internal callers that construct models.
 func validateChartClass(value, subject string) error {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -100,23 +64,6 @@ func validateChartClass(value, subject string) error {
 		}
 	}
 	return nil
-}
-
-func isHexColor(value string) bool {
-	if value == "" || value[0] != '#' {
-		return false
-	}
-	switch len(value) {
-	case 4, 5, 7, 9: // #RGB, #RGBA, #RRGGBB, #RRGGBBAA
-	default:
-		return false
-	}
-	for _, r := range value[1:] {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
-			return false
-		}
-	}
-	return true
 }
 
 func (style chartStyleModel) chartTheme() charttheme.Style {

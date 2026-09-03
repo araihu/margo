@@ -23,7 +23,7 @@ func checkChart(ctx context.Context, node margo.ExtensionNode, options chartRend
 	if err != nil {
 		return err
 	}
-	if err := validateChartModel(envelope.Model); err != nil {
+	if err := validateChartSemantics(envelope.Model); err != nil {
 		return err
 	}
 	renderer := chartRenderer(envelope.Model)
@@ -49,16 +49,16 @@ func checkChart(ctx context.Context, node margo.ExtensionNode, options chartRend
 	return nil
 }
 
-func validateChartModel(model any) error {
+func validateChartSemantics(model any) error {
 	switch typed := model.(type) {
 	case barModel:
-		return validateBarModel(typed)
+		return validateBarSemantics(typed)
 	case lineModel:
-		return validateLineModel(typed)
+		return validateLineSemantics(typed)
 	case pieModel:
-		return validatePieModel(typed)
+		return validatePieSemantics(typed)
 	case scatterModel:
-		return validateScatterModel(typed)
+		return validateScatterSemantics(typed)
 	default:
 		return chartDiagnostic("chart.model_invalid", "chart checker received an unsupported model")
 	}
