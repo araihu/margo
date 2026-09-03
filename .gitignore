@@ -32,3 +32,5 @@ go.work.sum
 # Operating-system files
 .DS_Store
 Thumbs.db
+.impeccable/
+.superpowers/
