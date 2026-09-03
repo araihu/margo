@@ -30,8 +30,8 @@ func TestBuildLocalSiteCodeCopyWorksWithoutAlpine(t *testing.T) {
 	for _, artifact := range result.Artifacts {
 		artifacts["/"+strings.TrimPrefix(artifact.Path, "/")] = artifact.Content
 	}
-	if _, ok := artifacts["/margo-assets/code-copy.js"]; !ok {
-		t.Fatal("local site did not publish the Margo code-copy runtime")
+	if _, ok := artifacts["/assets/js/code-block.js"]; !ok {
+		t.Fatal("local site did not publish the Goshtoso code-block runtime")
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		path := request.URL.Path
@@ -64,26 +64,26 @@ func TestBuildLocalSiteCodeCopyWorksWithoutAlpine(t *testing.T) {
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL+"/guide.html"),
-		chromedp.WaitVisible(`[data-margo-code-copy-button]`, chromedp.ByQuery),
+		chromedp.WaitVisible(`[data-code-block-copy]`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
 			const clipboard = navigator.clipboard || {};
 			clipboard.writeText = (text) => { globalThis.margoCopiedCode = text; return Promise.resolve(); };
 			try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: clipboard }); } catch (_) {}
 			return typeof navigator.clipboard?.writeText === 'function';
 		})()`, nil),
-		chromedp.Click(`[data-margo-code-copy-button]`, chromedp.ByQuery),
-		chromedp.Poll(`document.querySelector('[data-margo-code-copy-label]')?.textContent.trim() === 'Copied!'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
+		chromedp.Click(`[data-code-block-copy]`, chromedp.ByQuery),
+		chromedp.Poll(`document.querySelector('[data-code-block-copy-status]')?.textContent.trim() === 'Copied!'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(`(() => ({
 			copied: globalThis.margoCopiedCode || '',
-			label: document.querySelector('[data-margo-code-copy-label]')?.textContent.trim() || '',
-			ariaLabel: document.querySelector('[data-margo-code-copy-button]')?.getAttribute('aria-label') || '',
-			runtimeSeen: [...document.scripts].some((script) => script.src.endsWith('/margo-assets/code-copy.js')),
-			alpineAttrs: !!document.querySelector('[data-margo-code-copy][x-data]') || [...document.querySelectorAll('[data-margo-code-copy-button]')].some((button) => button.hasAttribute('@click'))
+			label: document.querySelector('[data-code-block-copy-status]')?.textContent.trim() || '',
+			ariaLabel: document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '',
+			runtimeSeen: [...document.scripts].some((script) => script.src.endsWith('/assets/js/code-block.js')),
+			alpineAttrs: !!document.querySelector('[data-code-block][x-data]') || [...document.querySelectorAll('[data-code-block-copy]')].some((button) => button.hasAttribute('@click'))
 		}))()`, &state),
 	); err != nil {
 		t.Fatal(err)
 	}
-	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel != "Code copied" || !state.RuntimeSeen || state.AlpineAttrs {
+	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel != "Copied code" || !state.RuntimeSeen || state.AlpineAttrs {
 		t.Fatalf("code-copy browser state = %+v", state)
 	}
 }
@@ -123,8 +123,8 @@ locales:
 	for _, artifact := range result.Artifacts {
 		artifacts["/"+strings.TrimPrefix(artifact.Path, "/")] = artifact.Content
 	}
-	if _, ok := artifacts["/margo-assets/code-copy.js"]; !ok {
-		t.Fatal("configured site did not publish the Margo code-copy runtime")
+	if _, ok := artifacts["/assets/js/code-block.js"]; !ok {
+		t.Fatal("configured site did not publish the Goshtoso code-block runtime")
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		path := request.URL.Path
@@ -157,26 +157,26 @@ locales:
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL+"/index.html"),
-		chromedp.WaitVisible(`[data-margo-code-copy-button]`, chromedp.ByQuery),
+		chromedp.WaitVisible(`[data-code-block-copy]`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
 			const clipboard = navigator.clipboard || {};
 			clipboard.writeText = (text) => { globalThis.margoCopiedCode = text; return Promise.resolve(); };
 			try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: clipboard }); } catch (_) {}
 			return true;
 		})()`, nil),
-		chromedp.Click(`[data-margo-code-copy-button]`, chromedp.ByQuery),
-		chromedp.Poll(`document.querySelector('[data-margo-code-copy-label]')?.textContent.trim() === 'Copied!'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
+		chromedp.Click(`[data-code-block-copy]`, chromedp.ByQuery),
+		chromedp.Poll(`document.querySelector('[data-code-block-copy-status]')?.textContent.trim() === 'Copied!'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(`(() => ({
 			copied: globalThis.margoCopiedCode || '',
-			label: document.querySelector('[data-margo-code-copy-label]')?.textContent.trim() || '',
-			ariaLabel: document.querySelector('[data-margo-code-copy-button]')?.getAttribute('aria-label') || '',
-			runtimeSeen: [...document.scripts].some((script) => script.src.endsWith('/margo-assets/code-copy.js')),
-			alpineAttrs: !!document.querySelector('[data-margo-code-copy][x-data]') || [...document.querySelectorAll('[data-margo-code-copy-button]')].some((button) => button.hasAttribute('@click'))
+			label: document.querySelector('[data-code-block-copy-status]')?.textContent.trim() || '',
+			ariaLabel: document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '',
+			runtimeSeen: [...document.scripts].some((script) => script.src.endsWith('/assets/js/code-block.js')),
+			alpineAttrs: !!document.querySelector('[data-code-block][x-data]') || [...document.querySelectorAll('[data-code-block-copy]')].some((button) => button.hasAttribute('@click'))
 		}))()`, &state),
 	); err != nil {
 		t.Fatal(err)
 	}
-	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel != "Code copied" || !state.RuntimeSeen || state.AlpineAttrs {
+	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel != "Copied code" || !state.RuntimeSeen || state.AlpineAttrs {
 		t.Fatalf("configured site code-copy browser state = %+v", state)
 	}
 }

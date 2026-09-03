@@ -744,6 +744,7 @@ body {
   body {
     block-size: auto;
     min-block-size: auto;
+    overflow: visible;
   }
 
   .margo-deck-stage {
@@ -816,7 +817,7 @@ body {
     padding-inline: 4px;
   }
 }
-</style></head><body><div class="margo-deck-stage"><article class="margo-deck" data-margo-width="1280" data-margo-height="720" data-margo-unit="px" data-margo-preset="16:9"><section id="slide-0001" class="margo-deck__slide margo-deck__slide--columns" role="region" aria-label="Slide 1 of 6" tabindex="-1" data-margo-slide="0" aria-current="page" lang="en"><div class="margo-layout margo-layout--columns" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--left"><article class="margo-document"><h1 id="context">Context</h1><p class="margo-document__lead">The left column carries the premise or primary evidence.</p></article></div><div class="margo-layout__slot margo-layout__slot--right"><article class="margo-document"><h1 id="decision">Decision</h1><p class="margo-document__lead">The right column carries the consequence or supporting action.</p></article></div></div></div></section><section id="slide-0002" class="margo-deck__slide margo-deck__slide--sidebar" role="region" aria-label="Slide 2 of 6" tabindex="-1" data-margo-slide="1" hidden="" lang="en"><div class="margo-layout margo-layout--sidebar" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--main"><article class="margo-document"><h2 id="main">Main</h2><p>Use the main slot for the thesis, evidence, and reading flow.</p></article></div><div class="margo-layout__slot margo-layout__slot--rail"><article class="margo-document"><h3 id="rail">Rail</h3><p>Use the rail for definitions, context, or a short callout.</p></article></div></div></div></section><section id="slide-0003" class="margo-deck__slide margo-deck__slide--compare" role="region" aria-label="Slide 3 of 6" tabindex="-1" data-margo-slide="2" hidden="" lang="en"><div class="margo-layout margo-layout--compare" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--left"><article class="margo-document"><h2 id="option-a">Option A</h2><ul><li>controlled authoring</li><li>deterministic output</li></ul></article></div><div class="margo-layout__slot margo-layout__slot--right"><article class="margo-document"><h2 id="option-b">Option B</h2><ul><li>familiar Markdown input</li><li>bounded visual vocabulary</li></ul></article></div></div></div></section><section id="slide-0004" class="margo-deck__slide margo-deck__slide--metrics" role="region" aria-label="Slide 4 of 6" tabindex="-1" data-margo-slide="3" hidden="" lang="en"><div class="margo-layout margo-layout--metrics" data-margo-slot-count="4" role="group" aria-label="Metrics"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--metric-1"><article class="margo-document"><h3 id="6">6</h3><p>structural layouts</p></article></div><div class="margo-layout__slot margo-layout__slot--metric-2"><article class="margo-document"><h3 id="2">2</h3><p>two-column variants</p></article></div><div class="margo-layout__slot margo-layout__slot--metric-3"><article class="margo-document"><h3 id="36">3–6</h3><p>timeline slots</p></article></div><div class="margo-layout__slot margo-layout__slot--metric-4"><article class="margo-document"><h3 id="0">0</h3><p>arbitrary CSS rules</p></article></div></div></div></section><section id="slide-0005" class="margo-deck__slide margo-deck__slide--timeline" role="region" aria-label="Slide 5 of 6" tabindex="-1" data-margo-slide="4" hidden="" lang="en"><div class="margo-layout margo-layout--timeline" data-margo-slot-count="3"><ol class="margo-layout__slots"><li class="margo-layout__slot margo-layout__slot--step-1"><article class="margo-document"><h3 id="input">Input</h3><p>Write Markdown and closed directives.</p></article></li><li class="margo-layout__slot margo-layout__slot--step-2"><article class="margo-document"><h3 id="normalize">Normalize</h3><p>Resolve the class, slots, and source order.</p></article></li><li class="margo-layout__slot margo-layout__slot--step-3"><article class="margo-document"><h3 id="publish">Publish</h3><p>Render HTML or validate a PDF projection.</p></article></li></ol></div></section><section id="slide-0006" class="margo-deck__slide margo-deck__slide--demo" role="region" aria-label="Slide 6 of 6" tabindex="-1" data-margo-slide="5" hidden="" lang="en"><div class="margo-layout margo-layout--demo" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--code"><article class="margo-document"><h3 id="source">Source</h3><div x-data="{ copied: false, copyCode() { navigator.clipboard.writeText(document.getElementById(&#39;codeblock-markdown-83fbed4dec&#39;).textContent).then(() =&gt; { this.copied = true; setTimeout(() =&gt; this.copied = false, 2000); }); } }" class="rounded-radius border border-outline dark:border-outline-dark overflow-hidden" data-code-block="" data-margo-code-copy="" data-density=""><!-- Header --><div class="flex items-center justify-between px-4 py-2 bg-surface-alt dark:bg-surface-dark-alt border-b border-outline dark:border-outline-dark" data-code-block-header=""><span class="text-xs font-medium text-on-surface dark:text-on-surface-dark">markdown</span> <button type="button" @click="copyCode()" data-margo-code-copy-button="" aria-label="Copy markdown code" class="flex items-center gap-1 text-xs text-on-surface-muted hover:text-primary transition-colors motion-reduce:transition-none dark:text-on-surface-dark-muted dark:hover:text-primary-dark"><svg x-show="!copied" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> <svg x-show="copied" x-cloak="" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> <span x-text="copied ? &#39;Copied!&#39; : &#39;Copy&#39;" data-margo-code-copy-label="" aria-live="polite">Copy</span></button></div><!-- Code --><div id="codeblock-markdown-83fbed4dec" class="codeblock overflow-x-auto" style=""><pre class="ch-chroma"><code><span class="ch-line"><span class="ch-cl"><span class="ch-cm">&lt;!-- composition: media-split --&gt;</span>
+</style></head><body><div class="margo-deck-stage"><article class="margo-deck" data-margo-width="1280" data-margo-height="720" data-margo-unit="px" data-margo-preset="16:9"><section id="slide-0001" class="margo-deck__slide margo-deck__slide--columns" role="region" aria-label="Slide 1 of 6" tabindex="-1" data-margo-slide="0" aria-current="page" lang="en"><div class="margo-layout margo-layout--columns" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--left"><article class="margo-document"><h1 id="context">Context</h1><p class="margo-document__lead">The left column carries the premise or primary evidence.</p></article></div><div class="margo-layout__slot margo-layout__slot--right"><article class="margo-document"><h1 id="decision">Decision</h1><p class="margo-document__lead">The right column carries the consequence or supporting action.</p></article></div></div></div></section><section id="slide-0002" class="margo-deck__slide margo-deck__slide--sidebar" role="region" aria-label="Slide 2 of 6" tabindex="-1" data-margo-slide="1" hidden="" lang="en"><div class="margo-layout margo-layout--sidebar" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--main"><article class="margo-document"><h2 id="main">Main</h2><p>Use the main slot for the thesis, evidence, and reading flow.</p></article></div><div class="margo-layout__slot margo-layout__slot--rail"><article class="margo-document"><h3 id="rail">Rail</h3><p>Use the rail for definitions, context, or a short callout.</p></article></div></div></div></section><section id="slide-0003" class="margo-deck__slide margo-deck__slide--compare" role="region" aria-label="Slide 3 of 6" tabindex="-1" data-margo-slide="2" hidden="" lang="en"><div class="margo-layout margo-layout--compare" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--left"><article class="margo-document"><h2 id="option-a">Option A</h2><ul><li>controlled authoring</li><li>deterministic output</li></ul></article></div><div class="margo-layout__slot margo-layout__slot--right"><article class="margo-document"><h2 id="option-b">Option B</h2><ul><li>familiar Markdown input</li><li>bounded visual vocabulary</li></ul></article></div></div></div></section><section id="slide-0004" class="margo-deck__slide margo-deck__slide--metrics" role="region" aria-label="Slide 4 of 6" tabindex="-1" data-margo-slide="3" hidden="" lang="en"><div class="margo-layout margo-layout--metrics" data-margo-slot-count="4" role="group" aria-label="Metrics"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--metric-1"><article class="margo-document"><h3 id="6">6</h3><p>structural layouts</p></article></div><div class="margo-layout__slot margo-layout__slot--metric-2"><article class="margo-document"><h3 id="2">2</h3><p>two-column variants</p></article></div><div class="margo-layout__slot margo-layout__slot--metric-3"><article class="margo-document"><h3 id="36">3–6</h3><p>timeline slots</p></article></div><div class="margo-layout__slot margo-layout__slot--metric-4"><article class="margo-document"><h3 id="0">0</h3><p>arbitrary CSS rules</p></article></div></div></div></section><section id="slide-0005" class="margo-deck__slide margo-deck__slide--timeline" role="region" aria-label="Slide 5 of 6" tabindex="-1" data-margo-slide="4" hidden="" lang="en"><div class="margo-layout margo-layout--timeline" data-margo-slot-count="3"><ol class="margo-layout__slots"><li class="margo-layout__slot margo-layout__slot--step-1"><article class="margo-document"><h3 id="input">Input</h3><p>Write Markdown and closed directives.</p></article></li><li class="margo-layout__slot margo-layout__slot--step-2"><article class="margo-document"><h3 id="normalize">Normalize</h3><p>Resolve the class, slots, and source order.</p></article></li><li class="margo-layout__slot margo-layout__slot--step-3"><article class="margo-document"><h3 id="publish">Publish</h3><p>Render HTML or validate a PDF projection.</p></article></li></ol></div></section><section id="slide-0006" class="margo-deck__slide margo-deck__slide--demo" role="region" aria-label="Slide 6 of 6" tabindex="-1" data-margo-slide="5" hidden="" lang="en"><div class="margo-layout margo-layout--demo" data-margo-slot-count="2"><div class="margo-layout__slots"><div class="margo-layout__slot margo-layout__slot--code"><article class="margo-document"><h3 id="source">Source</h3><div class="rounded-radius border border-outline dark:border-outline-dark overflow-hidden" data-code-block="" data-density=""><!-- Header --><div class="flex items-center justify-between px-4 py-2 bg-surface-alt dark:bg-surface-dark-alt border-b border-outline dark:border-outline-dark" data-code-block-header=""><span class="text-xs font-medium text-on-surface dark:text-on-surface-dark">markdown</span> <button type="button" hidden="" data-code-block-copy="" data-code-block-target="codeblock-markdown-83fbed4dec" aria-label="Copy markdown code" aria-controls="codeblock-markdown-83fbed4dec" class="flex items-center gap-1 text-xs text-on-surface-muted hover:text-primary transition-colors motion-reduce:transition-none dark:text-on-surface-dark-muted dark:hover:text-primary-dark"><svg data-code-block-copy-icon="" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> <svg data-code-block-success-icon="" hidden="" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> <span data-code-block-copy-status="" role="status" aria-live="polite">Copy</span></button></div><!-- Code --><div id="codeblock-markdown-83fbed4dec" class="codeblock overflow-x-auto" style=""><pre class="ch-chroma"><code><span class="ch-line"><span class="ch-cl"><span class="ch-cm">&lt;!-- composition: media-split --&gt;</span>
 </span></span><span class="ch-line"><span class="ch-cl"><span class="ch-cm">&lt;!-- slot: media --&gt;</span>
 </span></span><span class="ch-line"><span class="ch-cl">Evidence placeholder
 </span></span><span class="ch-line"><span class="ch-cl"><span class="ch-cm">&lt;!-- slot: content --&gt;</span>
@@ -9059,7 +9060,7 @@ body {
     padding: calc(var(--spacing) * 4);
     border: 1px solid var(--color-outline);
     border-radius: var(--radius-radius);
-    background: var(--color-surface-alt);
+    background: transparent;
     break-inside: avoid;
   }
   .margo-document .margo-jsonschema__title {
@@ -9075,6 +9076,13 @@ body {
     color: var(--color-on-surface);
   }
   .margo-document .margo-jsonschema__tree { max-inline-size: 100%; }
+  .margo-document [data-goshtoso-chart-wrapper] {
+    display: flow-root;
+    margin-block: calc(var(--spacing) * 6);
+  }
+  .goshtoso-charts-control-wrapper {
+    margin-top: 1.5rem !important;
+  }
   .margo-document .margo-jsonschema__tree-list {
     list-style: none;
     margin: 0;
@@ -9115,7 +9123,7 @@ body {
   .margo-document .margo-jsonschema__tree-required {
     padding: 0;
     border: 0;
-    color: var(--color-error);
+    color: var(--color-danger);
     font-weight: var(--font-weight-bold);
   }
   .margo-document .margo-jsonschema__tree-description,
@@ -9433,7 +9441,7 @@ body {
   }
   .margo-document:is(.dark *) .margo-jsonschema {
     border-color: var(--color-outline-dark);
-    background: var(--color-surface-dark-alt);
+    background: transparent;
   }
   .margo-document:is(.dark *) .margo-jsonschema__tree-list .margo-jsonschema__tree-list {
     border-color: var(--color-outline-dark);
@@ -9719,111 +9727,8 @@ body {
     font-size: var(--text-xs);
   }
 }
-</style><script data-margo-requirement="margo.code-copy">(() => {
-  "use strict";
-
-  const blockSelector = "[data-margo-code-copy]";
-  const buttonSelector = "[data-margo-code-copy-button]";
-
-  const fallbackCopy = (text) => {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.inset = "0 auto auto 0";
-    textarea.style.inlineSize = "1px";
-    textarea.style.blockSize = "1px";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-    let copied = false;
-    try {
-      copied = document.execCommand("copy");
-    } catch (_) {
-      copied = false;
-    }
-    textarea.remove();
-    return copied;
-  };
-
-  const copyText = (text) => {
-    let clipboard = null;
-    try {
-      clipboard = navigator.clipboard;
-    } catch (_) {
-      clipboard = null;
-    }
-    if (clipboard && typeof clipboard.writeText === "function") {
-      return Promise.resolve().then(() => clipboard.writeText(text)).catch(() => {
-        if (fallbackCopy(text)) return undefined;
-        throw new Error("clipboard unavailable");
-      });
-    }
-    if (fallbackCopy(text)) return Promise.resolve();
-    return Promise.reject(new Error("clipboard unavailable"));
-  };
-
-  const updateState = (block, copied, message) => {
-    const button = block.querySelector(buttonSelector);
-    if (!button) return;
-    const label = button.querySelector("[data-margo-code-copy-label]");
-    const copyIcon = button.querySelector('[x-show="!copied"]');
-    const copiedIcon = button.querySelector('[x-show="copied"]');
-    if (label) {
-      label.textContent = message || (copied ? "Copied!" : "Copy");
-      label.setAttribute("aria-live", "polite");
-    }
-    if (!button.dataset.margoCodeCopyDefaultLabel) {
-      button.dataset.margoCodeCopyDefaultLabel = button.getAttribute("aria-label") || "Copy code";
-    }
-    button.setAttribute("aria-label", copied ? "Code copied" : button.dataset.margoCodeCopyDefaultLabel);
-    if (copyIcon) {
-      copyIcon.hidden = copied;
-      copyIcon.removeAttribute("x-show");
-    }
-    if (copiedIcon) {
-      copiedIcon.hidden = !copied;
-      copiedIcon.removeAttribute("x-show");
-      copiedIcon.removeAttribute("x-cloak");
-    }
-  };
-
-  const bind = (block) => {
-    const button = block.querySelector(buttonSelector);
-    if (!button || button.dataset.margoCodeCopyBound === "true") return;
-    button.dataset.margoCodeCopyBound = "true";
-    const code = block.querySelector("pre code, code");
-    if (!code) return;
-    block.removeAttribute("x-data");
-    button.removeAttribute("@click");
-    const label = button.querySelector("[data-margo-code-copy-label]");
-    if (label) label.removeAttribute("x-text");
-    updateState(block, false);
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (button.dataset.margoCodeCopyPending === "true") return;
-      button.dataset.margoCodeCopyPending = "true";
-      copyText(code.textContent || "").then(() => {
-        updateState(block, true);
-        window.setTimeout(() => updateState(block, false), 2000);
-      }).catch(() => {
-        updateState(block, false, "Copy failed");
-        window.setTimeout(() => updateState(block, false), 2000);
-      }).finally(() => {
-        button.dataset.margoCodeCopyPending = "false";
-      });
-    });
-  };
-
-  const initialize = () => {
-    document.querySelectorAll(blockSelector).forEach(bind);
-  };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initialize, { once: true });
-  } else {
-    initialize();
-  }
-})();
+</style><script data-margo-requirement="goshtoso.runtime.code-block">// Code generated by go run ./cmd/jsbuild; DO NOT EDIT.
+(()=>{(function(){"use strict";var r="[data-code-block-copy]",u=2e3;function c(e,t){var o=e.querySelector("[data-code-block-copy-status]"),n=e.querySelector("[data-code-block-copy-icon]"),l=e.querySelector("[data-code-block-success-icon]"),s=e.dataset.codeBlockCopyLabel||e.getAttribute("aria-label");e.dataset.codeBlockCopyLabel=s;var a=t==="success";o&&(o.textContent=a?"Copied!":t==="error"?"Unable to copy":"Copy"),n&&(n.hidden=a),l&&(l.hidden=!a),e.setAttribute("aria-label",a?"Copied code":t==="error"?"Unable to copy code":s),e.dataset.codeBlockCopyState=t}function i(e){if(!(!e||e.nodeType!==Node.ELEMENT_NODE)){var t=e.matches(r)?[e]:Array.from(e.querySelectorAll(r));t.forEach(function(o){o.hidden=!1,o.dataset.codeBlockCopyState||c(o,"idle")})}}async function f(e){var t=document.getElementById(e.dataset.codeBlockTarget||"");if(!t||!navigator.clipboard||typeof navigator.clipboard.writeText!="function"){c(e,"error");return}try{await navigator.clipboard.writeText(t.textContent),c(e,"success")}catch{c(e,"error")}window.clearTimeout(e._goshtosoCodeBlockReset),e._goshtosoCodeBlockReset=window.setTimeout(function(){c(e,"idle")},u)}document.addEventListener("click",function(e){var t=e.target.closest&&e.target.closest(r);t&&(e.preventDefault(),f(t))});function d(){i(document.documentElement)}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",d,{once:!0}):d(),document.addEventListener("htmx:afterSwap",function(e){i(e.target)})})();})();
 </script><script data-margo-deck-navigation="">(() => {
   "use strict";
 

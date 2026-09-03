@@ -41,16 +41,16 @@ func TestCodeCopyRequirementIsProjectedOnlyForCopyableCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := withCodeHTML.Requirements().List(); len(got) == 0 || got[len(got)-1].ID != "margo.code-copy" {
-		t.Fatalf("code requirements = %#v, want margo.code-copy last", got)
+	if got := withCodeHTML.Requirements().List(); len(got) == 0 || got[len(got)-1].ID != "goshtoso.runtime.code-block" {
+		t.Fatalf("code requirements = %#v, want goshtoso.runtime.code-block last", got)
 	}
 	unlabeledCode := mustRenderSource(t, "# Unlabeled code\n\n```\necho hello\n```\n")
 	unlabeledCodeHTML, err := RenderHTML(unlabeledCode)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := unlabeledCodeHTML.Requirements().List(); len(got) == 0 || got[len(got)-1].ID != "margo.code-copy" {
-		t.Fatalf("unlabeled code requirements = %#v, want margo.code-copy last", got)
+	if got := unlabeledCodeHTML.Requirements().List(); len(got) == 0 || got[len(got)-1].ID != "goshtoso.runtime.code-block" {
+		t.Fatalf("unlabeled code requirements = %#v, want goshtoso.runtime.code-block last", got)
 	}
 
 	withoutCode := mustRenderSource(t, "# No code\n\nPlain text.\n")
@@ -59,7 +59,7 @@ func TestCodeCopyRequirementIsProjectedOnlyForCopyableCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, requirement := range withoutCodeHTML.Requirements().List() {
-		if requirement.ID == "margo.code-copy" {
+		if requirement.ID == "goshtoso.runtime.code-block" {
 			t.Fatalf("plain document unexpectedly projected code-copy requirement: %#v", withoutCodeHTML.Requirements().List())
 		}
 	}
@@ -69,7 +69,7 @@ func TestCodeCopyRequirementIsProjectedOnlyForCopyableCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, requirement := range disabledHTML.Requirements().List() {
-		if requirement.ID == "margo.code-copy" {
+		if requirement.ID == "goshtoso.runtime.code-block" {
 			t.Fatalf("copy-disabled document unexpectedly projected code-copy requirement: %#v", disabledHTML.Requirements().List())
 		}
 	}
@@ -79,7 +79,7 @@ func TestCodeCopyRequirementIsProjectedOnlyForCopyableCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, requirement := range mermaidHTML.Requirements().List() {
-		if requirement.ID == "margo.code-copy" {
+		if requirement.ID == "goshtoso.runtime.code-block" {
 			t.Fatalf("Mermaid document unexpectedly projected code-copy requirement: %#v", mermaidHTML.Requirements().List())
 		}
 	}
@@ -105,7 +105,7 @@ func TestCodeCopyRequirementIsProjectedOnlyForCopyableCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, requirement := range extensionHTML.Requirements().List() {
-		if requirement.ID == "margo.code-copy" {
+		if requirement.ID == "goshtoso.runtime.code-block" {
 			t.Fatalf("extension document unexpectedly projected code-copy requirement: %#v", extensionHTML.Requirements().List())
 		}
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-func TestStandaloneCodeCopyUsesFallbackWithoutClipboardOrAlpine(t *testing.T) {
+func TestStandaloneCodeCopyReportsUnavailableClipboardWithoutAlpine(t *testing.T) {
 	browserPath := installedPrintTestChromium()
 	if browserPath == "" {
 		t.Skip("installed Chromium-family browser unavailable")
@@ -38,7 +38,6 @@ func TestStandaloneCodeCopyUsesFallbackWithoutClipboardOrAlpine(t *testing.T) {
 	defer cancel()
 
 	var state struct {
-		Copied      string `json:"copied"`
 		Label       string `json:"label"`
 		AriaLabel   string `json:"ariaLabel"`
 		RuntimeSeen bool   `json:"runtimeSeen"`
@@ -46,29 +45,23 @@ func TestStandaloneCodeCopyUsesFallbackWithoutClipboardOrAlpine(t *testing.T) {
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL),
-		chromedp.WaitVisible(`[data-margo-code-copy-button]`, chromedp.ByQuery),
+		chromedp.WaitVisible(`[data-code-block-copy]`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
 			Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
-			document.execCommand = (command) => {
-				if (command !== 'copy') return false;
-				globalThis.margoFallbackCode = document.querySelector('textarea')?.value || '';
-				return true;
-			};
 			return true;
 		})()`, nil),
-		chromedp.Click(`[data-margo-code-copy-button]`, chromedp.ByQuery),
-		chromedp.Poll(`document.querySelector('[data-margo-code-copy-label]')?.textContent.trim() === 'Copied!'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
+		chromedp.Click(`[data-code-block-copy]`, chromedp.ByQuery),
+		chromedp.Poll(`document.querySelector('[data-code-block-copy-status]')?.textContent.trim() === 'Unable to copy'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(`(() => ({
-			copied: globalThis.margoFallbackCode || '',
-			label: document.querySelector('[data-margo-code-copy-label]')?.textContent.trim() || '',
-			ariaLabel: document.querySelector('[data-margo-code-copy-button]')?.getAttribute('aria-label') || '',
-			runtimeSeen: [...document.querySelectorAll('script[data-margo-requirement="margo.code-copy"]')].some((script) => !script.src && script.textContent.includes('fallbackCopy')),
-			alpineAttrs: !!document.querySelector('[data-margo-code-copy][x-data]') || [...document.querySelectorAll('[data-margo-code-copy-button]')].some((button) => button.hasAttribute('@click'))
+			label: document.querySelector('[data-code-block-copy-status]')?.textContent.trim() || '',
+			ariaLabel: document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '',
+			runtimeSeen: [...document.querySelectorAll('script[data-margo-requirement="goshtoso.runtime.code-block"]')].some((script) => !script.src && script.textContent.includes('data-code-block-copy')),
+			alpineAttrs: !!document.querySelector('[data-code-block][x-data]') || [...document.querySelectorAll('[data-code-block-copy]')].some((button) => button.hasAttribute('@click'))
 		}))()`, &state),
 	); err != nil {
 		t.Fatal(err)
 	}
-	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel != "Code copied" || !state.RuntimeSeen || state.AlpineAttrs {
-		t.Fatalf("standalone fallback code-copy state = %+v", state)
+	if state.Label != "Unable to copy" || state.AriaLabel != "Unable to copy code" || !state.RuntimeSeen || state.AlpineAttrs {
+		t.Fatalf("standalone unavailable code-copy state = %+v", state)
 	}
 }

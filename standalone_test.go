@@ -54,9 +54,9 @@ func TestStandaloneCodeCopyRuntimeIsInline(t *testing.T) {
 	}
 	markup := renderComponent(t, component)
 	for _, want := range []string{
-		`data-margo-requirement="margo.code-copy"`,
-		`data-margo-code-copy-button`,
-		`data-margo-code-copy-label`,
+		`data-margo-requirement="goshtoso.runtime.code-block"`,
+		`data-code-block-copy`,
+		`data-code-block-copy-status`,
 		`aria-live="polite"`,
 		`navigator.clipboard`,
 	} {
@@ -64,7 +64,7 @@ func TestStandaloneCodeCopyRuntimeIsInline(t *testing.T) {
 			t.Fatalf("standalone code-copy output missing %q: %s", want, markup)
 		}
 	}
-	if strings.Contains(markup, `src="/margo-assets/code-copy.js"`) {
+	if strings.Contains(markup, `src="/assets/js/code-block.js"`) {
 		t.Fatalf("standalone code-copy runtime was externalized: %s", markup)
 	}
 }

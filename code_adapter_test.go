@@ -31,9 +31,9 @@ func TestCodeBlockCopyRemainsEnabledByDefault(t *testing.T) {
 
 	for _, want := range []string{
 		`aria-label="Copy text code"`,
-		`data-margo-code-copy`,
-		`data-margo-code-copy-button`,
-		`data-margo-code-copy-label`,
+		`data-code-block-copy`,
+		`data-code-block-target=`,
+		`data-code-block-copy-status`,
 		`aria-live="polite"`,
 	} {
 		if !bytes.Contains([]byte(markup), []byte(want)) {
