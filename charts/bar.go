@@ -95,10 +95,6 @@ func validateBarModel(model barModel) error {
 	return nil
 }
 
-func renderBar(rc margo.RenderContext, model barModel) (templ.Component, error) {
-	return renderBarWithOptions(rc, model, defaultChartRenderOptions)
-}
-
 func renderBarWithOptions(rc margo.RenderContext, model barModel, options chartRenderOptions) (templ.Component, error) {
 	if err := validateBarModel(model); err != nil {
 		return nil, err
