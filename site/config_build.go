@@ -1473,18 +1473,27 @@ func (b *builder) configuredDependencyBytes(prepared configuredPage) ([]byte, er
 	}
 	if excludeGoshtosoStyles {
 		dependencyBytes = withoutRenderedRequirement(dependencyBytes, "goshtoso.styles")
+		dependencyBytes = withoutRenderedRequirementPrefix(dependencyBytes, "goshtoso.runtime.")
 	}
 	return dependencyBytes, nil
 }
 
 func withoutRenderedRequirement(markup []byte, requirementID string) []byte {
+	return withoutRenderedRequirements(markup, func(id string) bool { return id == requirementID })
+}
+
+func withoutRenderedRequirementPrefix(markup []byte, requirementPrefix string) []byte {
+	return withoutRenderedRequirements(markup, func(id string) bool { return strings.HasPrefix(id, requirementPrefix) })
+}
+
+func withoutRenderedRequirements(markup []byte, exclude func(string) bool) []byte {
 	nodes, err := html.ParseFragment(bytes.NewReader(markup), &html.Node{Type: html.ElementNode, DataAtom: atom.Head, Data: "head"})
 	if err != nil {
 		return markup
 	}
 	var output bytes.Buffer
 	for _, node := range nodes {
-		if node.Type == html.ElementNode && attributeValue(node, "data-margo-requirement") == requirementID {
+		if node.Type == html.ElementNode && exclude(attributeValue(node, "data-margo-requirement")) {
 			continue
 		}
 		if err := html.Render(&output, node); err != nil {

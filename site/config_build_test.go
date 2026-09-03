@@ -2690,6 +2690,11 @@ theme:
 			t.Fatalf("landing shell %q count = %d, want one: %s", unique, got, page)
 		}
 	}
+	for _, shellOwnedRuntime := range []string{"goshtoso.runtime.alpine", "goshtoso.runtime.first-party"} {
+		if got := strings.Count(page, `data-margo-requirement="`+shellOwnedRuntime+`"`); got != 0 {
+			t.Fatalf("landing shell duplicated %q content dependency: %s", shellOwnedRuntime, page)
+		}
+	}
 	for _, artifact := range []string{"landingshell/assets/shell.css", "landingshell/assets/shell.js", "assets/styles.css", "assets/js/goshtoso.min.js"} {
 		if !artifactExists(result, artifact) {
 			t.Fatalf("landing shell asset %q missing", artifact)
@@ -2699,6 +2704,20 @@ theme:
 		if strings.Contains(page, forbidden) {
 			t.Fatalf("landing shell leaked docs chrome %q: %s", forbidden, page)
 		}
+	}
+}
+
+func TestWithoutRenderedRequirementPrefixRemovesShellOwnedRuntime(t *testing.T) {
+	markup := []byte(`<script data-margo-requirement="goshtoso.runtime.alpine"></script>` +
+		`<script data-margo-requirement="goshtoso.runtime.first-party"></script>` +
+		`<script data-margo-requirement="margo.charts.inline.0"></script>`)
+
+	filtered := string(withoutRenderedRequirementPrefix(markup, "goshtoso.runtime."))
+	if strings.Contains(filtered, "goshtoso.runtime.") {
+		t.Fatalf("shell-owned runtime dependency survived filtering: %s", filtered)
+	}
+	if !strings.Contains(filtered, "margo.charts.inline.0") {
+		t.Fatalf("page-owned dependency was removed: %s", filtered)
 	}
 }
 
