@@ -56,16 +56,18 @@ func TestBuildLocalSiteCodeCopyWorksWithoutAlpine(t *testing.T) {
 	defer cancel()
 
 	var state struct {
-		Copied      string `json:"copied"`
-		Label       string `json:"label"`
-		AriaLabel   string `json:"ariaLabel"`
-		RuntimeSeen bool   `json:"runtimeSeen"`
-		AlpineAttrs bool   `json:"alpineAttrs"`
+		Copied           string `json:"copied"`
+		Label            string `json:"label"`
+		InitialAriaLabel string `json:"initialAriaLabel"`
+		AriaLabel        string `json:"ariaLabel"`
+		RuntimeSeen      bool   `json:"runtimeSeen"`
+		AlpineAttrs      bool   `json:"alpineAttrs"`
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL+"/guide.html"),
 		chromedp.WaitVisible(`[data-code-block-copy]`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
+			globalThis.margoInitialCodeCopyAriaLabel = document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '';
 			const clipboard = navigator.clipboard || {};
 			clipboard.writeText = (text) => { globalThis.margoCopiedCode = text; return Promise.resolve(); };
 			try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: clipboard }); } catch (_) {}
@@ -76,6 +78,7 @@ func TestBuildLocalSiteCodeCopyWorksWithoutAlpine(t *testing.T) {
 		chromedp.Evaluate(`(() => ({
 			copied: globalThis.margoCopiedCode || '',
 			label: document.querySelector('[data-code-block-copy-status]')?.textContent.trim() || '',
+			initialAriaLabel: globalThis.margoInitialCodeCopyAriaLabel || '',
 			ariaLabel: document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '',
 			runtimeSeen: [...document.scripts].some((script) => script.src.endsWith('/assets/js/code-block.js')),
 			alpineAttrs: !!document.querySelector('[data-code-block][x-data]') || [...document.querySelectorAll('[data-code-block-copy]')].some((button) => button.hasAttribute('@click'))
@@ -83,7 +86,7 @@ func TestBuildLocalSiteCodeCopyWorksWithoutAlpine(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel != "Copied code" || !state.RuntimeSeen || state.AlpineAttrs {
+	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel == "" || state.AriaLabel != state.InitialAriaLabel || !state.RuntimeSeen || state.AlpineAttrs {
 		t.Fatalf("code-copy browser state = %+v", state)
 	}
 }
@@ -149,16 +152,18 @@ locales:
 	defer cancel()
 
 	var state struct {
-		Copied      string `json:"copied"`
-		Label       string `json:"label"`
-		AriaLabel   string `json:"ariaLabel"`
-		RuntimeSeen bool   `json:"runtimeSeen"`
-		AlpineAttrs bool   `json:"alpineAttrs"`
+		Copied           string `json:"copied"`
+		Label            string `json:"label"`
+		InitialAriaLabel string `json:"initialAriaLabel"`
+		AriaLabel        string `json:"ariaLabel"`
+		RuntimeSeen      bool   `json:"runtimeSeen"`
+		AlpineAttrs      bool   `json:"alpineAttrs"`
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL+"/index.html"),
 		chromedp.WaitVisible(`[data-code-block-copy]`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
+			globalThis.margoInitialCodeCopyAriaLabel = document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '';
 			const clipboard = navigator.clipboard || {};
 			clipboard.writeText = (text) => { globalThis.margoCopiedCode = text; return Promise.resolve(); };
 			try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: clipboard }); } catch (_) {}
@@ -169,6 +174,7 @@ locales:
 		chromedp.Evaluate(`(() => ({
 			copied: globalThis.margoCopiedCode || '',
 			label: document.querySelector('[data-code-block-copy-status]')?.textContent.trim() || '',
+			initialAriaLabel: globalThis.margoInitialCodeCopyAriaLabel || '',
 			ariaLabel: document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '',
 			runtimeSeen: [...document.scripts].some((script) => script.src.endsWith('/assets/js/code-block.js')),
 			alpineAttrs: !!document.querySelector('[data-code-block][x-data]') || [...document.querySelectorAll('[data-code-block-copy]')].some((button) => button.hasAttribute('@click'))
@@ -176,7 +182,7 @@ locales:
 	); err != nil {
 		t.Fatal(err)
 	}
-	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel != "Copied code" || !state.RuntimeSeen || state.AlpineAttrs {
+	if state.Copied != "echo hello\n" || state.Label != "Copied!" || state.AriaLabel == "" || state.AriaLabel != state.InitialAriaLabel || !state.RuntimeSeen || state.AlpineAttrs {
 		t.Fatalf("configured site code-copy browser state = %+v", state)
 	}
 }

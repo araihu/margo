@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/araihu/goshtoso v0.2.8-0.20260903145506-8324b8c6c436
+	github.com/araihu/goshtoso v0.2.8
 	github.com/araihu/goshtoso-app-shells v0.1.7
 	github.com/araihu/goshtoso-charts v0.0.2
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327

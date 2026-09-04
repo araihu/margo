@@ -38,15 +38,17 @@ func TestStandaloneCodeCopyReportsUnavailableClipboardWithoutAlpine(t *testing.T
 	defer cancel()
 
 	var state struct {
-		Label       string `json:"label"`
-		AriaLabel   string `json:"ariaLabel"`
-		RuntimeSeen bool   `json:"runtimeSeen"`
-		AlpineAttrs bool   `json:"alpineAttrs"`
+		Label            string `json:"label"`
+		InitialAriaLabel string `json:"initialAriaLabel"`
+		AriaLabel        string `json:"ariaLabel"`
+		RuntimeSeen      bool   `json:"runtimeSeen"`
+		AlpineAttrs      bool   `json:"alpineAttrs"`
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL),
 		chromedp.WaitVisible(`[data-code-block-copy]`, chromedp.ByQuery),
 		chromedp.Evaluate(`(() => {
+			globalThis.margoInitialCodeCopyAriaLabel = document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '';
 			Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
 			return true;
 		})()`, nil),
@@ -54,6 +56,7 @@ func TestStandaloneCodeCopyReportsUnavailableClipboardWithoutAlpine(t *testing.T
 		chromedp.Poll(`document.querySelector('[data-code-block-copy-status]')?.textContent.trim() === 'Unable to copy'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(`(() => ({
 			label: document.querySelector('[data-code-block-copy-status]')?.textContent.trim() || '',
+			initialAriaLabel: globalThis.margoInitialCodeCopyAriaLabel || '',
 			ariaLabel: document.querySelector('[data-code-block-copy]')?.getAttribute('aria-label') || '',
 			runtimeSeen: [...document.querySelectorAll('script[data-margo-requirement="goshtoso.runtime.code-block"]')].some((script) => !script.src && script.textContent.includes('data-code-block-copy')),
 			alpineAttrs: !!document.querySelector('[data-code-block][x-data]') || [...document.querySelectorAll('[data-code-block-copy]')].some((button) => button.hasAttribute('@click'))
@@ -61,7 +64,7 @@ func TestStandaloneCodeCopyReportsUnavailableClipboardWithoutAlpine(t *testing.T
 	); err != nil {
 		t.Fatal(err)
 	}
-	if state.Label != "Unable to copy" || state.AriaLabel != "Unable to copy code" || !state.RuntimeSeen || state.AlpineAttrs {
+	if state.Label != "Unable to copy" || state.AriaLabel == "" || state.AriaLabel != state.InitialAriaLabel || !state.RuntimeSeen || state.AlpineAttrs {
 		t.Fatalf("standalone unavailable code-copy state = %+v", state)
 	}
 }
