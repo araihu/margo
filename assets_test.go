@@ -222,24 +222,13 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 	}
 }
 
-func TestDocumentCSSStylesJSONSchemaAsIndentedTree(t *testing.T) {
+func TestDocumentCSSDelegatesSchemaTreeStyling(t *testing.T) {
 	css, err := os.ReadFile("assets/document.css")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range [][]byte{
-		[]byte(".margo-jsonschema__tree-list"),
-		[]byte("border-inline-start: 1px solid var(--color-outline)"),
-		[]byte(".margo-jsonschema__tree-row"),
-		[]byte(".margo-jsonschema__tree-path"),
-		[]byte("text-overflow: ellipsis"),
-		[]byte("background: transparent"),
-		[]byte("font-style: italic"),
-		[]byte("color: var(--color-danger)"),
-	} {
-		if !bytes.Contains(css, want) {
-			t.Fatalf("document stylesheet missing JSON Schema tree rule %q", want)
-		}
+	if bytes.Contains(css, []byte("margo-jsonschema__tree")) {
+		t.Fatal("document stylesheet retained a second schema tree implementation")
 	}
 }
 

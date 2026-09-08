@@ -18,8 +18,9 @@ func renderCodeBlock(ctx context.Context, out io.Writer, language string, code [
 	}
 
 	component := codeblock.CodeBlock(codeblock.Config{
-		Language: language,
-		Code:     string(code),
+		Language:          language,
+		Code:              string(code),
+		DisableCopyButton: !copyButton,
 	})
 	if copyButton {
 		var markup bytes.Buffer
@@ -34,23 +35,14 @@ func renderCodeBlock(ctx context.Context, out io.Writer, language string, code [
 		return err
 	}
 
-	var markup bytes.Buffer
-	if err := component.Render(ctx, &markup); err != nil {
-		return err
-	}
-	withoutCopy, err := removeCodeBlockCopyButton(markup.String())
-	if err != nil {
-		return err
-	}
-	_, err = io.WriteString(out, withoutCopy)
-	return err
+	return component.Render(ctx, out)
 }
 
 func markCodeBlockCopyControls(markup string) (string, error) {
 	const (
 		rootMarker   = ` data-code-block data-density=`
-		buttonMarker = `<button type="button" @click="copyCode()"`
-		labelMarker  = `<span x-text="copied ? 'Copied!' : 'Copy'">Copy</span>`
+		buttonMarker = ` data-code-block-copy `
+		labelMarker  = ` data-code-block-copy-status `
 	)
 	if !strings.Contains(markup, rootMarker) {
 		return "", fmt.Errorf("code block copy button: root marker not found")
@@ -62,23 +54,9 @@ func markCodeBlockCopyControls(markup string) (string, error) {
 		return "", fmt.Errorf("code block copy button: label marker not found")
 	}
 	marked := strings.Replace(markup, rootMarker, ` data-code-block data-margo-code-copy data-density=`, 1)
-	marked = strings.Replace(marked, buttonMarker, `<button type="button" @click="copyCode()" data-margo-code-copy-button`, 1)
-	marked = strings.Replace(marked, labelMarker, `<span x-text="copied ? 'Copied!' : 'Copy'" data-margo-code-copy-label aria-live="polite">Copy</span>`, 1)
+	// Margo's standalone runtime owns these controls. Remove the upstream
+	// runtime selector so a host that loads both runtimes cannot bind twice.
+	marked = strings.Replace(marked, buttonMarker, ` data-margo-code-copy-button `, 1)
+	marked = strings.Replace(marked, labelMarker, ` data-margo-code-copy-label `, 1)
 	return marked, nil
-}
-
-func removeCodeBlockCopyButton(markup string) (string, error) {
-	const buttonStart = ` <button type="button" @click="copyCode()"`
-	const buttonEnd = `</button>`
-
-	start := strings.Index(markup, buttonStart)
-	if start < 0 {
-		return "", fmt.Errorf("code block copy button: start marker not found")
-	}
-	relativeEnd := strings.Index(markup[start:], buttonEnd)
-	if relativeEnd < 0 {
-		return "", fmt.Errorf("code block copy button: end marker not found")
-	}
-	end := start + relativeEnd + len(buttonEnd)
-	return markup[:start] + markup[end:], nil
 }

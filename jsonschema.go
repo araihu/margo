@@ -17,7 +17,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/a-h/templ"
+	"github.com/araihu/goshtoso/components/schematree"
 	jsonschemaValidator "github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 )
 
 // jsonSchemaFenceName is the canonical Markdown fence for publishing a
@@ -391,7 +395,7 @@ func renderJSONSchemaDocument(ctx context.Context, out io.Writer, data []byte, r
 		return err
 	}
 	if strings.TrimSpace(description) != "" {
-		if _, err := fmt.Fprintf(out, `<p class="margo-jsonschema__description">%s</p>`, html.EscapeString(description)); err != nil {
+		if err := jsonSchemaDescriptionContent(description).Render(ctx, out); err != nil {
 			return err
 		}
 	}
@@ -399,15 +403,13 @@ func renderJSONSchemaDocument(ctx context.Context, out io.Writer, data []byte, r
 		_, err := io.WriteString(out, `<p class="margo-jsonschema__empty">This schema does not declare object properties.</p></section>`)
 		return err
 	}
-	if _, err := io.WriteString(out, `<div class="margo-jsonschema__tree" aria-label="Properties defined by this schema"><ul class="margo-jsonschema__tree-list">`); err != nil {
+	if err := schematree.SchemaTree(schematree.Config{
+		AriaLabel: "Properties defined by this schema",
+		Nodes:     sharedJSONSchemaNodes(buildJSONSchemaTree(rows)),
+	}).Render(ctx, out); err != nil {
 		return err
 	}
-	for _, node := range buildJSONSchemaTree(rows) {
-		if err := renderJSONSchemaTreeNode(ctx, out, node); err != nil {
-			return err
-		}
-	}
-	_, err = io.WriteString(out, `</ul></div></section>`)
+	_, err = io.WriteString(out, `</section>`)
 	return err
 }
 
@@ -446,52 +448,37 @@ func unescapeJSONPointerSegment(value string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(value, "~1", "/"), "~0", "~")
 }
 
-func renderJSONSchemaTreeNode(ctx context.Context, out io.Writer, node *jsonSchemaTreeNode) error {
-	if err := contextError(ctx); err != nil {
-		return err
+func sharedJSONSchemaNodes(nodes []*jsonSchemaTreeNode) []schematree.Node {
+	result := make([]schematree.Node, 0, len(nodes))
+	for _, node := range nodes {
+		item := schematree.Node{
+			Name: node.segment, Path: node.row.path, Type: node.row.typeName,
+			Required: node.row.required, DescriptionContent: jsonSchemaDescriptionContent(node.row.description),
+			Children: sharedJSONSchemaNodes(node.children),
+		}
+		if node.row.constraints != "" {
+			item.Constraints = []schematree.Constraint{{Name: "Constraints", Value: node.row.constraints}}
+		}
+		result = append(result, item)
 	}
-	row := node.row
-	if _, err := fmt.Fprintf(out, `<li class="margo-jsonschema__tree-node"><div class="margo-jsonschema__tree-row"><code class="margo-jsonschema__tree-path" title="%s">%s</code>`, html.EscapeString(row.path), html.EscapeString(node.segment)); err != nil {
-		return err
+	return result
+}
+
+// Descriptions are Markdown, but never enable raw HTML or unsafe link schemes.
+// Keep this renderer independent of fences so descriptions cannot recursively
+// invoke the JSON Schema extension or read other files.
+var jsonSchemaDescriptionMarkdown = goldmark.New(goldmark.WithExtensions(extension.GFM))
+
+func jsonSchemaDescriptionContent(description string) templ.Component {
+	if strings.TrimSpace(description) == "" {
+		return nil
 	}
-	if row.typeName != "" {
-		if _, err := fmt.Fprintf(out, `<span class="margo-jsonschema__tree-type">%s</span>`, html.EscapeString(row.typeName)); err != nil {
+	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if row.required {
-			if _, err := io.WriteString(out, `<span class="margo-jsonschema__tree-required" title="required" aria-label="required">*</span>`); err != nil {
-				return err
-			}
-		}
-	}
-	if _, err := io.WriteString(out, `</div>`); err != nil {
-		return err
-	}
-	if strings.TrimSpace(row.description) != "" {
-		if _, err := fmt.Fprintf(out, `<p class="margo-jsonschema__tree-description">%s</p>`, html.EscapeString(row.description)); err != nil {
-			return err
-		}
-	}
-	if strings.TrimSpace(row.constraints) != "" {
-		if _, err := fmt.Fprintf(out, `<p class="margo-jsonschema__tree-constraints">%s</p>`, html.EscapeString(row.constraints)); err != nil {
-			return err
-		}
-	}
-	if len(node.children) > 0 {
-		if _, err := io.WriteString(out, `<ul class="margo-jsonschema__tree-list">`); err != nil {
-			return err
-		}
-		for _, child := range node.children {
-			if err := renderJSONSchemaTreeNode(ctx, out, child); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(out, `</ul>`); err != nil {
-			return err
-		}
-	}
-	_, err := io.WriteString(out, `</li>`)
-	return err
+		return jsonSchemaDescriptionMarkdown.Convert([]byte(description), out)
+	})
 }
 
 func collectJSONSchemaRows(root map[string]any) []jsonSchemaRow {

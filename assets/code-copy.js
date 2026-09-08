@@ -46,8 +46,8 @@
     const button = block.querySelector(buttonSelector);
     if (!button) return;
     const label = button.querySelector("[data-margo-code-copy-label]");
-    const copyIcon = button.querySelector('[x-show="!copied"]');
-    const copiedIcon = button.querySelector('[x-show="copied"]');
+    const copyIcon = button.querySelector('[data-code-block-copy-icon]');
+    const copiedIcon = button.querySelector('[data-code-block-success-icon]');
     if (label) {
       label.textContent = message || (copied ? "Copied!" : "Copy");
       label.setAttribute("aria-live", "polite");
@@ -73,6 +73,7 @@
     button.dataset.margoCodeCopyBound = "true";
     const code = block.querySelector("pre code, code");
     if (!code) return;
+    button.hidden = false;
     block.removeAttribute("x-data");
     button.removeAttribute("@click");
     const label = button.querySelector("[data-margo-code-copy-label]");
