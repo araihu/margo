@@ -1,12 +1,40 @@
 package margo
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestJSONSchemaDescriptionsRenderSafeMarkdown(t *testing.T) {
+	schema, err := json.Marshal(map[string]any{
+		"type": "object", "description": "A **configuration** schema.",
+		"properties": map[string]any{"value": map[string]any{
+			"type": "string", "description": "Use `value`.\n\n- [Help](/help)\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert%281%29)",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := renderJSONSchemaDocument(context.Background(), &out, schema, "inline"); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"<strong>configuration</strong>", "<code>value</code>", "<ul>", `href="/help"`, "gs-schema-tree-description"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q in %s", want, out.String())
+		}
+	}
+	for _, unsafe := range []string{"<script", "javascript:"} {
+		if strings.Contains(out.String(), unsafe) {
+			t.Errorf("unsafe markup %q", unsafe)
+		}
+	}
+}
 
 func TestJSONSchemaFenceRendersInlinePropertyTree(t *testing.T) {
 	compiler := New(WithHostPolicy(Policy{RawHTML: RawHTMLDeny, OutputBytes: MaxOutputBytes}))
@@ -23,11 +51,11 @@ func TestJSONSchemaFenceRendersInlinePropertyTree(t *testing.T) {
 	for _, want := range []string{
 		`class="margo-jsonschema"`,
 		`aria-label="Example contract"`,
-		`class="margo-jsonschema__tree"`,
-		`<code class="margo-jsonschema__tree-path" title="/count">count</code>`,
-		`<code class="margo-jsonschema__tree-path" title="/id">id</code>`,
-		`class="margo-jsonschema__tree-type">integer</span>`,
-		`class="margo-jsonschema__tree-required" title="required" aria-label="required">*</span>`,
+		`class="gs-schema-tree `,
+		`<code class="gs-schema-tree-name" title="/count">count</code>`,
+		`<code class="gs-schema-tree-name" title="/id">id</code>`,
+		`class="gs-schema-tree-type">integer</span>`,
+		`class="gs-schema-tree-state" data-required="true">required</span>`,
 		`minimum=0`,
 	} {
 		if !strings.Contains(markup, want) {

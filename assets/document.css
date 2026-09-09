@@ -155,7 +155,6 @@
     margin-block: 0;
     color: var(--color-on-surface);
   }
-  .margo-document .margo-jsonschema__tree { max-inline-size: 100%; }
   .margo-document [data-goshtoso-chart-wrapper] {
     display: flow-root;
     margin-block: calc(var(--spacing) * 6);
@@ -163,57 +162,6 @@
   .goshtoso-charts-control-wrapper {
     margin-top: 1.5rem !important;
   }
-  .margo-document .margo-jsonschema__tree-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .margo-document .margo-jsonschema__tree-list .margo-jsonschema__tree-list {
-    margin-inline-start: calc(var(--spacing) * 3);
-    padding-inline-start: calc(var(--spacing) * 3);
-    border-inline-start: 1px solid var(--color-outline);
-  }
-  .margo-document .margo-jsonschema__tree-node { margin-block: calc(var(--spacing) * 3); }
-  .margo-document .margo-jsonschema__tree-row {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: calc(var(--spacing) * 2);
-    min-inline-size: 0;
-  }
-  .margo-document .margo-jsonschema__tree-path {
-    display: inline-block;
-    max-inline-size: min(100%, 34ch);
-    margin-inline: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--color-on-surface-strong);
-    font-weight: var(--font-weight-bold);
-    background: transparent;
-    border: 0;
-    padding: 0;
-  }
-  .margo-document .margo-jsonschema__tree-type {
-    color: var(--color-on-surface);
-    font-size: var(--text-sm);
-    line-height: 1.4;
-    font-style: italic;
-  }
-  .margo-document .margo-jsonschema__tree-required {
-    padding: 0;
-    border: 0;
-    color: var(--color-danger);
-    font-weight: var(--font-weight-bold);
-  }
-  .margo-document .margo-jsonschema__tree-description,
-  .margo-document .margo-jsonschema__tree-constraints {
-    max-inline-size: 75ch;
-    margin-block: calc(var(--spacing) * 1.5) 0;
-    color: var(--color-on-surface);
-    font-size: var(--text-sm);
-  }
-  .margo-document .margo-jsonschema__tree-constraints { font-family: var(--font-family-mono); }
   .margo-document th.margo-table-sort-button {
     background-color: transparent;
     color: var(--color-on-surface-strong);
@@ -361,16 +309,6 @@
     border-radius: var(--radius-radius);
     padding-inline: calc(var(--spacing) / 2);
     padding-block: calc(var(--spacing) / 4);
-  }
-  .margo-document code.margo-jsonschema__tree-path {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    font-weight: var(--font-weight-bold);
-  }
-  .margo-document .margo-jsonschema__tree-required {
-    color: var(--color-danger);
   }
   .margo-document pre {
     overflow-x: auto;
@@ -523,15 +461,6 @@
     border-color: var(--color-outline-dark);
     background: transparent;
   }
-  .margo-document:is(.dark *) .margo-jsonschema__tree-list .margo-jsonschema__tree-list {
-    border-color: var(--color-outline-dark);
-  }
-  .margo-document:is(.dark *) .margo-jsonschema__tree-path {
-    color: var(--color-on-surface-dark-strong);
-  }
-  .margo-document:is(.dark *) .margo-jsonschema__tree-description,
-  .margo-document:is(.dark *) .margo-jsonschema__tree-constraints,
-  .margo-document:is(.dark *) .margo-jsonschema__tree-type,
   .margo-document:is(.dark *) .margo-jsonschema__empty {
     color: var(--color-on-surface-dark);
   }
@@ -704,10 +633,6 @@
   .margo-document .margo-print-table-label {
     display: inline;
   }
-  .margo-document:is(.dark *) code.margo-jsonschema__tree-path {
-    background: transparent;
-    border: 0;
-  }
 
   .margo-document .margo-print-checkbox {
     font-family: sans-serif;
@@ -726,17 +651,6 @@
     padding: 0;
     border: 0;
     background: transparent;
-  }
-  .margo-document .margo-jsonschema__tree-list .margo-jsonschema__tree-list {
-    border-inline-start-color: currentColor;
-  }
-  .margo-document .margo-jsonschema__tree-path {
-    max-inline-size: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-  .margo-document .margo-jsonschema__tree-node {
-    break-inside: avoid;
   }
   .margo-document .margo-deck-preview {
     padding: 0;
