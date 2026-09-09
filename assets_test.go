@@ -190,7 +190,8 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rule := regexp.MustCompile(`(?s)\.margo-document :not\(pre\) > code \{([^}]*)\}`).FindSubmatch(css)
+	codeScope := `:where(:not(.gs-schema-tree code), .gs-schema-tree-description code)`
+	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(".margo-document :not(pre) > code"+codeScope) + ` \{([^}]*)\}`).FindSubmatch(css)
 	if len(rule) != 2 {
 		t.Fatal("document stylesheet is missing the scoped inline-code rule")
 	}
@@ -215,7 +216,7 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 			t.Fatalf("document stylesheet missing inline-code contrast rule %q", want)
 		}
 	}
-	if !bytes.Contains(css, []byte(".margo-document:is(.dark *) :not(pre) > code {")) ||
+	if !bytes.Contains(css, []byte(".margo-document:is(.dark *) :not(pre) > code"+codeScope+" {")) ||
 		!bytes.Contains(css, []byte("background: color-mix(in oklch, var(--color-surface-dark-alt) 50%, var(--color-outline-dark) 50%)")) ||
 		!bytes.Contains(css, []byte("border-color: var(--color-outline-dark)")) {
 		t.Fatal("document stylesheet is missing the dark inline-code boundary token")
