@@ -69,8 +69,8 @@ func TestGenerateHTMLAppendsAndRendersChartsAtomically(t *testing.T) {
 		t.Fatal("generated HTML retains an external chart-control runtime")
 	}
 	for _, external := range []string{
-		`/assets/js/runtime/alpinejs/3.14.9/alpine.min.js`,
-		`/assets/js/runtime/alpinejs-focus/3.14.9/alpine-focus.min.js`,
+		`/assets/js/runtime/alpinejs/3.17.2/alpine.min.js`,
+		`/assets/js/runtime/alpinejs-focus/3.17.2/alpine-focus.min.js`,
 		`/assets/js/goshtoso.min.js`,
 	} {
 		if strings.Contains(markup, external) {

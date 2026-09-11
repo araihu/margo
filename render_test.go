@@ -137,6 +137,7 @@ func TestMermaidSourceStartsCollapsedButRemainsDisclosure(t *testing.T) {
 func TestMermaidFiguresUseUniqueContextualAccessibleNames(t *testing.T) {
 	markup := renderComponent(t, mustRenderSource(t, "## Request flow\n\n```mermaid\nflowchart LR\n  source[Markdown source] --> ready{Runtime ready?}\n  ready --> pdf[PDF artifact]\n```\n\n## Handoff\n\n```mermaid\nsequenceDiagram\n  participant Author\n  participant Margo\n  Author->>Margo: Compile source\n```\n").Content())
 	for _, want := range []string{
+		`class="margo-mermaid__canvas" tabindex="0" role="img"`,
 		`id="margo-mermaid-caption-0"`,
 		`aria-labelledby="margo-mermaid-caption-0"`,
 		`aria-describedby="margo-mermaid-source-0"`,

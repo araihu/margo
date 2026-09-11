@@ -23,8 +23,8 @@ func TestGoshtosoShellModeToggleSurvivesHTMXNavigation(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Home\n\nA shell page for the mode-toggle browser check.\n")
-	writeConfigFile(t, filepath.Join(root, "showcase", "guide.md"), "# Guide\n\nA second page loaded through HTMX.\n")
+	writeConfigFile(t, filepath.Join(root, "showcase", "index.md"), "# Home\n\nA shell page for the mode-toggle browser check.\n\n```text\necho home\n```\n")
+	writeConfigFile(t, filepath.Join(root, "showcase", "guide.md"), "# Guide\n\nA second page loaded through HTMX.\n\n```text\necho guide\n```\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
 	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
@@ -96,31 +96,24 @@ locales:
 	})()`
 	var initial, toggled, navigated modeState
 	if err := chromedp.Run(ctx,
+		chromedp.EmulateViewport(1440, 900),
 		chromedp.Navigate(server.URL+"/"),
 		chromedp.WaitVisible(`#componentdocshell-dark-mode`, chromedp.ByQuery),
+		chromedp.Poll(`window.Alpine && window.htmx`, nil),
 		chromedp.Evaluate(readModeState, &initial),
 		chromedp.Click(`#componentdocshell-dark-mode`, chromedp.ByQuery),
-		chromedp.Evaluate(`(async () => {
-			const before = document.documentElement.classList.contains('dark');
-			const deadline = Date.now() + 5000;
-			while (Date.now() < deadline) {
-				if (document.documentElement.classList.contains('dark') !== before) return true;
-				await new Promise((resolve) => setTimeout(resolve, 25));
-			}
-			throw new Error('mode toggle did not update document state');
-		})()`, nil),
+		chromedp.Poll(`document.querySelector('#componentdocshell-dark-mode')?.getAttribute('aria-label') === (document.documentElement.classList.contains('dark') ? 'Switch to light mode' : 'Switch to dark mode')`, nil),
 		chromedp.Evaluate(readModeState, &toggled),
-		chromedp.Click(`a[href="/guide.html"]`, chromedp.ByQuery),
-		chromedp.Evaluate(`(async () => {
-			const deadline = Date.now() + 5000;
-			while (Date.now() < deadline) {
-				const heading = document.querySelector('#main-content h1');
-				if (heading && heading.textContent.trim() === 'Guide') return true;
-				await new Promise((resolve) => setTimeout(resolve, 50));
-			}
-			throw new Error('HTMX navigation did not render Guide');
-		})()`, nil),
+		chromedp.Evaluate(`window.margoNavigationSentinel = true`, nil),
+		chromedp.Click(`a[href="/guide.html"][hx-get]`, chromedp.ByQuery),
+		chromedp.Poll(`document.querySelector('#main-content h1')?.textContent.trim() === 'Guide'`, nil),
 		chromedp.Evaluate(readModeState, &navigated),
+		chromedp.Poll(`window.margoNavigationSentinel === true && document.querySelector('[data-margo-code-copy-button]')?.dataset.margoCodeCopyBound === 'true'`, nil),
+		chromedp.Evaluate(`history.back()`, nil),
+		chromedp.Poll(`location.pathname === '/' && document.querySelector('#main-content h1')?.textContent.trim() === 'Home'`, nil),
+		chromedp.Evaluate(`history.forward()`, nil),
+		chromedp.Poll(`location.pathname === '/guide.html' && document.querySelector('#main-content h1')?.textContent.trim() === 'Guide' && window.margoNavigationSentinel === true`, nil),
+		chromedp.WaitVisible(`[data-margo-code-copy-button]`, chromedp.ByQuery),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +354,7 @@ locales:
 		artifacts["/"+strings.TrimPrefix(artifact.Path, "/")] = artifact.Content
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.Header.Get("HX-Request") == "true" {
+		if request.Header.Get("HX-Request-Type") == "partial" {
 			time.Sleep(150 * time.Millisecond)
 		}
 		artifactPath := request.URL.Path

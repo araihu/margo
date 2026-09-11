@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const goshtosoComponentDocShellVersion = "v0.1.7"
+const goshtosoComponentDocShellVersion = "v0.1.9-0.20260910224508-5b2222e54637"
 
 const componentDocShellScrollSpyAssetName = "margo-scroll-spy.js"
 
@@ -388,20 +388,17 @@ const componentDocShellScrollSpy = `(function () {
     queueMermaidRender();
   });
   window.addEventListener("componentdocshell:navigated", scheduleRefresh);
-  document.addEventListener("htmx:afterSwap", function (event) {
-    if (event.detail && event.detail.target && event.detail.target.id === "main-content") {
+  document.addEventListener("htmx:after:swap", function (event) {
+    if (event.detail && event.detail.ctx && event.detail.ctx.target && event.detail.ctx.target.id === "main-content") {
       scheduleRefresh();
     }
   });
-  document.addEventListener("htmx:afterSettle", function (event) {
-    if (event.detail && event.detail.target && event.detail.target.id === "main-content") {
+  document.addEventListener("htmx:after:settle", function (event) {
+    var target = event.detail && event.detail.task && event.detail.task.target;
+    if (target && (target.id === "main-content" || target.querySelector("#main-content"))) {
       scheduleRefresh();
       queueMermaidRender();
     }
-  });
-  document.addEventListener("htmx:historyRestore", function () {
-    scheduleRefresh();
-    queueMermaidRender();
   });
 })();`
 

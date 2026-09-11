@@ -174,8 +174,8 @@ const searchInteractionsScript = `(function () {
   }
 
   document.addEventListener("DOMContentLoaded", scan);
-  document.addEventListener("htmx:afterSwap", scan);
-  document.addEventListener("htmx:afterSettle", scan);
+  document.addEventListener("htmx:after:swap", scan);
+  document.addEventListener("htmx:after:settle", scan);
   if (document.readyState !== "loading") scan();
 })();
 `
