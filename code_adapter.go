@@ -22,20 +22,22 @@ func renderCodeBlock(ctx context.Context, out io.Writer, language string, code [
 		Code:              string(code),
 		DisableCopyButton: !copyButton,
 	})
+	var markup bytes.Buffer
+	if err := component.Render(ctx, &markup); err != nil {
+		return err
+	}
+	// The highlighted source can scroll independently on narrow screens.
+	// Keep that region reachable by keyboard, including copy-disabled fences.
+	marked := strings.Replace(markup.String(), "<pre", `<pre tabindex="0"`, 1)
 	if copyButton {
-		var markup bytes.Buffer
-		if err := component.Render(ctx, &markup); err != nil {
-			return err
-		}
-		marked, err := markCodeBlockCopyControls(markup.String())
+		var err error
+		marked, err = markCodeBlockCopyControls(marked)
 		if err != nil {
 			return err
 		}
-		_, err = io.WriteString(out, marked)
-		return err
 	}
-
-	return component.Render(ctx, out)
+	_, err := io.WriteString(out, marked)
+	return err
 }
 
 func markCodeBlockCopyControls(markup string) (string, error) {

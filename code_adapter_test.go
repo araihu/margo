@@ -21,6 +21,9 @@ func TestCodeBlockCopyCanBeDisabledByFenceInfo(t *testing.T) {
 	if !bytes.Contains([]byte(markup), []byte(`>text</span>`)) {
 		t.Fatalf("copy-disabled fence leaked its option into the language label:\n%s", markup)
 	}
+	if !bytes.Contains([]byte(markup), []byte(`<pre tabindex="0"`)) {
+		t.Fatal("copy-disabled source is not keyboard-focusable")
+	}
 	if bytes.Contains([]byte(markup), []byte(`<button`)) {
 		t.Fatalf("copy-disabled fence still rendered a button:\n%s", markup)
 	}
@@ -31,6 +34,7 @@ func TestCodeBlockCopyRemainsEnabledByDefault(t *testing.T) {
 
 	for _, want := range []string{
 		`aria-label="Copy text code"`,
+		`<pre tabindex="0"`,
 		`data-margo-code-copy`,
 		`data-margo-code-copy-button`,
 		`data-margo-code-copy-label`,

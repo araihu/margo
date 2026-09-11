@@ -98,6 +98,7 @@
   const initialize = () => {
     document.querySelectorAll(blockSelector).forEach(bind);
   };
+  document.addEventListener("htmx:after:settle", initialize);
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initialize, { once: true });
   } else {

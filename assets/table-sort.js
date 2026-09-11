@@ -138,6 +138,6 @@
       .forEach(initialize);
 
   document.addEventListener("DOMContentLoaded", scan, { once: true });
-  document.addEventListener("htmx:afterSettle", scan);
+  document.addEventListener("htmx:after:settle", scan);
   if (document.readyState !== "loading") scan();
 })();

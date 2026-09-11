@@ -1047,7 +1047,7 @@ theme:
 		"margo-assets/goshtoso/shell.js",
 		"assets/styles.css",
 		"assets/js/goshtoso.min.js",
-		"assets/js/runtime/alpinejs/3.14.9/alpine.min.js",
+		"assets/js/runtime/alpinejs/3.17.2/alpine.min.js",
 	} {
 		if len(configArtifact(t, result, asset)) == 0 {
 			t.Fatalf("docs navigation asset %q missing", asset)
@@ -1543,7 +1543,7 @@ locales:
 	}
 	scrollSpy := string(configArtifact(t, result, "margo-assets/goshtoso/margo-scroll-spy.js"))
 	for _, required := range []string{
-		"IntersectionObserver", "history.replaceState", "htmx:afterSwap", "htmx:afterSettle", "htmx:historyRestore",
+		"IntersectionObserver", "history.replaceState", "htmx:after:swap", "htmx:after:settle",
 		"window.addEventListener(\"componentdocshell:navigated\"", "observerGeneration", "visibleHeadings", "entry.time", "explicitLock", "explicitRestore", "headingIsVisible", "automaticHold",
 		"data-margo-toc-active", "aria-current", "scrollend", "renderMermaidAfterSwap", "margoRunMermaid", "mermaid.min.js",
 	} {
@@ -1557,8 +1557,8 @@ locales:
 	if strings.Contains(scrollSpy, `rootMargin: "0px 0px -65% 0px"`) || strings.Contains(scrollSpy, "visible.sort") {
 		t.Fatal("scroll-spy still uses the old topmost-heading algorithm")
 	}
-	afterSwap := strings.Index(scrollSpy, `document.addEventListener("htmx:afterSwap"`)
-	afterSettle := strings.Index(scrollSpy, `document.addEventListener("htmx:afterSettle"`)
+	afterSwap := strings.Index(scrollSpy, `document.addEventListener("htmx:after:swap"`)
+	afterSettle := strings.Index(scrollSpy, `document.addEventListener("htmx:after:settle"`)
 	if afterSwap == -1 || afterSettle == -1 || afterSettle < afterSwap {
 		t.Fatalf("scroll-spy Mermaid lifecycle ordering is invalid: afterSwap=%d afterSettle=%d", afterSwap, afterSettle)
 	}
