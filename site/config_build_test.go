@@ -680,7 +680,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 		}
 	}
 	for _, required := range []string{
-		`<p class="margo-shell-footer">Margo · <strong>Buildt</strong> by `,
+		`<p class="margo-shell-footer">Margo · <strong>Build</strong> by `,
 		`href="https://araihu.com/"`, `<strong>Arai Hû</strong>`,
 		`href="https://goshtoso.araihu.com/"`, `>Goshtoso</a>`,
 		`href="/llms.txt"><strong>llms.txt</strong>`,
@@ -1469,7 +1469,7 @@ locales:
 		`data-search-id="margo-doc-search"`, `data-search-global-shortcut="true"`, `<kbd`, `⌘ K`,
 		`data-search-title="Markdown"`, `data-search-href="/markdown.html"`,
 		`data-toc-heading`, `src="margo-assets/goshtoso/margo-scroll-spy.js"`,
-		`Margo · <strong>Buildt</strong> by `,
+		`Margo · <strong>Build</strong> by `,
 		`href="https://araihu.com/"`, `<strong>Arai Hû</strong>`,
 		`href="https://goshtoso.araihu.com/"`, `>Goshtoso</a>`,
 		`href="/llms.txt"><strong>llms.txt</strong>`, `href="/sitemap.xml"><strong>sitemap.xml</strong>`,
