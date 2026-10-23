@@ -133,17 +133,19 @@
 
     // Observe the figure's width so zoom never changes the observed geometry.
     let observedWidth = 0;
+    let resizeObserver;
     if (typeof ResizeObserver === "function") {
-      const observer = new ResizeObserver((entries) => {
-        if (!node.isConnected) return;
+      resizeObserver = new ResizeObserver((entries) => {
+        if (!node.isConnected) {
+          resizeObserver.disconnect();
+          return;
+        }
         const next = entries[0].contentRect.width;
         if (Math.abs(next - observedWidth) < 0.5) return;
         observedWidth = next;
         fit();
       });
-      observer.observe(node);
-      // The observer and listeners belong to the figure, not to the document.
-      // A removed HTMX page must not be retained by a global resize listener.
+      resizeObserver.observe(node);
     }
     mermaidViewers.set(node, {
       position() {
@@ -154,6 +156,7 @@
         height = next.viewBox.baseVal.height;
         stage.replaceChildren(next);
         canvas.replaceChildren(stage);
+        if (resizeObserver) resizeObserver.observe(node);
         fit();
         if (position) canvas.scrollTo(position.left, position.top);
       }
