@@ -169,7 +169,7 @@ test("@mermaid-viewer independent controls, keyboard, pointer pan and static pri
   await expect(zoomText(page)).toHaveText("244%");
 });
 
-test("@mermaid-viewer HTMX navigation and theme rerenders keep one usable control group", async ({page}) => {
+test("@mermaid-viewer HTMX navigation and theme rerenders keep one usable control group", async ({page}, testInfo) => {
   await open(page, "/");
   await zoomIn(page);
   await canvas(page).evaluate((element) => element.scrollTo(60, 90));
@@ -184,6 +184,13 @@ test("@mermaid-viewer HTMX navigation and theme rerenders keep one usable contro
     ["Zoom in", "Zoom out", "Fit diagram", "195%"].includes(text) || text.startsWith("Use + /"))).toEqual([]);
   await expect(figure(page).locator(".margo-mermaid__controls")).toHaveCount(1);
   await figure(page).getByRole("button", {name: "Zoom in", exact: true}).click();
+  await expect(zoomText(page)).toHaveText("244%");
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).click();
+  const expandedContrast = await auditTextContrast(page);
+  expect(expandedContrast.failures.filter(({text}) =>
+    ["Zoom in", "Zoom out", "Fit diagram", "Fullscreen", "Close expanded view", "100%"].includes(text) || text.startsWith("Use + /"))).toEqual([]);
+  await page.screenshot({path: testInfo.outputPath("mermaid-expanded-dark.png")});
+  await page.keyboard.press("Escape");
   await expect(zoomText(page)).toHaveText("244%");
   await page.evaluate(() => { window.viewerNavigationSentinel = true; });
   await page.locator('a[href="/guide.html"][hx-get]').first().click();
@@ -271,4 +278,120 @@ test("@mermaid-viewer source fallback works without JavaScript", async ({browser
   } finally {
     await context.close();
   }
+});
+
+test("@mermaid-viewer modal keeps the SVG, traps focus and restores the inline view", async ({page}, testInfo) => {
+  await page.setViewportSize({width: 1440, height: 900});
+  await open(page);
+  await zoomIn(page);
+  await canvas(page).evaluate((element) => {
+    element.scrollTo(60, 90);
+    element.querySelector("svg").viewerIdentity = "original";
+  });
+  const expand = figure(page).getByRole("button", {name: "Expand", exact: true});
+  await expand.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAccessibleName(/Mermaid diagram for Lifecycle/);
+  await expect(zoomText(page)).toHaveText("100%");
+  expect(await canvas(page).locator("svg").evaluate((element) => element.viewerIdentity)).toBe("original");
+  await expect(figure(page).locator("svg")).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");
+  await dialog.getByRole("button", {name: "Zoom out", exact: true}).focus();
+  await page.keyboard.press("Shift+Tab");
+  expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await zoomIn(page, 2);
+  await expect(zoomText(page)).toHaveText("156%");
+  await page.screenshot({path: testInfo.outputPath("mermaid-expanded.png")});
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(expand).toBeFocused();
+  await expect(zoomText(page)).toHaveText("195%");
+  expect(await canvas(page).evaluate((element) => ({left: element.scrollLeft, top: element.scrollTop}))).toEqual({left: 60, top: 90});
+  expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+  await expand.click();
+  await page.mouse.click(2, 2);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(expand).toBeFocused();
+});
+
+test("@mermaid-viewer native fullscreen exits to its originating view", async ({page}) => {
+  await open(page);
+  const viewer = figure(page).locator(".margo-mermaid__viewer");
+  const fullscreen = figure(page).getByRole("button", {name: "Fullscreen", exact: true});
+  await fullscreen.click();
+  await expect.poll(() => viewer.evaluate((element) => document.fullscreenElement === element)).toBe(true);
+  await expect(figure(page).getByRole("button", {name: "Exit fullscreen", exact: true})).toHaveAttribute("aria-pressed", "true");
+  await zoomIn(page, 1);
+  await expect(zoomText(page)).toHaveText("125%");
+  await page.evaluate(() => document.exitFullscreen());
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(fullscreen).toBeFocused();
+  await expect(zoomText(page)).toHaveText("100%");
+
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).click();
+  await fullscreen.click();
+  await expect.poll(() => viewer.evaluate((element) => document.fullscreenElement === element)).toBe(true);
+  await figure(page).getByRole("button", {name: "Exit fullscreen", exact: true}).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await figure(page).getByRole("button", {name: "Close expanded view", exact: true}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("@mermaid-viewer fullscreen fallback fits narrow screens and restores focus", async ({page}) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await open(page);
+  for (const denied of [false, true]) {
+    await page.evaluate((reject) => {
+      Element.prototype.requestFullscreen = reject ? () => Promise.reject(new Error("Fullscreen denied")) : undefined;
+    }, denied);
+    const fullscreen = figure(page).getByRole("button", {name: "Fullscreen", exact: true});
+    await fullscreen.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toHaveClass(/margo-mermaid__dialog--fullscreen/);
+    const bounds = await dialog.boundingBox();
+    expect(bounds.width).toBeCloseTo(390, 0);
+    expect(bounds.height).toBeCloseTo(844, 0);
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await expect(figure(page).getByRole("button", {name: "Exit fullscreen", exact: true})).toHaveAttribute("aria-pressed", "true");
+    await canvas(page).focus();
+    await page.keyboard.press("+");
+    await expect(zoomText(page)).toHaveText("125%");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(fullscreen).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+  }
+});
+
+test("@mermaid-viewer an expanded diagram prints whole and detachment unlocks the page", async ({page}, testInfo) => {
+  await open(page, "/");
+  for (const action of ["Expand", "Fullscreen"]) {
+    await figure(page).getByRole("button", {name: action, exact: true}).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    if (action === "Fullscreen") await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+    await zoomIn(page, 4);
+    await page.emulateMedia({media: "print"});
+    await expect(figure(page).locator(".margo-mermaid__controls")).toBeHidden();
+    const printBounds = await canvas(page).evaluate((element) => {
+      const viewport = element.getBoundingClientRect();
+      const figure = element.closest("figure").getBoundingClientRect();
+      const svg = element.querySelector("svg").getBoundingClientRect();
+      return svg.width <= viewport.width + 1 && svg.top >= viewport.top - 1 && svg.bottom <= viewport.bottom + 1 &&
+        svg.top >= figure.top && svg.left >= figure.left && svg.right <= figure.right;
+    });
+    expect(printBounds).toBe(true);
+    await page.pdf({path: testInfo.outputPath("mermaid-" + action.toLowerCase() + "-static.pdf")});
+    await page.emulateMedia({media: "screen"});
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(zoomText(page)).toHaveText("244%");
+    await figure(page).getByRole("button", {name: "Close expanded view", exact: true}).click();
+  }
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).click();
+  await figure(page).evaluate((element) => element.remove());
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
 });
