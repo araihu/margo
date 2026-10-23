@@ -1303,7 +1303,7 @@ func (b *builder) shellFooter() templ.Component {
 			)
 		}
 
-		if _, err := io.WriteString(w, `<strong>Buildt</strong> by `); err != nil {
+		if _, err := io.WriteString(w, `<strong>Build</strong> by `); err != nil {
 			return err
 		}
 		if err := renderLink("https://araihu.com/", "Arai Hû", true, true); err != nil {
