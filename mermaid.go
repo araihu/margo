@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -109,8 +110,12 @@ func mermaidBrowserCapabilities() ([]string, error) {
 	return append([]string(nil), mermaidBrowserCapabilityCache.capabilities...), mermaidBrowserCapabilityCache.err
 }
 
-const mermaidBrowserExecutor = `(() => {
+//go:embed assets/runtime/mermaid-viewer.js
+var mermaidViewerScript string
+
+var mermaidBrowserExecutor = `(() => {
   "use strict";
+` + mermaidViewerScript + `
 
   function materializeTreeViewIcons(svg) {
     // Mermaid strict mode strips <use>; only restore fixed built-in paths.
@@ -233,6 +238,7 @@ const mermaidBrowserExecutor = `(() => {
       });
       const rendered = await engine.render("margo-html-" + index, sourceNode.textContent);
       if (!rendered || typeof rendered.svg !== "string" || rendered.svg.length === 0) throw new Error("Mermaid returned no SVG");
+      const position = mermaidViewers.get(node)?.position();
       target.innerHTML = rendered.svg;
       const svg = target.querySelector("svg");
       if (svg) {
@@ -244,6 +250,7 @@ const mermaidBrowserExecutor = `(() => {
       if (fallback) fallback.hidden = true;
       node.dataset.margoRuntimeStatus = "succeeded";
       outputs.push(svg ? svg.outerHTML : rendered.svg);
+      if (svg) attachMermaidViewer(node, svg, position);
     }
     document.documentElement.dataset.margoRuntimeStatus = "ready";
     return outputs;
