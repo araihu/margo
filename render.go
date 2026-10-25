@@ -294,7 +294,7 @@ func (r markdownRenderer) renderInline(node goldast.Node) error {
 		return err
 	case *goldast.CodeSpan:
 		label := inlineText(value, r.source)
-		if _, err := fmt.Fprintf(r.out, `<code title="%s">`, html.EscapeString(label)); err != nil {
+		if _, err := fmt.Fprintf(r.out, `<code class="margo-inline-code" title="%s">`, html.EscapeString(label)); err != nil {
 			return err
 		}
 		if err := r.renderInlineChildren(value); err != nil {

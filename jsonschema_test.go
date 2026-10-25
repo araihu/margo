@@ -24,7 +24,7 @@ func TestJSONSchemaDescriptionsRenderSafeMarkdown(t *testing.T) {
 	if err := renderJSONSchemaDocument(context.Background(), &out, schema, "inline"); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"<strong>configuration</strong>", "<code>value</code>", "<ul>", `href="/help"`, "gs-schema-tree-description"} {
+	for _, want := range []string{"<strong>configuration</strong>", `<code class="margo-inline-code">value</code>`, "<ul>", `href="/help"`, "gs-schema-tree-description"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing %q in %s", want, out.String())
 		}

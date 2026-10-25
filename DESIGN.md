@@ -366,6 +366,8 @@ disclosure on narrow screens, and complete print output.
   "Exact category values" accordion.
 - The exact-data table remains visible in HTML for static and interactive
   charts.
+- Visible columns project the dimensions present in the dataset. Omit a series
+  or sample column only when it is empty for every row; retain canonical data.
 - Print hides chart data tables by default. The printable-accessibility flag
   includes them; this flag is off by default.
 - Print hides expand, export, sorting, and other controls with no paper meaning.

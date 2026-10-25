@@ -27,7 +27,7 @@ func TestAccessibleTextIsBoundedAndContainsEveryRow(t *testing.T) {
 		t.Fatalf("unexpected runtime marker or output size: %d", len(out))
 	}
 	for _, want := range []string{
-		`<thead><tr><th scope="col">Series</th><th scope="col">Category</th><th scope="col">Sample</th><th scope="col">Value</th></tr></thead>`,
+		`<thead><tr><th scope="col">Series</th><th scope="col">Category</th><th scope="col">Value</th></tr></thead>`,
 		`<td data-field="canonical" hidden>Revenue|Development|12</td>`,
 	} {
 		if !strings.Contains(out, want) {
@@ -44,6 +44,42 @@ func TestAccessiblePolicyBoundariesAndOneByteOverflow(t *testing.T) {
 	}
 	if _, err := AccessibleText("T", []AccessibleRow{{Category: "C", Value: "123456789"}}, AccessibleRenderPolicy{MaxOutputBytes: 1}); err == nil || !strings.Contains(err.Error(), "chart.output_limit") {
 		t.Fatalf("overflow error = %v", err)
+	}
+}
+
+func TestAccessibleTableProjectsOnlyPopulatedDimensions(t *testing.T) {
+	for _, check := range []struct {
+		name      string
+		rows      []AccessibleRow
+		headers   string
+		canonical []string
+	}{
+		{"slices", []AccessibleRow{{Category: "HTML", Value: "40"}, {Category: "Site", Value: "30"}}, "Category,Value", []string{"HTML|40", "Site|30"}},
+		{"series", []AccessibleRow{{Series: "Revenue", Category: "Mon", Value: "12"}}, "Series,Category,Value", []string{"Revenue|Mon|12"}},
+		{"samples", []AccessibleRow{{Series: "Latency", Category: "Mon", Sample: "p50", Value: "12"}}, "Series,Category,Sample,Value", []string{"Latency|Mon|p50|12"}},
+		{"mixed", []AccessibleRow{{Category: "HTML", Value: "40"}, {Series: "Latency", Category: "Mon", Sample: "p50", Value: "12"}}, "Series,Category,Sample,Value", []string{"HTML|40", "Latency|Mon|p50|12"}},
+	} {
+		t.Run(check.name, func(t *testing.T) {
+			out, err := AccessibleText("Data", check.rows, AccessibleRenderPolicy{MaxOutputBytes: 4096})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var headers []string
+			for _, label := range []string{"Series", "Category", "Sample", "Value"} {
+				if strings.Contains(out, `<th scope="col">`+label+`</th>`) {
+					headers = append(headers, label)
+				}
+			}
+			if got := strings.Join(headers, ","); got != check.headers {
+				t.Fatalf("headers = %s, want %s", got, check.headers)
+			}
+			if got := strings.Join(extractAccessibleRows(out), "\x00"); got != strings.Join(check.canonical, "\x00") {
+				t.Fatalf("canonical data changed: %s", got)
+			}
+			if got := strings.Count(out, `<td data-field=`); got != len(check.rows)*(len(headers)+1) {
+				t.Fatalf("cells = %d; headers do not match rows", got)
+			}
+		})
 	}
 }
 

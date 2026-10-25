@@ -21,7 +21,9 @@ import (
 	"github.com/araihu/goshtoso/components/schematree"
 	jsonschemaValidator "github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/yuin/goldmark"
+	goldast "github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/text"
 )
 
 // jsonSchemaFenceName is the canonical Markdown fence for publishing a
@@ -477,7 +479,20 @@ func jsonSchemaDescriptionContent(description string) templ.Component {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		return jsonSchemaDescriptionMarkdown.Convert([]byte(description), out)
+		source := []byte(description)
+		document := jsonSchemaDescriptionMarkdown.Parser().Parse(text.NewReader(source))
+		// Descriptions are Margo-owned prose supplied to the shared component.
+		// Mark only their Markdown code spans; schema names and constraints
+		// remain entirely component-owned, without CSS exclusions for its DOM.
+		if err := goldast.Walk(document, func(node goldast.Node, entering bool) (goldast.WalkStatus, error) {
+			if entering && node.Kind() == goldast.KindCodeSpan {
+				node.SetAttributeString("class", []byte("margo-inline-code"))
+			}
+			return goldast.WalkContinue, nil
+		}); err != nil {
+			return err
+		}
+		return jsonSchemaDescriptionMarkdown.Renderer().Render(out, source, document)
 	})
 }
 

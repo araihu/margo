@@ -35,6 +35,11 @@ expand and export controls; the SVG and exact-data table remain usable when
 those controls are unavailable. Use
 `charts.WithControlWrapper(false)` when the host needs static-only HTML.
 
+Exact-data tables always include category and value. Series and sample columns
+appear only when at least one row supplies that dimension; pie and doughnut
+tables therefore have two columns. Mixed rows retain their applicable fields,
+and canonical data used by accessibility and exports remains unchanged.
+
 Chart styles use Goshtoso tokens by default. A payload can choose a palette,
 caller class, or explicit hex colors. `class` and `color` are mutually
 exclusive on one series or slice.

@@ -64,6 +64,15 @@ sidebar controls, and the TOC out of band. Keep the sidebar container stable for
 Alpine's drawer bindings. Browser coverage must distinguish swaps from reloads
 and exercise both desktop links and the mobile family selector with Back/Forward.
 
+Document CSS declares the shared Goshtoso/Margo layer order, including the
+upstream `base`, `components`, and `utilities` layers. Site composition emits
+the single shared base stylesheet before page styles even when a shell owns
+it. Preserve requirement ordering when deduplicating assets. Scope inline-code
+presentation to renderer-owned `.margo-inline-code` elements so component
+internals keep their own styles. `TestShowcaseHomepageComposition` builds the
+real showcase and checks computed styles and exact chart data in light/dark,
+local/inline assets, and mobile/tablet/desktop widths, including late base CSS.
+
 ## Pull requests
 
 Explain the user-facing contract, security implications, and verification in

@@ -234,35 +234,54 @@ func renderAccessibleText(out io.Writer, title string, rows []AccessibleRow) err
 	if err := writeHTMLValue(out, title); err != nil {
 		return err
 	}
-	if err := writeString(out, `</caption><thead><tr><th scope="col">Series</th><th scope="col">Category</th><th scope="col">Sample</th><th scope="col">Value</th></tr></thead><tbody>`); err != nil {
+	hasSeries, hasSample := false, false
+	for _, row := range rows {
+		hasSeries = hasSeries || row.Series != ""
+		hasSample = hasSample || row.Sample != ""
+	}
+	columns := []struct {
+		field, label string
+		visible      bool
+		value        func(AccessibleRow) string
+	}{
+		{"series", "Series", hasSeries, func(row AccessibleRow) string { return row.Series }},
+		{"category", "Category", true, func(row AccessibleRow) string { return row.Category }},
+		{"sample", "Sample", hasSample, func(row AccessibleRow) string { return row.Sample }},
+		{"value", "Value", true, func(row AccessibleRow) string { return row.Value }},
+	}
+	if err := writeString(out, `</caption><thead><tr>`); err != nil {
+		return err
+	}
+	for _, column := range columns {
+		if !column.visible {
+			continue
+		}
+		if err := writeString(out, `<th scope="col">`+column.label+`</th>`); err != nil {
+			return err
+		}
+	}
+	if err := writeString(out, `</tr></thead><tbody>`); err != nil {
 		return err
 	}
 	for index, row := range rows {
-		if err := writeString(out, fmt.Sprintf(`<tr data-margo-chart-row="%d"><td data-field="series">`, index)); err != nil {
+		if err := writeString(out, fmt.Sprintf(`<tr data-margo-chart-row="%d">`, index)); err != nil {
 			return err
 		}
-		if err := writeAccessibleField(out, row.Series); err != nil {
-			return err
+		for _, column := range columns {
+			if !column.visible {
+				continue
+			}
+			if err := writeString(out, `<td data-field="`+column.field+`">`); err != nil {
+				return err
+			}
+			if err := writeAccessibleField(out, column.value(row)); err != nil {
+				return err
+			}
+			if err := writeString(out, `</td>`); err != nil {
+				return err
+			}
 		}
-		if err := writeString(out, `</td><td data-field="category">`); err != nil {
-			return err
-		}
-		if err := writeAccessibleField(out, row.Category); err != nil {
-			return err
-		}
-		if err := writeString(out, `</td><td data-field="sample">`); err != nil {
-			return err
-		}
-		if err := writeAccessibleField(out, row.Sample); err != nil {
-			return err
-		}
-		if err := writeString(out, `</td><td data-field="value">`); err != nil {
-			return err
-		}
-		if err := writeAccessibleField(out, row.Value); err != nil {
-			return err
-		}
-		if err := writeString(out, `</td><td data-field="canonical" hidden>`); err != nil {
+		if err := writeString(out, `<td data-field="canonical" hidden>`); err != nil {
 			return err
 		}
 		if row.Series != "" {
