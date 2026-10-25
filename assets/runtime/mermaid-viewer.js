@@ -342,23 +342,37 @@
     });
 
     // Touch uses the browser's native overflow panning and scroll chaining.
-    // Pointer capture is only needed for mouse/pen dragging.
+    // Pointer capture is only needed for primary/middle-button mouse dragging
+    // and pen dragging. Cancel middle-click defaults so native autoscroll does
+    // not compete with the diagram's pan interaction.
+    const preventMiddleDefault = (event) => {
+      if (event.button === 1 && scale > 1 && !event.target.closest("a, button")) event.preventDefault();
+    };
+    canvas.addEventListener("mousedown", preventMiddleDefault);
+    canvas.addEventListener("auxclick", preventMiddleDefault);
     canvas.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "touch" || event.button !== 0 || scale <= 1 ||
+      if (event.pointerType === "touch" || (event.button !== 0 && event.button !== 1) || scale <= 1 ||
           event.target.closest("a, button")) return;
       canvas.focus({preventScroll: true});
-      drag = {id: event.pointerId, x: event.clientX, y: event.clientY, left: canvas.scrollLeft, top: canvas.scrollTop};
+      drag = {id: event.pointerId, buttons: event.button === 1 ? 4 : 1,
+        x: event.clientX, y: event.clientY, left: canvas.scrollLeft, top: canvas.scrollTop};
       canvas.setPointerCapture(event.pointerId);
       canvas.classList.add("margo-mermaid__viewport--dragging");
       event.preventDefault();
     });
     canvas.addEventListener("pointermove", (event) => {
       if (!drag || drag.id !== event.pointerId) return;
+      if (!(event.buttons & drag.buttons)) {
+        endDrag();
+        return;
+      }
       canvas.scrollTo(drag.left + drag.x - event.clientX, drag.top + drag.y - event.clientY);
     });
     const endDrag = () => {
+      const pointerID = drag?.id;
       drag = null;
       canvas.classList.remove("margo-mermaid__viewport--dragging");
+      if (pointerID !== undefined && canvas.hasPointerCapture(pointerID)) canvas.releasePointerCapture(pointerID);
     };
     canvas.addEventListener("pointerup", endDrag);
     canvas.addEventListener("pointercancel", endDrag);

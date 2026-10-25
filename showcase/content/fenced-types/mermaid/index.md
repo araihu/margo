@@ -21,8 +21,9 @@ expanded view or press `Escape` to return; closing restores the original view
 and focus. In native fullscreen, `Escape` first exits fullscreen.
 
 Focus the diagram and use `+` / `-` to zoom, `0`
-or `Home` to fit, and arrow keys to pan. You can also drag with a mouse or swipe
-on a touch screen after zooming. Each diagram keeps its own view. Page scrolling
+or `Home` to fit, and arrow keys to pan. You can also drag with the left or
+middle mouse button, or swipe on a touch screen after zooming.
+Each diagram keeps its own view. Page scrolling
 and browser pinch zoom remain available.
 
 The complete source remains available to assistive technology. Without

@@ -139,12 +139,27 @@ test("@mermaid-viewer independent controls, keyboard, pointer pan and static pri
   await page.keyboard.press("-");
   await expect(zoomText(page)).toHaveText("195%");
   const area = await canvas(page).boundingBox();
-  await canvas(page).evaluate((element) => element.scrollTo(0, 0));
-  await page.mouse.move(area.x + area.width / 2, area.y + area.height * 0.7);
-  await page.mouse.down();
-  await page.mouse.move(area.x + area.width / 2 - 80, area.y + area.height * 0.7 - 100, {steps: 5});
-  await page.mouse.up();
-  expect(await canvas(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(80);
+  await canvas(page).evaluate((element) => {
+    element.addEventListener("auxclick", (event) => {
+      if (event.button === 1) window.viewerMiddleDefaultPrevented = event.defaultPrevented;
+    });
+  });
+  for (const button of ["left", "middle"]) {
+    await canvas(page).evaluate((element) => element.scrollTo(0, 0));
+    await page.mouse.move(area.x + area.width / 2, area.y + area.height * 0.7);
+    await page.mouse.down({button});
+    await page.mouse.move(area.x + area.width / 2 - 80, area.y + area.height * 0.7 - 100, {steps: 5});
+    await page.mouse.up({button});
+    const panned = await canvas(page).evaluate((element) => ({left: element.scrollLeft, top: element.scrollTop}));
+    expect(panned.top).toBeGreaterThan(80);
+    expect(panned.left).toBeGreaterThan(60);
+    await page.mouse.move(area.x + area.width / 2 - 100, area.y + area.height * 0.7 - 120);
+    expect(await canvas(page).evaluate((element) => ({left: element.scrollLeft, top: element.scrollTop}))).toEqual(panned);
+  }
+  expect(await page.evaluate(() => window.viewerMiddleDefaultPrevented)).toBe(true);
+  const beforeWheel = await canvas(page).evaluate((element) => element.scrollTop);
+  await page.mouse.wheel(0, 60);
+  await expect.poll(() => canvas(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(beforeWheel);
   await page.keyboard.press("0");
   await expect(zoomText(page)).toHaveText("100%");
   expect(await canvas(page).evaluate((element) => element.scrollTop)).toBe(0);
@@ -313,6 +328,13 @@ test("@mermaid-viewer modal keeps the SVG, traps focus and restores the inline v
   expect(await closeButton.evaluate((element) => getComputedStyle(element, "::after").visibility)).toBe("visible");
   await zoomIn(page, 2);
   await expect(zoomText(page)).toHaveText("156%");
+  await canvas(page).evaluate((element) => element.scrollTo(0, 0));
+  const expandedArea = await canvas(page).boundingBox();
+  await page.mouse.move(expandedArea.x + expandedArea.width / 2, expandedArea.y + expandedArea.height / 2);
+  await page.mouse.down({button: "middle"});
+  await page.mouse.move(expandedArea.x + expandedArea.width / 2 - 40, expandedArea.y + expandedArea.height / 2 - 50, {steps: 5});
+  await page.mouse.up({button: "middle"});
+  expect(await canvas(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(40);
   await page.screenshot({path: testInfo.outputPath("mermaid-expanded.png")});
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
