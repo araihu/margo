@@ -14,7 +14,8 @@ Use a `mermaid` fence for diagrams. Margo assigns deterministic IDs, applies a
 known Mermaid runtime, and sanitizes the resulting SVG before publication.
 
 In HTML documents and sites, each rendered diagram has **Zoom in**, **Zoom out**,
-and **Fit diagram** controls. **Expand** opens the same diagram in a large modal;
+and **Fit diagram** controls. **Expand**, or a double-click on the diagram,
+opens the same diagram in a large modal;
 **Fullscreen** uses the whole screen, with a viewport-sized modal when native
 fullscreen is unavailable. Zoom and pan remain usable in both views. Close the
 expanded view or press `Escape` to return; closing restores the original view

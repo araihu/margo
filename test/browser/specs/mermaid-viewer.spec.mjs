@@ -348,6 +348,29 @@ test("@mermaid-viewer modal keeps the SVG, traps focus and restores the inline v
   await expect(expand).toBeFocused();
 });
 
+test("@mermaid-viewer double-click expands fitted and zoomed diagrams and restores focus", async ({page}) => {
+  await open(page);
+  for (const steps of [0, 3]) {
+    await zoomIn(page, steps);
+    const inlineZoom = await zoomText(page).textContent();
+    await canvas(page).evaluate((element) => element.scrollTo(60, 90));
+    const inlinePan = await canvas(page).evaluate((element) => ({left: element.scrollLeft, top: element.scrollTop}));
+    await canvas(page).dblclick();
+    await expect(page.getByRole("dialog")).toHaveCount(1);
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(zoomText(page)).toHaveText("100%");
+    await zoomIn(page, 1);
+    await canvas(page).dblclick();
+    await expect(page.getByRole("dialog")).toHaveCount(1);
+    await expect(zoomText(page)).toHaveText("125%");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(canvas(page)).toBeFocused();
+    await expect(zoomText(page)).toHaveText(inlineZoom);
+    expect(await canvas(page).evaluate((element) => ({left: element.scrollLeft, top: element.scrollTop}))).toEqual(inlinePan);
+  }
+});
+
 test("@mermaid-viewer native fullscreen exits to its originating view", async ({page}) => {
   await open(page);
   const viewer = figure(page).locator(".margo-mermaid__viewer");

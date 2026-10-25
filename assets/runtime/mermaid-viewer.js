@@ -327,6 +327,11 @@
       paint();
     }
 
+    canvas.addEventListener("dblclick", (event) => {
+      if (event.button !== 0 || dialog.open || event.target.closest("a, button")) return;
+      event.preventDefault();
+      openExpanded(canvas);
+    });
     canvas.addEventListener("keydown", (event) => {
       if (event.target !== canvas || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key === "+" || event.key === "=") zoom(scale * 1.25);
