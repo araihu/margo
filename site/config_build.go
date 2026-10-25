@@ -1186,6 +1186,9 @@ func (b *builder) stageTypedLayoutAssets() error {
 		if err := stage(searchInteractionsScriptPath, searchInteractionsScript); err != nil {
 			return err
 		}
+		if err := stage(docsNavigationScriptPath, docsNavigationScript); err != nil {
+			return err
+		}
 	}
 	if dependencies.pageActions {
 		if err := stage(pageActionsScriptPath, pageActionsScript); err != nil {

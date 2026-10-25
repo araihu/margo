@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -157,41 +158,118 @@ func TestLayoutBrowserTourIsOutsideDocsShell(t *testing.T) {
 	}
 }
 
-func TestLayoutBrowserCrossFamilyNavigationRefreshesShell(t *testing.T) {
+// Exercise the actual navigation controls and HTTP history restores. A window
+// sentinel and stable shell nodes distinguish a swap from a document reload.
+func TestLayoutBrowserNavigationSwapsKeepShellAndHistoryInSync(t *testing.T) {
 	browserPath := installedSiteTestChromium()
 	if browserPath == "" {
 		t.Skip("installed Chromium-family browser unavailable")
 	}
-	server := layoutBrowserServer(t)
-	defer server.Close()
-	allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
-	defer cancelAllocator()
-	browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
-	defer cancelBrowser()
-	ctx, cancel := context.WithTimeout(browserContext, 60*time.Second)
-	defer cancel()
+	for _, fixture := range []struct {
+		name   string
+		width  int64
+		assets AssetMode
+	}{
+		{"desktop", 1440, AssetsLocal},
+		{"mobile", 390, AssetsLocal},
+		{"inline-mobile", 390, AssetsInline},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			width := fixture.width
+			server := layoutBrowserServer(t, fixture.assets)
+			defer server.Close()
+			allocatorContext, cancelAllocator := browserlaunch.NewExecAllocator(context.Background(), siteTestChromiumAllocatorOptions(browserPath)...)
+			defer cancelAllocator()
+			browserContext, cancelBrowser := chromedp.NewContext(allocatorContext)
+			defer cancelBrowser()
+			ctx, cancel := context.WithTimeout(browserContext, 60*time.Second)
+			defer cancel()
 
-	var state struct {
-		CurrentFamilies []string `json:"currentFamilies"`
-		Scope           string   `json:"scope"`
-		Heading         string   `json:"heading"`
-	}
-	if err := chromedp.Run(ctx,
-		chromedp.EmulateViewport(1498, 844),
-		chromedp.Navigate(server.URL+"/module/"),
-		chromedp.WaitVisible(`a.component-doc-shell__family-link[href="/cli/"]`, chromedp.ByQuery),
-		chromedp.Click(`a.component-doc-shell__family-link[href="/cli/"]`, chromedp.ByQuery),
-		chromedp.WaitVisible(`[data-sidebar-section="CLI"]`, chromedp.ByQuery),
-		chromedp.Evaluate(`(() => ({
-			currentFamilies: [...document.querySelectorAll('.component-doc-shell__family-link[aria-current="location"]')].map(link => link.textContent.trim()),
-			scope: document.querySelector('.component-doc-shell__scope-family')?.textContent.trim() || '',
-			heading: document.querySelector('#main-content h1')?.textContent.trim() || '',
-		}))()`, &state),
-	); err != nil {
-		t.Fatal(err)
-	}
-	if len(state.CurrentFamilies) != 1 || state.CurrentFamilies[0] != "CLI" || state.Scope != "CLI" || state.Heading != "CLI" {
-		t.Fatalf("cross-family navigation left stale shell state: %+v", state)
+			run := func(actions ...chromedp.Action) {
+				t.Helper()
+				if err := chromedp.Run(ctx, actions...); err != nil {
+					var state string
+					_ = chromedp.Run(browserContext, chromedp.Evaluate(`JSON.stringify({errors: window.margoNavigationErrors, active: document.activeElement?.tagName, family: document.querySelector('.component-doc-shell__scope-family')?.textContent, url: location.href, heading: document.querySelector('#main-content h1')?.textContent, sentinel: !!window.margoNavigationSentinel, toc: document.querySelector('[data-componentdocshell-toc]')?.outerHTML})`, &state))
+					t.Fatalf("%v; state: %s", err, state)
+				}
+			}
+			run(chromedp.EmulateViewport(width, 844), chromedp.Navigate(server.URL+"/module/"),
+				chromedp.Poll(`window.htmx && window.Alpine && document.documentElement._x_dataStack`, nil),
+				chromedp.Evaluate(`window.margoNavigationSentinel = {root: document.documentElement, body: document.body, sidebar: document.getElementById('componentdocshell-sidebar')}; window.margoNavigationErrors = []; window.addEventListener('error', e => window.margoNavigationErrors.push(e.message));`, nil))
+
+			assertRoute := func(path, family, heading, section string, sidebar bool) {
+				t.Helper()
+				t.Logf("checking %s", path)
+				expected, _ := json.Marshal(map[string]any{"path": path, "family": family, "heading": heading, "section": section, "sidebar": sidebar})
+				run(chromedp.Poll(`(() => {
+					const expected = `+string(expected)+`;
+					const main = document.querySelector('#main-content');
+					const currentFamilies = [...document.querySelectorAll('.component-doc-shell__family-links [aria-current="location"]')];
+					const active = [...document.querySelectorAll('.component-doc-shell__sidebar-nav a[aria-current="page"]')];
+					const rail = document.querySelector('[data-componentdocshell-toc]');
+					const toc = [...rail.querySelectorAll('[data-toc-link]')];
+					const sentinel = window.margoNavigationSentinel;
+					const trigger = document.querySelector('#componentdocshell-family-trigger');
+					return location.pathname === expected.path && main?.querySelector('h1')?.textContent.trim() === expected.heading &&
+						currentFamilies.length === 1 && currentFamilies[0].textContent.trim() === expected.family &&
+						document.querySelector('.component-doc-shell__scope-family')?.textContent.trim() === expected.family &&
+						active.length === 1 && new URL(active[0].href).pathname === expected.path &&
+						trigger?.getAttribute('aria-label') === 'Current documentation family: ' + expected.family &&
+						window.Alpine.$data(document.querySelector('#componentdocshell-family-select-control')).familyHref === '/' + expected.family.toLowerCase() + '/' &&
+						(expected.section ? !rail.hidden && toc.some(a => a.textContent.trim() === expected.section) && toc.every(a => main.querySelector(a.getAttribute('href'))) : rail.hidden && toc.length === 0) &&
+						(getComputedStyle(document.getElementById('componentdocshell-sidebar')).display !== 'none') === expected.sidebar &&
+						!document.querySelector('#componentdocshell-sidebar.is-open') &&
+						document.activeElement === main.querySelector('h1') && document.title.includes(expected.heading) &&
+						(!main.querySelector('[data-margo-runtime-task="mermaid"]') || !!main.querySelector('[data-margo-runtime-task="mermaid"][data-margo-runtime-status="succeeded"] svg')) &&
+						sentinel?.root === document.documentElement && sentinel.body === document.body && sentinel.sidebar === document.getElementById('componentdocshell-sidebar') &&
+						document.querySelectorAll('#main-content').length === 1 && document.querySelectorAll('[data-componentdocshell-toc]').length === 1 &&
+						window.margoNavigationErrors.length === 0;
+				})()`, nil, chromedp.WithPollingInterval(20*time.Millisecond), chromedp.WithPollingTimeout(8*time.Second)))
+			}
+			clickSidebar := func(href string) {
+				t.Helper()
+				if width == 390 {
+					run(chromedp.Click(`.component-doc-shell__menu-button`, chromedp.ByQuery), chromedp.Poll(`document.querySelector('#componentdocshell-sidebar.is-open')?.getBoundingClientRect().left >= 0`, nil))
+				}
+				run(chromedp.Click(`.component-doc-shell__sidebar-nav a[href="`+href+`"]`, chromedp.ByQuery))
+			}
+			clickFamily := func(family string) {
+				t.Helper()
+				if width == 390 {
+					run(chromedp.Click(`#componentdocshell-family-trigger`, chromedp.ByQuery),
+						chromedp.WaitVisible(`#componentdocshell-family-listbox`, chromedp.ByQuery),
+						chromedp.Evaluate(`Array.from(document.querySelectorAll('#componentdocshell-family-listbox [role="option"]')).find(option => option.textContent.trim() === '`+family+`').click()`, nil))
+				} else {
+					run(chromedp.Click(`.component-doc-shell__family-links a[href="/`+strings.ToLower(family)+`/"]`, chromedp.ByQuery))
+				}
+			}
+			clickSidebar("/module/guide.html")
+			assertRoute("/module/guide.html", "Module", "Module guide", "", true)
+			clickFamily("CLI")
+			assertRoute("/cli/", "CLI", "CLI", "CLI section", true)
+			// A TOC click must preserve HTMX's history state for a later restore.
+			run(chromedp.Evaluate(`document.querySelector('[data-toc-link="cli-section"]').click()`, nil), chromedp.Poll(`location.hash === '#cli-section'`, nil))
+			clickSidebar("/cli/guide.html")
+			assertRoute("/cli/guide.html", "CLI", "CLI guide", "", false)
+			clickFamily("Module")
+			assertRoute("/module/", "Module", "Module", "Module section", true)
+			for _, route := range []struct {
+				path, family, heading, section string
+				sidebar                        bool
+			}{
+				{"/cli/guide.html", "CLI", "CLI guide", "", false},
+				{"/cli/", "CLI", "CLI", "CLI section", true},
+				{"/module/guide.html", "Module", "Module guide", "", true},
+				{"/module/", "Module", "Module", "Module section", true},
+			} {
+				run(chromedp.Evaluate(`history.back()`, nil))
+				assertRoute(route.path, route.family, route.heading, route.section, route.sidebar)
+			}
+			run(chromedp.Evaluate(`history.forward()`, nil))
+			assertRoute("/module/guide.html", "Module", "Module guide", "", true)
+			run(chromedp.Evaluate(`history.forward()`, nil))
+			assertRoute("/cli/", "CLI", "CLI", "CLI section", true)
+		})
 	}
 }
 
@@ -494,7 +572,7 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 	}
 }
 
-func layoutBrowserServer(t *testing.T) *httptest.Server {
+func layoutBrowserServer(t *testing.T, modes ...AssetMode) *httptest.Server {
 	t.Helper()
 	root := t.TempDir()
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "---\nlayout:\n  kind: landing\n  values:\n    shell: true\n    navigation: [module/index.md, cli/index.md]\n---\n# Tour\n\nPublish one Markdown source in the format your project needs.\n\nMargo turns ordinary Markdown into durable outputs.\n\n- [Publish with the CLI — standalone publishing workflow](cli/index.md)\n- [Embed the Go module — host-owned composition](module/index.md)\n\n![Margo mascot preparing a document](margo-mascot.png)\n\n## One source, several projections\n\n![Several generated outputs](margo-mascot.png)\n\nThe same source can serve several formats.\n\n## Is Margo a fit?\n\n### Good fit\n\n- Teams keeping Markdown in Git while publishing several projections.\n\n## Choose your next step\n\n- [Start with the CLI guide](cli/index.md)\n- [Continue with the Module guide](module/index.md)\n")
@@ -505,15 +583,15 @@ func layoutBrowserServer(t *testing.T) *httptest.Server {
 	if err := os.WriteFile(filepath.Join(root, "docs", "margo-mascot.png"), mascot, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n\n## Module section\n\nDetails.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nGuide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "index.md"), "# Module\n\nModule documentation.\n\n## Module section\n\nDetails.\n\n## Module workflows\n\nMore details.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "module", "guide.md"), "# Module guide\n\nGuide.\n\n```mermaid\nflowchart LR\n  source[Markdown] --> output[HTML]\n```\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "cli", "index.md"), "---\nlayout:\n  values:\n    toc: true\n    sidebar: true\nmargo:\n  actions:\n    markdown: true\n---\n# CLI\n\nCLI documentation.\n\n## CLI section\n\nDetails.\n\n## CLI workflows\n\nMore details.\n")
-	writeConfigFile(t, filepath.Join(root, "docs", "cli", "guide.md"), "# CLI guide\n\nGuide.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "cli", "guide.md"), "---\nlayout:\n  values:\n    sidebar: false\n    toc: false\n---\n# CLI guide\n\nGuide.\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "module", "_layout.yaml"), "values:\n  family: module\n")
 	writeConfigFile(t, filepath.Join(root, "docs", "cli", "_layout.yaml"), "values:\n  family: cli\n")
 	copyMargoAsset(t, filepath.Join(root, "assets", "logo.svg"), "logo.svg")
 	copyMargoAsset(t, filepath.Join(root, "assets", "social.jpg"), "social/margo-social-v2.jpg")
-	writeConfigFile(t, filepath.Join(root, "site.yaml"), `version: 1
+	config := `version: 1
 source: docs
 assets: local
 offline: true
@@ -546,7 +624,12 @@ theme:
   name: modern
   allow_switch_theme: true
   color_mode: system
-`)
+`
+	mode := AssetsLocal
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	writeConfigFile(t, filepath.Join(root, "site.yaml"), strings.Replace(config, "assets: local", "assets: "+string(mode), 1))
 	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: filepath.Join(root, "site.yaml")})
 	if err != nil {
 		t.Fatal(err)
