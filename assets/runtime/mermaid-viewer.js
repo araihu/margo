@@ -44,6 +44,19 @@
     button.replaceChildren(svg);
   }
   const mermaidViewers = new WeakMap();
+  const connectedMermaidViews = new Map();
+  const mermaidDetachObserver = new MutationObserver((records) => {
+    if (!records.some((record) => record.removedNodes.length)) return;
+    for (const [node, dispose] of connectedMermaidViews) {
+      if (!node.isConnected) dispose();
+    }
+  });
+  function observeMermaidAttachment(node, dispose) {
+    if (!connectedMermaidViews.size) {
+      mermaidDetachObserver.observe(document.documentElement, {childList: true, subtree: true});
+    }
+    connectedMermaidViews.set(node, dispose);
+  }
   const expandedMermaidViews = new Set();
   let mermaidPrintViews = [];
   function prepareMermaidPrint() {
@@ -64,7 +77,7 @@
 
   function attachMermaidViewer(node, svg, position) {
     // Presentation slides have fixed geometry and their own keyboard controls.
-    if (node.closest(".margo-deck")) return;
+    if (!node.isConnected || node.closest(".margo-deck")) return;
     const previous = mermaidViewers.get(node);
     if (previous) {
       previous.replace(svg, position);
@@ -161,6 +174,7 @@
 
     function setHelpOpen(open) {
       if (!helpRoot) return;
+      if (open) observeAttachment();
       if (!helpInitialized) {
         window.goshtosoInitTooltipTrigger(helpTrigger, false);
         window.goshtosoInitTooltipPortal(helpRoot);
@@ -218,6 +232,7 @@
     function openExpanded(trigger, full = false) {
       setHelpOpen(false);
       if (dialog.open || !node.isConnected) return;
+      observeAttachment();
       inlineView = {scale, left: canvas.scrollLeft, top: canvas.scrollTop};
       returnFocus = trigger;
       fullscreenOnly = full;
@@ -453,11 +468,22 @@
     let observedWidth = 0;
     let observedHeight = 0;
     let resizeObserver;
+    function dispose() {
+      closeExpanded(false);
+      endDrag();
+      resizeObserver?.disconnect();
+      connectedMermaidViews.delete(node);
+      if (!connectedMermaidViews.size) mermaidDetachObserver.disconnect();
+    }
+    function observeAttachment() {
+      if (!node.isConnected) return;
+      resizeObserver?.observe(viewer);
+      observeMermaidAttachment(node, dispose);
+    }
     if (typeof ResizeObserver === "function") {
       resizeObserver = new ResizeObserver((entries) => {
         if (!node.isConnected) {
-          closeExpanded(false);
-          resizeObserver.disconnect();
+          dispose();
           return;
         }
         const next = entries[0].contentRect.width;
@@ -468,8 +494,10 @@
         observedHeight = nextHeight;
         fit();
       });
-      resizeObserver.observe(viewer);
     }
+    // Removal is independent of geometry: an already-hidden figure will not
+    // trigger ResizeObserver when HTMX or an embedding application removes it.
+    observeAttachment();
     mermaidViewers.set(node, {
       position() {
         return {left: canvas.scrollLeft, top: canvas.scrollTop};
@@ -479,7 +507,7 @@
         height = next.viewBox.baseVal.height;
         stage.replaceChildren(next);
         canvas.replaceChildren(stage);
-        if (resizeObserver) resizeObserver.observe(viewer);
+        observeAttachment();
         fit();
         if (position) canvas.scrollTo(position.left, position.top);
       }

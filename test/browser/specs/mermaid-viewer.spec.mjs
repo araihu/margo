@@ -447,6 +447,52 @@ test("@mermaid-viewer Goshtoso help replaces the footer and dismisses before the
   await expect(figure(page).getByRole("tooltip")).toBeVisible();
 });
 
+for (const resizeObserver of [true, false]) {
+  test(`@mermaid-viewer hidden detachment releases help and modal state (ResizeObserver: ${resizeObserver})`, async ({page}) => {
+    if (!resizeObserver) await page.addInitScript(() => { window.ResizeObserver = undefined; });
+    await open(page);
+    const removed = await figure(page).elementHandle();
+    await figure(page).getByRole("button", {name: "Diagram help", exact: true}).click();
+    await expect(figure(page).getByRole("tooltip")).toBeVisible();
+    const hideThenRemove = async (element) => {
+      element.style.display = "none";
+      // Let the zero-size resize notification drain before removal.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      element.remove();
+    };
+    await removed.evaluate(hideThenRemove);
+    await expect.poll(() => removed.evaluate((element) =>
+      element.querySelector('[aria-label="Diagram help"]').getAttribute("aria-expanded"))).toBe("false");
+    await page.evaluate(() => {
+      window.escapeReachedPage = false;
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") window.escapeReachedPage = true;
+      }, {once: true});
+    });
+    await page.keyboard.press("Escape");
+    expect(await page.evaluate(() => window.escapeReachedPage)).toBe(true);
+    await figure(page).getByRole("button", {name: "Expand", exact: true}).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await figure(page).evaluate(hideThenRemove);
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+    // Embedders may reinsert the same subtree without running Mermaid again.
+    for (const action of ["Diagram help", "Expand"]) {
+      await removed.evaluate((element) => {
+        element.style.removeProperty("display");
+        document.querySelector(".margo-document").append(element);
+      });
+      await figure(page).getByRole("button", {name: action, exact: true}).click();
+      if (action === "Diagram help") await expect(figure(page).getByRole("tooltip")).toBeVisible();
+      else await expect(page.getByRole("dialog")).toBeVisible();
+      await removed.evaluate(hideThenRemove);
+      await expect.poll(() => removed.evaluate((element) =>
+        element.querySelector('[aria-label="Diagram help"]').getAttribute("aria-expanded"))).toBe("false");
+      await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+    }
+    await removed.dispose();
+  });
+}
+
 test("@mermaid-viewer native fullscreen exits to its originating view", async ({page}) => {
   await open(page);
   const viewer = figure(page).locator(".margo-mermaid__viewer");
