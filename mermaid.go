@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 	"github.com/araihu/margo/assets"
 	internalmermaid "github.com/araihu/margo/internal/mermaid"
 )
@@ -75,6 +78,47 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			return
 		}
 		bundleDigest := sha256.Sum256(bundle)
+		// Use Goshtoso's actual Help component and native tooltip helpers.
+		// These requirement identities also merge with chart-control runtimes.
+		var helpCapabilities []string
+		for _, dependency := range []struct {
+			role  goshtosoassets.RuntimeAssetRole
+			id    string
+			after string
+		}{
+			{goshtosoassets.RuntimeRoleAlpineFocus, "goshtoso.runtime.alpine-focus", "margo.document.styles"},
+			{goshtosoassets.RuntimeRoleFirstParty, "goshtoso.runtime.first-party", "goshtoso.runtime.alpine-focus"},
+		} {
+			found := false
+			for _, asset := range goshtosoassets.DefaultRuntimeManifest().Dependencies {
+				if asset.Role != dependency.role || !asset.Enabled {
+					continue
+				}
+				found = true
+				path := strings.TrimPrefix(asset.LocalURL, "/assets/")
+				content, err := goshtosoassets.ReadFile(path)
+				if err != nil {
+					mermaidBrowserCapabilityCache.err = err
+					return
+				}
+				digest := sha256.Sum256(content)
+				capability, err := HTMLRequirementCapability(HTMLRequirement{
+					ID: dependency.id, Kind: HTMLScript, LocalURL: asset.LocalURL,
+					Integrity: asset.Integrity, LoadAfter: []string{dependency.after},
+					Inline: AssetRef{Path: path, MediaType: "application/javascript", SHA256: hex.EncodeToString(digest[:]), Content: content},
+				})
+				if err != nil {
+					mermaidBrowserCapabilityCache.err = err
+					return
+				}
+				helpCapabilities = append(helpCapabilities, capability)
+				break
+			}
+			if !found {
+				mermaidBrowserCapabilityCache.err = fmt.Errorf("mermaid.help_runtime_unavailable: %s", dependency.role)
+				return
+			}
+		}
 		executor := []byte(mermaidBrowserExecutor)
 		executorDigest := sha256.Sum256(executor)
 		runtimeCapability, err := HTMLRequirementCapability(HTMLRequirement{
@@ -94,7 +138,7 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			ID:        "margo.mermaid.execute",
 			Kind:      HTMLScript,
 			LocalURL:  "/margo-assets/runtime/mermaid-run.js",
-			LoadAfter: []string{"margo.mermaid.runtime"},
+			LoadAfter: []string{"margo.mermaid.runtime", "goshtoso.runtime.first-party"},
 			Inline: AssetRef{
 				Path: "mermaid-run.js", MediaType: "application/javascript",
 				SHA256: hex.EncodeToString(executorDigest[:]), Content: executor,
@@ -104,13 +148,17 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			mermaidBrowserCapabilityCache.err = err
 			return
 		}
-		mermaidBrowserCapabilityCache.capabilities = []string{runtimeCapability, executorCapability}
+		mermaidBrowserCapabilityCache.capabilities = append(helpCapabilities, runtimeCapability, executorCapability)
 	})
 	return append([]string(nil), mermaidBrowserCapabilityCache.capabilities...), mermaidBrowserCapabilityCache.err
 }
 
-const mermaidBrowserExecutor = `(() => {
+//go:embed assets/runtime/mermaid-viewer.js
+var mermaidViewerScript string
+
+var mermaidBrowserExecutor = `(() => {
   "use strict";
+` + mermaidViewerScript + `
 
   function materializeTreeViewIcons(svg) {
     // Mermaid strict mode strips <use>; only restore fixed built-in paths.
@@ -233,6 +281,7 @@ const mermaidBrowserExecutor = `(() => {
       });
       const rendered = await engine.render("margo-html-" + index, sourceNode.textContent);
       if (!rendered || typeof rendered.svg !== "string" || rendered.svg.length === 0) throw new Error("Mermaid returned no SVG");
+      const position = mermaidViewers.get(node)?.position();
       target.innerHTML = rendered.svg;
       const svg = target.querySelector("svg");
       if (svg) {
@@ -244,6 +293,7 @@ const mermaidBrowserExecutor = `(() => {
       if (fallback) fallback.hidden = true;
       node.dataset.margoRuntimeStatus = "succeeded";
       outputs.push(svg ? svg.outerHTML : rendered.svg);
+      if (svg) attachMermaidViewer(node, svg, position);
     }
     document.documentElement.dataset.margoRuntimeStatus = "ready";
     return outputs;

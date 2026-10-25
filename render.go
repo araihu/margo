@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	"github.com/araihu/goshtoso/components/tooltip"
 	goldast "github.com/yuin/goldmark/ast"
 	tableast "github.com/yuin/goldmark/extension/ast"
 )
@@ -449,7 +450,13 @@ func (r markdownRenderer) renderRuntimeFence(kind string, source []byte) error {
 	if _, err := io.WriteString(r.out, html.EscapeString(string(source))); err != nil {
 		return err
 	}
-	_, err := fmt.Fprintf(r.out, `</code></pre></details><figcaption id="%s" class="margo-figure-caption">%s</figcaption></figure>`, captionID, html.EscapeString(caption))
+	if _, err := fmt.Fprintf(r.out, `</code></pre></details><figcaption id="%s" class="margo-figure-caption">%s</figcaption><template data-margo-mermaid-help>`, captionID, html.EscapeString(caption)); err != nil {
+		return err
+	}
+	if err := tooltip.Help(sourceID+"-controls", "Diagram help", "Zoom with + / − or Ctrl + wheel. Fit with 0 or Home. Pan with arrow keys, left/middle-button drag, or touch swipes. Double-click to expand. Close with X or Escape.").Render(r.ctx, r.out); err != nil {
+		return err
+	}
+	_, err := io.WriteString(r.out, `</template></figure>`)
 	return err
 }
 
