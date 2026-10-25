@@ -21,11 +21,13 @@ fullscreen is unavailable. Zoom and pan remain usable in both views. Close the
 expanded view or press `Escape` to return; closing restores the original view
 and focus. In native fullscreen, `Escape` first exits fullscreen.
 
-Focus the diagram and use `+` / `-` to zoom, `0`
+The information button opens Goshtoso's operation help on demand.
+Use `Ctrl` + wheel over a diagram to zoom around the pointer. Without `Ctrl`,
+the wheel scrolls normally. Focus the diagram and use `+` / `-` to zoom, `0`
 or `Home` to fit, and arrow keys to pan. You can also drag with the left or
 middle mouse button, or swipe on a touch screen after zooming.
 Each diagram keeps its own view. Page scrolling
-and browser pinch zoom remain available.
+and browser zoom remain available outside the diagram.
 
 The complete source remains available to assistive technology. Without
 JavaScript, the source disclosure remains available. Printed pages and PDF

@@ -169,7 +169,7 @@ test("@mermaid-viewer independent controls, keyboard, pointer pan and static pri
   await canvas(page).evaluate((element) => element.scrollTo(70, 140));
   await page.emulateMedia({media: "print"});
   await expect(figure(page).locator(".margo-mermaid__controls")).toBeHidden();
-  await expect(figure(page).locator(".margo-mermaid__hint")).toBeHidden();
+  await expect(figure(page).locator(".margo-mermaid__hint")).toHaveCount(0);
   const printed = await canvas(page).evaluate((element) => {
     const svg = element.querySelector("svg").getBoundingClientRect();
     const viewport = element.getBoundingClientRect();
@@ -369,6 +369,82 @@ test("@mermaid-viewer double-click expands fitted and zoomed diagrams and restor
     await expect(zoomText(page)).toHaveText(inlineZoom);
     expect(await canvas(page).evaluate((element) => ({left: element.scrollLeft, top: element.scrollTop}))).toEqual(inlinePan);
   }
+});
+
+test("@mermaid-viewer Ctrl+wheel zooms around the pointer and plain wheel still scrolls", async ({page}) => {
+  await page.setViewportSize({width: 984, height: 1109});
+  await open(page);
+  await zoomIn(page, 2);
+  await canvas(page).scrollIntoViewIfNeeded();
+  const bounds = await canvas(page).boundingBox();
+  const pointer = {x: bounds.x + bounds.width * 0.6, y: bounds.y + bounds.height * 0.6};
+  const before = await canvas(page).locator("svg").boundingBox();
+  const point = {x: (pointer.x - before.x) / before.width, y: (pointer.y - before.y) / before.height};
+  const pageMetrics = await page.evaluate(() => ({width: innerWidth, ratio: devicePixelRatio}));
+  await page.mouse.move(pointer.x, pointer.y);
+  await page.keyboard.down("Control");
+  try {
+    await page.mouse.wheel(0, -120);
+    await expect.poll(() => zoomText(page).textContent()).not.toBe("156%");
+  } finally {
+    await page.keyboard.up("Control");
+  }
+  const after = await canvas(page).locator("svg").boundingBox();
+  expect(after.width).toBeGreaterThan(before.width);
+  expect(Math.abs(after.x + point.x * after.width - pointer.x)).toBeLessThan(2);
+  expect(Math.abs(after.y + point.y * after.height - pointer.y)).toBeLessThan(2);
+  expect(await page.evaluate(() => ({width: innerWidth, ratio: devicePixelRatio}))).toEqual(pageMetrics);
+  await expect(zoomText(page, 1)).toHaveText("100%");
+  const zoomed = await zoomText(page).textContent();
+  await canvas(page).evaluate((element) => element.scrollTo(0, 0));
+  await page.mouse.wheel(0, 90);
+  await expect.poll(() => canvas(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(zoomText(page)).toHaveText(zoomed);
+  await page.keyboard.down("Control");
+  try {
+    await page.mouse.wheel(0, 120);
+    await expect.poll(() => zoomText(page).textContent()).not.toBe(zoomed);
+  } finally {
+    await page.keyboard.up("Control");
+  }
+});
+
+test("@mermaid-viewer Goshtoso help replaces the footer and dismisses before the modal", async ({page}, testInfo) => {
+  await open(page);
+  expect(await page.evaluate(() => typeof window.Alpine)).toBe("undefined");
+  await expect(page.locator(".margo-mermaid__hint")).toHaveCount(0);
+  const help = figure(page).getByRole("button", {name: "Diagram help", exact: true});
+  const panel = figure(page).getByRole("tooltip");
+  await expect(help).toHaveAttribute("aria-expanded", "false");
+  await help.focus();
+  await page.keyboard.press("Enter");
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("Ctrl + wheel");
+  await expect(panel).toContainText("middle-button drag");
+  expect(await help.evaluate((element) => getComputedStyle(element, "::after").content)).toBe("none");
+  await expect(help).toHaveAttribute("aria-controls", await panel.getAttribute("id"));
+  await canvas(page).click();
+  await expect(panel).toBeHidden();
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).click();
+  await help.click();
+  await expect(panel).toBeVisible();
+  await page.screenshot({path: testInfo.outputPath("mermaid-help.png")});
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(help).toBeFocused();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await help.click();
+  await expect(panel).toBeVisible();
+  await page.emulateMedia({media: "print"});
+  await expect(panel).toBeHidden();
+  await page.emulateMedia({media: "screen"});
+  await figure(page).getByRole("button", {name: "Close expanded view", exact: true}).click();
+  await help.click();
+  await expect(panel).toBeVisible();
+  await figure(page).evaluate((element) => element.remove());
+  await expect(page.locator("[data-tooltip-portal-open]")).toHaveCount(0);
+  await figure(page).getByRole("button", {name: "Diagram help", exact: true}).click();
+  await expect(figure(page).getByRole("tooltip")).toBeVisible();
 });
 
 test("@mermaid-viewer native fullscreen exits to its originating view", async ({page}) => {

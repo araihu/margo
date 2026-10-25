@@ -24,7 +24,8 @@
     expand: "M14 4h6v6m0-6-9 9M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3",
     fullscreen: "M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15",
     collapse: "M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25",
-    close: "m6 6 12 12M6 18 18 6"
+    close: "m6 6 12 12M6 18 18 6",
+    info: "M12 11v6m0-10h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"
   });
   function setMermaidControlIcon(button, icon, label) {
     button.setAttribute("aria-label", label);
@@ -129,26 +130,80 @@
     controls.replaceChildren(zoomControls, viewControls);
     canvas.before(controls);
 
-    const hint = document.createElement("p");
-    hint.className = "margo-mermaid__hint";
-    hint.textContent = "Use + / − to zoom, 0 to fit, and arrow keys or drag to pan. On touch screens, swipe to pan a zoomed diagram.";
-    hint.id = canvas.getAttribute("aria-describedby") + "-controls";
-    canvas.setAttribute("aria-describedby", (canvas.getAttribute("aria-describedby") || "") + " " + hint.id);
-    canvas.after(hint);
+    const controlsID = canvas.getAttribute("aria-describedby") + "-controls";
+    const helpRoot = node.querySelector("template[data-margo-mermaid-help]")?.content.firstElementChild?.cloneNode(true);
+    const helpButton = helpRoot?.querySelector("button");
+    const helpPanel = helpRoot?.querySelector('[role="tooltip"]');
+    const helpTrigger = helpRoot?.querySelector("[data-tooltip-content-id]");
+    let helpOpen = false;
+    let helpInitialized = false;
+    let helpListeners;
+    if (helpRoot) {
+      // Adapt the rendered Goshtoso Help to the shared standalone runtime.
+      // Template content stays inert until prepared, avoiding a second Alpine
+      // controller when a configured site also owns Goshtoso interactions.
+      for (const element of [helpRoot, ...helpRoot.querySelectorAll("*")]) {
+        for (const attribute of [...element.attributes]) {
+          if (attribute.name.startsWith("x-")) element.removeAttribute(attribute.name);
+        }
+      }
+      helpRoot.classList.add("margo-mermaid__help");
+      helpRoot.dataset.tooltipPosition = "bottom";
+      helpButton.className = "margo-mermaid__icon-button";
+      setMermaidControlIcon(helpButton, "info", "Diagram help");
+      helpButton.setAttribute("aria-expanded", "false");
+      helpButton.setAttribute("aria-controls", helpPanel.id);
+      helpButton.setAttribute("aria-describedby", helpPanel.id);
+      helpPanel.hidden = true;
+      helpButton.addEventListener("click", () => setHelpOpen(!helpOpen));
+      viewControls.append(helpRoot);
+    }
+
+    function setHelpOpen(open) {
+      if (!helpRoot) return;
+      if (!helpInitialized) {
+        window.goshtosoInitTooltipTrigger(helpTrigger, false);
+        window.goshtosoInitTooltipPortal(helpRoot);
+        helpInitialized = true;
+      }
+      helpOpen = open;
+      helpListeners?.abort();
+      window.goshtosoSetTooltipExpanded(helpTrigger, open);
+      helpPanel.hidden = !open;
+      helpPanel.style.opacity = open ? "1" : "";
+      window.goshtosoSetTooltipPortal(helpRoot, open);
+      if (!open) return;
+      helpListeners = new AbortController();
+      const options = {capture: true, signal: helpListeners.signal};
+      document.addEventListener("pointerdown", (event) => {
+        if (!helpRoot.contains(event.target)) setHelpOpen(false);
+      }, options);
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        setHelpOpen(false);
+        helpButton.focus({preventScroll: true});
+      }, options);
+      window.addEventListener("beforeprint", () => setHelpOpen(false), {signal: helpListeners.signal});
+      window.matchMedia("print").addEventListener("change", (event) => {
+        if (event.matches) setHelpOpen(false);
+      }, {signal: helpListeners.signal});
+    }
 
     // Like chart controls, move the existing content; never clone the SVG or
     // initialize another renderer. A native dialog also works without Alpine.
     const viewer = document.createElement("div");
     viewer.className = "margo-mermaid__viewer";
     controls.before(viewer);
-    viewer.append(controls, canvas, hint, close);
+    viewer.append(controls, canvas, close);
     const source = node.querySelector(".margo-mermaid__accessible-source");
     if (source) viewer.append(source);
     const dialog = document.createElement("dialog");
     dialog.className = "margo-mermaid__dialog";
     const title = document.createElement("h2");
     title.className = "margo-mermaid__dialog-title";
-    title.id = hint.id + "-title";
+    title.id = controlsID + "-title";
     title.textContent = node.querySelector("figcaption")?.textContent || "Mermaid diagram";
     dialog.setAttribute("aria-labelledby", title.id);
     dialog.append(title);
@@ -161,6 +216,7 @@
     const captionID = canvas.getAttribute("aria-labelledby");
 
     function openExpanded(trigger, full = false) {
+      setHelpOpen(false);
       if (dialog.open || !node.isConnected) return;
       inlineView = {scale, left: canvas.scrollLeft, top: canvas.scrollTop};
       returnFocus = trigger;
@@ -181,6 +237,7 @@
     }
 
     function closeExpanded(restoreFocus = true) {
+      setHelpOpen(false);
       if (!inlineView) return;
       const saved = inlineView;
       inlineView = null;
@@ -238,6 +295,7 @@
     }
 
     function toggleFullscreen() {
+      setHelpOpen(false);
       if (document.fullscreenElement === viewer) {
         document.exitFullscreen().catch(() => {});
       } else if (fallbackFullscreen) {
@@ -263,7 +321,8 @@
     });
     dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
-      closeExpanded();
+      if (helpOpen) setHelpOpen(false);
+      else closeExpanded();
     });
     dialog.addEventListener("keydown", (event) => {
       if (event.key !== "Tab") return;
@@ -299,11 +358,11 @@
       zoomIn.disabled = scale >= 8;
     }
 
-    function zoom(next, reset = false) {
+    function zoom(next, reset = false, anchor) {
       const viewport = canvas.getBoundingClientRect();
       const before = stage.getBoundingClientRect();
-      const centerX = viewport.left + canvas.clientLeft + canvas.clientWidth / 2;
-      const centerY = viewport.top + canvas.clientTop + canvas.clientHeight / 2;
+      const centerX = anchor?.clientX ?? viewport.left + canvas.clientLeft + canvas.clientWidth / 2;
+      const centerY = anchor?.clientY ?? viewport.top + canvas.clientTop + canvas.clientHeight / 2;
       const x = before.width ? (centerX - before.left) / before.width : 0.5;
       const y = before.height ? (centerY - before.top) / before.height : 0.5;
       scale = Math.max(0.25, Math.min(8, next));
@@ -327,6 +386,13 @@
       paint();
     }
 
+    canvas.addEventListener("wheel", (event) => {
+      if (!event.ctrlKey || event.altKey || event.metaKey || event.deltaY === 0) return;
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+      const delta = Math.max(-240, Math.min(240, event.deltaY * unit));
+      zoom(scale * Math.exp(-delta * 0.002), false, event);
+    }, {passive: false});
     canvas.addEventListener("dblclick", (event) => {
       if (event.button !== 0 || dialog.open || event.target.closest("a, button")) return;
       event.preventDefault();
