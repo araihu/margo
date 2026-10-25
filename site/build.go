@@ -37,6 +37,7 @@ import (
 	"sort"
 	"strings"
 
+	goshtosoassets "github.com/araihu/goshtoso/assets"
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/internal/staticimage"
 	"github.com/araihu/margo/pdf"
@@ -377,6 +378,7 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 	if err != nil {
 		return nil, diagnostic("site.html_invalid", err.Error(), "Report this renderer defect with the source document.", source.Path)
 	}
+	orderDocumentStylesheets(root)
 	var visit func(*html.Node) error
 	visit = func(node *html.Node) error {
 		if err := ctx.Err(); err != nil {
@@ -428,6 +430,34 @@ func (b *builder) rewriteHTML(ctx context.Context, source Source, document []byt
 		return nil, err
 	}
 	return output.Bytes(), nil
+}
+
+// Shells supply the shared base stylesheet, while page requirements supply
+// document and extension styles. Deduplication must preserve their LoadAfter
+// contract regardless of the shell's Head slot placement.
+func orderDocumentStylesheets(root *html.Node) {
+	head := firstElement(root, "head")
+	if head == nil {
+		return
+	}
+	var firstStyle, base *html.Node
+	baseURL := goshtosoassets.DefaultRuntimeManifest().Stylesheet.LocalURL
+	for node := head.FirstChild; node != nil; node = node.NextSibling {
+		if node.Type != html.ElementNode {
+			continue
+		}
+		stylesheet := node.Data == "link" && attributeValue(node, "rel") == "stylesheet"
+		if firstStyle == nil && (node.Data == "style" || stylesheet) {
+			firstStyle = node
+		}
+		if stylesheet && attributeValue(node, "href") == baseURL {
+			base = node
+		}
+	}
+	if base != nil && firstStyle != nil && base != firstStyle {
+		head.RemoveChild(base)
+		head.InsertBefore(base, firstStyle)
+	}
 }
 
 // rewriteLocalIframe publishes a relative HTML iframe source when it points at

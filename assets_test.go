@@ -15,7 +15,7 @@ func TestLibraryCSSNeverTargetsHostRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(css, []byte("@layer reset, goshtoso, document, brand, overrides")) {
+	if !bytes.Contains(css, []byte("@layer properties, theme, base, reset, goshtoso, components, utilities, document, brand, overrides")) {
 		t.Fatalf("document stylesheet is missing the locked layer order")
 	}
 	if regexp.MustCompile(`(^|[,{])\s*(html|body|:root)\b`).Match(css) {
@@ -190,22 +190,19 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	codeScope := `:where(:not(.gs-schema-tree code), .gs-schema-tree-description code)`
-	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(".margo-document :not(pre) > code"+codeScope) + ` \{([^}]*)\}`).FindSubmatch(css)
+	codeScope := `.margo-inline-code`
+	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(".margo-document code"+codeScope) + ` \{([^}]*)\}`).FindSubmatch(css)
 	if len(rule) != 2 {
 		t.Fatal("document stylesheet is missing the scoped inline-code rule")
 	}
 	for _, want := range [][]byte{
-		[]byte("display: inline-block"),
+		[]byte("display: inline"),
 		[]byte("box-sizing: border-box"),
-		[]byte("max-inline-size: 100%"),
-		[]byte("overflow: hidden"),
-		[]byte("text-overflow: ellipsis"),
-		[]byte("white-space: nowrap"),
-		[]byte("vertical-align: bottom"),
-		[]byte("line-height: 1.2"),
-		[]byte("margin-block: calc(var(--spacing) / 4)"),
-		[]byte("margin-inline: calc(var(--spacing) / 4)"),
+		[]byte("white-space: normal"),
+		[]byte("overflow-wrap: anywhere"),
+		[]byte("vertical-align: baseline"),
+		[]byte("line-height: inherit"),
+		[]byte("box-decoration-break: clone"),
 		[]byte("color: var(--color-on-surface-strong)"),
 		[]byte("background: color-mix(in oklch, var(--color-surface-alt) 50%, var(--color-outline) 50%)"),
 		[]byte("border: 1px solid var(--color-outline)"),
@@ -216,7 +213,7 @@ func TestDocumentCSSGivesInlineCodeAVisibleThemedBoundary(t *testing.T) {
 			t.Fatalf("document stylesheet missing inline-code contrast rule %q", want)
 		}
 	}
-	if !bytes.Contains(css, []byte(".margo-document:is(.dark *) :not(pre) > code"+codeScope+" {")) ||
+	if !bytes.Contains(css, []byte(".margo-document:is(.dark *) code"+codeScope+" {")) ||
 		!bytes.Contains(css, []byte("background: color-mix(in oklch, var(--color-surface-dark-alt) 50%, var(--color-outline-dark) 50%)")) ||
 		!bytes.Contains(css, []byte("border-color: var(--color-outline-dark)")) {
 		t.Fatal("document stylesheet is missing the dark inline-code boundary token")

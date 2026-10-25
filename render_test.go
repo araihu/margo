@@ -51,7 +51,7 @@ func TestSemanticRender(t *testing.T) {
 
 func TestSemanticRenderPreservesInlineCodeForOverflowDisclosure(t *testing.T) {
 	markup := renderComponent(t, mustRenderSource(t, "# Inline code\n\nUse `--target <html|site>` here.\n").Content())
-	if want := `<code title="--target &lt;html|site&gt;">--target &lt;html|site&gt;</code>`; !strings.Contains(markup, want) {
+	if want := `<code class="margo-inline-code" title="--target &lt;html|site&gt;">--target &lt;html|site&gt;</code>`; !strings.Contains(markup, want) {
 		t.Fatalf("inline code does not preserve its full escaped label for overflow disclosure:\n%s", markup)
 	}
 }

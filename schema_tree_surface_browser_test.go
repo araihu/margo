@@ -55,7 +55,7 @@ func TestSchemaTreeBranchesKeepNeutralSurfaces(t *testing.T) {
 				if (!disclosure) {
 					disclosure = document.createElement('details');
 					disclosure.id = 'ordinary-disclosure';
-					disclosure.innerHTML = '<summary>Ordinary disclosure</summary><code>Body</code>';
+					disclosure.innerHTML = '<summary>Ordinary disclosure</summary><code class="margo-inline-code">Body</code>';
 					prose.append(disclosure);
 				}
 				const branches = [...document.querySelectorAll('details.gs-schema-tree-node')];

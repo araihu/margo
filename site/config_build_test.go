@@ -1512,7 +1512,7 @@ locales:
 		if shellScript == -1 && strings.Contains(resource.url, "margo-assets/goshtoso/shell.js") {
 			shellScript = index
 		}
-		if firstPageDependency == -1 && resource.requirement != "" {
+		if firstPageDependency == -1 && resource.requirement != "" && resource.requirement != "goshtoso.styles" {
 			firstPageDependency = index
 		}
 	}
