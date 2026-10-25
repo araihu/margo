@@ -1,4 +1,47 @@
   // This source is embedded inside the shared Mermaid executor's closure.
+  /* Arrow icons follow Goshtoso Charts' Heroicons controls.
+   * MIT License — Copyright (c) Tailwind Labs, Inc.
+   * Permission is hereby granted, free of charge, to any person obtaining a copy
+   * of this software and associated documentation files (the "Software"), to deal
+   * in the Software without restriction, including without limitation the rights
+   * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   * copies of the Software, and to permit persons to whom the Software is
+   * furnished to do so, subject to the following conditions:
+   * The above copyright notice and this permission notice shall be included in all
+   * copies or substantial portions of the Software.
+   * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   * SOFTWARE.
+   */
+  const mermaidControlIcons = Object.freeze({
+    plus: "M12 5v14M5 12h14",
+    minus: "M5 12h14",
+    fit: "M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4M9 12h6m-3-3v6",
+    expand: "M14 4h6v6m0-6-9 9M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3",
+    fullscreen: "M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15",
+    collapse: "M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25",
+    close: "m6 6 12 12M6 18 18 6"
+  });
+  function setMermaidControlIcon(button, icon, label) {
+    button.setAttribute("aria-label", label);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.75");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    const path = document.createElementNS(svg.namespaceURI, "path");
+    path.setAttribute("d", mermaidControlIcons[icon]);
+    svg.append(path);
+    button.replaceChildren(svg);
+  }
   const mermaidViewers = new WeakMap();
   const expandedMermaidViews = new Set();
   let mermaidPrintViews = [];
@@ -49,29 +92,41 @@
     if (canvas.hasAttribute("aria-labelledby")) {
       controls.setAttribute("aria-describedby", canvas.getAttribute("aria-labelledby"));
     }
-    const button = (label, action) => {
+    const button = (label, icon, action) => {
       const element = document.createElement("button");
       element.type = "button";
-      element.textContent = label;
+      element.className = "margo-mermaid__icon-button";
+      setMermaidControlIcon(element, icon, label);
       element.addEventListener("click", action);
       controls.append(element);
       return element;
     };
-    const zoomOut = button("Zoom out", () => zoom(scale / 1.25));
-    const zoomIn = button("Zoom in", () => zoom(scale * 1.25));
-    button("Fit diagram", () => zoom(1, true));
-    const expand = button("Expand", () => openExpanded(expand));
+    const zoomIn = button("Zoom in", "plus", () => zoom(scale * 1.25));
+    const zoomOut = button("Zoom out", "minus", () => zoom(scale / 1.25));
+    const fitButton = button("Fit diagram", "fit", () => zoom(1, true));
+    const expand = button("Expand", "expand", () => openExpanded(expand));
     expand.setAttribute("aria-haspopup", "dialog");
     expand.setAttribute("aria-expanded", "false");
-    const fullscreen = button("Fullscreen", toggleFullscreen);
+    const fullscreen = button("Fullscreen", "fullscreen", toggleFullscreen);
     fullscreen.setAttribute("aria-pressed", "false");
-    const close = button("Close expanded view", () => closeExpanded());
+    const close = button("Close expanded view", "close", () => closeExpanded());
+    close.classList.add("margo-mermaid__close");
     close.hidden = true;
     const status = document.createElement("output");
     status.setAttribute("aria-live", "polite");
     status.setAttribute("aria-atomic", "true");
     status.setAttribute("aria-label", "Diagram zoom");
-    controls.append(status);
+    const zoomControls = document.createElement("div");
+    zoomControls.className = "margo-mermaid__zoom-controls";
+    zoomControls.setAttribute("role", "group");
+    zoomControls.setAttribute("aria-label", "Diagram zoom controls");
+    zoomControls.append(zoomOut, status, zoomIn);
+    const viewControls = document.createElement("div");
+    viewControls.className = "margo-mermaid__view-controls";
+    viewControls.setAttribute("role", "group");
+    viewControls.setAttribute("aria-label", "Diagram view controls");
+    viewControls.append(fitButton, expand, fullscreen);
+    controls.replaceChildren(zoomControls, viewControls);
     canvas.before(controls);
 
     const hint = document.createElement("p");
@@ -86,7 +141,7 @@
     const viewer = document.createElement("div");
     viewer.className = "margo-mermaid__viewer";
     controls.before(viewer);
-    viewer.append(controls, canvas, hint);
+    viewer.append(controls, canvas, hint, close);
     const source = node.querySelector(".margo-mermaid__accessible-source");
     if (source) viewer.append(source);
     const dialog = document.createElement("dialog");
@@ -170,7 +225,7 @@
 
     function updateFullscreen() {
       const active = document.fullscreenElement === viewer || fallbackFullscreen;
-      fullscreen.textContent = active ? "Exit fullscreen" : "Fullscreen";
+      setMermaidControlIcon(fullscreen, active ? "collapse" : "fullscreen", active ? "Exit fullscreen" : "Fullscreen");
       fullscreen.setAttribute("aria-pressed", String(active));
     }
 

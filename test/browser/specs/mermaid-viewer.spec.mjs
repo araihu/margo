@@ -293,13 +293,24 @@ test("@mermaid-viewer modal keeps the SVG, traps focus and restores the inline v
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAccessibleName(/Mermaid diagram for Lifecycle/);
+  const closeBounds = await dialog.getByRole("button", {name: "Close expanded view", exact: true}).boundingBox();
+  const dialogBounds = await dialog.boundingBox();
+  expect(closeBounds.x + closeBounds.width).toBeGreaterThan(dialogBounds.x + dialogBounds.width - 30);
+  expect(closeBounds.y).toBeLessThan(dialogBounds.y + 30);
+  const fullscreen = dialog.getByRole("button", {name: "Fullscreen", exact: true});
+  await fullscreen.hover();
+  expect(await fullscreen.evaluate((element) => getComputedStyle(element, "::after").content)).toBe('"Fullscreen"');
+  expect(await fullscreen.evaluate((element) => getComputedStyle(element, "::after").visibility)).toBe("visible");
+  await page.mouse.move(0, 0);
   await expect(zoomText(page)).toHaveText("100%");
   expect(await canvas(page).locator("svg").evaluate((element) => element.viewerIdentity)).toBe("original");
-  await expect(figure(page).locator("svg")).toHaveCount(1);
+  await expect(figure(page).locator(".margo-mermaid__canvas svg")).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");
   await dialog.getByRole("button", {name: "Zoom out", exact: true}).focus();
   await page.keyboard.press("Shift+Tab");
-  expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  const closeButton = dialog.getByRole("button", {name: "Close expanded view", exact: true});
+  await expect(closeButton).toBeFocused();
+  expect(await closeButton.evaluate((element) => getComputedStyle(element, "::after").visibility)).toBe("visible");
   await zoomIn(page, 2);
   await expect(zoomText(page)).toHaveText("156%");
   await page.screenshot({path: testInfo.outputPath("mermaid-expanded.png")});
@@ -373,6 +384,7 @@ test("@mermaid-viewer an expanded diagram prints whole and detachment unlocks th
     if (action === "Fullscreen") await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
     await zoomIn(page, 4);
     await page.emulateMedia({media: "print"});
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
     await expect(figure(page).locator(".margo-mermaid__controls")).toBeHidden();
     const printBounds = await canvas(page).evaluate((element) => {
       const viewport = element.getBoundingClientRect();
