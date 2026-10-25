@@ -1023,8 +1023,13 @@ theme:
 				t.Fatalf("%s global search missing %s: %s", source, route, page)
 			}
 		}
-		if strings.Contains(global, `hx-get=`) || strings.Contains(global, `hx-target=`) {
-			t.Fatalf("%s typed family navigation bypasses full shell refresh: %s", source, global)
+		if !strings.Contains(global, `hx-get=`) || !strings.Contains(global, `hx-target="#main-content"`) {
+			t.Fatalf("%s typed family navigation is missing content swaps: %s", source, global)
+		}
+		for _, required := range []string{`hx-history-elt="true"`, `hx-swap-oob="outerHTML"`, `hx-swap-oob="outerSync:#componentdocshell-sidebar"`, docsNavigationScriptPath} {
+			if !strings.Contains(page, required) {
+				t.Fatalf("%s missing synchronized navigation region %q", source, required)
+			}
 		}
 	}
 	landing := pages["index.md"]
@@ -1652,7 +1657,7 @@ theme:
 }
 
 func TestTypedDocsSidebarFalseUsesSemanticComponentShellBridge(t *testing.T) {
-	document := []byte(`<!doctype html><html lang="pt_BR"><body><button class="component-doc-shell__menu-button"></button><div id="componentdocshell-sidebar"></div><div class="component-doc-shell__backdrop"></div><main id="page-scroll"><div id="main-content">content</div></main></body></html>`)
+	document := []byte(`<!doctype html><html lang="pt_BR"><body><button id="trigger" class="component-doc-shell__menu-button"></button><div id="componentdocshell-sidebar"></div><div id="backdrop" class="component-doc-shell__backdrop"></div><main id="page-scroll"><div id="main-content">content</div></main></body></html>`)
 	got, err := applyTypedComponentDocShellSemantics(document, Page{Locale: "pt-BR"}, false)
 	if err != nil {
 		t.Fatal(err)
@@ -1663,9 +1668,14 @@ func TestTypedDocsSidebarFalseUsesSemanticComponentShellBridge(t *testing.T) {
 			t.Fatalf("semantic shell bridge missing %q: %s", required, page)
 		}
 	}
-	for _, forbidden := range []string{"component-doc-shell__menu-button", "componentdocshell-sidebar", "component-doc-shell__backdrop"} {
-		if strings.Contains(page, forbidden) {
-			t.Fatalf("semantic shell bridge retained %q: %s", forbidden, page)
+	root, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"trigger", "componentdocshell-sidebar", "backdrop"} {
+		node := configElementByID(root, id)
+		if node == nil || attributeValue(node, "style") != "display: none" {
+			t.Fatalf("semantic shell bridge did not hide %q: %s", id, page)
 		}
 	}
 }

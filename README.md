@@ -354,6 +354,10 @@ Module at `/module/`, the CLI overview at `/cli/`, and one CLI command page
 under `/cli/COMMAND/` for each documented command. Static artifacts remain
 directory `index.html` files, while public links, canonicals, search, family navigation, sitemap, `llms.txt`,
 and rewritten Markdown use the directory routes, including base-path and locale prefixes.
+With JavaScript enabled, sidebar and family links between docs pages use HTMX
+swaps. Active navigation, the sidebar, the table of contents, page runtimes,
+and Back/Forward history update together. Links to other layouts retain normal
+document navigation.
 The former root feature pages are retired. Retired Tour feature routes
 return HTTP 404, produce no artifacts, and have no redirect or hidden
 compatibility page.

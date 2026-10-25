@@ -974,7 +974,7 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
 			ThemeStylesheets:              themeStylesheets,
 		},
-		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: false, LocalRuntime: true},
+		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
 		HeaderActions: componentDocShellSearchWithConfig(searchConfig),
 		Footer:        b.shellFooter(),
 		RepositoryURL: b.config.Site.RepositoryURL,
@@ -1034,10 +1034,12 @@ func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 		builder.WriteString(`<style data-margo-layout-style="docs">` + configuredDocsCSS + `</style>`)
 		builder.WriteString(`<script data-margo-layout-dependency="page-actions">` + pageActionsScript + `</script>`)
 		builder.WriteString(`<script data-margo-layout-dependency="search-interactions">` + searchInteractionsScript + `</script>`)
+		builder.WriteString(`<script data-margo-layout-dependency="docs-navigation">` + docsNavigationScript + `</script>`)
 	} else {
 		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(configuredDocsStylePath)) + `">`)
 		builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.publicationArtifactHref(pageActionsScriptPath)) + `"></script>`)
 		builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.publicationArtifactHref(searchInteractionsScriptPath)) + `"></script>`)
+		builder.WriteString(`<script defer src="` + stdhtml.EscapeString(b.publicationArtifactHref(docsNavigationScriptPath)) + `"></script>`)
 	}
 	for _, css := range b.config.CustomCSS {
 		builder.WriteString(`<link rel="stylesheet" href="` + stdhtml.EscapeString(b.publicationArtifactHref(strings.TrimPrefix(css.CSSURL, "/"))) + `">`)
@@ -1047,8 +1049,8 @@ func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 
 // applyTypedComponentDocShellSemantics adds Margo's route hook and bridges the
 // one structural value not exposed by Goshtoso componentdocshell v0.1.7.
-// sidebar=false removes the shell's sidebar controls after rendering; it does
-// not add private shell CSS or recreate the shell's responsive layout.
+// Keep the sidebar container stable for the shell's Alpine drawer bindings.
+// Disabled sidebar controls stay hidden so subsequent route swaps can restore them.
 func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEnabled bool) ([]byte, error) {
 	root, err := html.Parse(bytes.NewReader(document))
 	if err != nil {
@@ -1065,6 +1067,13 @@ func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEna
 				setHTMLAttribute(node, "data-margo-sidebar", "false")
 			}
 		}
+		if node.Type == html.ElementNode && attributeValue(node, "id") == "main-content" {
+			setHTMLAttribute(node, "data-margo-sidebar", fmt.Sprint(sidebarEnabled))
+		}
+		if !sidebarEnabled && node.Type == html.ElementNode &&
+			(hasClass(node, "component-doc-shell__menu-button") || attributeValue(node, "id") == "componentdocshell-sidebar" || hasClass(node, "component-doc-shell__backdrop")) {
+			setHTMLAttribute(node, "style", "display: none")
+		}
 	}
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
@@ -1072,13 +1081,6 @@ func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEna
 		setDocument(node)
 		for child := node.FirstChild; child != nil; {
 			next := child.NextSibling
-			if !sidebarEnabled && child.Type == html.ElementNode &&
-				((child.Data == "button" && hasClass(child, "component-doc-shell__menu-button")) ||
-					(child.Data == "div" && (attributeValue(child, "id") == "componentdocshell-sidebar" || hasClass(child, "component-doc-shell__backdrop")))) {
-				node.RemoveChild(child)
-				child = next
-				continue
-			}
 			walk(child)
 			child = next
 		}
@@ -1343,9 +1345,6 @@ func (b *builder) publicationArtifactHref(filename string) string {
 const componentDocShellNavigationSwap = "outerHTML transition:true swap:160ms settle:240ms"
 
 func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source Source) error {
-	if !b.shellMode {
-		return nil
-	}
 	current, exists := b.configured[source.Path]
 	if !exists {
 		return nil
@@ -1368,13 +1367,40 @@ func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source So
 				continue
 			}
 		}
-		addRoute(b.shellPageHref(page))
+		if b.shellMode {
+			addRoute(b.shellPageHref(page))
+		} else {
+			addRoute(b.sitePageHref(page))
+		}
 		addRoute(relativeAssetPath(path.Dir(current.page.Output), page.Output))
 	}
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
-		if node.Type == html.ElementNode && node.Data == "div" && attributeValue(node, "id") == "componentdocshell-sidebar-content" {
+		if b.shellMode && node.Type == html.ElementNode && attributeValue(node, "id") == "componentdocshell-sidebar-content" {
 			setHTMLAttribute(node, "hx-swap-oob", "outerHTML:#componentdocshell-sidebar-content")
+		}
+		if !b.shellMode && node.Type == html.ElementNode {
+			switch {
+			case attributeValue(node, "id") == "main-content":
+				// HTMX 4 fetches the document again on history traversal. Limit
+				// restoration to this region while processing the same OOB chrome.
+				setHTMLAttribute(node, "hx-history-elt", "true")
+			case attributeValue(node, "id") == "componentdocshell-sidebar":
+				setHTMLAttribute(node, "hx-swap-oob", "outerSync:#componentdocshell-sidebar")
+			case attributeValue(node, "id") == "componentdocshell-family-navigation", hasAttribute(node, "data-componentdocshell-toc"):
+				setHTMLAttribute(node, "hx-swap-oob", "outerHTML")
+			case hasClass(node, "component-doc-shell__menu-button"):
+				setHTMLAttribute(node, "id", "margo-sidebar-trigger")
+				setHTMLAttribute(node, "hx-swap-oob", "outerHTML")
+			case hasClass(node, "component-doc-shell__backdrop"):
+				setHTMLAttribute(node, "id", "margo-sidebar-backdrop")
+				setHTMLAttribute(node, "hx-swap-oob", "outerHTML")
+			case attributeValue(node, "id") == "componentdocshell-family-select-control":
+				// The incoming selector owns the route selection, including its
+				// accessible name. Route mobile changes through the same anchors.
+				node.Attr = removeHTMLAttribute(node.Attr, "hx-preserve")
+				setHTMLAttribute(node, "x-init", `$watch('familyHref', value => { if (value && value !== initialFamilyHref) { const link = Array.from(document.querySelectorAll('.component-doc-shell__family-link')).find(link => link.getAttribute('href') === value); if (link && link.hasAttribute('hx-get')) link.click(); else window.location.assign(value) } })`)
+			}
 		}
 		if node.Type == html.ElementNode && node.Data == "a" && !hasClass(node, "component-doc-shell__brand") {
 			if index := attributeIndex(node, "href"); index >= 0 {

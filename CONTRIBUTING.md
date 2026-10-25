@@ -59,6 +59,11 @@ still uses HTMX 2 events. Upgrade these dependencies together. Margo listeners
 use colon-separated HTMX events, request context in `detail.ctx`, and settle
 tasks in `detail.task`; standalone documents still work without HTMX.
 
+Typed docs restore history through `#main-content` and update family navigation,
+sidebar controls, and the TOC out of band. Keep the sidebar container stable for
+Alpine's drawer bindings. Browser coverage must distinguish swaps from reloads
+and exercise both desktop links and the mobile family selector with Back/Forward.
+
 ## Pull requests
 
 Explain the user-facing contract, security implications, and verification in
