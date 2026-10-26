@@ -5,7 +5,7 @@ focused on one behavior, documentation contract, or dependency update.
 
 ## Prerequisites
 
-- Go 1.27.0 or newer (`go version`)
+- Go 1.27.3 or newer (`go version`)
 - Chromium only when running browser-backed PDF or site tests
 - Dagger v0.21.8 for the full local pipeline (optional; CI pins this version)
 

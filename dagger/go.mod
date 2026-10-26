@@ -2,7 +2,7 @@ module dagger/margo
 
 go 1.26.5
 
-toolchain go1.27.0
+toolchain go1.27.3
 
 require dagger.io/dagger v0.21.8
 
