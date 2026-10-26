@@ -234,12 +234,12 @@ func (m *Margo) goBaseWithImage(image, cacheSuffix string, execution executionCo
 func (m *Margo) goreleaserBase(gitBundle *dagger.File, execution executionContext) *dagger.Container {
 	return dag.Container().
 		From(goreleaserImage).
+		WithoutEntrypoint().
+		WithoutDefaultArgs().
 		WithDirectory("/usr/local/go", dag.Container().From(goImage).Directory("/usr/local/go")).
 		WithEnvVariable("GOROOT", "/usr/local/go").
 		WithEnvVariable("PATH", "/usr/local/go/bin:/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin").
 		WithExec([]string{"sh", "-ec", "test \"$(go env GOVERSION)\" = go" + goVersion}).
-		WithoutEntrypoint().
-		WithoutDefaultArgs().
 		WithEnvVariable("GOWORK", "off").
 		WithEnvVariable("GOFLAGS", "-mod=readonly").
 		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
