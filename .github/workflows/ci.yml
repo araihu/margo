@@ -14,6 +14,7 @@ permissions:
   contents: read
 
 env:
+  _EXPERIMENTAL_DAGGER_RUNNER_HOST: docker-image://registry.dagger.io/engine:v0.21.11@sha256:6b557cc8b5fdfee0e2e8c82d451ac922097a1255482143e1b96c0be3ff2a303c
   GO_VERSION: '1.27.3'
   GOWORK: 'off'
   GOFLAGS: '-mod=readonly'
@@ -39,7 +40,7 @@ jobs:
       - name: Install exact Dagger CLI
         shell: bash
         env:
-          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.11
         run: |
           scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
           printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
@@ -48,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.11'
           dagger call required --ci-context=.dagger-ci-context.json
 
   portable-linux:
@@ -71,7 +72,7 @@ jobs:
       - name: Install exact Dagger CLI
         shell: bash
         env:
-          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.11
         run: |
           scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
           printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
@@ -80,7 +81,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.11'
           dagger call portable-release-shape --ci-context=.dagger-ci-context.json
 
   native-release-shape:
@@ -148,7 +149,7 @@ jobs:
       - name: Install exact Dagger CLI
         shell: bash
         env:
-          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.11
         run: |
           scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
           printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
@@ -157,7 +158,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.11'
           dagger call snapshot --git-bundle=.dagger-git.bundle --ci-context=.dagger-ci-context.json sync
 
   musl:
@@ -180,7 +181,7 @@ jobs:
       - name: Install exact Dagger CLI
         shell: bash
         env:
-          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.8
+          DAGGER_INSTALL_DIRECTORY: ${{ runner.temp }}/dagger-v0.21.11
         run: |
           scripts/install-dagger.sh "$DAGGER_INSTALL_DIRECTORY"
           printf '%s\n' "$DAGGER_INSTALL_DIRECTORY" >> "$GITHUB_PATH"
@@ -189,5 +190,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'
+          test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.11'
           dagger call musl --ci-context=.dagger-ci-context.json

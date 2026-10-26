@@ -6,9 +6,9 @@ if [[ $# -ne 1 || -z "$1" ]]; then
   exit 2
 fi
 
-readonly dagger_version="0.21.8"
+readonly dagger_version="0.21.11"
 readonly archive="dagger_v${dagger_version}_linux_amd64.tar.gz"
-readonly expected_sha256="53e226c7da8fb75171e58c35759d736d961ce8b3a12db0baa7b7107954fccc5a"
+readonly expected_sha256="a2d3ef96e7305abc18663a3606d9c1c592278ba3c8f48e01d6be14eef72276ef"
 readonly release_url="https://github.com/dagger/dagger/releases/download/v${dagger_version}/${archive}"
 readonly install_directory="$1"
 

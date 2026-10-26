@@ -794,7 +794,7 @@ CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=readonly go build -o margo ./cmd/margo
 
 ### Local CI with Dagger
 
-Margo's portable CI logic uses Dagger v0.21.8. These functions also back the
+Margo's portable CI logic uses Dagger v0.21.11. These functions also back the
 GitHub Actions adapters:
 
 ```sh
