@@ -52,6 +52,12 @@ jobs:
           test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.11'
           dagger call required --ci-context=.dagger-ci-context.json
 
+      - name: Verify exact schema-only Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          dagger call pages-site export --path="$RUNNER_TEMP/margo-schema-site"
+
   portable-linux:
     name: Release shape (portable-linux)
     runs-on: ubuntu-24.04

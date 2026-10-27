@@ -354,10 +354,14 @@ test ! -e /tmp/should-not-exist.pdf
 `
 
 const pagesScript = `
+schema_entries="$(find schema/v1 ! -type d ! \( -type f -name '*.json' \))"
+if test -n "$schema_entries"; then
+  printf 'Unexpected non-schema entries:\n%s\n' "$schema_entries" >&2
+  exit 1
+fi
+test -n "$(find schema/v1 -type f -name '*.json')" || { echo 'No schemas to publish' >&2; exit 1; }
+rm -rf _site
 mkdir -p _site/schema
 cp -R schema/v1 _site/schema/v1
-test "$(find _site -type f | LC_ALL=C sort)" = "$(printf '_site/schema/v1/document.json\n_site/schema/v1/policy.json\n_site/schema/v1/site.json')"
-cmp schema/v1/document.json _site/schema/v1/document.json
-cmp schema/v1/policy.json _site/schema/v1/policy.json
-cmp schema/v1/site.json _site/schema/v1/site.json
+diff -r schema/v1 _site/schema/v1
 `
