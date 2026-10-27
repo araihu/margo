@@ -288,7 +288,8 @@ output defaults to `dist` when omitted. See
 
 Site builds project `authors`, `publishedAt`, `modifiedAt`, and `tags` into
 semantic article metadata and into each page record in the site report and
-`margo-manifest.json`. Archive, tag, RSS, and Atom pages remain consumer-owned;
+`margo-manifest.json`. Sites can also declare [JSON-LD in frontmatter](docs/structured-data.md), emitted safely in the page head.
+Archive, tag, RSS, and Atom pages remain consumer-owned;
 the deterministic route records are the input for those indexes.
 
 ### Semantic layouts and documentation families
@@ -365,6 +366,59 @@ compatibility page.
 Sites without `layout` retain existing top-level `frame` or `shell` behavior.
 Existing `componentdocshell` consumers remain supported. Typed `layout` is
 mutually exclusive with those top-level presentation authorities.
+
+### Compose an editorial site
+
+Use `docs` when a publication needs the native header, search and lateral TOC.
+The name selects a composition contract, not a restriction on the subject of
+its Markdown. Keep `article` for a content-only page. A blog can use:
+
+```yaml
+layout:
+  kind: docs
+  default:
+    sidebar: false
+    toc: false
+    pagination: false
+navigation:
+  links:
+    - label: Blog
+      href: /blog/
+  footer_links:
+    - label: RSS
+      href: /index.xml
+search:
+  label: Search posts
+  placeholder: Find a post
+  empty_text: No posts found.
+```
+
+Enable `layout.values.toc: true` in each long article's frontmatter. These
+values use the normal site/directory/page cascade. Pagination defaults to
+`true`, preserving existing documentation sites. Turning it off removes the
+previous/next markup; the host still owns archives, series order and feeds.
+
+`navigation.links` adds centered global destinations to the native docs header,
+with the brand on the left and theme and search controls on the right. It does
+not create documentation families or change their sidebar, search scopes or
+HTMX lifecycle. Links use full-page navigation, accept root-relative URLs or
+absolute HTTPS URLs, and include `base_path` for root-relative destinations.
+`navigation.footer_links` adds destinations to the native footer, using the
+same URL rules. A compact menu exposes header destinations on smaller screens. Supply short
+labels that fit a navigation bar. Search strings default to localized page
+labels when omitted.
+
+For a wordmark, set `site.hide_name: true`; the home link keeps the site name
+as its accessible label. Set `site.logo_dark` to a second local SVG for dark
+mode. `site.logo` remains the default logo and PDF brand asset. These options
+configure the docs shell; they do not add chrome to content-only layouts.
+
+Keep one header. Do not inject another into Markdown or hide the generated
+header. The shell's responsive header-height token already offsets the TOC
+and content scroll container at each breakpoint. The TOC is visible from
+1280px and hidden below that width. The shell owns anchors and active-section
+tracking; consumers can supply a palette through the existing theme/custom CSS
+contract without replacing those behaviors.
 
 ### Add page actions
 

@@ -31,6 +31,7 @@
         "modifiedAt": {"type": "string"},
         "tags": {"type": "array", "items": {"type": "string"}},
         "canonical": {"type": "string"},
+        "structuredData": {"description": "Serialized JSON-LD emitted in the page head.", "type": "object"},
         "documentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "imageOverflow": {"type": "string", "enum": ["limit", "allow"]},
         "actions": {"$ref": "#/$defs/actions"},

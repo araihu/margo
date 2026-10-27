@@ -20,6 +20,7 @@ import (
 	"github.com/araihu/goshtoso-app-shells/landingshell"
 	landingshellassets "github.com/araihu/goshtoso-app-shells/landingshell/assets"
 	goshtosoassets "github.com/araihu/goshtoso/assets"
+	"github.com/araihu/goshtoso/components/dropdown"
 	"github.com/araihu/goshtoso/components/link"
 	"github.com/araihu/goshtoso/components/search"
 	"github.com/araihu/goshtoso/components/sidebar"
@@ -29,7 +30,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const goshtosoComponentDocShellVersion = "v0.1.9-0.20260910224508-5b2222e54637"
+const goshtosoComponentDocShellVersion = "v0.1.9-0.20261027210301-4716e6beddc6"
 
 const componentDocShellScrollSpyAssetName = "margo-scroll-spy.js"
 
@@ -583,7 +584,7 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	if err != nil {
 		return err
 	}
-	projected, err := projectPublicationMetadata(localized, page)
+	projected, err := projectPageMetadata(localized, page)
 	if err != nil {
 		return err
 	}
@@ -615,7 +616,11 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, source Source, prepared configuredPage, dependencyBytes []byte) error {
 	page := prepared.page
 	layout := prepared.layout
-	content := `<div class="margo-showcase-article" data-margo-showcase-article="true">` + string(prepared.article) + b.paginationFragment(page) + `</div>`
+	pagination := ""
+	if resolvedLayoutBool(layout, "pagination") {
+		pagination = b.paginationFragment(page)
+	}
+	content := `<div class="margo-showcase-article" data-margo-showcase-article="true">` + string(prepared.article) + pagination + `</div>`
 	documentTitle := ""
 	if page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
 		documentTitle = page.Title
@@ -662,7 +667,7 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 	if err != nil {
 		return err
 	}
-	projected, err := projectPublicationMetadata(withLayoutHook, page)
+	projected, err := projectPageMetadata(withLayoutHook, page)
 	if err != nil {
 		return err
 	}
@@ -719,7 +724,7 @@ func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source S
 	if err != nil {
 		return err
 	}
-	projected, err := projectPublicationMetadata(withSemantics, page)
+	projected, err := projectPageMetadata(withSemantics, page)
 	if err != nil {
 		return err
 	}
@@ -974,11 +979,12 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
 			ThemeStylesheets:              themeStylesheets,
 		},
-		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderActions: componentDocShellSearchWithConfig(searchConfig),
-		Footer:        b.shellFooter(),
-		RepositoryURL: b.config.Site.RepositoryURL,
-		AssetPrefix:   b.shellAssetPrefix,
+		Interactions:     componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
+		HeaderNavigation: b.componentDocShellHeaderNavigation(page.Locale),
+		HeaderActions:    componentDocShellSearchWithConfig(searchConfig),
+		Footer:           b.shellFooter(),
+		RepositoryURL:    b.config.Site.RepositoryURL,
+		AssetPrefix:      b.shellAssetPrefix,
 	}
 }
 
@@ -1225,15 +1231,42 @@ func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config
 func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand {
 	logoURL := b.publicationArtifactHref(b.config.Site.Logo)
 	iconURL := b.publicationArtifactHref(b.config.Site.Icon)
-	return componentdocshell.Brand{
-		Name:       b.config.Site.Name,
-		HomeURL:    homeURL,
-		FaviconURL: iconURL,
-		ManagedLogo: &componentdocshell.ManagedBrandAsset{
-			URL: logoURL, Alt: b.config.Site.Name, Width: 100, Height: 40,
-		},
+	brand := componentdocshell.Brand{
+		Name: b.config.Site.Name, HomeURL: homeURL, FaviconURL: iconURL,
+		HideName:    b.config.Site.HideName,
+		ManagedLogo: &componentdocshell.ManagedBrandAsset{URL: logoURL, Alt: b.config.Site.Name, Width: 100, Height: 40},
 		CompactLogo: templ.Raw(`<img src="` + stdhtml.EscapeString(iconURL) + `" alt="">`),
 	}
+	if b.config.Site.LogoDark != "" {
+		brand.ManagedLogo = nil
+		brand.Logo = templ.Raw(`<span class="margo-theme-logo"><img class="margo-theme-logo__light" src="` + stdhtml.EscapeString(logoURL) + `" alt=""><img class="margo-theme-logo__dark" src="` + stdhtml.EscapeString(b.publicationArtifactHref(b.config.Site.LogoDark)) + `" alt=""></span>`)
+	}
+	return brand
+}
+
+// Global destinations retain host URLs without acquiring docs-family identity.
+func (b *builder) componentDocShellHeaderNavigation(locale string) templ.Component {
+	if len(b.config.Navigation.Links) == 0 {
+		return nil
+	}
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		var desktop strings.Builder
+		desktop.WriteString(`<nav class="margo-header-links" aria-label="` + stdhtml.EscapeString(localizedLabel(locale, "navigation")) + `">`)
+		items := make([]dropdown.Item, 0, len(b.config.Navigation.Links))
+		for _, item := range b.config.Navigation.Links {
+			href := item.Href
+			if strings.HasPrefix(href, "/") {
+				href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
+			}
+			desktop.WriteString(`<a href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(item.Label) + `</a>`)
+			items = append(items, dropdown.Item{Label: item.Label, Href: href})
+		}
+		desktop.WriteString(`</nav>`)
+		if _, err := io.WriteString(writer, desktop.String()); err != nil {
+			return err
+		}
+		return dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: []dropdown.Section{{Items: items}}}).Render(ctx, writer)
+	})
 }
 
 func (b *builder) componentDocShellSearch(locale string) templ.Component {
@@ -1252,14 +1285,14 @@ func (b *builder) componentDocShellSearch(locale string) templ.Component {
 func (b *builder) componentDocShellSearchConfig(locale string) search.Config {
 	return search.Config{
 		ID:             "margo-doc-search",
-		Label:          localizedLabel(locale, "search_pages"),
-		Placeholder:    localizedLabel(locale, "search_pages"),
+		Label:          b.searchText(b.config.Search.Label, locale, "search_pages"),
+		Placeholder:    b.searchText(b.config.Search.Placeholder, locale, "search_pages"),
 		ShortcutText:   "⌘ K",
 		GlobalShortcut: true,
 		Items:          b.componentDocShellSearchItems(locale),
 		MatchMode:      search.MatchModeFuzzy,
 		MaxResults:     8,
-		EmptyText:      localizedLabel(locale, "no_matching_pages"),
+		EmptyText:      b.searchText(b.config.Search.EmptyText, locale, "no_matching_pages"),
 		TriggerClass:   "margo-shell-search-trigger",
 	}
 }
@@ -1328,6 +1361,18 @@ func (b *builder) shellFooter() templ.Component {
 		}
 		if err := renderLink(b.publicationArtifactHref(SitemapPath), "sitemap.xml", false, true); err != nil {
 			return err
+		}
+		for _, item := range b.config.Navigation.FooterLinks {
+			if _, err := io.WriteString(w, ` · `); err != nil {
+				return err
+			}
+			href := item.Href
+			if strings.HasPrefix(href, "/") {
+				href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
+			}
+			if err := renderLink(href, item.Label, false, false); err != nil {
+				return err
+			}
 		}
 		_, err := io.WriteString(w, `</p>`)
 		return err

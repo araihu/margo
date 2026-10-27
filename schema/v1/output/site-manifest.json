@@ -46,6 +46,7 @@
         "modifiedAt": {"type": "string"},
         "tags": {"type": "array", "items": {"type": "string"}},
         "canonical": {"type": "string"},
+        "structuredData": {"description": "Serialized JSON-LD emitted in the page head.", "type": "object"},
         "documentDigest": {"type": "string"},
         "imageOverflow": {"type": "string"},
         "actions": {"type": "object"},

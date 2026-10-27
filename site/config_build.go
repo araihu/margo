@@ -278,8 +278,6 @@ const configuredDocsCSS = `.margo-showcase-article {
   margin-inline: auto;
   padding-block: clamp(1.5rem, 4vw, 4rem);
 }
-.margo-showcase-article .margo-document { color: var(--margo-text, var(--color-on-surface, #17202a)); }
-.margo-showcase-article .margo-document a { color: var(--margo-accent, var(--color-primary, #155eef)); }
 .margo-showcase-article .margo-deck-preview {
   max-inline-size: 100%;
   margin-block: 2rem;
@@ -330,10 +328,26 @@ const configuredDocsCSS = `.margo-showcase-article {
 }
 .margo-shell-footer { margin: 0; font-size: 0.875rem; }
 .margo-search-status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-` + pageActionsCSS
+` + pageActionsCSS + configuredHeaderCSS
+
+const configuredHeaderCSS = `
+.margo-theme-logo { display: inline-flex; align-items: center; }
+.margo-theme-logo img { width: auto; height: 2rem; max-width: 10rem; object-fit: contain; }
+.margo-theme-logo .margo-theme-logo__dark { display: none; }
+.dark .margo-theme-logo .margo-theme-logo__light { display: none; }
+.dark .margo-theme-logo .margo-theme-logo__dark { display: block; }
+.margo-header-links { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.margo-header-links a { color: inherit; text-decoration: none; }
+.margo-header-links a:hover { text-decoration: underline; }
+.margo-header-menu { display: none; }
+@media (max-width: 1023px) {
+  .margo-header-links { display: none; }
+  .margo-header-menu { display: inline-block; }
+}
+`
 
 func configuredSiteStylesheet() string {
-	return configuredSiteCSS + "\n" + pageActionsCSS
+	return configuredSiteCSS + "\n" + pageActionsCSS + configuredHeaderCSS
 }
 
 func buildConfigured(ctx context.Context, request ConfigRequest, config Config) (Result, error) {
@@ -732,6 +746,10 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			page.Layout = string(resolvedLayout.Kind)
 		}
 		page.Canonical = b.pageURL(page)
+		page.StructuredData, err = structuredDataFor(page, document.Metadata())
+		if err != nil {
+			return err
+		}
 		b.configured[source.Path] = configuredPage{page: page, layout: resolvedLayout, layoutSources: layoutSources, article: article, plainText: result.PlainText(), result: result, document: document}
 		b.configPages = append(b.configPages, page)
 	}
@@ -1089,6 +1107,11 @@ func (b *builder) pageURL(page Page) string {
 }
 
 func (b *builder) stageConfiguredAssets(config Config) error {
+	if config.Site.LogoDark != "" {
+		if err := b.stageConfigAsset(config.Site.LogoDark, "site.logo_dark", "image/svg+xml"); err != nil {
+			return err
+		}
+	}
 	if err := b.stageConfigAsset(config.Site.Logo, "site.logo", "image/svg+xml"); err != nil {
 		return err
 	}
@@ -1353,7 +1376,7 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	}
 	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
-	projected, err := projectPublicationMetadata(markup, page)
+	projected, err := projectPageMetadata(markup, page)
 	if err != nil {
 		return err
 	}
@@ -1413,7 +1436,7 @@ func (b *builder) renderResolvedLayoutSource(ctx context.Context, source Source,
 	}
 	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
-	projected, err := projectPublicationMetadata(markup, page)
+	projected, err := projectPageMetadata(markup, page)
 	if err != nil {
 		return err
 	}
@@ -2320,7 +2343,7 @@ func (b *builder) publicAlternatePath(absolute string) string {
 func localizedLabel(locale, key string) string {
 	if strings.EqualFold(locale, "pt-BR") {
 		return map[string]string{
-			"contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo",
+			"navigation": "Menu", "contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo",
 			"home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página", "skip_content": "Ir para o conteúdo",
 			"publication_dates": "Datas de publicação", "published": "Publicado", "updated": "Atualizado",
 			"open_navigation": "Abrir navegação", "close_navigation": "Fechar navegação", "dark_mode": "Usar modo escuro",
@@ -2330,7 +2353,7 @@ func localizedLabel(locale, key string) string {
 		}[key]
 	}
 	return map[string]string{
-		"contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home",
+		"navigation": "Menu", "contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home",
 		"language": "Language", "theme": "Theme", "toc": "On this page", "skip_content": "Skip to content",
 		"publication_dates": "Publication dates", "published": "Published", "updated": "Updated",
 		"open_navigation": "Open navigation", "close_navigation": "Close navigation", "dark_mode": "Switch to dark mode",
