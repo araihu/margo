@@ -1,8 +1,8 @@
 {
   "schemaVersion": "margo/toolchain-lock/v1",
   "go": {
-    "version": "go1.27.0",
-    "toolchain": "go1.27.0"
+    "version": "go1.27.3",
+    "toolchain": "go1.27.3"
   },
   "modules": [
     {

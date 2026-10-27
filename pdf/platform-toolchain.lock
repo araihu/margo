@@ -2,7 +2,7 @@
   "schemaVersion": "margo/pdf-platform-toolchain/v2",
   "modulePath": "github.com/araihu/margo",
   "go": {
-    "version": "1.27.0"
+    "version": "1.27.3"
   },
   "modules": [
     {
@@ -29,7 +29,7 @@
     {
       "id": "windows-webview2/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "dd872b8a25678b19ccedfaf23b8679b29741e3def1275b7373f824d44c7c0b31",
+      "sourceDigest": "4f89f5da859359d1f5b812f168fcc066671db56e91b5e53e61aec4a4337364f6",
       "sdkEvidencePath": "pdf/platform/evidence/windows-webview2/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/windows-webview2/runtime.version",
       "versionPolicy": "tested-version-reported"
@@ -37,7 +37,7 @@
     {
       "id": "darwin-wkwebview/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "dd872b8a25678b19ccedfaf23b8679b29741e3def1275b7373f824d44c7c0b31",
+      "sourceDigest": "4f89f5da859359d1f5b812f168fcc066671db56e91b5e53e61aec4a4337364f6",
       "sdkEvidencePath": "pdf/platform/evidence/darwin-wkwebview/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/darwin-wkwebview/runtime.version",
       "versionPolicy": "tested-version-reported"
@@ -45,7 +45,7 @@
     {
       "id": "linux-webkitgtk/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "dd872b8a25678b19ccedfaf23b8679b29741e3def1275b7373f824d44c7c0b31",
+      "sourceDigest": "4f89f5da859359d1f5b812f168fcc066671db56e91b5e53e61aec4a4337364f6",
       "sdkEvidencePath": "pdf/platform/evidence/linux-webkitgtk/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/linux-webkitgtk/runtime.version",
       "versionPolicy": "tested-version-reported"
@@ -53,12 +53,12 @@
     {
       "id": "chromium-cdp/v2",
       "probe": "pdf/platform/engine_probe_test.go",
-      "sourceDigest": "dd872b8a25678b19ccedfaf23b8679b29741e3def1275b7373f824d44c7c0b31",
+      "sourceDigest": "4f89f5da859359d1f5b812f168fcc066671db56e91b5e53e61aec4a4337364f6",
       "sdkEvidencePath": "pdf/platform/evidence/chromium-cdp/sdk.version",
       "runtimeEvidencePath": "pdf/platform/evidence/chromium-cdp/runtime.version",
       "versionPolicy": "tested-version-reported"
     }
   ],
   "networkPolicy": "no-download",
-  "recordDigest": "8138a7190f1c71b23deabbee2539b77db3982ead3e0e19c8058743dd3ca424a0"
+  "recordDigest": "8912f093241c671286f4af4164c2483ee0302a916b3517cb33a06e2e1ca1bd6f"
 }

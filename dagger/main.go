@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	goVersion       = "1.27.0"
-	goImage         = "golang:1.27.0-bookworm@sha256:484ef6066fa69acb059fdfeda7ba2b8f7391f2ef6abc6f9b8411e669ebd56466"
-	alpineGoImage   = "golang:1.27.0-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc"
+	goVersion       = "1.27.3"
+	goImage         = "golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5"
+	alpineGoImage   = "golang:1.27.3-alpine@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c"
 	goreleaserImage = "goreleaser/goreleaser:v2.18.0@sha256:a7609141326e383370858ab3ca2572e96e00fb212fe3fd5610cd4de434652faa"
 	alpineImage     = "alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
 )
@@ -236,6 +236,10 @@ func (m *Margo) goreleaserBase(gitBundle *dagger.File, execution executionContex
 		From(goreleaserImage).
 		WithoutEntrypoint().
 		WithoutDefaultArgs().
+		WithDirectory("/usr/local/go", dag.Container().From(goImage).Directory("/usr/local/go")).
+		WithEnvVariable("GOROOT", "/usr/local/go").
+		WithEnvVariable("PATH", "/usr/local/go/bin:/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin").
+		WithExec([]string{"sh", "-ec", "test \"$(go env GOVERSION)\" = go" + goVersion}).
 		WithEnvVariable("GOWORK", "off").
 		WithEnvVariable("GOFLAGS", "-mod=readonly").
 		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").

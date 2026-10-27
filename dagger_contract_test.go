@@ -23,7 +23,7 @@ func TestDaggerModuleAndAdaptersStayPinned(t *testing.T) {
 	if err := json.Unmarshal(configData, &config); err != nil {
 		t.Fatal(err)
 	}
-	if config.Name != "margo" || config.EngineVersion != "v0.21.8" || config.Source != "dagger" || config.SDK.Source != "go" {
+	if config.Name != "margo" || config.EngineVersion != "v0.21.11" || config.Source != "dagger" || config.SDK.Source != "go" {
 		t.Fatalf("unexpected Dagger configuration: %#v", config)
 	}
 
@@ -38,7 +38,7 @@ func TestDaggerModuleAndAdaptersStayPinned(t *testing.T) {
 		}
 		workflow := string(data)
 		if !strings.Contains(workflow, "scripts/install-dagger.sh") ||
-			!strings.Contains(workflow, `test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.8'`) {
+			!strings.Contains(workflow, `test "$(dagger version | awk 'NR == 1 {print $2}')" = 'v0.21.11'`) {
 			t.Fatalf("%s does not install and gate exact Dagger CLI", path)
 		}
 		if strings.Contains(workflow, "dagger/dagger-for-github") {
@@ -129,9 +129,9 @@ func TestDaggerInstallerPinsOfficialLinuxArchive(t *testing.T) {
 	}
 	script := string(data)
 	for _, required := range []string{
-		`dagger_version="0.21.8"`,
+		`dagger_version="0.21.11"`,
 		`dagger_v${dagger_version}_linux_amd64.tar.gz`,
-		`53e226c7da8fb75171e58c35759d736d961ce8b3a12db0baa7b7107954fccc5a`,
+		`a2d3ef96e7305abc18663a3606d9c1c592278ba3c8f48e01d6be14eef72276ef`,
 		`curl --proto '=https' --tlsv1.2`,
 		`actual_sha256`, `actual_version`, `v${dagger_version}`,
 		`command -v dagger`, `embedded_version`, `ln -sf`,

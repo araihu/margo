@@ -14,7 +14,7 @@ func TestInstallDaggerReusesExactEmbeddedCLIWithoutDownload(t *testing.T) {
 	}
 	tools := t.TempDir()
 	embedded := filepath.Join(tools, "dagger")
-	if err := os.WriteFile(embedded, []byte("#!/bin/sh\necho 'dagger v0.21.8 embedded'\n"), 0o700); err != nil {
+	if err := os.WriteFile(embedded, []byte("#!/bin/sh\necho 'dagger v0.21.11 embedded'\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(tools, "curl"), []byte("#!/bin/sh\necho download-called >&2\nexit 99\n"), 0o700); err != nil {
@@ -27,7 +27,7 @@ func TestInstallDaggerReusesExactEmbeddedCLIWithoutDownload(t *testing.T) {
 		t.Fatalf("reuse embedded Dagger: %v\n%s", err, output)
 	}
 	output, err := exec.Command(filepath.Join(installDirectory, "dagger"), "version").CombinedOutput()
-	if err != nil || string(output) != "dagger v0.21.8 embedded\n" {
+	if err != nil || string(output) != "dagger v0.21.11 embedded\n" {
 		t.Fatalf("installed Dagger: %v %q", err, output)
 	}
 }

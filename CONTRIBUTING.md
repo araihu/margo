@@ -5,9 +5,9 @@ focused on one behavior, documentation contract, or dependency update.
 
 ## Prerequisites
 
-- Go 1.27.0 or newer (`go version`)
+- Go 1.27.3 or newer (`go version`)
 - Chromium only when running browser-backed PDF or site tests
-- Dagger v0.21.8 for the full local pipeline (optional; CI pins this version)
+- Dagger v0.21.11 for the full local pipeline (optional; CI pins this version)
 
 The repository intentionally keeps the CLI and library in one root Go module.
 Build the executable with `go build -o margo ./cmd/margo`; `go build .` builds
