@@ -112,12 +112,9 @@ func hasPublicationMetadata(page Page) bool {
 	return len(page.Authors) > 0 || page.PublishedAt != "" || page.ModifiedAt != "" || len(page.Tags) > 0
 }
 
-// projectPublicationMetadata adds one deterministic semantic article header
-// with labeled publication dates and machine-readable article metadata to a
-// complete page. It is a no-op for pages without publication metadata,
-// preserving existing bytes and contracts.
-func projectPublicationMetadata(document []byte, page Page) ([]byte, error) {
-	if !hasPublicationMetadata(page) {
+// projectPageMetadata projects declared site metadata into the generated page.
+func projectPageMetadata(document []byte, page Page) ([]byte, error) {
+	if !hasPublicationMetadata(page) && len(page.StructuredData) == 0 {
 		return document, nil
 	}
 	root, err := html.Parse(bytes.NewReader(document))
@@ -128,17 +125,22 @@ func projectPublicationMetadata(document []byte, page Page) ([]byte, error) {
 	if head == nil {
 		return nil, diagnostic("site.head_missing", "generated page has no head for publication metadata", "Render a complete HTML document.", page.Source)
 	}
-	article := findDocumentArticle(root)
-	if article == nil {
-		return nil, diagnostic("site.metadata_invalid", "generated page has no document article for publication metadata", "Keep one article.margo-document in the generated page.", page.Source)
+	if err := projectStructuredData(root, head, page); err != nil {
+		return nil, err
 	}
-	if firstElementWithAttribute(article, "data-margo-publication-metadata") == nil {
-		metadata := publicationHeader(page)
-		if metadata != nil {
-			insertPublicationHeader(article, metadata)
+	if hasPublicationMetadata(page) {
+		article := findDocumentArticle(root)
+		if article == nil {
+			return nil, diagnostic("site.metadata_invalid", "generated page has no document article for publication metadata", "Keep one article.margo-document in the generated page.", page.Source)
 		}
+		if firstElementWithAttribute(article, "data-margo-publication-metadata") == nil {
+			metadata := publicationHeader(page)
+			if metadata != nil {
+				insertPublicationHeader(article, metadata)
+			}
+		}
+		projectPublicationHead(head, page)
 	}
-	projectPublicationHead(head, page)
 	var output bytes.Buffer
 	if err := html.Render(&output, root); err != nil {
 		return nil, diagnostic("site.html_invalid", err.Error(), "Report the generated publication metadata defect.", page.Source)

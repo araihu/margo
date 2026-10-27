@@ -584,7 +584,7 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	if err != nil {
 		return err
 	}
-	projected, err := projectPublicationMetadata(localized, page)
+	projected, err := projectPageMetadata(localized, page)
 	if err != nil {
 		return err
 	}
@@ -667,7 +667,7 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 	if err != nil {
 		return err
 	}
-	projected, err := projectPublicationMetadata(withLayoutHook, page)
+	projected, err := projectPageMetadata(withLayoutHook, page)
 	if err != nil {
 		return err
 	}
@@ -724,7 +724,7 @@ func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source S
 	if err != nil {
 		return err
 	}
-	projected, err := projectPublicationMetadata(withSemantics, page)
+	projected, err := projectPageMetadata(withSemantics, page)
 	if err != nil {
 		return err
 	}

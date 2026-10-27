@@ -288,7 +288,8 @@ output defaults to `dist` when omitted. See
 
 Site builds project `authors`, `publishedAt`, `modifiedAt`, and `tags` into
 semantic article metadata and into each page record in the site report and
-`margo-manifest.json`. Archive, tag, RSS, and Atom pages remain consumer-owned;
+`margo-manifest.json`. Sites can also declare [JSON-LD in frontmatter](docs/structured-data.md), emitted safely in the page head.
+Archive, tag, RSS, and Atom pages remain consumer-owned;
 the deterministic route records are the input for those indexes.
 
 ### Semantic layouts and documentation families

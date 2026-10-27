@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -84,6 +85,7 @@ type Artifact struct {
 
 // Page records one deterministic source-to-output mapping.
 type Page struct {
+	StructuredData json.RawMessage    `json:"structuredData,omitempty"`
 	Source         string             `json:"source"`
 	Output         string             `json:"output"`
 	Locale         string             `json:"locale,omitempty"`
@@ -288,6 +290,11 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 		page.Locale = "en"
 	}
 
+	page.StructuredData, err = structuredDataFor(page, document.Metadata())
+	if err != nil {
+		return err
+	}
+
 	dependencyMode := margo.HTMLDependenciesLocal
 	if b.request.Assets == AssetsInline {
 		dependencyMode = margo.HTMLDependenciesInline
@@ -319,7 +326,7 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 		}
 	}
 
-	projected, err := projectPublicationMetadata(componentBytes.Bytes(), page)
+	projected, err := projectPageMetadata(componentBytes.Bytes(), page)
 	if err != nil {
 		return err
 	}

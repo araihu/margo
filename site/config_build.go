@@ -746,6 +746,10 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			page.Layout = string(resolvedLayout.Kind)
 		}
 		page.Canonical = b.pageURL(page)
+		page.StructuredData, err = structuredDataFor(page, document.Metadata())
+		if err != nil {
+			return err
+		}
 		b.configured[source.Path] = configuredPage{page: page, layout: resolvedLayout, layoutSources: layoutSources, article: article, plainText: result.PlainText(), result: result, document: document}
 		b.configPages = append(b.configPages, page)
 	}
@@ -1372,7 +1376,7 @@ func (b *builder) renderConfiguredSource(ctx context.Context, source Source) err
 	}
 	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
-	projected, err := projectPublicationMetadata(markup, page)
+	projected, err := projectPageMetadata(markup, page)
 	if err != nil {
 		return err
 	}
@@ -1432,7 +1436,7 @@ func (b *builder) renderResolvedLayoutSource(ctx context.Context, source Source,
 	}
 	body := `<a class="margo-skip-link" href="#margo-document">` + stdhtml.EscapeString(localizedLabel(page.Locale, "skip_content")) + `</a>` + string(fragment)
 	markup := []byte(`<!doctype html><html lang="` + stdhtml.EscapeString(page.Locale) + `" dir="` + localeDirection(page.Locale) + `" data-theme="` + stdhtml.EscapeString(b.config.Theme.Name) + `" data-color-mode="` + stdhtml.EscapeString(b.config.Theme.ColorMode) + `"><head>` + head + `</head><body>` + body + `</body></html>`)
-	projected, err := projectPublicationMetadata(markup, page)
+	projected, err := projectPageMetadata(markup, page)
 	if err != nil {
 		return err
 	}
