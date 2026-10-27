@@ -29,6 +29,21 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Go for the checked-in Dagger module
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: dagger/go.sum
+
+      - name: Verify Dagger module resolves without generation
+        working-directory: dagger
+        env:
+          # Pure module tests do not query the engine. The generated client
+          # requires session metadata during package initialization.
+          DAGGER_SESSION_PORT: '1'
+          DAGGER_SESSION_TOKEN: unit-test
+        run: go test ./...
+
       - name: Prepare isolated cache context
         shell: bash
         env:

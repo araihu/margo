@@ -822,3 +822,9 @@ See [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 ## License
 
 Margo is licensed under the [MIT License](LICENSE).
+
+The `dagger/` module includes its generated Go SDK bindings so dependency
+security updates can resolve it from a clean checkout without running an
+engine. Regenerate both binding files with Dagger v0.21.11 after changing the
+module API; do not edit them by hand. Its OpenTelemetry and gRPC patches are
+validated by the standalone module test and the required Dagger pipeline.
