@@ -20,6 +20,7 @@ navigation:
   links:
     - label: Blog & projects
       href: /posts/
+  footer_links:
     - label: RSS
       href: https://example.com/feed.xml
 search:
@@ -67,6 +68,10 @@ func TestEditorialComposition(t *testing.T) {
 			if !strings.Contains(string(configArtifact(t, result, "posts/index.html")), `class="margo-pagination"`) {
 				t.Fatal("page override did not restore pagination")
 			}
+			footerStart := strings.Index(home, `<p class="margo-shell-footer">`)
+			if footerStart < 0 || !strings.Contains(home[footerStart:], `href="https://example.com/feed.xml"`) || strings.Contains(home[:footerStart], `href="https://example.com/feed.xml"`) {
+				t.Fatal("RSS must appear only in the footer")
+			}
 			configArtifact(t, result, "assets/dark.svg")
 		})
 	}
@@ -77,6 +82,9 @@ func TestEditorialConfigRejectsUnsafeValues(t *testing.T) {
 		"navigation:\n  links:\n    - {label: Run, href: 'javascript:alert(1)'}\n",
 		"navigation:\n  links:\n    - {label: Run, href: '//example.com/'}\n",
 		"navigation:\n  links:\n    - {label: '', href: '/'}\n",
+		"navigation:\n  footer_links:\n    - {label: Run, href: 'javascript:alert(1)'}\n",
+		"navigation:\n  footer_links:\n    - {label: Run, href: '//example.com/'}\n",
+		"navigation:\n  footer_links:\n    - {label: '', href: '/'}\n",
 		"search:\n  label: '  '\n",
 	} {
 		t.Run(extra, func(t *testing.T) {
@@ -101,5 +109,16 @@ func TestEditorialConfigRejectsUnsafeValues(t *testing.T) {
 	// Defaults remain localized and explicit text is preserved.
 	if got := b.siteSearchConfig("pt-BR"); got.Label != "Buscar páginas" || got.EmptyText != "Nenhuma página encontrada." {
 		t.Fatalf("localized search: %+v", got)
+	}
+}
+
+func TestFooterLinksRespectBasePathAndEscapeLabels(t *testing.T) {
+	b := builder{config: &Config{BasePath: "/journal", Navigation: NavigationConfig{FooterLinks: []NavigationLink{{Label: "RSS & <news>", Href: "/index.xml"}}}}}
+	markup, err := renderComponentBytes(b.shellFooter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(markup), `href="/journal/index.xml"`) || !strings.Contains(string(markup), `RSS &amp; &lt;news&gt;`) {
+		t.Fatalf("invalid footer link: %s", markup)
 	}
 }

@@ -1362,6 +1362,18 @@ func (b *builder) shellFooter() templ.Component {
 		if err := renderLink(b.publicationArtifactHref(SitemapPath), "sitemap.xml", false, true); err != nil {
 			return err
 		}
+		for _, item := range b.config.Navigation.FooterLinks {
+			if _, err := io.WriteString(w, ` · `); err != nil {
+				return err
+			}
+			href := item.Href
+			if strings.HasPrefix(href, "/") {
+				href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
+			}
+			if err := renderLink(href, item.Label, false, false); err != nil {
+				return err
+			}
+		}
 		_, err := io.WriteString(w, `</p>`)
 		return err
 	})

@@ -94,9 +94,10 @@ type NavigationLink struct {
 }
 
 type NavigationConfig struct {
-	Links   []NavigationLink `yaml:"links"`
-	Mode    string           `yaml:"mode"`
-	Exclude []string         `yaml:"exclude"`
+	Links       []NavigationLink `yaml:"links"`
+	FooterLinks []NavigationLink `yaml:"footer_links"`
+	Mode        string           `yaml:"mode"`
+	Exclude     []string         `yaml:"exclude"`
 }
 
 type BindingConfig struct {
@@ -202,9 +203,14 @@ func (config *Config) validate() error {
 	if config.Site.LogoDark != "" && !validConfigPath(config.Site.LogoDark) {
 		return diagnostic("site.asset_path_invalid", "site.logo_dark must be a normalized relative path", "Use a local asset path below site.yaml.", "site.logo_dark")
 	}
-	for _, item := range config.Navigation.Links {
-		if strings.TrimSpace(item.Label) == "" || strings.ContainsAny(item.Label, "\x00\r\n") || !validNavigationURL(item.Href) {
-			return diagnostic("site.navigation_invalid", "navigation links require a label and a root-relative or absolute HTTPS URL", "Use a public destination such as /blog/ or https://example.com/feed.xml.", "navigation.links")
+	for _, group := range []struct {
+		field string
+		links []NavigationLink
+	}{{"navigation.links", config.Navigation.Links}, {"navigation.footer_links", config.Navigation.FooterLinks}} {
+		for _, item := range group.links {
+			if strings.TrimSpace(item.Label) == "" || strings.ContainsAny(item.Label, "\x00\r\n") || !validNavigationURL(item.Href) {
+				return diagnostic("site.navigation_invalid", "navigation links require a label and a root-relative or absolute HTTPS URL", "Use a public destination such as /blog/ or https://example.com/feed.xml.", group.field)
+			}
 		}
 	}
 	for _, field := range []struct{ name, value string }{

@@ -241,6 +241,10 @@
           "type": "array", "description": "Global docs-header destinations, independent of family navigation. Root-relative URLs include base_path.",
           "items": {"type": "object", "additionalProperties": false, "required": ["label", "href"], "properties": {"label": {"type": "string", "minLength": 1}, "href": {"type": "string", "minLength": 1}}}
         },
+        "footer_links": {
+          "type": "array", "description": "Links appended to the native site footer. Root-relative URLs include base_path.",
+          "items": {"type": "object", "additionalProperties": false, "required": ["label", "href"], "properties": {"label": {"type": "string", "minLength": 1}, "href": {"type": "string", "minLength": 1}}}
+        },
         "mode": {
           "description": "Navigation strategy for the configured site.",
           "type": "string",

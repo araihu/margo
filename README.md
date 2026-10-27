@@ -383,6 +383,7 @@ navigation:
   links:
     - label: Blog
       href: /blog/
+  footer_links:
     - label: RSS
       href: /index.xml
 search:
@@ -401,7 +402,8 @@ with the brand on the left and theme and search controls on the right. It does
 not create documentation families or change their sidebar, search scopes or
 HTMX lifecycle. Links use full-page navigation, accept root-relative URLs or
 absolute HTTPS URLs, and include `base_path` for root-relative destinations.
-A compact menu exposes the same destinations on smaller screens. Supply short
+`navigation.footer_links` adds destinations to the native footer, using the
+same URL rules. A compact menu exposes header destinations on smaller screens. Supply short
 labels that fit a navigation bar. Search strings default to localized page
 labels when omitted.
 
