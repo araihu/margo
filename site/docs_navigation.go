@@ -76,12 +76,4 @@ const docsNavigationScript = `(function () {
     });
   });
 
-  // The shell's TOC handler replaces the fragment using a null history state.
-  // Retain HTMX's state marker so Back/Forward can restore that route too.
-  document.addEventListener("click", function (event) {
-    var link = event.target.closest && event.target.closest("[data-toc-link]");
-    if (!link) return;
-    var state = history.state;
-    queueMicrotask(function () { history.replaceState(state, "", location.href); });
-  }, true);
 })();`

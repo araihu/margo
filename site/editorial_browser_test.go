@@ -42,8 +42,12 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 			defer cancel()
 			const geometry = `(() => {
  const h=document.querySelector('.component-doc-shell__header').getBoundingClientRect();
+ const n=document.querySelector('.component-doc-shell__header-navigation').getBoundingClientRect();
+ const b=document.querySelector('.component-doc-shell__brand-group').getBoundingClientRect();
+ const c=document.querySelector('.component-doc-shell__controls').getBoundingClientRect();
+ if (Math.abs((n.left+n.right)/2-innerWidth/2)>2 || b.right>n.left || n.right>c.left) return false;
  const toc=document.querySelector('.component-doc-shell__toc-inner').getBoundingClientRect();
- return Math.abs(h.bottom-toc.top)<2 && document.documentElement.scrollWidth<=innerWidth && document.querySelectorAll('.component-doc-shell__header').length===1;
+ return (toc.width===0 || Math.abs(h.bottom-toc.top)<2) && document.documentElement.scrollWidth<=innerWidth && document.querySelectorAll('.component-doc-shell__header').length===1;
  })()`
 			if err := chromedp.Run(ctx, chromedp.EmulateViewport(1440, 900), chromedp.Navigate(server.URL+"/"), chromedp.WaitVisible(`.component-doc-shell__toc-inner`, chromedp.ByQuery), chromedp.Poll(geometry, nil)); err != nil {
 				t.Fatal(err)
@@ -56,9 +60,11 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 			if err := chromedp.Run(ctx, chromedp.Evaluate(`document.querySelector('#second-section').getBoundingClientRect().top >= document.querySelector('.component-doc-shell__header').getBoundingClientRect().bottom`, &visible)); err != nil || !visible {
 				t.Fatalf("anchor hidden below header: %v %v", visible, err)
 			}
-			for _, width := range []int64{1280, 1440} {
-				if err := chromedp.Run(ctx, chromedp.EmulateViewport(width, 900), chromedp.Poll(geometry, nil)); err != nil {
-					t.Fatal(err)
+			for _, width := range []int64{1024, 1117, 1280, 1440} {
+				if err := chromedp.Run(ctx, chromedp.EmulateViewport(width, 900), chromedp.Poll(geometry, nil, chromedp.WithPollingTimeout(3*time.Second))); err != nil {
+					var dimensions string
+					_ = chromedp.Run(ctx, chromedp.Evaluate(`JSON.stringify(['header','header-navigation','brand-group','controls','toc-inner'].map(c=>[c,document.querySelector('.component-doc-shell__'+c).getBoundingClientRect().toJSON()]))`, &dimensions))
+					t.Fatalf("width %d: %v; %s", width, err, dimensions)
 				}
 			}
 			// Use the real theme control, then inspect active logo and document-link color.

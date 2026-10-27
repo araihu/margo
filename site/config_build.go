@@ -340,7 +340,7 @@ const configuredHeaderCSS = `
 .margo-header-links a { color: inherit; text-decoration: none; }
 .margo-header-links a:hover { text-decoration: underline; }
 .margo-header-menu { display: none; }
-@media (max-width: 1199px) {
+@media (max-width: 1023px) {
   .margo-header-links { display: none; }
   .margo-header-menu { display: inline-block; }
 }

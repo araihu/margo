@@ -110,7 +110,7 @@ func hardenNavbarMarkup(markup []byte) []byte {
 			if child.Type != html.ElementNode {
 				continue
 			}
-			if child.Data == "button" && strings.Contains(attributeValue(child, "x-bind:aria-label"), "mobile menu") {
+			if child.Data == "button" && attributeValue(child, "x-bind:aria-expanded") == "mobileMenuIsOpen" {
 				setHTMLAttribute(child, "data-margo-mobile-menu-trigger", "true")
 			}
 			if child.Data == "ul" && attributeValue(child, "x-show") == "mobileMenuIsOpen" {

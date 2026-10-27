@@ -396,7 +396,8 @@ values use the normal site/directory/page cascade. Pagination defaults to
 `true`, preserving existing documentation sites. Turning it off removes the
 previous/next markup; the host still owns archives, series order and feeds.
 
-`navigation.links` adds global destinations to the native docs header. It does
+`navigation.links` adds centered global destinations to the native docs header,
+with the brand on the left and theme and search controls on the right. It does
 not create documentation families or change their sidebar, search scopes or
 HTMX lifecycle. Links use full-page navigation, accept root-relative URLs or
 absolute HTTPS URLs, and include `base_path` for root-relative destinations.

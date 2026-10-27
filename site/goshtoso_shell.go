@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const goshtosoComponentDocShellVersion = "v0.1.9-0.20260910224508-5b2222e54637"
+const goshtosoComponentDocShellVersion = "v0.1.9-0.20261027185045-2d0b9c9d1732"
 
 const componentDocShellScrollSpyAssetName = "margo-scroll-spy.js"
 
@@ -979,11 +979,12 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
 			ThemeStylesheets:              themeStylesheets,
 		},
-		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderActions: b.componentDocShellHeaderActions(searchConfig, page.Locale),
-		Footer:        b.shellFooter(),
-		RepositoryURL: b.config.Site.RepositoryURL,
-		AssetPrefix:   b.shellAssetPrefix,
+		Interactions:     componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
+		HeaderNavigation: b.componentDocShellHeaderNavigation(page.Locale),
+		HeaderActions:    componentDocShellSearchWithConfig(searchConfig),
+		Footer:           b.shellFooter(),
+		RepositoryURL:    b.config.Site.RepositoryURL,
+		AssetPrefix:      b.shellAssetPrefix,
 	}
 }
 
@@ -1244,29 +1245,27 @@ func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand
 }
 
 // Global destinations use full-page navigation; they do not acquire docs-family identity.
-func (b *builder) componentDocShellHeaderActions(searchConfig search.Config, locale string) templ.Component {
+func (b *builder) componentDocShellHeaderNavigation(locale string) templ.Component {
+	if len(b.config.Navigation.Links) == 0 {
+		return nil
+	}
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
-		if len(b.config.Navigation.Links) > 0 {
-			var desktop strings.Builder
-			desktop.WriteString(`<nav class="margo-header-links" aria-label="` + stdhtml.EscapeString(localizedLabel(locale, "navigation")) + `">`)
-			items := make([]dropdown.Item, 0, len(b.config.Navigation.Links))
-			for _, item := range b.config.Navigation.Links {
-				href := item.Href
-				if strings.HasPrefix(href, "/") {
-					href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
-				}
-				desktop.WriteString(`<a href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(item.Label) + `</a>`)
-				items = append(items, dropdown.Item{Label: item.Label, Href: href})
+		var desktop strings.Builder
+		desktop.WriteString(`<nav class="margo-header-links" aria-label="` + stdhtml.EscapeString(localizedLabel(locale, "navigation")) + `">`)
+		items := make([]dropdown.Item, 0, len(b.config.Navigation.Links))
+		for _, item := range b.config.Navigation.Links {
+			href := item.Href
+			if strings.HasPrefix(href, "/") {
+				href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
 			}
-			desktop.WriteString(`</nav>`)
-			if _, err := io.WriteString(writer, desktop.String()); err != nil {
-				return err
-			}
-			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: []dropdown.Section{{Items: items}}}).Render(ctx, writer); err != nil {
-				return err
-			}
+			desktop.WriteString(`<a href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(item.Label) + `</a>`)
+			items = append(items, dropdown.Item{Label: item.Label, Href: href})
 		}
-		return componentDocShellSearchWithConfig(searchConfig).Render(ctx, writer)
+		desktop.WriteString(`</nav>`)
+		if _, err := io.WriteString(writer, desktop.String()); err != nil {
+			return err
+		}
+		return dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: []dropdown.Section{{Items: items}}}).Render(ctx, writer)
 	})
 }
 
