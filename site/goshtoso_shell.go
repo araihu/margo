@@ -1244,7 +1244,7 @@ func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand
 	return brand
 }
 
-// Global destinations use full-page navigation; they do not acquire docs-family identity.
+// Global destinations retain host URLs without acquiring docs-family identity.
 func (b *builder) componentDocShellHeaderNavigation(locale string) templ.Component {
 	if len(b.config.Navigation.Links) == 0 {
 		return nil

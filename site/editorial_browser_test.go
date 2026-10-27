@@ -74,12 +74,14 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 			if err := chromedp.Run(ctx,
 				chromedp.Evaluate(metadataSnapshot, &homeMetadata),
 				chromedp.Evaluate(`window.editorialNavigationSentinel = true`, nil),
-				chromedp.Click(`.margo-document a[href="/posts/"]`, chromedp.ByQuery),
-				chromedp.Poll(postMetadata, nil),
+				chromedp.Click(`.margo-header-links a[href="/posts/"]`, chromedp.ByQuery),
+				chromedp.Poll(postMetadata, nil, chromedp.WithPollingTimeout(5*time.Second)),
 				chromedp.Evaluate(`history.back()`, nil),
 				chromedp.Poll(`location.pathname === '/' && document.title.startsWith('Home') && document.querySelector('#main-content h1')?.textContent === 'Home' && !document.querySelector('script[type="application/ld+json"]') && !document.querySelector('meta[property="article:published_time"]')`, nil),
 			); err != nil {
-				t.Fatal(err)
+				var state string
+				_ = chromedp.Run(ctx, chromedp.Evaluate(`JSON.stringify({url:location.href,title:document.title,h1:document.querySelector('h1')?.textContent,canonical:document.querySelector('link[rel="canonical"]')?.href,description:document.querySelector('meta[name="description"]')?.content,jsonld:document.querySelector('script[type="application/ld+json"]')?.textContent})`, &state))
+				t.Fatalf("metadata navigation: %v; %s", err, state)
 			}
 			var restoredMetadata string
 			if err := chromedp.Run(ctx, chromedp.Evaluate(metadataSnapshot, &restoredMetadata)); err != nil || restoredMetadata != homeMetadata {
@@ -87,7 +89,7 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 			}
 			if err := chromedp.Run(ctx,
 				chromedp.Evaluate(`history.forward()`, nil),
-				chromedp.Poll(postMetadata, nil),
+				chromedp.Poll(postMetadata, nil, chromedp.WithPollingTimeout(5*time.Second)),
 				chromedp.Poll(`window.editorialNavigationSentinel === true`, nil),
 				chromedp.Evaluate(`history.back()`, nil),
 				chromedp.Poll(`location.pathname === '/' && document.title.startsWith('Home') && document.querySelector('#main-content h1')?.textContent === 'Home' && !document.querySelector('script[type="application/ld+json"]')`, nil),
