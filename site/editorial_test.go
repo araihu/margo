@@ -39,7 +39,7 @@ search:
 	writeConfigFile(t, configPath, config)
 	copyMargoAsset(t, filepath.Join(root, "assets", "dark.svg"), "logo.svg")
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\n## First section\n\n[Link](posts/index.md).\n\n"+strings.Repeat("Paragraph of editorial content.\n\n", 40)+"## Second section\n\n"+strings.Repeat("More content.\n\n", 30))
-	writeConfigFile(t, filepath.Join(root, "docs", "posts", "index.md"), "---\nlayout:\n  values:\n    pagination: true\n---\n# Posts\n\n## Section\n\nDetails.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "posts", "index.md"), "---\ndescription: Post summary\nauthors: [Ana]\npublishedAt: \"2026-10-27T10:00:00-03:00\"\nstructured_data:\n  type: BlogPosting\nlayout:\n  values:\n    pagination: true\n---\n# Posts\n\n## Section\n\nDetails.\n")
 	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: configPath})
 	if err != nil {
 		t.Fatal(err)

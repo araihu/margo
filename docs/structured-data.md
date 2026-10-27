@@ -4,6 +4,9 @@ A site can declare JSON-LD in the consumer-owned `structured_data` frontmatter
 field. Margo serializes it into one `application/ld+json` script in the page head.
 This works in directory builds and configured layouts, without unsafe HTML.
 The generic document renderer does not interpret this field.
+Docs navigation also replaces page metadata after HTMX swaps and history
+traversal, including canonical URLs, social tags and JSON-LD. Entering a page
+without structured data removes the previous page's declaration.
 
 ```yaml
 ---

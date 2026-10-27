@@ -67,6 +67,33 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 					t.Fatalf("width %d: %v; %s", width, err, dimensions)
 				}
 			}
+			// Metadata follows partial navigation and history, including removal on pages without JSON-LD.
+			var homeMetadata string
+			const metadataSnapshot = `JSON.stringify(Array.from(document.head.querySelectorAll('meta[name="description"],meta[property^="og:"],link[rel="canonical"],script[type="application/ld+json"]')).map(n => n.outerHTML).sort())`
+			const postMetadata = `location.pathname === '/posts/' && document.title.startsWith('Posts') && document.querySelector('#main-content h1')?.textContent === 'Posts' && document.querySelector('link[rel="canonical"]')?.href.endsWith('/posts/') && document.querySelector('meta[name="description"]')?.content === 'Post summary' && JSON.parse(document.querySelector('script[type="application/ld+json"]')?.textContent || '{}')['@type'] === 'BlogPosting' && document.querySelectorAll('script[type="application/ld+json"]').length === 1`
+			if err := chromedp.Run(ctx,
+				chromedp.Evaluate(metadataSnapshot, &homeMetadata),
+				chromedp.Evaluate(`window.editorialNavigationSentinel = true`, nil),
+				chromedp.Click(`.margo-document a[href="/posts/"]`, chromedp.ByQuery),
+				chromedp.Poll(postMetadata, nil),
+				chromedp.Evaluate(`history.back()`, nil),
+				chromedp.Poll(`location.pathname === '/' && document.title.startsWith('Home') && document.querySelector('#main-content h1')?.textContent === 'Home' && !document.querySelector('script[type="application/ld+json"]') && !document.querySelector('meta[property="article:published_time"]')`, nil),
+			); err != nil {
+				t.Fatal(err)
+			}
+			var restoredMetadata string
+			if err := chromedp.Run(ctx, chromedp.Evaluate(metadataSnapshot, &restoredMetadata)); err != nil || restoredMetadata != homeMetadata {
+				t.Fatalf("metadata not restored: %v\n%s\n%s", err, homeMetadata, restoredMetadata)
+			}
+			if err := chromedp.Run(ctx,
+				chromedp.Evaluate(`history.forward()`, nil),
+				chromedp.Poll(postMetadata, nil),
+				chromedp.Poll(`window.editorialNavigationSentinel === true`, nil),
+				chromedp.Evaluate(`history.back()`, nil),
+				chromedp.Poll(`location.pathname === '/' && document.title.startsWith('Home') && document.querySelector('#main-content h1')?.textContent === 'Home' && !document.querySelector('script[type="application/ld+json"]')`, nil),
+			); err != nil {
+				t.Fatal(err)
+			}
 			// Use the real theme control, then inspect active logo and document-link color.
 			if err := chromedp.Run(ctx, chromedp.Click(`button[x-on\:click="toggleDark()"]`, chromedp.ByQuery), chromedp.Poll(`document.documentElement.classList.contains('dark')`, nil), chromedp.Evaluate(`(() => {
  const logo=document.querySelector('.margo-theme-logo__dark');

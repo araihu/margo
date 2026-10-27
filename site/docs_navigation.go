@@ -9,6 +9,8 @@ const docsNavigationScript = `(function () {
 
   var pendingDependencies = new Map();
   var runtimeQueue = Promise.resolve();
+  // Replace route metadata only; scripts, styles and shell state stay installed.
+  var pageMetadataSelector = 'meta[name="description"], meta[name="author"], meta[name="keywords"], meta[name="robots"], meta[property^="og:"], meta[property^="article:"], meta[name^="twitter:"], link[rel="canonical"], link[rel="alternate"][hreflang], script[type="application/ld+json"]';
 
   function loadDependency(dependency) {
     var id = dependency.getAttribute("data-margo-requirement");
@@ -53,12 +55,17 @@ const docsNavigationScript = `(function () {
     });
     var response = new DOMParser().parseFromString(event.detail.ctx.text, "text/html");
     event.detail.ctx.margoDependencies = Array.from(response.head.querySelectorAll("[data-margo-requirement]"));
+    event.detail.ctx.margoPageMetadata = Array.from(response.head.querySelectorAll(pageMetadataSelector));
   });
 
   document.addEventListener("htmx:after:swap", function (event) {
     var target = event.detail && event.detail.ctx && event.detail.ctx.target;
     if (!target || target.id !== "main-content") return;
     var main = document.getElementById("main-content");
+    if (event.detail.ctx.margoPageMetadata) {
+      document.head.querySelectorAll(pageMetadataSelector).forEach(function (node) { node.remove(); });
+      event.detail.ctx.margoPageMetadata.forEach(function (node) { document.head.appendChild(document.importNode(node, true)); });
+    }
     if (main.dataset.margoSidebar === "false") document.body.dataset.margoSidebar = "false";
     else delete document.body.dataset.margoSidebar;
     // Navigation API traversal may reset focus after the shell's synchronous
