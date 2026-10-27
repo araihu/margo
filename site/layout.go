@@ -147,11 +147,12 @@ func builtinLayoutRegistry() layoutRegistry {
 	docsSchema := layoutValueSchema{
 		Type: layoutObject,
 		Properties: map[string]layoutValueSchema{
-			"families": {Type: layoutStringList, SiteDefaultOnly: true},
-			"family":   {Type: layoutString},
-			"sidebar":  {Type: layoutBool},
-			"toc":      {Type: layoutBool},
-			"content":  content(),
+			"families":   {Type: layoutStringList, SiteDefaultOnly: true},
+			"family":     {Type: layoutString},
+			"sidebar":    {Type: layoutBool},
+			"toc":        {Type: layoutBool},
+			"pagination": {Type: layoutBool},
+			"content":    content(),
 		},
 	}
 
@@ -189,11 +190,12 @@ func builtinLayoutRegistry() layoutRegistry {
 				pageActions:       true,
 			},
 			defaults: map[string]any{
-				"families": []any{"default"},
-				"family":   "default",
-				"sidebar":  true,
-				"toc":      true,
-				"content":  map[string]any{"layout": "article"},
+				"families":   []any{"default"},
+				"family":     "default",
+				"sidebar":    true,
+				"toc":        true,
+				"pagination": true,
+				"content":    map[string]any{"layout": "article"},
 			},
 			schema: docsSchema,
 		},

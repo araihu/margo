@@ -52,11 +52,12 @@ layout:
 		t.Fatal(err)
 	}
 	assertLayoutValues(t, cascade.resolved().Values, map[string]any{
-		"families": []any{"default", "module", "cli"},
-		"family":   "default",
-		"sidebar":  true,
-		"toc":      true,
-		"content":  map[string]any{"layout": "article"},
+		"families":   []any{"default", "module", "cli"},
+		"family":     "default",
+		"sidebar":    true,
+		"pagination": true,
+		"toc":        true,
+		"content":    map[string]any{"layout": "article"},
 	})
 }
 

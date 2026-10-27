@@ -94,6 +94,14 @@
     "locales": {
       "$ref": "#/$defs/locales"
     },
+    "search": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "placeholder": {"type": "string", "minLength": 1},
+        "empty_text": {"type": "string", "minLength": 1}
+      }
+    },
     "navigation": {
       "$ref": "#/$defs/navigation"
     },
@@ -165,6 +173,8 @@
           "default": "index.md",
           "examples": ["index.md", "guides/home.md"]
         },
+        "logo_dark": {"type": "string", "minLength": 1, "description": "Optional local SVG logo for dark mode in the docs shell."},
+        "hide_name": {"type": "boolean", "default": false, "description": "Hide visible docs-header site name beside a wordmark, retaining its accessible name."},
         "logo": {
           "description": "Normalized local SVG logo path below the config directory.",
           "type": "string",
@@ -227,6 +237,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "links": {
+          "type": "array", "description": "Global docs-header destinations, independent of family navigation. Root-relative URLs include base_path.",
+          "items": {"type": "object", "additionalProperties": false, "required": ["label", "href"], "properties": {"label": {"type": "string", "minLength": 1}, "href": {"type": "string", "minLength": 1}}}
+        },
         "mode": {
           "description": "Navigation strategy for the configured site.",
           "type": "string",
@@ -327,6 +341,7 @@
         "families": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "sidebar": {"type": "boolean"},
         "toc": {"type": "boolean"},
+        "pagination": {"type": "boolean", "default": true, "description": "Render family-local previous and next links."},
         "content": {"$ref": "#/$defs/layoutContent"}
       },
       "examples": [{"families": ["default"], "sidebar": true, "toc": true, "content": {"layout": "article"}}]
@@ -338,6 +353,7 @@
         "family": {"type": "string", "minLength": 1},
         "sidebar": {"type": "boolean"},
         "toc": {"type": "boolean"},
+        "pagination": {"type": "boolean", "default": true, "description": "Render family-local previous and next links."},
         "content": {"$ref": "#/$defs/layoutContent"}
       },
       "examples": [{"family": "default"}]

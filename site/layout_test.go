@@ -184,11 +184,12 @@ func TestLayoutCascadePreservesKindBuckets(t *testing.T) {
 
 	docsBefore := cascade.resolved()
 	assertLayoutValues(t, docsBefore.Values, map[string]any{
-		"families": []any{"default", "module"},
-		"family":   "module",
-		"sidebar":  true,
-		"toc":      false,
-		"content":  map[string]any{"layout": "article"},
+		"families":   []any{"default", "module"},
+		"family":     "module",
+		"sidebar":    true,
+		"pagination": true,
+		"toc":        false,
+		"content":    map[string]any{"layout": "article"},
 	})
 
 	cascade, err = cascade.apply(LayoutPatch{Kind: LayoutLanding, Source: "index.md", Base: "/layout"})
@@ -215,11 +216,12 @@ func TestLayoutCascadePreservesKindBuckets(t *testing.T) {
 	}
 	docsAfter := cascade.resolved()
 	assertLayoutValues(t, docsAfter.Values, map[string]any{
-		"families": []any{"default", "module"},
-		"family":   "module",
-		"sidebar":  false,
-		"toc":      false,
-		"content":  map[string]any{"layout": "article"},
+		"families":   []any{"default", "module"},
+		"family":     "module",
+		"sidebar":    false,
+		"pagination": true,
+		"toc":        false,
+		"content":    map[string]any{"layout": "article"},
 	})
 	if docsBefore.Identity == "" || docsBefore.Identity == docsAfter.Identity {
 		t.Fatalf("docs identities before=%q after=%q", docsBefore.Identity, docsAfter.Identity)

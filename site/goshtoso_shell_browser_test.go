@@ -500,10 +500,10 @@ func installedSiteTestChromium() string {
 	candidates := []string{}
 	if runtime.GOOS == "darwin" {
 		candidates = append(candidates,
-			"/opt/homebrew/bin/chromium",
-			"/usr/local/bin/chromium",
 			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 			"/Applications/Chromium.app/Contents/MacOS/Chromium",
+			"/opt/homebrew/bin/chromium",
+			"/usr/local/bin/chromium",
 		)
 	}
 	for _, candidate := range candidates {

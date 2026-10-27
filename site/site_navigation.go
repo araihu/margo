@@ -402,14 +402,14 @@ func (b *builder) siteSearchConfig(locale string) search.Config {
 	}
 	return search.Config{
 		ID:             "margo-site-search",
-		Label:          "Search documentation",
-		Placeholder:    "Search documentation",
+		Label:          b.searchText(b.config.Search.Label, locale, "search_pages"),
+		Placeholder:    b.searchText(b.config.Search.Placeholder, locale, "search_pages"),
 		ShortcutText:   "⌘ K",
 		GlobalShortcut: true,
 		Items:          items,
 		MatchMode:      search.MatchModeFuzzy,
 		MaxResults:     8,
-		EmptyText:      "No matching pages.",
+		EmptyText:      b.searchText(b.config.Search.EmptyText, locale, "no_matching_pages"),
 		RootClass:      "margo-site-search-control",
 		TriggerClass:   "margo-site-search-trigger",
 	}
@@ -628,4 +628,11 @@ func addLayoutKindHook(fragment []byte, layout string) []byte {
 	result = append(result, attribute...)
 	result = append(result, fragment[index+len(marker):]...)
 	return result
+}
+
+func (b *builder) searchText(value, locale, key string) string {
+	if value != "" {
+		return value
+	}
+	return localizedLabel(locale, key)
 }

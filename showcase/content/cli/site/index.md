@@ -315,3 +315,27 @@ existing destination untouched.
 Use a new versioned destination for every build; there is no `--force` for a
 site tree. A site build is filesystem publication only. It does not deploy,
 upload, tag, or release the generated directory.
+
+## Blogs and other editorial publications
+
+Select `layout.kind: docs` for the native header, search and lateral TOC.
+Set `layout.default.sidebar: false` and `layout.default.pagination: false`
+when the publication owns its reading order. Keep `toc: false` as the site
+default and enable `layout.values.toc: true` in long articles. Content-only
+`article` pages keep their existing behavior.
+
+Global `navigation.links` entries contain `label` and `href`. Destinations
+are root-relative public URLs or absolute HTTPS URLs, independent of docs
+families. Root-relative entries include the publication's `base_path`.
+The native header renders them as links on desktop and a menu on smaller
+screens. Do not add a second navigation bar inside Markdown.
+
+`search.label`, `search.placeholder` and `search.empty_text` override the
+localized search copy. `site.logo_dark` selects a local SVG for dark mode;
+`site.hide_name: true` avoids repeating the name beside a wordmark while
+preserving the home link's accessible name. The default logo still brands
+PDF output.
+
+The shell offsets its TOC below its responsive header and manages anchors
+and active sections. It shows the lateral rail at 1280px and wider, and hides
+it on smaller screens. No consumer header-height override is needed.

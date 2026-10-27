@@ -366,6 +366,56 @@ Sites without `layout` retain existing top-level `frame` or `shell` behavior.
 Existing `componentdocshell` consumers remain supported. Typed `layout` is
 mutually exclusive with those top-level presentation authorities.
 
+### Compose an editorial site
+
+Use `docs` when a publication needs the native header, search and lateral TOC.
+The name selects a composition contract, not a restriction on the subject of
+its Markdown. Keep `article` for a content-only page. A blog can use:
+
+```yaml
+layout:
+  kind: docs
+  default:
+    sidebar: false
+    toc: false
+    pagination: false
+navigation:
+  links:
+    - label: Blog
+      href: /blog/
+    - label: RSS
+      href: /index.xml
+search:
+  label: Search posts
+  placeholder: Find a post
+  empty_text: No posts found.
+```
+
+Enable `layout.values.toc: true` in each long article's frontmatter. These
+values use the normal site/directory/page cascade. Pagination defaults to
+`true`, preserving existing documentation sites. Turning it off removes the
+previous/next markup; the host still owns archives, series order and feeds.
+
+`navigation.links` adds global destinations to the native docs header. It does
+not create documentation families or change their sidebar, search scopes or
+HTMX lifecycle. Links use full-page navigation, accept root-relative URLs or
+absolute HTTPS URLs, and include `base_path` for root-relative destinations.
+A compact menu exposes the same destinations on smaller screens. Supply short
+labels that fit a navigation bar. Search strings default to localized page
+labels when omitted.
+
+For a wordmark, set `site.hide_name: true`; the home link keeps the site name
+as its accessible label. Set `site.logo_dark` to a second local SVG for dark
+mode. `site.logo` remains the default logo and PDF brand asset. These options
+configure the docs shell; they do not add chrome to content-only layouts.
+
+Keep one header. Do not inject another into Markdown or hide the generated
+header. The shell's responsive header-height token already offsets the TOC
+and content scroll container at each breakpoint. The TOC is visible from
+1280px and hidden below that width. The shell owns anchors and active-section
+tracking; consumers can supply a palette through the existing theme/custom CSS
+contract without replacing those behaviors.
+
 ### Add page actions
 
 Pages can opt into source and download controls through frontmatter:

@@ -2188,11 +2188,12 @@ Docs page.
 		t.Fatalf("restored docs = layout %+v page %+v", docs.layout, docs.page)
 	}
 	assertLayoutValues(t, docs.layout.Values, map[string]any{
-		"families": []any{"default", "module"},
-		"family":   "module",
-		"sidebar":  true,
-		"toc":      false,
-		"content":  map[string]any{"layout": "article"},
+		"families":   []any{"default", "module"},
+		"family":     "module",
+		"sidebar":    true,
+		"pagination": true,
+		"toc":        false,
+		"content":    map[string]any{"layout": "article"},
 	})
 }
 

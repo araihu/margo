@@ -31,6 +31,7 @@ type Config struct {
 	Frame      *LayoutSelection         `yaml:"frame"`
 	Shell      *LayoutSelection         `yaml:"shell"`
 	Locales    LocaleConfig             `yaml:"locales"`
+	Search     SearchConfig             `yaml:"search"`
 	Navigation NavigationConfig         `yaml:"navigation"`
 	Bindings   map[string]BindingConfig `yaml:"bindings"`
 	Themes     []ThemeConfig            `yaml:"themes"`
@@ -48,6 +49,8 @@ type SiteConfig struct {
 	BaseURL       string            `yaml:"base_url"`
 	Home          string            `yaml:"home"`
 	Logo          string            `yaml:"logo"`
+	LogoDark      string            `yaml:"logo_dark"`
+	HideName      bool              `yaml:"hide_name"`
 	Icon          string            `yaml:"icon"`
 	SocialImage   SocialImageConfig `yaml:"social_image"`
 }
@@ -77,9 +80,23 @@ type LocaleConfig struct {
 	Supported []string `yaml:"supported"`
 }
 
+// SearchConfig overrides localized search copy without changing search behavior.
+type SearchConfig struct {
+	Label       string `yaml:"label"`
+	Placeholder string `yaml:"placeholder"`
+	EmptyText   string `yaml:"empty_text"`
+}
+
+// NavigationLink is a host-owned public destination, independent of docs families.
+type NavigationLink struct {
+	Label string `yaml:"label"`
+	Href  string `yaml:"href"`
+}
+
 type NavigationConfig struct {
-	Mode    string   `yaml:"mode"`
-	Exclude []string `yaml:"exclude"`
+	Links   []NavigationLink `yaml:"links"`
+	Mode    string           `yaml:"mode"`
+	Exclude []string         `yaml:"exclude"`
 }
 
 type BindingConfig struct {
@@ -180,6 +197,21 @@ func (config *Config) validate() error {
 	for field, value := range map[string]string{"logo": config.Site.Logo, "icon": config.Site.Icon, "social_image.path": config.Site.SocialImage.Path} {
 		if !validConfigPath(value) {
 			return diagnostic("site.asset_path_invalid", fmt.Sprintf("site.%s must be a normalized relative path", field), "Use a local asset path below site.yaml.", "")
+		}
+	}
+	if config.Site.LogoDark != "" && !validConfigPath(config.Site.LogoDark) {
+		return diagnostic("site.asset_path_invalid", "site.logo_dark must be a normalized relative path", "Use a local asset path below site.yaml.", "site.logo_dark")
+	}
+	for _, item := range config.Navigation.Links {
+		if strings.TrimSpace(item.Label) == "" || strings.ContainsAny(item.Label, "\x00\r\n") || !validNavigationURL(item.Href) {
+			return diagnostic("site.navigation_invalid", "navigation links require a label and a root-relative or absolute HTTPS URL", "Use a public destination such as /blog/ or https://example.com/feed.xml.", "navigation.links")
+		}
+	}
+	for _, field := range []struct{ name, value string }{
+		{"label", config.Search.Label}, {"placeholder", config.Search.Placeholder}, {"empty_text", config.Search.EmptyText},
+	} {
+		if field.value != "" && (strings.TrimSpace(field.value) == "" || strings.ContainsAny(field.value, "\x00\r\n")) {
+			return diagnostic("site.search_invalid", "search text must not be blank or contain control characters", "Use plain text.", "search."+field.name)
 		}
 	}
 	if strings.ContainsAny(config.Site.SocialImage.Alt, "\x00\r\n") || len([]byte(config.Site.SocialImage.Alt)) > 160 {
@@ -497,4 +529,13 @@ func BuildConfig(ctx context.Context, request ConfigRequest) (Result, error) {
 		return Result{}, err
 	}
 	return buildConfigured(ctx, request, config)
+}
+
+func validNavigationURL(href string) bool {
+	u, err := url.Parse(href)
+	if err != nil || strings.ContainsAny(href, "\\\x00\r\n") || u.User != nil {
+		return false
+	}
+	rootRelative := strings.HasPrefix(href, "/") && !strings.HasPrefix(href, "//") && u.Host == ""
+	return rootRelative || (u.Scheme == "https" && u.Host != "")
 }
