@@ -460,6 +460,34 @@ Client printing follows the active site theme. Pre-rendered PDFs use the
 materialized document brand and stay independent of the surrounding site
 shell. Generated actions refer only to same-site artifacts.
 
+### Zoom and pan for article images
+
+Enable the native image viewer in a document's frontmatter:
+
+```markdown
+---
+margo:
+  imageViewer: true
+---
+
+![Deployment health dashboard](dashboard.png "Platform dashboard")
+```
+
+Only standalone Markdown images with a title (rendered as a caption) become
+viewers. Leave off the title for static images; inline images, logos without
+captions and linked thumbnails keep their usual behavior. The default is off.
+
+The viewer shares Mermaid's zoom, pointer/touch pan, expanded view and
+fullscreen controls. **Actual size** displays the image at its native pixel
+dimensions; the percentage is relative to **Fit image**. Focus the image area
+to use `+`/`-`, `0` or `Home` to fit, and arrow keys to pan a zoomed image.
+Ctrl+wheel zooms around the pointer. Escape closes the expanded view and
+returns focus without moving the reader's position in the article.
+
+Each figure has independent state. Alt text and captions remain available;
+without JavaScript, in print/PDF and in presentation decks the image is static.
+This works in standalone HTML and generated sites without custom scripts.
+
 ### Development server behavior
 
 `margo serve [INPUT_DIR|CONFIG] [--host HOST] [--port PORT] [--open]` builds,

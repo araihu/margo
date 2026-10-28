@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -120,6 +119,16 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			}
 		}
 		executor := []byte(mermaidBrowserExecutor)
+		viewer, err := mediaViewerRequirement()
+		if err != nil {
+			mermaidBrowserCapabilityCache.err = err
+			return
+		}
+		viewerCapability, err := HTMLRequirementCapability(viewer)
+		if err != nil {
+			mermaidBrowserCapabilityCache.err = err
+			return
+		}
 		executorDigest := sha256.Sum256(executor)
 		runtimeCapability, err := HTMLRequirementCapability(HTMLRequirement{
 			ID:       "margo.mermaid.runtime",
@@ -138,7 +147,7 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			ID:        "margo.mermaid.execute",
 			Kind:      HTMLScript,
 			LocalURL:  "/margo-assets/runtime/mermaid-run.js",
-			LoadAfter: []string{"margo.mermaid.runtime", "goshtoso.runtime.first-party"},
+			LoadAfter: []string{"margo.mermaid.runtime", "goshtoso.runtime.first-party", "margo.media-viewer"},
 			Inline: AssetRef{
 				Path: "mermaid-run.js", MediaType: "application/javascript",
 				SHA256: hex.EncodeToString(executorDigest[:]), Content: executor,
@@ -148,17 +157,13 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			mermaidBrowserCapabilityCache.err = err
 			return
 		}
-		mermaidBrowserCapabilityCache.capabilities = append(helpCapabilities, runtimeCapability, executorCapability)
+		mermaidBrowserCapabilityCache.capabilities = append(helpCapabilities, viewerCapability, runtimeCapability, executorCapability)
 	})
 	return append([]string(nil), mermaidBrowserCapabilityCache.capabilities...), mermaidBrowserCapabilityCache.err
 }
 
-//go:embed assets/runtime/mermaid-viewer.js
-var mermaidViewerScript string
-
 var mermaidBrowserExecutor = `(() => {
   "use strict";
-` + mermaidViewerScript + `
 
   function materializeTreeViewIcons(svg) {
     // Mermaid strict mode strips <use>; only restore fixed built-in paths.
@@ -281,7 +286,7 @@ var mermaidBrowserExecutor = `(() => {
       });
       const rendered = await engine.render("margo-html-" + index, sourceNode.textContent);
       if (!rendered || typeof rendered.svg !== "string" || rendered.svg.length === 0) throw new Error("Mermaid returned no SVG");
-      const position = mermaidViewers.get(node)?.position();
+      const position = window.margoMediaViewer.position(node);
       target.innerHTML = rendered.svg;
       const svg = target.querySelector("svg");
       if (svg) {
@@ -293,7 +298,7 @@ var mermaidBrowserExecutor = `(() => {
       if (fallback) fallback.hidden = true;
       node.dataset.margoRuntimeStatus = "succeeded";
       outputs.push(svg ? svg.outerHTML : rendered.svg);
-      if (svg) attachMermaidViewer(node, svg, position);
+      if (svg) window.margoMediaViewer.attach(node, svg, position);
     }
     document.documentElement.dataset.margoRuntimeStatus = "ready";
     return outputs;

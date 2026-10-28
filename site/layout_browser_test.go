@@ -526,7 +526,10 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 	if err := chromedp.Run(ctx,
 		chromedp.Click(`[data-search-field][data-margo-search-a11y="true"] button`, chromedp.ByQuery),
 		chromedp.WaitVisible(`[data-search-modal][data-margo-search-a11y="true"]`, chromedp.ByQuery),
-		chromedp.SendKeys(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, "Module", chromedp.ByQuery),
+		// SendKeys in chromedp v0.14.2 reads the live Attributes slice before
+		// locking it. Focus and send keys directly while Alpine updates ARIA.
+		chromedp.Focus(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, chromedp.ByQuery),
+		chromedp.KeyEvent("Module"),
 		chromedp.Poll(`(() => {
 			const input = document.querySelector('[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]');
 			const listbox = input && document.getElementById(input.getAttribute('aria-controls'));
@@ -551,7 +554,8 @@ func TestLayoutSearchSemanticsAndFocusReturn(t *testing.T) {
 	}
 	if err := chromedp.Run(ctx,
 		chromedp.Click(`[data-margo-search-clear]`, chromedp.ByQuery),
-		chromedp.SendKeys(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, "not-a-real-page", chromedp.ByQuery),
+		chromedp.Focus(`[data-search-modal][data-margo-search-a11y="true"] [role="combobox"]`, chromedp.ByQuery),
+		chromedp.KeyEvent("not-a-real-page"),
 		chromedp.Poll(`document.querySelector('[data-margo-search-status]')?.textContent === 'No matching pages.'`, nil, chromedp.WithPollingInterval(20*time.Millisecond)),
 		chromedp.Evaluate(searchSemanticsScript, &state),
 	); err != nil {
