@@ -40,6 +40,7 @@ func renderSemanticDocumentBytes(ctx context.Context, document *Document, option
 			source:              parsed.frontmatter.body,
 			policy:              document.effectivePolicy,
 			tableSort:           tableSortMode(renderOptions),
+			imageViewer:         document.metadata.Margo.ImageViewer && renderTarget(renderOptions) != TargetPDF && renderTarget(renderOptions) != TargetDeck,
 			runtimeTaskOrdinals: make(map[string]uint32),
 			contextLabels:       make(map[string]string),
 			extensionSlots:      extensionSlots,
@@ -64,6 +65,7 @@ type markdownRenderer struct {
 	source              []byte
 	policy              EffectivePolicy
 	tableSort           TableSortMode
+	imageViewer         bool
 	runtimeTaskOrdinals map[string]uint32
 	contextLabels       map[string]string
 	extensionSlots      [][]byte
@@ -124,6 +126,9 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 	case *goldast.Paragraph:
 		if image, ok := value.FirstChild().(*goldast.Image); ok && image.NextSibling() == nil && len(image.Title) > 0 {
 			delete(r.contextLabels, "lead-pending")
+			if r.imageViewer {
+				return r.renderImageViewer(image)
+			}
 			if _, err := io.WriteString(r.out, `<figure class="margo-figure">`); err != nil {
 				return err
 			}

@@ -76,11 +76,16 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		}
 		hasTable := false
 		hasCopyableCodeBlock := false
+		hasImageViewer := false
 		compileContext := extensionCompileContext{normalized: normalized, source: source}
 		var missing *Diagnostic
 		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 			if !entering {
 				return ast.WalkContinue, nil
+			}
+			if image, ok := node.(*ast.Image); ok && normalized.metadata.Margo.ImageViewer && len(image.Title) > 0 {
+				_, paragraph := image.Parent().(*ast.Paragraph)
+				hasImageViewer = hasImageViewer || (paragraph && image.PreviousSibling() == nil && image.NextSibling() == nil)
 			}
 			if _, table := node.(*tableast.Table); table {
 				hasTable = true
@@ -156,6 +161,13 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		}
 		if missing != nil {
 			return renderPlan{}, &DiagnosticError{Diagnostics: []Diagnostic{*missing}}
+		}
+		if hasImageViewer {
+			viewer, err := mediaViewerRequirement()
+			if err != nil {
+				return renderPlan{}, err
+			}
+			requirementCandidates = append(requirementCandidates, viewer)
 		}
 		if hasTable {
 			coreWithTable, err := coreHTMLRequirements(true, false)

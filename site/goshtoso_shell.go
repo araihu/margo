@@ -55,12 +55,14 @@ const componentDocShellScrollSpy = `(function () {
   var automaticHold = false;
   var mermaidLoadPromise;
   var mermaidRunnerLoadPromise;
+  var mediaViewerLoadPromise;
   var mermaidRenderQueue = Promise.resolve();
   var shellAssetBase = document.currentScript && document.currentScript.src
     ? new URL("../", document.currentScript.src)
     : new URL("margo-assets/", document.baseURI);
   var mermaidRuntimeURL = new URL("mermaid/` + internalmermaid.RuntimeVersion + `/mermaid.min.js", shellAssetBase).toString();
   var mermaidRunnerURL = new URL("runtime/mermaid-run.js", shellAssetBase).toString();
+  var mediaViewerURL = new URL("media-viewer.js", shellAssetBase).toString();
 
   function headings() {
     var content = document.getElementById("main-content");
@@ -289,6 +291,18 @@ const componentDocShellScrollSpy = `(function () {
   }
 
   async function renderMermaidAfterSwap() {
+    if (document.querySelector('[data-margo-image-viewer], [data-margo-runtime-task="mermaid"]')) {
+      if (!window.margoMediaViewer) {
+        if (!mediaViewerLoadPromise) {
+          mediaViewerLoadPromise = loadScript(mediaViewerURL).catch(function (error) {
+            mediaViewerLoadPromise = null;
+            throw error;
+          });
+        }
+        await mediaViewerLoadPromise;
+      }
+      window.margoMediaViewer.initialize();
+    }
     var nodes = document.querySelectorAll('[data-margo-runtime-task="mermaid"]');
     if (!nodes.length || !mermaidTasksNeedRender()) return;
     try {

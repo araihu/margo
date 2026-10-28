@@ -1,4 +1,6 @@
-  // This source is embedded inside the shared Mermaid executor's closure.
+(() => {
+  "use strict";
+  if (window.margoMediaViewer) { window.margoMediaViewer.initialize(); return; }
   /* Arrow icons follow Goshtoso Charts' Heroicons controls.
    * MIT License — Copyright (c) Tailwind Labs, Inc.
    * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -17,7 +19,7 @@
    * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    * SOFTWARE.
    */
-  const mermaidControlIcons = Object.freeze({
+  const mediaControlIcons = Object.freeze({
     plus: "M12 5v14M5 12h14",
     minus: "M5 12h14",
     fit: "M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4M9 12h6m-3-3v6",
@@ -27,7 +29,7 @@
     close: "m6 6 12 12M6 18 18 6",
     info: "M12 11v6m0-10h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"
   });
-  function setMermaidControlIcon(button, icon, label) {
+  function setMediaControlIcon(button, icon, label) {
     button.setAttribute("aria-label", label);
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
@@ -39,52 +41,59 @@
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
     const path = document.createElementNS(svg.namespaceURI, "path");
-    path.setAttribute("d", mermaidControlIcons[icon]);
+    path.setAttribute("d", mediaControlIcons[icon]);
     svg.append(path);
     button.replaceChildren(svg);
   }
-  const mermaidViewers = new WeakMap();
-  const connectedMermaidViews = new Map();
-  const mermaidDetachObserver = new MutationObserver((records) => {
+  const mediaViewers = new WeakMap();
+  const connectedMediaViews = new Map();
+  const mediaDetachObserver = new MutationObserver((records) => {
     if (!records.some((record) => record.removedNodes.length)) return;
-    for (const [node, dispose] of connectedMermaidViews) {
+    for (const [node, dispose] of connectedMediaViews) {
       if (!node.isConnected) dispose();
     }
   });
-  function observeMermaidAttachment(node, dispose) {
-    if (!connectedMermaidViews.size) {
-      mermaidDetachObserver.observe(document.documentElement, {childList: true, subtree: true});
+  function observeMediaAttachment(node, dispose) {
+    if (!connectedMediaViews.size) {
+      mediaDetachObserver.observe(document.documentElement, {childList: true, subtree: true});
     }
-    connectedMermaidViews.set(node, dispose);
+    connectedMediaViews.set(node, dispose);
   }
-  const expandedMermaidViews = new Set();
-  let mermaidPrintViews = [];
-  function prepareMermaidPrint() {
-    if (mermaidPrintViews.length) return;
-    for (const suspend of expandedMermaidViews) mermaidPrintViews.push(suspend());
+  const expandedMediaViews = new Set();
+  let mediaPrintViews = [];
+  function prepareMediaPrint() {
+    if (mediaPrintViews.length) return;
+    for (const suspend of expandedMediaViews) mediaPrintViews.push(suspend());
   }
-  function restoreMermaidPrint() {
-    const views = mermaidPrintViews;
-    mermaidPrintViews = [];
+  function restoreMediaPrint() {
+    const views = mediaPrintViews;
+    mediaPrintViews = [];
     for (const resume of views) resume();
   }
-  window.addEventListener("beforeprint", prepareMermaidPrint);
-  window.addEventListener("afterprint", restoreMermaidPrint);
+  window.addEventListener("beforeprint", prepareMediaPrint);
+  window.addEventListener("afterprint", restoreMediaPrint);
   window.matchMedia("print").addEventListener("change", (event) => {
-    if (event.matches) prepareMermaidPrint();
-    else restoreMermaidPrint();
+    if (event.matches) prepareMediaPrint();
+    else restoreMediaPrint();
   });
 
-  function attachMermaidViewer(node, svg, position) {
+  function attachViewer(node, media, position) {
     // Presentation slides have fixed geometry and their own keyboard controls.
     if (!node.isConnected || node.closest(".margo-deck")) return;
-    const previous = mermaidViewers.get(node);
+    const previous = mediaViewers.get(node);
     if (previous) {
-      previous.replace(svg, position);
+      previous.replace(media, position);
       return;
     }
-    const canvas = node.querySelector(".margo-mermaid__canvas");
-    const box = svg.viewBox.baseVal;
+    const isImage = media.localName === "img";
+    const noun = isImage ? "Image" : "Diagram";
+    // Preserve existing Mermaid selectors while sharing presentation styles.
+    const className = (part) => "margo-viewer__" + part + (isImage ? "" : " margo-mermaid__" + part);
+    const dimensions = (content) => isImage
+      ? {width: content.naturalWidth, height: content.naturalHeight}
+      : content.viewBox.baseVal;
+    const canvas = node.querySelector(isImage ? ".margo-image__canvas" : ".margo-mermaid__canvas");
+    const box = dimensions(media);
     if (!canvas || !box || box.width <= 0 || box.height <= 0) return;
     let width = box.width;
     let height = box.height;
@@ -94,14 +103,19 @@
     let drag = null;
 
     const stage = document.createElement("div");
-    stage.className = "margo-mermaid__stage";
+    stage.className = className("stage");
     canvas.replaceChildren(stage);
-    stage.append(svg);
-    canvas.classList.add("margo-mermaid__viewport");
+    stage.append(media);
+    if (isImage) {
+      canvas.tabIndex = 0;
+      canvas.setAttribute("role", "group");
+      media.draggable = false;
+    }
+    canvas.classList.add("margo-viewer__viewport");
     const controls = document.createElement("div");
-    controls.className = "margo-mermaid__controls";
+    controls.className = className("controls");
     controls.setAttribute("role", "group");
-    controls.setAttribute("aria-label", "Diagram controls");
+    controls.setAttribute("aria-label", noun + " controls");
     // Associate each group with the same caption as its diagram.
     if (canvas.hasAttribute("aria-labelledby")) {
       controls.setAttribute("aria-describedby", canvas.getAttribute("aria-labelledby"));
@@ -109,41 +123,46 @@
     const button = (label, icon, action) => {
       const element = document.createElement("button");
       element.type = "button";
-      element.className = "margo-mermaid__icon-button";
-      setMermaidControlIcon(element, icon, label);
+      element.className = className("icon-button");
+      setMediaControlIcon(element, icon, label);
       element.addEventListener("click", action);
       controls.append(element);
       return element;
     };
     const zoomIn = button("Zoom in", "plus", () => zoom(scale * 1.25));
     const zoomOut = button("Zoom out", "minus", () => zoom(scale / 1.25));
-    const fitButton = button("Fit diagram", "fit", () => zoom(1, true));
+    const fitButton = button("Fit " + noun.toLowerCase(), "fit", () => zoom(1, true));
     const expand = button("Expand", "expand", () => openExpanded(expand));
     expand.setAttribute("aria-haspopup", "dialog");
     expand.setAttribute("aria-expanded", "false");
     const fullscreen = button("Fullscreen", "fullscreen", toggleFullscreen);
     fullscreen.setAttribute("aria-pressed", "false");
     const close = button("Close expanded view", "close", () => closeExpanded());
-    close.classList.add("margo-mermaid__close");
+    close.classList.add("margo-viewer__close");
     close.hidden = true;
     const status = document.createElement("output");
     status.setAttribute("aria-live", "polite");
     status.setAttribute("aria-atomic", "true");
-    status.setAttribute("aria-label", "Diagram zoom");
+    status.setAttribute("aria-label", noun + " zoom");
     const zoomControls = document.createElement("div");
-    zoomControls.className = "margo-mermaid__zoom-controls";
+    zoomControls.className = className("zoom-controls");
     zoomControls.setAttribute("role", "group");
-    zoomControls.setAttribute("aria-label", "Diagram zoom controls");
+    zoomControls.setAttribute("aria-label", noun + " zoom controls");
     zoomControls.append(zoomOut, status, zoomIn);
     const viewControls = document.createElement("div");
-    viewControls.className = "margo-mermaid__view-controls";
+    viewControls.className = className("view-controls");
     viewControls.setAttribute("role", "group");
-    viewControls.setAttribute("aria-label", "Diagram view controls");
+    viewControls.setAttribute("aria-label", noun + " view controls");
     viewControls.append(fitButton, expand, fullscreen);
+    if (isImage) {
+      const actualSize = button("Actual size", "expand", () => zoom(width / fittedWidth));
+      actualSize.textContent = "1:1";
+      viewControls.prepend(actualSize);
+    }
     controls.replaceChildren(zoomControls, viewControls);
     canvas.before(controls);
 
-    const controlsID = canvas.getAttribute("aria-describedby") + "-controls";
+    const controlsID = (canvas.getAttribute("aria-describedby") || canvas.getAttribute("aria-labelledby")) + "-controls";
     const helpRoot = node.querySelector("template[data-margo-mermaid-help]")?.content.firstElementChild?.cloneNode(true);
     const helpButton = helpRoot?.querySelector("button");
     const helpPanel = helpRoot?.querySelector('[role="tooltip"]');
@@ -160,10 +179,10 @@
           if (attribute.name.startsWith("x-")) element.removeAttribute(attribute.name);
         }
       }
-      helpRoot.classList.add("margo-mermaid__help");
+      helpRoot.classList.add("margo-viewer__help");
       helpRoot.dataset.tooltipPosition = "bottom";
-      helpButton.className = "margo-mermaid__icon-button";
-      setMermaidControlIcon(helpButton, "info", "Diagram help");
+      helpButton.className = className("icon-button");
+      setMediaControlIcon(helpButton, "info", noun + " help");
       helpButton.setAttribute("aria-expanded", "false");
       helpButton.setAttribute("aria-controls", helpPanel.id);
       helpButton.setAttribute("aria-describedby", helpPanel.id);
@@ -205,20 +224,20 @@
       }, {signal: helpListeners.signal});
     }
 
-    // Like chart controls, move the existing content; never clone the SVG or
+    // Like chart controls, move the existing content; never clone the media or
     // initialize another renderer. A native dialog also works without Alpine.
     const viewer = document.createElement("div");
-    viewer.className = "margo-mermaid__viewer";
+    viewer.className = className("viewer");
     controls.before(viewer);
     viewer.append(controls, canvas, close);
     const source = node.querySelector(".margo-mermaid__accessible-source");
     if (source) viewer.append(source);
     const dialog = document.createElement("dialog");
-    dialog.className = "margo-mermaid__dialog";
+    dialog.className = className("dialog");
     const title = document.createElement("h2");
-    title.className = "margo-mermaid__dialog-title";
+    title.className = className("dialog-title");
     title.id = controlsID + "-title";
-    title.textContent = node.querySelector("figcaption")?.textContent || "Mermaid diagram";
+    title.textContent = node.querySelector("figcaption")?.textContent || (isImage ? media.alt || "Image" : "Mermaid diagram");
     dialog.setAttribute("aria-labelledby", title.id);
     dialog.append(title);
     viewer.after(dialog);
@@ -238,9 +257,11 @@
       fullscreenOnly = full;
       pageOverflow = document.documentElement.style.overflow;
       document.documentElement.style.overflow = "hidden";
+      // Keep an image's caption visible inside the native fullscreen element.
+      if (isImage) viewer.prepend(title);
       dialog.append(viewer);
       dialog.showModal();
-      expandedMermaidViews.add(suspendForPrint);
+      expandedMediaViews.add(suspendForPrint);
       expand.hidden = true;
       expand.setAttribute("aria-expanded", "true");
       close.hidden = false;
@@ -256,14 +277,15 @@
       if (!inlineView) return;
       const saved = inlineView;
       inlineView = null;
-      expandedMermaidViews.delete(suspendForPrint);
+      expandedMediaViews.delete(suspendForPrint);
       if (document.fullscreenElement === viewer) {
         document.exitFullscreen().catch(() => {});
       }
       if (dialog.open) dialog.close();
+      if (isImage) dialog.prepend(title);
       dialog.before(viewer);
       document.documentElement.style.overflow = pageOverflow;
-      dialog.classList.remove("margo-mermaid__dialog--fullscreen");
+      dialog.classList.remove("margo-viewer__dialog--fullscreen", "margo-mermaid__dialog--fullscreen");
       fallbackFullscreen = false;
       fullscreenOnly = false;
       expand.hidden = false;
@@ -278,6 +300,7 @@
     }
 
     function suspendForPrint() {
+      const savedInline = inlineView;
       const saved = {
         scale, left: canvas.scrollLeft, top: canvas.scrollTop,
         trigger: returnFocus, fullscreenOnly,
@@ -287,6 +310,9 @@
       return () => {
         if (!node.isConnected) return;
         openExpanded(saved.trigger, saved.fullscreenOnly);
+        // Print layout can clamp the inline viewport's scroll offsets to zero.
+        // Keep the reader's original view until the expanded viewer is closed.
+        inlineView = savedInline;
         // Restoring native fullscreen would require a fresh user gesture.
         if (saved.full) enterFallback();
         scale = saved.scale;
@@ -297,14 +323,15 @@
 
     function updateFullscreen() {
       const active = document.fullscreenElement === viewer || fallbackFullscreen;
-      setMermaidControlIcon(fullscreen, active ? "collapse" : "fullscreen", active ? "Exit fullscreen" : "Fullscreen");
+      setMediaControlIcon(fullscreen, active ? "collapse" : "fullscreen", active ? "Exit fullscreen" : "Fullscreen");
       fullscreen.setAttribute("aria-pressed", String(active));
     }
 
     function enterFallback() {
       if (!dialog.open || !node.isConnected) return;
       fallbackFullscreen = true;
-      dialog.classList.add("margo-mermaid__dialog--fullscreen");
+      dialog.classList.add("margo-viewer__dialog--fullscreen");
+      if (!isImage) dialog.classList.add("margo-mermaid__dialog--fullscreen");
       updateFullscreen();
       fit();
     }
@@ -315,7 +342,7 @@
         document.exitFullscreen().catch(() => {});
       } else if (fallbackFullscreen) {
         fallbackFullscreen = false;
-        dialog.classList.remove("margo-mermaid__dialog--fullscreen");
+        dialog.classList.remove("margo-viewer__dialog--fullscreen", "margo-mermaid__dialog--fullscreen");
         if (fullscreenOnly) closeExpanded();
         else { updateFullscreen(); fit(); }
       } else {
@@ -367,10 +394,16 @@
       stage.style.width = fittedWidth * scale + "px";
       stage.style.height = fittedHeight * scale + "px";
       canvas.style.height = fittedHeight + "px";
-      canvas.classList.toggle("margo-mermaid__viewport--zoomed", scale > 1);
+      canvas.classList.toggle("margo-viewer__viewport--zoomed", scale > 1);
       status.value = Math.round(scale * 100) + "%";
       zoomOut.disabled = scale <= 0.25;
-      zoomIn.disabled = scale >= 8;
+      zoomIn.disabled = scale >= maxScale();
+    }
+
+    // Images can always reach their native pixel dimensions, even when a very
+    // large screenshot was fitted to a narrow column. Diagrams retain 800%.
+    function maxScale() {
+      return isImage && fittedWidth > 0 ? Math.max(8, width / fittedWidth) : 8;
     }
 
     function zoom(next, reset = false, anchor) {
@@ -380,7 +413,7 @@
       const centerY = anchor?.clientY ?? viewport.top + canvas.clientTop + canvas.clientHeight / 2;
       const x = before.width ? (centerX - before.left) / before.width : 0.5;
       const y = before.height ? (centerY - before.top) / before.height : 0.5;
-      scale = Math.max(0.25, Math.min(8, next));
+      scale = Math.max(0.25, Math.min(maxScale(), next));
       paint();
       if (reset) {
         canvas.scrollTo(0, 0);
@@ -397,7 +430,7 @@
       const maxHeight = dialog.open ? canvas.clientHeight : 560;
       const ratio = Math.min(1, available / width, Math.max(1, maxHeight) / height);
       fittedWidth = width * ratio;
-      fittedHeight = Math.ceil(height * ratio);
+      fittedHeight = isImage ? height * ratio : Math.ceil(height * ratio);
       paint();
     }
 
@@ -430,7 +463,7 @@
     // Touch uses the browser's native overflow panning and scroll chaining.
     // Pointer capture is only needed for primary/middle-button mouse dragging
     // and pen dragging. Cancel middle-click defaults so native autoscroll does
-    // not compete with the diagram's pan interaction.
+    // not compete with the viewer's pan interaction.
     const preventMiddleDefault = (event) => {
       if (event.button === 1 && scale > 1 && !event.target.closest("a, button")) event.preventDefault();
     };
@@ -443,7 +476,7 @@
       drag = {id: event.pointerId, buttons: event.button === 1 ? 4 : 1,
         x: event.clientX, y: event.clientY, left: canvas.scrollLeft, top: canvas.scrollTop};
       canvas.setPointerCapture(event.pointerId);
-      canvas.classList.add("margo-mermaid__viewport--dragging");
+      canvas.classList.add("margo-viewer__viewport--dragging");
       event.preventDefault();
     });
     canvas.addEventListener("pointermove", (event) => {
@@ -457,14 +490,14 @@
     const endDrag = () => {
       const pointerID = drag?.id;
       drag = null;
-      canvas.classList.remove("margo-mermaid__viewport--dragging");
+      canvas.classList.remove("margo-viewer__viewport--dragging");
       if (pointerID !== undefined && canvas.hasPointerCapture(pointerID)) canvas.releasePointerCapture(pointerID);
     };
     canvas.addEventListener("pointerup", endDrag);
     canvas.addEventListener("pointercancel", endDrag);
     canvas.addEventListener("lostpointercapture", endDrag);
 
-    // Track the moved content so modal/fullscreen resizes refit the same SVG.
+    // Track the moved content so modal/fullscreen resizes refit the same content.
     let observedWidth = 0;
     let observedHeight = 0;
     let resizeObserver;
@@ -472,13 +505,13 @@
       closeExpanded(false);
       endDrag();
       resizeObserver?.disconnect();
-      connectedMermaidViews.delete(node);
-      if (!connectedMermaidViews.size) mermaidDetachObserver.disconnect();
+      connectedMediaViews.delete(node);
+      if (!connectedMediaViews.size) mediaDetachObserver.disconnect();
     }
     function observeAttachment() {
       if (!node.isConnected) return;
       resizeObserver?.observe(viewer);
-      observeMermaidAttachment(node, dispose);
+      observeMediaAttachment(node, dispose);
     }
     if (typeof ResizeObserver === "function") {
       resizeObserver = new ResizeObserver((entries) => {
@@ -498,13 +531,14 @@
     // Removal is independent of geometry: an already-hidden figure will not
     // trigger ResizeObserver when HTMX or an embedding application removes it.
     observeAttachment();
-    mermaidViewers.set(node, {
+    mediaViewers.set(node, {
       position() {
         return {left: canvas.scrollLeft, top: canvas.scrollTop};
       },
       replace(next, position) {
-        width = next.viewBox.baseVal.width;
-        height = next.viewBox.baseVal.height;
+        const box = dimensions(next);
+        width = box.width;
+        height = box.height;
         stage.replaceChildren(next);
         canvas.replaceChildren(stage);
         observeAttachment();
@@ -514,3 +548,27 @@
     });
     fit();
   }
+
+  function initialize() {
+    document.querySelectorAll("[data-margo-image-viewer]").forEach((node) => {
+      const image = node.querySelector("img");
+      if (!image) return;
+      const attach = () => {
+        if (image.naturalWidth > 0 && image.naturalHeight > 0) attachViewer(node, image);
+      };
+      if (image.complete) attach();
+      else if (!image.dataset.margoViewerPending) {
+        image.dataset.margoViewerPending = "true";
+        image.addEventListener("load", attach, {once: true});
+      }
+    });
+  }
+  window.margoMediaViewer = Object.freeze({
+    attach: attachViewer,
+    position: (node) => mediaViewers.get(node)?.position(),
+    initialize
+  });
+  document.addEventListener("htmx:after:settle", initialize);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initialize, {once: true});
+  else initialize();
+})();

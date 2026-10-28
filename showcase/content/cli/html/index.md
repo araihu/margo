@@ -47,6 +47,36 @@ Raw HTML and iframe markup are denied by default. Use
 `--allow-unsafe-html` (or `--allow-raw-html`) only when the host has reviewed
 the document's arbitrary HTML content.
 
+## Zoom and pan for images
+
+Opt into the image viewer in the document's frontmatter, then give each
+interactive image a title, which Margo renders as its caption:
+
+```markdown
+---
+margo:
+  imageViewer: true
+---
+
+![Deployment health dashboard](dashboard.png "Platform dashboard")
+```
+
+Only a captioned image alone in its paragraph becomes interactive. Images
+without captions, inline icons and linked thumbnails stay static. Omit the
+preference or set it to `false` to keep all images static.
+
+The controls match the Mermaid viewer: zoom in/out, fit, expand and fullscreen.
+**Actual size** reaches the original image's pixel dimensions, including for
+large screenshots fitted into narrow columns. The zoom percentage is relative
+to the fitted view. Drag a zoomed image with the primary or middle mouse button,
+or pan with touch. Focus its image area to use `+`/`-`, `0`/`Home` to fit, and
+arrow keys to pan; Ctrl+wheel zooms around the pointer. Escape closes an
+expanded view and restores focus and the article's reading position.
+
+Alt text and captions remain available in both views. Without JavaScript the
+original image remains usable. Printing, PDF output and presentation decks use
+static images. Generated sites support the same frontmatter and controls.
+
 ## Examples
 
 ```sh

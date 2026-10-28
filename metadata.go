@@ -20,6 +20,8 @@ type Metadata struct {
 type DocumentPreferences struct {
 	Page    *PagePreference
 	Actions *PageActions
+	// ImageViewer enables interactive viewers for standalone, captioned images.
+	ImageViewer bool
 }
 
 // PDFMode selects how a site's PDF action is fulfilled.

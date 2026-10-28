@@ -332,6 +332,9 @@
   .margo-document .margo-figure > img {
     margin-block: 0;
   }
+  .margo-document .margo-image img {
+    margin-block: 0;
+  }
   .margo-document li > input[type="checkbox"] {
     inline-size: 1rem;
     block-size: 1rem;
@@ -551,10 +554,10 @@
 
 @media screen {
   @layer document {
-    .margo-document .margo-mermaid__viewer {
+    .margo-document .margo-viewer__viewer {
       min-inline-size: 0;
     }
-    .margo-document .margo-mermaid__dialog {
+    .margo-document .margo-viewer__dialog {
       box-sizing: border-box;
       inline-size: min(96vw, 90rem);
       block-size: min(92dvh, 64rem);
@@ -568,15 +571,15 @@
       color: var(--color-on-surface-strong);
       overflow: hidden;
     }
-    .margo-document .margo-mermaid__dialog[open] {
+    .margo-document .margo-viewer__dialog[open] {
       display: flex;
       flex-direction: column;
       gap: calc(var(--spacing) * 3);
     }
-    .margo-document .margo-mermaid__dialog::backdrop {
+    .margo-document .margo-viewer__dialog::backdrop {
       background: rgb(0 0 0 / 0.6);
     }
-    .margo-document .margo-mermaid__dialog-title {
+    .margo-document .margo-viewer__dialog-title {
       margin: 0;
       max-inline-size: none;
       max-width: none;
@@ -585,19 +588,22 @@
       line-height: 1.5;
       flex-shrink: 0;
     }
-    .margo-document .margo-mermaid__dialog .margo-mermaid__viewer,
-    .margo-document .margo-mermaid__viewer:fullscreen {
+    .margo-document .margo-viewer__viewer > .margo-viewer__dialog-title {
+      margin-block-end: calc(var(--spacing) * 3);
+    }
+    .margo-document .margo-viewer__dialog .margo-viewer__viewer,
+    .margo-document .margo-viewer__viewer:fullscreen {
       display: flex;
       flex-direction: column;
       flex: 1;
       min-block-size: 0;
     }
-    .margo-document .margo-mermaid__dialog .margo-mermaid__viewport,
-    .margo-document .margo-mermaid__viewer:fullscreen .margo-mermaid__viewport {
+    .margo-document .margo-viewer__dialog .margo-viewer__viewport,
+    .margo-document .margo-viewer__viewer:fullscreen .margo-viewer__viewport {
       flex: 1;
       min-block-size: 0;
     }
-    .margo-document .margo-mermaid__viewer:fullscreen {
+    .margo-document .margo-viewer__viewer:fullscreen {
       box-sizing: border-box;
       inline-size: 100%;
       block-size: 100%;
@@ -605,10 +611,10 @@
       background: var(--color-surface);
       color: var(--color-on-surface-strong);
     }
-    .margo-document .margo-mermaid__viewer:fullscreen .margo-mermaid__controls {
+    .margo-document .margo-viewer__viewer:fullscreen .margo-viewer__controls {
       max-inline-size: calc(100% - 2.75rem);
     }
-    .margo-document .margo-mermaid__dialog--fullscreen {
+    .margo-document .margo-viewer__dialog--fullscreen {
       inline-size: 100vw;
       block-size: 100dvh;
       max-inline-size: none;
@@ -616,13 +622,13 @@
       margin: 0;
       border-radius: 0;
     }
-    .margo-document:is(.dark *) .margo-mermaid__dialog,
-    .margo-document:is(.dark *) .margo-mermaid__viewer:fullscreen {
+    .margo-document:is(.dark *) .margo-viewer__dialog,
+    .margo-document:is(.dark *) .margo-viewer__viewer:fullscreen {
       background: var(--color-surface-dark);
       color: var(--color-on-surface-dark-strong);
       border-color: var(--color-outline-dark-strong);
     }
-    .margo-document .margo-mermaid__controls {
+    .margo-document .margo-viewer__controls {
       display: inline-flex;
       inline-size: fit-content;
       max-inline-size: 100%;
@@ -631,15 +637,15 @@
       gap: 8px;
       margin-block-end: calc(var(--spacing) * 3);
     }
-    .margo-document .margo-mermaid__zoom-controls,
-    .margo-document .margo-mermaid__view-controls {
+    .margo-document .margo-viewer__zoom-controls,
+    .margo-document .margo-viewer__view-controls {
       display: inline-flex;
       align-items: center;
       padding: 2px;
       border-radius: calc(var(--radius-radius) + 4px);
       background: var(--color-surface-alt);
     }
-    .margo-document .margo-mermaid__icon-button {
+    .margo-document .margo-viewer__icon-button {
       position: relative;
       display: inline-flex;
       align-items: center;
@@ -655,20 +661,20 @@
       font: inherit;
       cursor: pointer;
     }
-    .margo-document .margo-mermaid__icon-button[hidden] {
+    .margo-document .margo-viewer__icon-button[hidden] {
       display: none;
     }
-    .margo-document .margo-mermaid__icon-button > svg {
+    .margo-document .margo-viewer__icon-button > svg {
       inline-size: 18px;
       block-size: 18px;
       pointer-events: none;
     }
-    .margo-document .margo-mermaid__icon-button:hover:not(:disabled),
-    .margo-document .margo-mermaid__icon-button[aria-pressed="true"],
-    .margo-document .margo-mermaid__icon-button[aria-expanded="true"] {
+    .margo-document .margo-viewer__icon-button:hover:not(:disabled),
+    .margo-document .margo-viewer__icon-button[aria-pressed="true"],
+    .margo-document .margo-viewer__icon-button[aria-expanded="true"] {
       background: var(--color-surface);
     }
-    .margo-document .margo-mermaid__icon-button::after {
+    .margo-document .margo-viewer__icon-button::after {
       content: attr(aria-label);
       position: absolute;
       z-index: 10;
@@ -687,115 +693,116 @@
       visibility: hidden;
       opacity: 0;
     }
-    .margo-document .margo-mermaid__icon-button:hover:not(:disabled)::after,
-    .margo-document .margo-mermaid__icon-button:focus-visible::after {
+    .margo-document .margo-viewer__icon-button:hover:not(:disabled)::after,
+    .margo-document .margo-viewer__icon-button:focus-visible::after {
       visibility: visible;
       opacity: 1;
     }
-    .margo-document .margo-mermaid__close {
+    .margo-document .margo-viewer__close {
       position: absolute;
       inset-block-start: 12px;
       inset-inline-end: 12px;
       color: var(--color-on-surface-muted);
     }
-    .margo-document .margo-mermaid__close::after {
+    .margo-document .margo-viewer__close::after {
       inset-inline-start: auto;
       inset-inline-end: 0;
       transform: none;
     }
-    .margo-document .margo-mermaid__icon-button:disabled {
+    .margo-document .margo-viewer__icon-button:disabled {
       opacity: 0.5;
       cursor: default;
     }
-    .margo-document .margo-mermaid__icon-button:focus-visible,
-    .margo-document .margo-mermaid__viewport:focus-visible {
+    .margo-document .margo-viewer__icon-button:focus-visible,
+    .margo-document .margo-viewer__viewport:focus-visible {
       outline: 2px solid var(--color-primary);
       outline-offset: 2px;
     }
-    .margo-document .margo-mermaid__controls output {
+    .margo-document .margo-viewer__controls output {
       color: var(--color-on-surface);
       font-size: var(--text-sm);
     }
-    .margo-document .margo-mermaid__controls output {
+    .margo-document .margo-viewer__controls output {
       min-inline-size: 4.5ch;
       padding-inline: 4px;
       text-align: center;
       font-size: 12px;
       font-variant-numeric: tabular-nums;
     }
-    .margo-document .margo-mermaid__help {
+    .margo-document .margo-viewer__help {
       display: inline-flex;
       align-items: center;
     }
-    .margo-document .margo-mermaid__help [role="tooltip"] {
+    .margo-document .margo-viewer__help [role="tooltip"] {
       box-sizing: border-box;
       white-space: normal;
       max-inline-size: calc(100vw - 16px);
     }
-    .margo-document .margo-mermaid__help [role="tooltip"] p {
+    .margo-document .margo-viewer__help [role="tooltip"] p {
       margin: 0;
       line-height: 1.5;
     }
-    .margo-document .margo-mermaid__help:not([data-tooltip-portal-ready]) [role="tooltip"] {
+    .margo-document .margo-viewer__help:not([data-tooltip-portal-ready]) [role="tooltip"] {
       inset: auto 0 auto auto;
       top: calc(100% + 8px);
       margin: 0;
       transform: none;
     }
-    .margo-document .margo-mermaid__help button[aria-expanded="true"]::after {
+    .margo-document .margo-viewer__help button[aria-expanded="true"]::after {
       content: none;
     }
-    .margo-document:is(.dark *) .margo-mermaid__zoom-controls,
-    .margo-document:is(.dark *) .margo-mermaid__view-controls {
+    .margo-document:is(.dark *) .margo-viewer__zoom-controls,
+    .margo-document:is(.dark *) .margo-viewer__view-controls {
       background: var(--color-surface-dark-alt);
     }
-    .margo-document:is(.dark *) .margo-mermaid__icon-button {
+    .margo-document:is(.dark *) .margo-viewer__icon-button {
       color: var(--color-on-surface-dark-strong);
     }
-    .margo-document:is(.dark *) .margo-mermaid__icon-button:hover:not(:disabled),
-    .margo-document:is(.dark *) .margo-mermaid__icon-button[aria-pressed="true"],
-    .margo-document:is(.dark *) .margo-mermaid__icon-button[aria-expanded="true"] {
+    .margo-document:is(.dark *) .margo-viewer__icon-button:hover:not(:disabled),
+    .margo-document:is(.dark *) .margo-viewer__icon-button[aria-pressed="true"],
+    .margo-document:is(.dark *) .margo-viewer__icon-button[aria-expanded="true"] {
       background: var(--color-surface-dark);
     }
-    .margo-document:is(.dark *) .margo-mermaid__icon-button::after {
+    .margo-document:is(.dark *) .margo-viewer__icon-button::after {
       background: var(--color-on-surface-dark-strong);
       color: var(--color-surface-dark);
     }
-    .margo-document:is(.dark *) .margo-mermaid__close {
+    .margo-document:is(.dark *) .margo-viewer__close {
       color: var(--color-on-surface-dark-muted);
     }
-    .margo-document:is(.dark *) .margo-mermaid__controls output {
+    .margo-document:is(.dark *) .margo-viewer__controls output {
       color: var(--color-on-surface-dark);
     }
-    .margo-document:is(.dark *) .margo-mermaid__icon-button:focus-visible,
-    .margo-document:is(.dark *) .margo-mermaid__viewport:focus-visible {
+    .margo-document:is(.dark *) .margo-viewer__icon-button:focus-visible,
+    .margo-document:is(.dark *) .margo-viewer__viewport:focus-visible {
       outline-color: var(--color-primary-dark);
     }
-    .margo-document .margo-mermaid__viewport {
+    .margo-document .margo-viewer__viewport {
       overflow: auto;
       overscroll-behavior: auto;
       touch-action: auto;
       direction: ltr;
     }
-    .margo-document .margo-mermaid__viewport--zoomed {
+    .margo-document .margo-viewer__viewport--zoomed {
       cursor: grab;
     }
-    .margo-document .margo-mermaid__viewport--dragging {
+    .margo-document .margo-viewer__viewport--dragging {
       cursor: grabbing;
       user-select: none;
     }
-    .margo-document .margo-mermaid__stage {
+    .margo-document .margo-viewer__stage {
       margin-inline: auto;
     }
-    .margo-document .margo-mermaid__stage > svg {
+    .margo-document .margo-viewer__stage > :is(svg, img) {
       display: block;
       width: 100%;
       height: 100%;
+      max-block-size: none;
       min-inline-size: 0;
       max-inline-size: none !important;
       max-width: none !important;
     }
-    .margo-document .margo-mermaid__viewer ~ .margo-mermaid__overflow-cue {
+    .margo-document .margo-viewer__viewer ~ .margo-mermaid__overflow-cue {
       display: none;
     }
   }
@@ -803,7 +810,7 @@
 
 @media screen and (pointer: coarse) {
   @layer document {
-    .margo-document .margo-mermaid__icon-button {
+    .margo-document .margo-viewer__icon-button {
       inline-size: 44px;
       block-size: 44px;
     }
@@ -824,29 +831,29 @@
 }
 
 @media print {
-  .margo-document .margo-mermaid__dialog {
+  .margo-document .margo-viewer__dialog {
     display: none !important;
   }
-  .margo-document .margo-mermaid__viewer:fullscreen {
+  .margo-document .margo-viewer__viewer:fullscreen {
     position: static !important;
     inline-size: auto !important;
     block-size: auto !important;
     padding: 0 !important;
   }
-  .margo-document .margo-mermaid__dialog-title,
-  .margo-document .margo-mermaid__dialog::backdrop {
+  .margo-document .margo-viewer__dialog-title,
+  .margo-document .margo-viewer__dialog::backdrop {
     display: none !important;
   }
-  .margo-document .margo-mermaid__controls,
-  .margo-document .margo-mermaid__close,
-  .margo-document .margo-mermaid__help [role="tooltip"] {
+  .margo-document .margo-viewer__controls,
+  .margo-document .margo-viewer__close,
+  .margo-document .margo-viewer__help [role="tooltip"] {
     display: none !important;
   }
-  .margo-document .margo-mermaid__viewport {
+  .margo-document .margo-viewer__viewport {
     height: auto !important;
     overflow: visible;
   }
-  .margo-document .margo-mermaid__stage {
+  .margo-document .margo-viewer__stage {
     display: contents;
   }
   .margo-document {

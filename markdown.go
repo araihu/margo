@@ -126,6 +126,7 @@ func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, er
 		return Metadata{}, err
 	}
 	if margoValues, ok := values["margo"].(map[string]any); ok {
+		metadata.Margo.ImageViewer, _ = margoValues["imageViewer"].(bool)
 		if pageValues, ok := margoValues["page"].(map[string]any); ok {
 			metadata.Margo.Page = &PagePreference{}
 			if value, ok := pageValues["size"].(string); ok {

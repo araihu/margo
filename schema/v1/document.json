@@ -89,11 +89,21 @@
       "type": "object",
       "additionalProperties": false,
       "examples": [{"page": {"size": "A4", "orientation": "portrait", "margins": {"top": 24, "right": 22, "bottom": 26, "left": 22}}}],
-      "x-margo-targets": ["site", "pdf", "deck"],
+      "x-margo-targets": ["html", "site", "pdf", "deck"],
       "x-margo-precedence": "explicit CLI or API option, then document preference, then built-in default",
       "x-margo-security": "Non-authoritative preferences only; publication controls do not grant capabilities or runtime access.",
       "x-margo-interactions": "Unknown nested properties fail while unknown consumer-owned root properties remain available.",
       "properties": {
+        "imageViewer": {
+          "description": "Enable zoom, pan, expanded and fullscreen views for standalone Markdown images with a title/caption. Inline images, linked thumbnails and images without captions stay static.",
+          "type": "boolean",
+          "default": false,
+          "examples": [true],
+          "x-margo-targets": ["html", "site"],
+          "x-margo-precedence": "frontmatter declaration only",
+          "x-margo-security": "No capability or privacy effect; enhances already rendered images without fetching alternate sources.",
+          "x-margo-interactions": "JavaScript enhances the existing image. Without JavaScript, in print/PDF and in presentation decks the image remains static."
+        },
         "actions": {
           "description": "Optional site publication controls. PDF publication also retains the Markdown source.",
           "type": "object",
