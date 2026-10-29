@@ -169,6 +169,10 @@ func publicationHeader(page Page) *html.Node {
 				address.AppendChild(&html.Node{Type: html.TextNode, Data: ", "})
 			}
 			span := &html.Node{Type: html.ElementNode, DataAtom: atom.Span, Data: "span", Attr: []html.Attribute{{Key: "rel", Val: "author"}}}
+			if destination := page.authorLinks[author]; destination != "" {
+				span.Data, span.DataAtom = "a", atom.A
+				span.Attr = append(span.Attr, html.Attribute{Key: "href", Val: destination})
+			}
 			span.AppendChild(&html.Node{Type: html.TextNode, Data: normalizePublicationText(author)})
 			address.AppendChild(span)
 		}
@@ -192,7 +196,12 @@ func publicationHeader(page Page) *html.Node {
 		list := &html.Node{Type: html.ElementNode, DataAtom: atom.Ul, Data: "ul", Attr: []html.Attribute{{Key: "aria-label", Val: "Tags"}, {Key: "data-margo-publication-tags", Val: "true"}}}
 		for _, tag := range page.Tags {
 			item := &html.Node{Type: html.ElementNode, DataAtom: atom.Li, Data: "li", Attr: []html.Attribute{{Key: "data-margo-publication-tag", Val: normalizePublicationText(tag)}}}
-			item.AppendChild(&html.Node{Type: html.TextNode, Data: normalizePublicationText(tag)})
+			parent := item
+			if destination := page.tagLinks[tag]; destination != "" {
+				parent = &html.Node{Type: html.ElementNode, DataAtom: atom.A, Data: "a", Attr: []html.Attribute{{Key: "href", Val: destination}}}
+				item.AppendChild(parent)
+			}
+			parent.AppendChild(&html.Node{Type: html.TextNode, Data: normalizePublicationText(tag)})
 			list.AppendChild(item)
 		}
 		header.AppendChild(list)

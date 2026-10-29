@@ -53,6 +53,28 @@ existing visible timestamp. Go's named months and weekdays are English; use
 numeric layouts when the publication needs another language. Consumer-supplied
 publication headers retain control of their own date text.
 
+## Author and tag links
+
+Use `publication_links` in each page's frontmatter to keep author profiles and
+archive destinations in the native header:
+
+```yaml
+authors: [Ana Silva, Rui Costa]
+tags: [go]
+publication_links:
+  authors:
+    Ana Silva: https://example.com/about/
+  tags:
+    go: https://example.com/tags/go/
+```
+
+Names must match declared authors or tags. Destinations must be absolute
+HTTP(S) URLs, including any public base path. Each group accepts up to 64 links.
+Margo escapes link attributes and labels. Omitted names remain plain text, so
+Rui Costa receives no invented profile. The host owns route selection and must
+declare matching JSON-LD author profile URLs separately when applicable. Links
+work in configured and directory builds, alongside native date formatting.
+
 ## Browser and application identity
 
 Add optional fields beside the existing `site.icon`:

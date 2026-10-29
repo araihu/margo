@@ -85,6 +85,8 @@ type Artifact struct {
 
 // Page records one deterministic source-to-output mapping.
 type Page struct {
+	authorLinks    map[string]string
+	tagLinks       map[string]string
 	dateFormat     string
 	StructuredData json.RawMessage    `json:"structuredData,omitempty"`
 	Source         string             `json:"source"`
@@ -291,6 +293,9 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 		page.Locale = "en"
 	}
 
+	if err := applyPublicationLinks(&page, document.Metadata()); err != nil {
+		return err
+	}
 	page.StructuredData, err = structuredDataFor(page, document.Metadata())
 	if err != nil {
 		return err

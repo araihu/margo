@@ -45,6 +45,15 @@
       "x-margo-targets": ["site"],
       "x-margo-precedence": "frontmatter then consumer routing policy"
     },
+    "publication_links": {
+      "description": "Optional host-owned links for declared author and tag names in native site publication metadata. Omitted names remain plain text.",
+      "type": "object", "additionalProperties": false,
+      "x-margo-targets": ["site"],
+      "properties": {
+        "authors": {"type": "object", "maxProperties": 64, "additionalProperties": {"type": "string", "format": "uri", "pattern": "^https?://"}},
+        "tags": {"type": "object", "maxProperties": 64, "additionalProperties": {"type": "string", "format": "uri", "pattern": "^https?://"}}
+      }
+    },
     "social_image": {
       "description": "Optional configured-site social preview. The path is relative to this Markdown source, with an optional leading ./; the image is published even in inline asset mode. Supports PNG, JPEG, GIF and WebP up to 8 MiB. Omission uses the site fallback.",
       "type": "object", "additionalProperties": false,
