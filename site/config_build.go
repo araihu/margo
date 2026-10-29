@@ -746,6 +746,9 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			}
 			page.Layout = string(resolvedLayout.Kind)
 		}
+		if err := applyPublicationLinks(&page, document.Metadata()); err != nil {
+			return err
+		}
 		page.dateFormat = b.config.Publication.DateFormat
 		page.Canonical = b.pageURL(page)
 		page.StructuredData, err = structuredDataFor(page, document.Metadata())
