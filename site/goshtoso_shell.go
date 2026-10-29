@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const goshtosoComponentDocShellVersion = "v0.1.9-0.20261027210301-4716e6beddc6"
+const goshtosoComponentDocShellVersion = "v0.1.9-0.20261029032501-ebb7cf05ce94"
 
 const componentDocShellScrollSpyAssetName = "margo-scroll-spy.js"
 
