@@ -12,8 +12,8 @@ github.com/andybalholm/brotli v1.2.6 h1:ftYnfj6usCp+UGV5kSJ3+chpMQgU+gJf/AxsUQ52
 github.com/andybalholm/brotli v1.2.6/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/araihu/goshtoso v0.4.0 h1:xMs4L6+IIItyCySzMFx/vGFXY4C1XjxSCfnGhUAEB+E=
 github.com/araihu/goshtoso v0.4.0/go.mod h1:G2l9ca5YESuKukZsFlTsPhTuTqRI60Puw4s5v2AS000=
-github.com/araihu/goshtoso-app-shells v0.1.9-0.20261029023026-22caa37f8553 h1:a47wVtt+ytDc2BRp/7OMiZ54Rt8JswMTq/50YURfEHc=
-github.com/araihu/goshtoso-app-shells v0.1.9-0.20261029023026-22caa37f8553/go.mod h1:49lyfabmlJnpf2gUttpcGd2qN+kD1ETLtaX3L9XyUjc=
+github.com/araihu/goshtoso-app-shells v0.1.9-0.20261029024817-3dc0d20d73eb h1:oRZzTp6GbMqe+N0cHHQ8gABVqpnuP1Ezbou9bwVfeuU=
+github.com/araihu/goshtoso-app-shells v0.1.9-0.20261029024817-3dc0d20d73eb/go.mod h1:49lyfabmlJnpf2gUttpcGd2qN+kD1ETLtaX3L9XyUjc=
 github.com/araihu/goshtoso-charts v0.0.2 h1:IfcatIJ1GariJhFy6wzSfCW4tERxBaCHvNqHy7yy6xc=
 github.com/araihu/goshtoso-charts v0.0.2/go.mod h1:Fh256bSOgTexH2SYgC28dHNblZtwq4mw7UfryXvLdQs=
 github.com/araihu/muamba v0.0.6 h1:dyXHGLoh7YNmLBKWHuFae77kTEj+xev/N5YMb6G3yZU=
