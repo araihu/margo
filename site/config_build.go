@@ -34,6 +34,7 @@ import (
 )
 
 type configuredPage struct {
+	socialImage   *socialPreview
 	page          Page
 	layout        ResolvedLayout
 	layoutSources []string
@@ -745,12 +746,17 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 			}
 			page.Layout = string(resolvedLayout.Kind)
 		}
+		page.dateFormat = b.config.Publication.DateFormat
 		page.Canonical = b.pageURL(page)
 		page.StructuredData, err = structuredDataFor(page, document.Metadata())
 		if err != nil {
 			return err
 		}
-		b.configured[source.Path] = configuredPage{page: page, layout: resolvedLayout, layoutSources: layoutSources, article: article, plainText: result.PlainText(), result: result, document: document}
+		social, err := b.preparePageSocialImage(ctx, source, document.Metadata())
+		if err != nil {
+			return err
+		}
+		b.configured[source.Path] = configuredPage{socialImage: social, page: page, layout: resolvedLayout, layoutSources: layoutSources, article: article, plainText: result.PlainText(), result: result, document: document}
 		b.configPages = append(b.configPages, page)
 	}
 	sort.Slice(b.configPages, func(i, j int) bool { return pageRouteLess(b.configPages[i], b.configPages[j]) })
@@ -1118,6 +1124,9 @@ func (b *builder) stageConfiguredAssets(config Config) error {
 	if err := b.stageConfigAsset(config.Site.Icon, "site.icon", ""); err != nil {
 		return err
 	}
+	if err := b.stagePublicationHeadAssets(); err != nil {
+		return err
+	}
 	if err := b.stageSocialImage(config.Site.SocialImage); err != nil {
 		return err
 	}
@@ -1299,6 +1308,9 @@ func (b *builder) stageConfigAsset(name, subject, expectedMedia string) error {
 	mediaType := expectedMedia
 	if expectedMedia != "text/css" && expectedMedia != "application/yaml" {
 		mediaType, err = staticimage.DetectContext(context.Background(), data)
+	}
+	if err != nil && subject == "site.icon" {
+		mediaType, err = browserIconMedia(data)
 	}
 	if err != nil {
 		return diagnostic("site.asset_invalid", fmt.Sprintf("%s %q: %v", subject, name, err), "Use a valid local asset.", name)
@@ -2058,9 +2070,10 @@ func (b *builder) localeFragment(page Page) string {
 
 func (b *builder) renderPageHeadForLayout(page Page, layout ResolvedLayout, iconURL string, dependencyBytes []byte, requirements margo.HTMLRequirements) (string, error) {
 	var builder strings.Builder
-	builder.WriteString(`<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="` + stdhtml.EscapeString(iconURL) + `"><title>` + stdhtml.EscapeString(page.Title) + `</title><meta name="description" content="` + stdhtml.EscapeString(page.Description) + `"><link rel="canonical" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
-	builder.WriteString(`<meta property="og:url" content="` + stdhtml.EscapeString(page.Canonical) + `"><meta property="og:type" content="website"><meta property="og:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta property="og:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta property="og:site_name" content="` + stdhtml.EscapeString(b.config.Site.Name) + `"><meta property="og:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta property="og:image:type" content="` + stdhtml.EscapeString(b.socialMediaType) + `"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
-	builder.WriteString(`<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta name="twitter:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta name="twitter:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta name="twitter:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `">`)
+	builder.WriteString(`<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">`)
+	builder.WriteString(b.publicationBrandHead(iconURL))
+	builder.WriteString(`<title>` + stdhtml.EscapeString(page.Title) + `</title><meta name="description" content="` + stdhtml.EscapeString(page.Description) + `"><link rel="canonical" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
+	builder.WriteString(b.socialHead(page))
 	for _, alternate := range page.Alternates {
 		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(alternate.URL) + `">`)
 	}
@@ -2165,11 +2178,7 @@ func (b *builder) themeBootstrap() string {
 }
 
 func (b *builder) socialURL() string {
-	basePath := normalizedBasePath(b.config.BasePath)
-	if basePath == "/" {
-		basePath = ""
-	}
-	return strings.TrimSuffix(b.config.Site.BaseURL, "/") + basePath + "/" + strings.TrimPrefix(b.config.Site.SocialImage.Path, "/")
+	return b.publicAssetURL(b.config.Site.SocialImage.Path)
 }
 
 func validateConfiguredDocument(document []byte, page Page, bindings map[string][]ssg.AreaBinding) error {

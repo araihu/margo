@@ -53,7 +53,7 @@ type AssetMode string
 const (
 	AssetsLocal  AssetMode = "local"
 	AssetsInline AssetMode = "inline"
-	// ManifestPath is reserved for the CLI-owned exact-byte manifest.
+	// ManifestPath is reserved for the exact-byte site manifest.
 	ManifestPath = "margo-manifest.json"
 	// SitemapPath is the generated XML index of configured public routes.
 	SitemapPath = "sitemap.xml"
@@ -85,6 +85,7 @@ type Artifact struct {
 
 // Page records one deterministic source-to-output mapping.
 type Page struct {
+	dateFormat     string
 	StructuredData json.RawMessage    `json:"structuredData,omitempty"`
 	Source         string             `json:"source"`
 	Output         string             `json:"output"`

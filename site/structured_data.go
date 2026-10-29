@@ -106,3 +106,22 @@ func projectStructuredData(root, head *html.Node, page Page) error {
 	head.AppendChild(script)
 	return nil
 }
+
+// articleStructuredDataPage recognizes an explicit single-page article identity.
+func articleStructuredDataPage(page Page) bool {
+	var data map[string]any
+	if json.Unmarshal(page.StructuredData, &data) != nil {
+		return false
+	}
+	switch kind := data["@type"].(type) {
+	case string:
+		return kind == "Article" || kind == "BlogPosting"
+	case []any:
+		for _, item := range kind {
+			if value, ok := item.(string); ok && (value == "Article" || value == "BlogPosting") {
+				return true
+			}
+		}
+	}
+	return false
+}

@@ -562,6 +562,7 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 	if page.Source == b.config.Site.Home && page.Locale == b.config.Locales.Default {
 		documentTitle = page.Title
 	}
+	preview := b.pageSocialPreview(page)
 	shellPage := componentdocshell.Page{
 		Title:         page.Title,
 		DocumentTitle: documentTitle,
@@ -570,11 +571,11 @@ func (b *builder) renderConfiguredShellSource(ctx context.Context, source Source
 		SiteName:      b.config.Site.Name,
 		Locale:        openGraphLocale(page.Locale),
 		SocialImage: componentdocshell.SocialImage{
-			URL:      b.socialURL(),
-			MIMEType: b.socialMediaType,
-			Width:    1280,
-			Height:   640,
-			Alt:      b.config.Site.SocialImage.Alt,
+			URL:      preview.URL,
+			MIMEType: preview.MediaType,
+			Width:    preview.Width,
+			Height:   preview.Height,
+			Alt:      preview.Alt,
 		},
 		Active:    componentDocShellPageID(b, page),
 		Content:   templ.Raw(content),
@@ -640,6 +641,7 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 		documentTitle = page.Title
 	}
 	searchConfig := b.typedComponentDocShellSearchConfig(page)
+	preview := b.pageSocialPreview(page)
 	shellPage := componentdocshell.Page{
 		Title:         page.Title,
 		DocumentTitle: documentTitle,
@@ -648,11 +650,11 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 		SiteName:      b.config.Site.Name,
 		Locale:        openGraphLocale(page.Locale),
 		SocialImage: componentdocshell.SocialImage{
-			URL:      b.socialURL(),
-			MIMEType: b.socialMediaType,
-			Width:    1280,
-			Height:   640,
-			Alt:      b.config.Site.SocialImage.Alt,
+			URL:      preview.URL,
+			MIMEType: preview.MediaType,
+			Width:    preview.Width,
+			Height:   preview.Height,
+			Alt:      preview.Alt,
 		},
 		ActiveFamily: b.typedComponentDocShellActiveFamily(page),
 		Active:       componentDocShellPageID(b, page),
@@ -721,7 +723,7 @@ func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source S
 		DocumentTitle:  page.Title,
 		Description:    page.Description,
 		CanonicalURL:   page.Canonical,
-		SocialImageURL: b.socialURL(),
+		SocialImageURL: b.pageSocialPreview(page).URL,
 		Head:           templ.Raw(head),
 		Hero:           templ.Raw(string(hero)),
 		Content:        templ.Raw(string(content)),
@@ -763,10 +765,9 @@ func (b *builder) typedLandingShellConfig(prepared configuredPage) landingshell.
 	page := prepared.page
 	links := b.typedLandingShellLinks(prepared)
 	brand := landingshell.Brand{
-		Name:       b.config.Site.Name,
-		HomeURL:    b.siteHomeHref(page),
-		Logo:       templ.Raw(`<img src="` + stdhtml.EscapeString(b.publicationArtifactHref(b.config.Site.Logo)) + `" alt="">`),
-		FaviconURL: b.publicationArtifactHref(b.config.Site.Icon),
+		Name:    b.config.Site.Name,
+		HomeURL: b.siteHomeHref(page),
+		Logo:    templ.Raw(`<img src="` + stdhtml.EscapeString(b.publicationArtifactHref(b.config.Site.Logo)) + `" alt="">`),
 	}
 	if b.config.Site.Version != "" {
 		brand.Badge = &landingshell.BrandBadge{
@@ -854,9 +855,12 @@ func landingShellSlots(fragment []byte) ([]byte, []byte, error) {
 
 func (b *builder) renderResolvedLandingShellHead(page Page, layout ResolvedLayout, dependencyBytes []byte) (string, error) {
 	var builder strings.Builder
+	preview := b.pageSocialPreview(page)
+	builder.WriteString(b.publicationBrandHead(b.publicationArtifactHref(b.config.Site.Icon)))
 	builder.WriteString(`<meta property="og:site_name" content="` + stdhtml.EscapeString(b.config.Site.Name) + `">`)
-	builder.WriteString(`<meta property="og:image:type" content="` + stdhtml.EscapeString(b.socialMediaType) + `"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
-	builder.WriteString(`<meta name="twitter:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta name="twitter:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta name="twitter:image" content="` + stdhtml.EscapeString(b.socialURL()) + `"><meta name="twitter:image:alt" content="` + stdhtml.EscapeString(b.config.Site.SocialImage.Alt) + `">`)
+	builder.WriteString(`<meta property="og:image:type" content="` + stdhtml.EscapeString(preview.MediaType) + `"><meta property="og:image:width" content="` + fmt.Sprint(preview.Width) + `"><meta property="og:image:height" content="` + fmt.Sprint(preview.Height) + `"><meta property="og:image:alt" content="` + stdhtml.EscapeString(preview.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
+	builder.WriteString(`<meta name="twitter:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta name="twitter:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta name="twitter:image" content="` + stdhtml.EscapeString(preview.URL) + `"><meta name="twitter:image:alt" content="` + stdhtml.EscapeString(preview.Alt) + `">`)
+
 	for _, alternate := range page.Alternates {
 		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(alternate.URL) + `"><meta property="og:locale:alternate" content="` + stdhtml.EscapeString(openGraphLocale(alternate.Locale)) + `">`)
 	}
@@ -1050,6 +1054,7 @@ func componentDocShellSearchWithConfig(config search.Config) templ.Component {
 
 func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 	var builder strings.Builder
+	builder.WriteString(b.publicationBrandHead(b.publicationArtifactHref(b.config.Site.Icon)))
 	if b.request.Assets == AssetsInline {
 		builder.WriteString(`<style data-margo-layout-style="docs">` + configuredDocsCSS + `</style>`)
 		builder.WriteString(`<script data-margo-layout-dependency="page-actions">` + pageActionsScript + `</script>`)
@@ -1246,7 +1251,7 @@ func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand
 	logoURL := b.publicationArtifactHref(b.config.Site.Logo)
 	iconURL := b.publicationArtifactHref(b.config.Site.Icon)
 	brand := componentdocshell.Brand{
-		Name: b.config.Site.Name, HomeURL: homeURL, FaviconURL: iconURL,
+		Name: b.config.Site.Name, HomeURL: homeURL,
 		HideName:    b.config.Site.HideName,
 		ManagedLogo: &componentdocshell.ManagedBrandAsset{URL: logoURL, Alt: b.config.Site.Name, Width: 100, Height: 40},
 		CompactLogo: templ.Raw(`<img src="` + stdhtml.EscapeString(iconURL) + `" alt="">`),
@@ -1531,10 +1536,7 @@ func (b *builder) shellPageHref(page Page) string {
 
 func (b *builder) renderComponentDocShellHead(page Page) string {
 	var builder strings.Builder
-	iconURL, _ := relativeSitePath(path.Dir(page.Output), b.config.Site.Icon)
-	if iconURL != "" {
-		builder.WriteString(`<link rel="icon" href="` + stdhtml.EscapeString(iconURL) + `">`)
-	}
+	builder.WriteString(b.publicationBrandHead(b.publicationArtifactHref(b.config.Site.Icon)))
 	builder.WriteString(`<link rel="stylesheet" href="/margo-assets/site.css">`)
 	builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(pageActionsScriptPath) + `"></script>`)
 	for _, css := range b.config.CustomCSS {

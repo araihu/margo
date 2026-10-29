@@ -45,6 +45,16 @@
       "x-margo-targets": ["site"],
       "x-margo-precedence": "frontmatter then consumer routing policy"
     },
+    "social_image": {
+      "description": "Optional configured-site social preview. The path is relative to this Markdown source, with an optional leading ./; the image is published even in inline asset mode. Supports PNG, JPEG, GIF and WebP up to 8 MiB. Omission uses the site fallback.",
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "alt"],
+      "x-margo-targets": ["site"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "examples": ["./assets/cover.png"]},
+        "alt": {"type": "string", "minLength": 1, "maxLength": 512, "x-margo-maxUtf8Bytes": 512}
+      }
+    },
     "authors": {
       "description": "Ordered author display names.",
       "type": "array",
