@@ -1,4 +1,5 @@
 import {expect, test} from "@playwright/test";
+import {moveTouches, pinch} from "../harness/touch.mjs";
 import {execFileSync} from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,6 +8,7 @@ import {fileURLToPath} from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const origin = "http://margo.test";
+const longCaption = "Layouts de apresentação — imagem com zoom e pan";
 let workspace;
 
 test.beforeAll(async ({browser}) => {
@@ -83,6 +85,9 @@ themes:
   execFileSync(binary, ["site", path.join(workspace, "site.yaml"), "--output-dir", path.join(workspace, "site")]);
   fs.writeFileSync(path.join(workspace, "docs/standalone.md"), article.replace('![Unavailable screenshot](missing.png "Missing image")', ""));
   execFileSync(binary, ["html", path.join(workspace, "docs/standalone.md"), "--output", path.join(workspace, "inline.html")]);
+  const longArticle = fs.readFileSync(path.join(workspace, "docs/standalone.md"), "utf8").replace('"Platform dashboard"', `"${longCaption}"`);
+  fs.writeFileSync(path.join(workspace, "docs/long-caption.md"), longArticle);
+  execFileSync(binary, ["html", path.join(workspace, "docs/long-caption.md"), "--output", path.join(workspace, "long-caption.html")]);
 });
 
 test.afterAll(() => fs.rmSync(workspace, {recursive: true, force: true}));
@@ -242,21 +247,233 @@ test("@image-viewer touch pans within a zoomed image and outside gestures scroll
   const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
   const page = await context.newPage();
   await open(page);
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).tap();
   await figure(page).getByRole("button", {name: "Actual size", exact: true}).tap();
   await canvas(page).evaluate((el) => el.scrollTo(0, 0));
   await canvas(page).scrollIntoViewIfNeeded();
   const box = await canvas(page).boundingBox();
   const session = await context.newCDPSession(page);
   const swipe = async (x, y) => {
-    await session.send("Input.dispatchTouchEvent", {type: "touchStart", touchPoints: [{x, y}]});
-    for (let i = 1; i <= 5; i++) await session.send("Input.dispatchTouchEvent", {type: "touchMove", touchPoints: [{x: x - i * 12, y: y - i * 18}]});
+    const from = [{id: 1, x, y}];
+    await session.send("Input.dispatchTouchEvent", {type: "touchStart", touchPoints: from});
+    await moveTouches(page, session, from, [{id: 1, x: x - 60, y: y - 90}]);
     await session.send("Input.dispatchTouchEvent", {type: "touchEnd", touchPoints: []});
   };
   await swipe(box.x + box.width * 0.7, box.y + box.height * 0.8);
   await expect.poll(() => canvas(page).evaluate((el) => el.scrollLeft + el.scrollTop)).toBeGreaterThan(0);
+  await page.getByRole("button", {name: "Close expanded view", exact: true}).tap();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("");
   await page.evaluate(() => scrollTo(0, 0));
   const before = await page.evaluate(() => scrollY);
   await swipe(20, 250);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
   await context.close();
 });
+
+test("@image-viewer expanded pinch shares zoom controls, preserves the focal point and hands off to pan", async ({browser}) => {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
+  const page = await context.newPage();
+  await open(page);
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).tap();
+  expect(await canvas(page).evaluate((el) => getComputedStyle(el).touchAction)).toBe("none");
+  const pageScale = await page.evaluate(() => visualViewport.scale);
+  const session = await context.newCDPSession(page);
+  const image = canvas(page).locator("img");
+  const fitted = await image.boundingBox();
+  await pinch(page, session, {x: fitted.x + fitted.width / 2, y: fitted.y + fitted.height / 2}, 3);
+  expect((await image.boundingBox()).width / fitted.width).toBeCloseTo(3, 1);
+  await expect(figure(page).locator("output")).toHaveText("300%");
+  await figure(page).getByRole("button", {name: "Zoom in", exact: true}).tap();
+  await expect(figure(page).locator("output")).toHaveText("375%");
+  expect(await page.evaluate(() => visualViewport.scale)).toBeCloseTo(pageScale, 4);
+
+  await figure(page).getByRole("button", {name: "Actual size", exact: true}).tap();
+  await canvas(page).evaluate((el) => el.scrollTo(1000, 1000));
+  const box = await canvas(page).boundingBox();
+  const center = {x: box.x + box.width / 2, y: box.y + box.height / 2};
+  const before = await image.boundingBox();
+  const point = {x: (center.x - before.x) / before.width, y: (center.y - before.y) / before.height};
+  const offset = {x: -12, y: -20};
+  const fingers = await pinch(page, session, center, 0.7, offset, false);
+  const after = await image.boundingBox();
+  expect(after.width / before.width).toBeCloseTo(0.7, 1);
+  expect((center.x + offset.x - after.x) / after.width).toBeCloseTo(point.x, 2);
+  expect((center.y + offset.y - after.y) / after.height).toBeCloseTo(point.y, 2);
+
+  // End the second contact while keeping the first on the surface.
+  await session.send("Input.dispatchTouchEvent", {type: "touchEnd", touchPoints: [fingers[1]]});
+  const start = await canvas(page).evaluate((el) => [el.scrollLeft, el.scrollTop]);
+  await moveTouches(page, session, [fingers[0]], [{...fingers[0], x: fingers[0].x - 35, y: fingers[0].y - 40}]);
+  const panned = await canvas(page).evaluate((el) => [el.scrollLeft, el.scrollTop]);
+  expect(panned[0] - start[0]).toBeCloseTo(35, 0);
+  expect(panned[1] - start[1]).toBeCloseTo(40, 0);
+  await session.send("Input.dispatchTouchEvent", {type: "touchCancel", touchPoints: []});
+  const canceled = await canvas(page).evaluate((el) => [el.scrollLeft, el.scrollTop]);
+  const fresh = [{id: 3, x: center.x, y: center.y}];
+  await session.send("Input.dispatchTouchEvent", {type: "touchStart", touchPoints: fresh});
+  await moveTouches(page, session, fresh, [{id: 3, x: center.x - 25, y: center.y - 25}]);
+  // A fresh contact pans independently after cancellation; it has no stale anchor.
+  await session.send("Input.dispatchTouchEvent", {type: "touchEnd", touchPoints: []});
+  const restarted = await canvas(page).evaluate((el) => [el.scrollLeft, el.scrollTop]);
+  expect(restarted[0] - canceled[0]).toBeCloseTo(25, 0);
+  expect(restarted[1] - canceled[1]).toBeCloseTo(25, 0);
+  expect(await page.evaluate(() => visualViewport.scale)).toBeCloseTo(pageScale, 4);
+  await page.getByRole("button", {name: "Close expanded view", exact: true}).tap();
+  await expect(figure(page).locator("output")).toHaveText("100%");
+  expect(await canvas(page).evaluate((el) => getComputedStyle(el).touchAction)).toBe("auto");
+  await context.close();
+});
+
+test("@image-viewer inline touch keeps native gestures and double taps do not expand", async ({browser}) => {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
+  const page = await context.newPage();
+  await open(page);
+  await canvas(page).evaluate((el) => {
+    window.inlineTouchDefaults = [];
+    for (const name of ["pointerdown", "pointermove"]) el.addEventListener(name, (event) => {
+      if (event.pointerType === "touch") window.inlineTouchDefaults.push(event.defaultPrevented);
+    });
+  });
+  await canvas(page).scrollIntoViewIfNeeded();
+  const box = await canvas(page).boundingBox();
+  const session = await context.newCDPSession(page);
+  const center = {x: box.x + box.width / 2, y: box.y + box.height / 2};
+  await page.touchscreen.tap(center.x, center.y);
+  await page.touchscreen.tap(center.x, center.y);
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await pinch(page, session, center, 2);
+  // Desktop headless Chromium does not perform native page pinch even on a
+  // plain control page. Check that the viewer leaves that gesture uncanceled;
+  // native page scaling itself requires a physical mobile browser check.
+  expect(await canvas(page).evaluate((el) => getComputedStyle(el).touchAction)).toBe("auto");
+  const canceled = await page.evaluate(() => window.inlineTouchDefaults);
+  expect(canceled.length).toBeGreaterThan(0);
+  expect(canceled.every((value) => value === false)).toBe(true);
+  await expect(figure(page).locator("output")).toHaveText("100%");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await context.close();
+});
+
+test("@image-viewer rapid control taps zoom only the image in inline and expanded views", async ({browser}) => {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
+  const page = await context.newPage();
+  await open(page);
+  const scale = await page.evaluate(() => visualViewport.scale);
+  const zoomIn = figure(page).getByRole("button", {name: "Zoom in", exact: true});
+  for (const expanded of [false, true]) {
+    if (expanded) await figure(page).getByRole("button", {name: "Expand", exact: true}).tap();
+    expect(await zoomIn.evaluate((el) => getComputedStyle(el).touchAction)).toBe("manipulation");
+    await zoomIn.tap();
+    await zoomIn.tap();
+    await expect(figure(page).locator("output")).toHaveText("156%");
+    expect(await page.evaluate(() => visualViewport.scale)).toBeCloseTo(scale, 4);
+    if (!expanded) await expect(page.getByRole("dialog")).toBeHidden();
+  }
+  await context.close();
+});
+
+test("@image-viewer expanded and fullscreen fallback fit an already zoomed page", async ({browser}) => {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
+  const page = await context.newPage();
+  await open(page);
+  const session = await context.newCDPSession(page);
+  await session.send("Emulation.setPageScaleFactor", {pageScaleFactor: 2});
+  const expand = figure(page).getByRole("button", {name: "Expand", exact: true});
+  await expand.focus();
+  await page.keyboard.press("Enter");
+  const fits = () => page.evaluate(() => {
+    const bounds = document.querySelector("dialog[open]").getBoundingClientRect();
+    const viewport = visualViewport;
+    const canvas = document.querySelector("dialog[open] .margo-viewer__viewport").getBoundingClientRect();
+    return bounds.left >= viewport.offsetLeft - 1 && bounds.top >= viewport.offsetTop - 1 &&
+      bounds.right <= viewport.offsetLeft + viewport.width + 1 &&
+      bounds.bottom <= viewport.offsetTop + viewport.height + 1 &&
+      canvas.height >= Math.min(64, viewport.height / 4) && canvas.width > 0;
+  });
+  await expect.poll(fits).toBe(true);
+  expect(await page.evaluate(() => visualViewport.scale)).toBeCloseTo(2, 3);
+  await page.emulateMedia({media: "print"});
+  await page.emulateMedia({media: "screen"});
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect.poll(fits).toBe(true);
+  await page.setViewportSize({width: 844, height: 390});
+  await expect.poll(fits).toBe(true);
+  await page.evaluate(() => { Element.prototype.requestFullscreen = undefined; });
+  await figure(page).getByRole("button", {name: "Fullscreen", exact: true}).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toHaveClass(/margo-viewer__dialog--fullscreen/);
+  await expect.poll(fits).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  expect(await page.evaluate(() => visualViewport.scale)).toBeCloseTo(2, 3);
+  await context.close();
+});
+
+for (const scenario of [{width: 320, height: 568, scale: 2}, {width: 390, height: 844, scale: 3}]) {
+  test(`@image-viewer caption and controls remain reachable at ${scenario.width}px and ${scenario.scale * 100}% page zoom`, async ({browser}, testInfo) => {
+    const context = await browser.newContext({viewport: {width: scenario.width, height: scenario.height}, isMobile: true, hasTouch: true});
+    const page = await context.newPage();
+    await open(page, "/long-caption.html");
+    const session = await context.newCDPSession(page);
+    await session.send("Emulation.setPageScaleFactor", {pageScaleFactor: scenario.scale});
+    await figure(page).getByRole("button", {name: "Expand", exact: true}).focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog");
+    const header = dialog.getByRole("region", {name: "Image caption and controls"});
+    await expect(header).toBeVisible();
+    await expect(header).toHaveAttribute("tabindex", "0");
+    await expect(dialog.locator("h2")).toHaveText(longCaption);
+    const usefulImage = () => canvas(page).evaluate((el) => {
+      const bounds = el.getBoundingClientRect();
+      const viewport = visualViewport;
+      const image = el.querySelector("img").getBoundingClientRect();
+      return bounds.width > 0 && bounds.height >= Math.min(64, viewport.height / 4) &&
+        bounds.top >= viewport.offsetTop - 1 && bounds.bottom <= viewport.offsetTop + viewport.height + 1 &&
+        image.width > 0 && image.height > 0;
+    });
+    await expect.poll(usefulImage).toBe(true);
+
+    // Keyboard focus must reveal each control inside the bounded scroll area.
+    // toBeVisible alone would accept controls clipped by an ancestor.
+    for (const label of ["Zoom out", "Zoom in", "Actual size", "Fit image", "Fullscreen"]) {
+      const control = header.getByRole("button", {name: label, exact: true});
+      await control.focus();
+      await expect.poll(() => control.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const clip = el.closest(".margo-viewer__header").getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return box.left >= clip.left - 1 && box.right <= clip.right + 1 &&
+          box.top >= clip.top - 1 && box.bottom <= clip.bottom + 1 &&
+          !!hit && (hit === el || el.contains(hit));
+      })).toBe(true);
+      await expect.poll(usefulImage).toBe(true);
+    }
+    await header.getByRole("button", {name: "Zoom in", exact: true}).focus();
+    await page.keyboard.press("Enter");
+    await expect(figure(page).locator("output")).toHaveText("125%");
+    await header.focus();
+    await header.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await expect.poll(() => header.locator("h2").evaluate((el) => {
+      const text = el.getBoundingClientRect();
+      const clip = el.parentElement.getBoundingClientRect();
+      return Math.min(text.bottom, clip.bottom) > Math.max(text.top, clip.top);
+    })).toBe(true);
+    await expect.poll(usefulImage).toBe(true);
+    await page.screenshot({path: testInfo.outputPath("compact-viewer.png")});
+    const close = dialog.getByRole("button", {name: "Close expanded view", exact: true});
+    await expect.poll(() => close.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const viewport = visualViewport;
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return box.left >= viewport.offsetLeft - 1 && box.right <= viewport.offsetLeft + viewport.width + 1 &&
+        box.top >= viewport.offsetTop - 1 && box.bottom <= viewport.offsetTop + viewport.height + 1 &&
+        !!hit && (hit === el || el.contains(hit));
+    })).toBe(true);
+    await close.focus();
+    await page.keyboard.press("Enter");
+    await expect(dialog).toBeHidden();
+    expect(await page.evaluate(() => visualViewport.scale)).toBeCloseTo(scenario.scale, 3);
+    await context.close();
+  });
+}

@@ -484,6 +484,16 @@ to use `+`/`-`, `0` or `Home` to fit, and arrow keys to pan a zoomed image.
 Ctrl+wheel zooms around the pointer. Escape closes the expanded view and
 returns focus without moving the reader's position in the article.
 
+On touch screens, use **Expand** to explore an image: pinch with two fingers
+to zoom and drag with one finger to pan a zoomed image. Pinch and the buttons
+share the same zoom state. In the article, gestures retain the browser's
+normal scrolling and page zoom. Rapid taps on viewer controls affect only
+the image, and touch double taps do not open an expanded view. The same
+gesture behavior applies to Mermaid diagrams.
+The expanded view fits the visible screen even when the page is already zoomed.
+When space is limited, the caption and controls scroll separately from the image;
+the close button remains available.
+
 Each figure has independent state. Alt text and captions remain available;
 without JavaScript, in print/PDF and in presentation decks the image is static.
 This works in standalone HTML and generated sites without custom scripts.
