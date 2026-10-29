@@ -102,6 +102,13 @@
         "empty_text": {"type": "string", "minLength": 1}
       }
     },
+    "publication": {
+      "description": "Visible publication metadata formatting. Machine timestamps retain their original timezone and precision.",
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "date_format": {"type": "string", "minLength": 1, "maxLength": 128, "description": "Optional Go time layout for visible dates. Omission preserves RFC 3339 text. Month and weekday names follow Go's English time formatting.", "examples": ["02/01/2006", "2006-01-02"]}
+      }
+    },
     "navigation": {
       "$ref": "#/$defs/navigation"
     },
@@ -189,7 +196,22 @@
         },
         "social_image": {
           "$ref": "#/$defs/socialImage"
-        }
+        },
+        "icons": {
+          "description": "Additional PNG, safe SVG or ICO browser icons, or PNG Apple Touch icons. Replaces the default icon link when the same path is declared with rel icon.",
+          "type": "array", "maxItems": 32,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["path"],
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "rel": {"type": "string", "enum": ["icon", "shortcut icon", "apple-touch-icon"], "default": "icon"},
+              "sizes": {"type": "string", "pattern": "^(any|[1-9][0-9]{0,3}x[1-9][0-9]{0,3}( [1-9][0-9]{0,3}x[1-9][0-9]{0,3})*)$"}
+            }
+          }
+        },
+        "webmanifest": {"type": "string", "minLength": 1, "description": "Local webmanifest JSON object, up to 64 KiB, copied unchanged. Paths inside it remain consumer-owned and relative to its published location."},
+        "application_name": {"type": "string", "minLength": 1, "maxLength": 256, "description": "Application name for browser and Apple mobile metadata."},
+        "theme_color": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Browser theme color as a six-digit hexadecimal color."}
       }
     },
     "socialImage": {

@@ -128,6 +128,11 @@ func projectPageMetadata(document []byte, page Page) ([]byte, error) {
 	if err := projectStructuredData(root, head, page); err != nil {
 		return nil, err
 	}
+	if articleStructuredDataPage(page) {
+		if node := firstHeadMeta(head, "property", "og:type"); node != nil {
+			setHTMLAttribute(node, "content", "article")
+		}
+	}
 	if hasPublicationMetadata(page) {
 		article := findDocumentArticle(root)
 		if article == nil {
@@ -176,10 +181,10 @@ func publicationHeader(page Page) *html.Node {
 			{Key: "aria-label", Val: localizedLabel(page.Locale, "publication_dates")},
 		}}
 		if page.PublishedAt != "" {
-			dates.AppendChild(publicationDate("published", page.PublishedAt, localizedLabel(page.Locale, "published"), false))
+			dates.AppendChild(publicationDate("published", page.PublishedAt, localizedLabel(page.Locale, "published"), false, page.dateFormat))
 		}
 		if page.ModifiedAt != "" {
-			dates.AppendChild(publicationDate("modified", page.ModifiedAt, localizedLabel(page.Locale, "updated"), page.PublishedAt != ""))
+			dates.AppendChild(publicationDate("modified", page.ModifiedAt, localizedLabel(page.Locale, "updated"), page.PublishedAt != "", page.dateFormat))
 		}
 		header.AppendChild(dates)
 	}
@@ -195,7 +200,7 @@ func publicationHeader(page Page) *html.Node {
 	return header
 }
 
-func publicationDate(kind, value, label string, separator bool) *html.Node {
+func publicationDate(kind, value, label string, separator bool, format string) *html.Node {
 	date := &html.Node{Type: html.ElementNode, DataAtom: atom.Span, Data: "span", Attr: []html.Attribute{
 		{Key: "class", Val: "margo-document__publication-date"},
 		{Key: "data-margo-publication-kind", Val: kind},
@@ -216,15 +221,25 @@ func publicationDate(kind, value, label string, separator bool) *html.Node {
 	labelNode.AppendChild(&html.Node{Type: html.TextNode, Data: label})
 	date.AppendChild(labelNode)
 	date.AppendChild(&html.Node{Type: html.TextNode, Data: " "})
-	date.AppendChild(publicationTime(kind, value))
+	date.AppendChild(publicationTime(kind, value, format))
 	return date
 }
 
-func publicationTime(kind, value string) *html.Node {
+func publicationTime(kind, value, format string) *html.Node {
 	timeNode := &html.Node{Type: html.ElementNode, DataAtom: atom.Time, Data: "time", Attr: []html.Attribute{
 		{Key: "datetime", Val: value}, {Key: "data-margo-publication-date", Val: kind},
 	}}
-	timeNode.AppendChild(&html.Node{Type: html.TextNode, Data: value})
+	visible := value
+	if format != "" {
+		parsed, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			parsed, err = time.Parse("2006-01-02", value)
+		}
+		if err == nil {
+			visible = parsed.Format(format)
+		}
+	}
+	timeNode.AppendChild(&html.Node{Type: html.TextNode, Data: visible})
 	return timeNode
 }
 

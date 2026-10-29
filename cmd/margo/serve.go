@@ -166,7 +166,7 @@ func (project *serveProject) Build(ctx context.Context) (devserver.Snapshot, err
 	if err != nil {
 		return devserver.Snapshot{}, err
 	}
-	manifest, err := marshalSiteManifest(result, "")
+	manifest, err := site.MarshalManifest(result, "")
 	if err != nil {
 		return devserver.Snapshot{}, err
 	}

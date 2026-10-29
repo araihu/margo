@@ -20,39 +20,56 @@ import (
 
 // Config is the v1 declarative documentation-site configuration.
 type Config struct {
-	Version    int                      `yaml:"version"`
-	Source     string                   `yaml:"source"`
-	Output     string                   `yaml:"output"`
-	Assets     string                   `yaml:"assets"`
-	Offline    *bool                    `yaml:"offline"`
-	BasePath   string                   `yaml:"base_path"`
-	Site       SiteConfig               `yaml:"site"`
-	Layout     *LayoutConfig            `yaml:"layout"`
-	Frame      *LayoutSelection         `yaml:"frame"`
-	Shell      *LayoutSelection         `yaml:"shell"`
-	Locales    LocaleConfig             `yaml:"locales"`
-	Search     SearchConfig             `yaml:"search"`
-	Navigation NavigationConfig         `yaml:"navigation"`
-	Bindings   map[string]BindingConfig `yaml:"bindings"`
-	Themes     []ThemeConfig            `yaml:"themes"`
-	CustomCSS  []CSSConfig              `yaml:"custom_css"`
-	Theme      ThemeSelection           `yaml:"theme"`
+	Version     int                      `yaml:"version"`
+	Source      string                   `yaml:"source"`
+	Output      string                   `yaml:"output"`
+	Assets      string                   `yaml:"assets"`
+	Offline     *bool                    `yaml:"offline"`
+	BasePath    string                   `yaml:"base_path"`
+	Site        SiteConfig               `yaml:"site"`
+	Layout      *LayoutConfig            `yaml:"layout"`
+	Frame       *LayoutSelection         `yaml:"frame"`
+	Shell       *LayoutSelection         `yaml:"shell"`
+	Locales     LocaleConfig             `yaml:"locales"`
+	Search      SearchConfig             `yaml:"search"`
+	Publication PublicationConfig        `yaml:"publication"`
+	Navigation  NavigationConfig         `yaml:"navigation"`
+	Bindings    map[string]BindingConfig `yaml:"bindings"`
+	Themes      []ThemeConfig            `yaml:"themes"`
+	CustomCSS   []CSSConfig              `yaml:"custom_css"`
+	Theme       ThemeSelection           `yaml:"theme"`
 
 	familySourceIndexes map[string]int
 }
 
 type SiteConfig struct {
-	Name          string            `yaml:"name"`
-	Description   string            `yaml:"description"`
-	Version       string            `yaml:"version"`
-	RepositoryURL string            `yaml:"repository_url"`
-	BaseURL       string            `yaml:"base_url"`
-	Home          string            `yaml:"home"`
-	Logo          string            `yaml:"logo"`
-	LogoDark      string            `yaml:"logo_dark"`
-	HideName      bool              `yaml:"hide_name"`
-	Icon          string            `yaml:"icon"`
-	SocialImage   SocialImageConfig `yaml:"social_image"`
+	Name            string            `yaml:"name"`
+	Description     string            `yaml:"description"`
+	Version         string            `yaml:"version"`
+	RepositoryURL   string            `yaml:"repository_url"`
+	BaseURL         string            `yaml:"base_url"`
+	Home            string            `yaml:"home"`
+	Logo            string            `yaml:"logo"`
+	LogoDark        string            `yaml:"logo_dark"`
+	HideName        bool              `yaml:"hide_name"`
+	Icon            string            `yaml:"icon"`
+	SocialImage     SocialImageConfig `yaml:"social_image"`
+	Icons           []IconConfig      `yaml:"icons"`
+	WebManifest     string            `yaml:"webmanifest"`
+	ApplicationName string            `yaml:"application_name"`
+	ThemeColor      string            `yaml:"theme_color"`
+}
+
+// PublicationConfig controls visible editorial metadata, preserving machine timestamps.
+type PublicationConfig struct {
+	DateFormat string `yaml:"date_format"`
+}
+
+// IconConfig declares an additional browser or Apple Touch icon.
+type IconConfig struct {
+	Path  string `yaml:"path"`
+	Rel   string `yaml:"rel"`
+	Sizes string `yaml:"sizes"`
 }
 
 type SocialImageConfig struct {
@@ -222,6 +239,9 @@ func (config *Config) validate() error {
 	}
 	if strings.ContainsAny(config.Site.SocialImage.Alt, "\x00\r\n") || len([]byte(config.Site.SocialImage.Alt)) > 160 {
 		return diagnostic("site.social_image_invalid", "social image alt text is empty, too long, or contains control characters", "Use concise alternative text.", "")
+	}
+	if err := config.validatePublicationHead(); err != nil {
+		return err
 	}
 	if config.Site.Home == "" {
 		config.Site.Home = "index.md"

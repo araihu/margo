@@ -16,10 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	siteReportSchema   = "margo-site-report/v1"
-	siteManifestSchema = "margo-site-manifest/v1"
-)
+const siteReportSchema = "margo-site-report/v1"
 
 type siteReport struct {
 	SchemaVersion string      `json:"schemaVersion"`
@@ -27,25 +24,6 @@ type siteReport struct {
 	Manifest      string      `json:"manifest"`
 	Policy        string      `json:"policy,omitempty"`
 	Pages         []site.Page `json:"pages"`
-}
-
-type siteManifestDocument struct {
-	SchemaVersion       string              `json:"schemaVersion"`
-	Digest              string              `json:"digest"`
-	Policy              string              `json:"policy,omitempty"`
-	ConfigVersion       int                 `json:"configVersion,omitempty"`
-	Layout              string              `json:"layout,omitempty"`
-	LayoutSchemaHash    string              `json:"layoutSchemaHash,omitempty"`
-	BaseURL             string              `json:"baseURL,omitempty"`
-	BasePath            string              `json:"basePath,omitempty"`
-	DocumentStyleDigest string              `json:"documentStyleDigest,omitempty"`
-	Routes              []site.Page         `json:"routes,omitempty"`
-	Entries             []siteManifestEntry `json:"entries"`
-}
-
-type siteManifestEntry struct {
-	Path   string `json:"path"`
-	Digest string `json:"digest"`
 }
 
 func newSiteCommand(deps Dependencies) *cobra.Command {
@@ -237,7 +215,7 @@ func publishSite(ctx context.Context, target string, result site.Result, policy 
 			return err
 		}
 	}
-	manifest, err := marshalSiteManifest(result, policy)
+	manifest, err := site.MarshalManifest(result, policy)
 	if err != nil {
 		return err
 	}
@@ -288,21 +266,6 @@ func writeSiteArtifact(ctx context.Context, root, relative string, content []byt
 		return fmt.Errorf("site.output_write: %w", err)
 	}
 	return nil
-}
-
-func marshalSiteManifest(result site.Result, policy string) ([]byte, error) {
-	if err := result.Manifest.Validate(); err != nil {
-		return nil, fmt.Errorf("site.manifest_invalid: %w", err)
-	}
-	document := siteManifestDocument{SchemaVersion: siteManifestSchema, Digest: result.Manifest.Digest(), Policy: policy, ConfigVersion: result.Site.ConfigVersion, Layout: result.Site.Layout, LayoutSchemaHash: result.Site.LayoutSchemaHash, BaseURL: result.Site.BaseURL, BasePath: result.Site.BasePath, DocumentStyleDigest: result.Site.DocumentStyleDigest, Routes: append([]site.Page(nil), result.Site.Routes...), Entries: make([]siteManifestEntry, len(result.Manifest.Entries))}
-	for index, entry := range result.Manifest.Entries {
-		document.Entries[index] = siteManifestEntry{Path: entry.Path, Digest: entry.Digest.String()}
-	}
-	data, err := json.Marshal(document)
-	if err != nil {
-		return nil, fmt.Errorf("site.manifest_invalid: %w", err)
-	}
-	return append(data, '\n'), nil
 }
 
 func writeSiteReport(writer io.Writer, format diagnosticFormat, report siteReport) error {
