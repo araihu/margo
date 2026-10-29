@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import {pinch} from "../harness/touch.mjs";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -573,4 +574,26 @@ test("@mermaid-viewer an expanded diagram prints whole and detachment unlocks th
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await figure(page).getByRole("button", {name: "Expand", exact: true}).click();
   await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+
+test("@mermaid-viewer expanded touch pinch zooms the diagram without zooming the page", async ({browser}) => {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
+  const page = await context.newPage();
+  await open(page);
+  await figure(page).getByRole("button", {name: "Expand", exact: true}).tap();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const pageScale = await page.evaluate(() => visualViewport.scale);
+  const before = await canvas(page).locator("svg").boundingBox();
+  const box = await canvas(page).boundingBox();
+  const session = await context.newCDPSession(page);
+  await pinch(page, session, {x: box.x + box.width / 2, y: box.y + box.height / 2}, 2);
+  const after = await canvas(page).locator("svg").boundingBox();
+  expect(after.width / before.width).toBeCloseTo(2, 1);
+  await expect(zoomText(page)).toHaveText("200%");
+  expect(await page.evaluate(() => visualViewport.scale)).toBeCloseTo(pageScale, 4);
+  await page.getByRole("button", {name: "Close expanded view", exact: true}).tap();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(zoomText(page)).toHaveText("100%");
+  await context.close();
 });

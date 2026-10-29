@@ -101,6 +101,9 @@
     let fittedWidth = 0;
     let fittedHeight = 0;
     let drag = null;
+    let lastPointerType = "mouse";
+    const touches = new Map();
+    let touchGesture = null;
 
     const stage = document.createElement("div");
     stage.className = className("stage");
@@ -229,7 +232,10 @@
     const viewer = document.createElement("div");
     viewer.className = className("viewer");
     controls.before(viewer);
-    viewer.append(controls, canvas, close);
+    const header = document.createElement("div");
+    header.className = className("header");
+    header.append(controls);
+    viewer.append(header, canvas, close);
     const source = node.querySelector(".margo-mermaid__accessible-source");
     if (source) viewer.append(source);
     const dialog = document.createElement("dialog");
@@ -246,7 +252,46 @@
     let fullscreenOnly = false;
     let fallbackFullscreen = false;
     let pageOverflow;
+    let viewportListeners;
     const captionID = canvas.getAttribute("aria-labelledby");
+
+    function updateHeaderAccess() {
+      const scrollable = dialog.open && header.scrollHeight > header.clientHeight + 1;
+      header.classList.toggle("margo-viewer__header--scrollable", scrollable);
+      if (scrollable) {
+        header.tabIndex = 0;
+        header.setAttribute("role", "region");
+        header.setAttribute("aria-label", noun + " caption and controls");
+      } else {
+        header.removeAttribute("tabindex");
+        header.removeAttribute("role");
+        header.removeAttribute("aria-label");
+      }
+    }
+
+    function updateExpandedViewport() {
+      const viewport = window.visualViewport;
+      if (!dialog.open || !viewport || window.matchMedia("print").matches) return;
+      // CSS viewport units keep their layout size when the reader zooms the
+      // page. Size and center the dialog within the visible portion instead.
+      dialog.style.setProperty("--margo-viewer-visible-width", viewport.width + "px");
+      dialog.style.setProperty("--margo-viewer-visible-height", viewport.height + "px");
+      dialog.style.margin = "0";
+      const bounds = dialog.getBoundingClientRect();
+      const left = viewport.offsetLeft + (viewport.width - bounds.width) / 2;
+      const top = viewport.offsetTop + (viewport.height - bounds.height) / 2;
+      dialog.style.inset = `${top}px auto auto ${left}px`;
+    }
+
+    function watchExpandedViewport() {
+      viewportListeners?.abort();
+      viewportListeners = new AbortController();
+      const refresh = () => { updateExpandedViewport(); fit(); };
+      const options = {signal: viewportListeners.signal};
+      window.visualViewport?.addEventListener("resize", refresh, options);
+      window.visualViewport?.addEventListener("scroll", refresh, options);
+      updateExpandedViewport();
+    }
 
     function openExpanded(trigger, full = false) {
       setHelpOpen(false);
@@ -257,10 +302,12 @@
       fullscreenOnly = full;
       pageOverflow = document.documentElement.style.overflow;
       document.documentElement.style.overflow = "hidden";
-      // Keep an image's caption visible inside the native fullscreen element.
-      if (isImage) viewer.prepend(title);
+      // Keep captions with the controls in both modal and native fullscreen.
+      header.prepend(title);
+      header.scrollTo(0, 0);
       dialog.append(viewer);
       dialog.showModal();
+      watchExpandedViewport();
       expandedMediaViews.add(suspendForPrint);
       expand.hidden = true;
       expand.setAttribute("aria-expanded", "true");
@@ -275,6 +322,9 @@
     function closeExpanded(restoreFocus = true) {
       setHelpOpen(false);
       if (!inlineView) return;
+      clearTouches();
+      viewportListeners?.abort();
+      viewportListeners = null;
       const saved = inlineView;
       inlineView = null;
       expandedMediaViews.delete(suspendForPrint);
@@ -282,8 +332,10 @@
         document.exitFullscreen().catch(() => {});
       }
       if (dialog.open) dialog.close();
-      if (isImage) dialog.prepend(title);
+      for (const property of ["--margo-viewer-visible-width", "--margo-viewer-visible-height", "margin", "inset"]) dialog.style.removeProperty(property);
+      dialog.prepend(title);
       dialog.before(viewer);
+      updateHeaderAccess();
       document.documentElement.style.overflow = pageOverflow;
       dialog.classList.remove("margo-viewer__dialog--fullscreen", "margo-mermaid__dialog--fullscreen");
       fallbackFullscreen = false;
@@ -332,6 +384,7 @@
       fallbackFullscreen = true;
       dialog.classList.add("margo-viewer__dialog--fullscreen");
       if (!isImage) dialog.classList.add("margo-mermaid__dialog--fullscreen");
+      updateExpandedViewport();
       updateFullscreen();
       fit();
     }
@@ -343,6 +396,7 @@
       } else if (fallbackFullscreen) {
         fallbackFullscreen = false;
         dialog.classList.remove("margo-viewer__dialog--fullscreen", "margo-mermaid__dialog--fullscreen");
+        updateExpandedViewport();
         if (fullscreenOnly) closeExpanded();
         else { updateFullscreen(); fit(); }
       } else {
@@ -406,13 +460,13 @@
       return isImage && fittedWidth > 0 ? Math.max(8, width / fittedWidth) : 8;
     }
 
-    function zoom(next, reset = false, anchor) {
+    function zoom(next, reset = false, anchor, origin = anchor) {
       const viewport = canvas.getBoundingClientRect();
       const before = stage.getBoundingClientRect();
       const centerX = anchor?.clientX ?? viewport.left + canvas.clientLeft + canvas.clientWidth / 2;
       const centerY = anchor?.clientY ?? viewport.top + canvas.clientTop + canvas.clientHeight / 2;
-      const x = before.width ? (centerX - before.left) / before.width : 0.5;
-      const y = before.height ? (centerY - before.top) / before.height : 0.5;
+      const x = before.width ? ((origin?.clientX ?? centerX) - before.left) / before.width : 0.5;
+      const y = before.height ? ((origin?.clientY ?? centerY) - before.top) / before.height : 0.5;
       scale = Math.max(0.25, Math.min(maxScale(), next));
       paint();
       if (reset) {
@@ -421,9 +475,11 @@
         const after = stage.getBoundingClientRect();
         canvas.scrollBy(after.left + x * after.width - centerX, after.top + y * after.height - centerY);
       }
+      if (touches.size === 1) touchGesture = touchPosition();
     }
 
     function fit() {
+      updateHeaderAccess();
       // Read the content width independently of scrollbar appearance.
       const available = canvas.getBoundingClientRect().width;
       if (available <= 0) return;
@@ -442,7 +498,8 @@
       zoom(scale * Math.exp(-delta * 0.002), false, event);
     }, {passive: false});
     canvas.addEventListener("dblclick", (event) => {
-      if (event.button !== 0 || dialog.open || event.target.closest("a, button")) return;
+      if (lastPointerType !== "mouse" || event.sourceCapabilities?.firesTouchEvents ||
+          event.button !== 0 || dialog.open || event.target.closest("a, button")) return;
       event.preventDefault();
       openExpanded(canvas);
     });
@@ -460,18 +517,55 @@
       event.preventDefault();
     });
 
-    // Touch uses the browser's native overflow panning and scroll chaining.
-    // Pointer capture is only needed for primary/middle-button mouse dragging
-    // and pen dragging. Cancel middle-click defaults so native autoscroll does
-    // not compete with the viewer's pan interaction.
+    // Inline touch belongs to the browser. The expanded surface declares
+    // touch-action:none before a gesture begins and owns local pinch and pan.
+    function touchPosition() {
+      const points = [...touches.values()].slice(0, 2);
+      if (!points.length) return null;
+      const [first, second = first] = points;
+      return {
+        clientX: (first.clientX + second.clientX) / 2,
+        clientY: (first.clientY + second.clientY) / 2,
+        distance: Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY),
+        left: canvas.scrollLeft,
+        top: canvas.scrollTop
+      };
+    }
+    function clearTouches() {
+      const ids = [...touches.keys()];
+      touches.clear();
+      touchGesture = null;
+      for (const id of ids) {
+        if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+      }
+    }
+    function finishPointer(event) {
+      if (touches.delete(event.pointerId)) {
+        // Rebase at finger-count changes so lifting one finger after a pinch
+        // continues panning from the same image position without a jump.
+        touchGesture = touchPosition();
+      } else if (drag?.id === event.pointerId) endDrag();
+    }
+
+    // Cancel middle-click defaults so native autoscroll does not compete with
+    // primary/middle-button mouse dragging or pen dragging.
     const preventMiddleDefault = (event) => {
       if (event.button === 1 && scale > 1 && !event.target.closest("a, button")) event.preventDefault();
     };
     canvas.addEventListener("mousedown", preventMiddleDefault);
     canvas.addEventListener("auxclick", preventMiddleDefault);
     canvas.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "touch" || (event.button !== 0 && event.button !== 1) || scale <= 1 ||
-          event.target.closest("a, button")) return;
+      lastPointerType = event.pointerType;
+      if (event.target.closest("a, button")) return;
+      if (event.pointerType === "touch") {
+        if (!dialog.open) return;
+        endDrag();
+        touches.set(event.pointerId, {clientX: event.clientX, clientY: event.clientY});
+        touchGesture = touchPosition();
+        canvas.setPointerCapture(event.pointerId);
+        return;
+      }
+      if ((event.button !== 0 && event.button !== 1) || scale <= 1) return;
       canvas.focus({preventScroll: true});
       drag = {id: event.pointerId, buttons: event.button === 1 ? 4 : 1,
         x: event.clientX, y: event.clientY, left: canvas.scrollLeft, top: canvas.scrollTop};
@@ -480,6 +574,33 @@
       event.preventDefault();
     });
     canvas.addEventListener("pointermove", (event) => {
+      if (touches.has(event.pointerId)) {
+        const previous = touchGesture;
+        touches.set(event.pointerId, {clientX: event.clientX, clientY: event.clientY});
+        const current = touchPosition();
+        if (previous && current) {
+          if (touches.size > 1) {
+            const ratio = previous.distance > 0 && current.distance > 0 ? current.distance / previous.distance : 1;
+            zoom(scale * ratio, false, current, previous);
+            touchGesture = current;
+          } else if (scale > 1) {
+            // Use an absolute anchor to retain subpixel movement across frames.
+            const left = previous.left + previous.clientX - current.clientX;
+            const top = previous.top + previous.clientY - current.clientY;
+            canvas.scrollTo(left, top);
+            // Rebase only at an edge, so reversing direction responds immediately.
+            if (left < 0 || left > canvas.scrollWidth - canvas.clientWidth) {
+              previous.left = canvas.scrollLeft;
+              previous.clientX = current.clientX;
+            }
+            if (top < 0 || top > canvas.scrollHeight - canvas.clientHeight) {
+              previous.top = canvas.scrollTop;
+              previous.clientY = current.clientY;
+            }
+          } else touchGesture = current;
+        }
+        return;
+      }
       if (!drag || drag.id !== event.pointerId) return;
       if (!(event.buttons & drag.buttons)) {
         endDrag();
@@ -493,9 +614,9 @@
       canvas.classList.remove("margo-viewer__viewport--dragging");
       if (pointerID !== undefined && canvas.hasPointerCapture(pointerID)) canvas.releasePointerCapture(pointerID);
     };
-    canvas.addEventListener("pointerup", endDrag);
-    canvas.addEventListener("pointercancel", endDrag);
-    canvas.addEventListener("lostpointercapture", endDrag);
+    canvas.addEventListener("pointerup", finishPointer);
+    canvas.addEventListener("pointercancel", finishPointer);
+    canvas.addEventListener("lostpointercapture", finishPointer);
 
     // Track the moved content so modal/fullscreen resizes refit the same content.
     let observedWidth = 0;
@@ -503,6 +624,7 @@
     let resizeObserver;
     function dispose() {
       closeExpanded(false);
+      clearTouches();
       endDrag();
       resizeObserver?.disconnect();
       connectedMediaViews.delete(node);
@@ -519,6 +641,7 @@
           dispose();
           return;
         }
+        if (dialog.open) updateExpandedViewport();
         const next = entries[0].contentRect.width;
         const nextHeight = entries[0].contentRect.height;
         if (Math.abs(next - observedWidth) < 0.5 &&

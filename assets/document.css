@@ -559,10 +559,10 @@
     }
     .margo-document .margo-viewer__dialog {
       box-sizing: border-box;
-      inline-size: min(96vw, 90rem);
-      block-size: min(92dvh, 64rem);
-      max-inline-size: calc(100vw - 1rem);
-      max-block-size: calc(100dvh - 1rem);
+      inline-size: min(calc(var(--margo-viewer-visible-width, 100vw) * 0.96), 90rem);
+      block-size: min(calc(var(--margo-viewer-visible-height, 100dvh) * 0.92), 64rem);
+      max-inline-size: calc(var(--margo-viewer-visible-width, 100vw) - 1rem);
+      max-block-size: calc(var(--margo-viewer-visible-height, 100dvh) - 1rem);
       margin: auto;
       padding: calc(var(--spacing) * 5);
       border: 1px solid var(--color-outline-strong);
@@ -588,8 +588,10 @@
       line-height: 1.5;
       flex-shrink: 0;
     }
-    .margo-document .margo-viewer__viewer > .margo-viewer__dialog-title {
+    .margo-document .margo-viewer__header > .margo-viewer__dialog-title {
       margin-block-end: calc(var(--spacing) * 3);
+      padding-inline-end: 0;
+      overflow-wrap: anywhere;
     }
     .margo-document .margo-viewer__dialog .margo-viewer__viewer,
     .margo-document .margo-viewer__viewer:fullscreen {
@@ -601,7 +603,32 @@
     .margo-document .margo-viewer__dialog .margo-viewer__viewport,
     .margo-document .margo-viewer__viewer:fullscreen .margo-viewer__viewport {
       flex: 1;
+      min-block-size: min(6rem, 50%);
+    }
+    .margo-document .margo-viewer__dialog .margo-viewer__header,
+    .margo-document .margo-viewer__viewer:fullscreen .margo-viewer__header {
+      display: flex;
+      flex-direction: column;
+      flex: 0 1 auto;
+      box-sizing: border-box;
       min-block-size: 0;
+      max-block-size: 45%;
+      padding-inline-end: 2.75rem;
+      overscroll-behavior: contain;
+    }
+    .margo-document .margo-viewer__header > .margo-viewer__controls {
+      flex-shrink: 0;
+    }
+    .margo-document .margo-viewer__header--scrollable {
+      overflow: auto;
+    }
+    .margo-document .margo-viewer__header--scrollable > .margo-viewer__controls {
+      order: -1;
+    }
+    .margo-document .margo-viewer__header--scrollable :is(.margo-viewer__zoom-controls, .margo-viewer__view-controls) {
+      box-sizing: border-box;
+      max-inline-size: 100%;
+      flex-wrap: wrap;
     }
     .margo-document .margo-viewer__viewer:fullscreen {
       box-sizing: border-box;
@@ -611,12 +638,9 @@
       background: var(--color-surface);
       color: var(--color-on-surface-strong);
     }
-    .margo-document .margo-viewer__viewer:fullscreen .margo-viewer__controls {
-      max-inline-size: calc(100% - 2.75rem);
-    }
     .margo-document .margo-viewer__dialog--fullscreen {
-      inline-size: 100vw;
-      block-size: 100dvh;
+      inline-size: var(--margo-viewer-visible-width, 100vw);
+      block-size: var(--margo-viewer-visible-height, 100dvh);
       max-inline-size: none;
       max-block-size: none;
       margin: 0;
@@ -660,6 +684,7 @@
       color: var(--color-on-surface-strong);
       font: inherit;
       cursor: pointer;
+      touch-action: manipulation;
     }
     .margo-document .margo-viewer__icon-button[hidden] {
       display: none;
@@ -714,6 +739,7 @@
       cursor: default;
     }
     .margo-document .margo-viewer__icon-button:focus-visible,
+    .margo-document .margo-viewer__header:focus-visible,
     .margo-document .margo-viewer__viewport:focus-visible {
       outline: 2px solid var(--color-primary);
       outline-offset: 2px;
@@ -774,6 +800,7 @@
       color: var(--color-on-surface-dark);
     }
     .margo-document:is(.dark *) .margo-viewer__icon-button:focus-visible,
+    .margo-document:is(.dark *) .margo-viewer__header:focus-visible,
     .margo-document:is(.dark *) .margo-viewer__viewport:focus-visible {
       outline-color: var(--color-primary-dark);
     }
@@ -782,6 +809,11 @@
       overscroll-behavior: auto;
       touch-action: auto;
       direction: ltr;
+    }
+    .margo-document .margo-viewer__dialog .margo-viewer__viewport,
+    .margo-document .margo-viewer__viewer:fullscreen .margo-viewer__viewport {
+      touch-action: none;
+      overscroll-behavior: contain;
     }
     .margo-document .margo-viewer__viewport--zoomed {
       cursor: grab;

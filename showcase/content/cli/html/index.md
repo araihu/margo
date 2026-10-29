@@ -69,7 +69,13 @@ The controls match the Mermaid viewer: zoom in/out, fit, expand and fullscreen.
 **Actual size** reaches the original image's pixel dimensions, including for
 large screenshots fitted into narrow columns. The zoom percentage is relative
 to the fitted view. Drag a zoomed image with the primary or middle mouse button,
-or pan with touch. Focus its image area to use `+`/`-`, `0`/`Home` to fit, and
+or select **Expand** on a touch screen to pinch with two fingers and pan the
+zoomed image with one finger. Pinch and buttons share one zoom state. In the
+article, gestures keep normal browser scrolling and page zoom; rapid taps on
+the controls change only the image. Touch double taps do not expand it.
+On a small or highly zoomed screen, the caption and controls have their own
+scroll area so the image keeps a usable viewing area and Close remains available.
+Focus its image area to use `+`/`-`, `0`/`Home` to fit, and
 arrow keys to pan; Ctrl+wheel zooms around the pointer. Escape closes an
 expanded view and restores focus and the article's reading position.
 
