@@ -1270,9 +1270,7 @@ func (b *builder) componentDocShellHeaderNavigation(page Page) templ.Component {
 		return nil
 	}
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
-		var desktop strings.Builder
-		desktop.WriteString(`<nav class="margo-header-links" aria-label="` + stdhtml.EscapeString(localizedLabel(locale, "navigation")) + `">`)
-		items := make([]dropdown.Item, 0, len(b.config.Navigation.Links))
+		var items, languages []dropdown.Item
 		for _, item := range b.config.Navigation.Links {
 			if item.Locale != "" && item.Locale != locale {
 				continue
@@ -1281,23 +1279,47 @@ func (b *builder) componentDocShellHeaderNavigation(page Page) templ.Component {
 			if strings.HasPrefix(href, "/") {
 				href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
 			}
-			desktop.WriteString(`<a href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(item.Label) + `</a>`)
 			items = append(items, dropdown.Item{Label: item.Label, Href: href})
 		}
-		desktop.WriteString(`</nav>`)
-		if _, err := io.WriteString(writer, desktop.String()); err != nil {
+		for _, alternate := range page.Alternates {
+			label := alternate.Locale
+			switch alternate.Locale {
+			case "en":
+				label = "English"
+			case "pt-BR":
+				label = "Português"
+			case "es":
+				label = "Español"
+			}
+			languages = append(languages, dropdown.Item{Label: label, Href: b.publicAlternatePath(alternate.URL)})
+		}
+		if _, err := io.WriteString(writer, `<nav class="margo-header-links" aria-label="`+stdhtml.EscapeString(localizedLabel(locale, "navigation"))+`">`); err != nil {
 			return err
 		}
-		if len(items) > 0 {
-			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: []dropdown.Section{{Items: items}}}).Render(ctx, writer); err != nil {
+		for _, item := range items {
+			if _, err := io.WriteString(writer, `<a href="`+stdhtml.EscapeString(item.Href)+`">`+stdhtml.EscapeString(item.Label)+`</a>`); err != nil {
 				return err
 			}
 		}
-		if len(page.Alternates) > 0 {
-			_, err := io.WriteString(writer, b.localeFragment(page))
+		if len(languages) > 0 {
+			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-language-menu", Label: localizedLabel(locale, "language"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-locale-controls", Sections: []dropdown.Section{{Items: languages}}}).Render(ctx, writer); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(writer, `</nav>`); err != nil {
 			return err
 		}
-		return nil
+		var sections []dropdown.Section
+		if len(items) > 0 {
+			sections = append(sections, dropdown.Section{Items: items})
+		}
+		if len(languages) > 0 {
+			sections = append(sections, dropdown.Section{Items: languages})
+		}
+		if len(sections) == 0 {
+			return nil
+		}
+		return dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: sections}).Render(ctx, writer)
 	})
 }
 
