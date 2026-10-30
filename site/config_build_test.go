@@ -1469,7 +1469,7 @@ locales:
 		`component-doc-shell__repository`, `https://github.com/araihu/margo`,
 		`hx-get="/markdown.html"`, `hx-select="#main-content"`, `hx-target="#main-content"`,
 		`hx-swap="outerHTML transition:true swap:160ms settle:240ms"`, `hx-push-url="true"`,
-		`hx-swap-oob="outerHTML:#componentdocshell-sidebar-content"`,
+		`hx-swap-oob="outerMorph:#componentdocshell-sidebar-content"`,
 		`data-margo-navigation="true"`,
 		`data-search-id="margo-doc-search"`, `data-search-global-shortcut="true"`, `<kbd`, `⌘ K`,
 		`data-search-title="Markdown"`, `data-search-href="/markdown.html"`,

@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const goshtosoComponentDocShellVersion = "v0.1.9-0.20261030180739-cbb346ef3bca"
+const goshtosoComponentDocShellVersion = "v0.1.9"
 
 const componentDocShellScrollSpyAssetName = "margo-scroll-spy.js"
 
@@ -1448,7 +1448,7 @@ func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source So
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
 		if b.shellMode && node.Type == html.ElementNode && attributeValue(node, "id") == "componentdocshell-sidebar-content" {
-			setHTMLAttribute(node, "hx-swap-oob", "outerHTML:#componentdocshell-sidebar-content")
+			setHTMLAttribute(node, "hx-swap-oob", "outerMorph:#componentdocshell-sidebar-content")
 		}
 		if !b.shellMode && node.Type == html.ElementNode {
 			switch {

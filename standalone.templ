@@ -1,6 +1,6 @@
 package margo
 
-templ standalonePublicationBody(fingerprint, htmlFingerprint string, brand Brand, logoURL, backdropURL string, content templ.Component) {
+templ standalonePublicationBody(fingerprint, htmlFingerprint string, brand Brand, logoURL, backdropURL templ.SafeURL, content templ.Component) {
 	<a class="margo-skip-link" href="#margo-document-content" lang="en">Skip to main content</a>
 	<div class="goshtoso-document" data-margo-render-instance="ri-00000000" data-margo-document-fingerprint={ fingerprint } data-margo-html-fingerprint={ htmlFingerprint }>
 		if backdropURL != "" {
