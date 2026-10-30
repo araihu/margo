@@ -18,6 +18,8 @@ github.com/araihu/goshtoso-app-shells v0.1.9-0.20261030170116-6f60b4f79abb h1:DR
 github.com/araihu/goshtoso-app-shells v0.1.9-0.20261030170116-6f60b4f79abb/go.mod h1:49lyfabmlJnpf2gUttpcGd2qN+kD1ETLtaX3L9XyUjc=
 github.com/araihu/goshtoso-app-shells v0.1.9-0.20261030171122-fa7acfd0d400 h1:mLVvqmUD0ZzPKXjPC8XxneL+W7t8xkkXaktOLVJ5cbM=
 github.com/araihu/goshtoso-app-shells v0.1.9-0.20261030171122-fa7acfd0d400/go.mod h1:49lyfabmlJnpf2gUttpcGd2qN+kD1ETLtaX3L9XyUjc=
+github.com/araihu/goshtoso-app-shells v0.1.9-0.20261030171936-39eb35341dd1 h1:pfqlLcx1PUKp/NXn1mbDSzW2XWVeg024x1qKs+sLF5Y=
+github.com/araihu/goshtoso-app-shells v0.1.9-0.20261030171936-39eb35341dd1/go.mod h1:49lyfabmlJnpf2gUttpcGd2qN+kD1ETLtaX3L9XyUjc=
 github.com/araihu/goshtoso-charts v0.0.2 h1:IfcatIJ1GariJhFy6wzSfCW4tERxBaCHvNqHy7yy6xc=
 github.com/araihu/goshtoso-charts v0.0.2/go.mod h1:Fh256bSOgTexH2SYgC28dHNblZtwq4mw7UfryXvLdQs=
 github.com/araihu/muamba v0.0.6 h1:dyXHGLoh7YNmLBKWHuFae77kTEj+xev/N5YMb6G3yZU=
