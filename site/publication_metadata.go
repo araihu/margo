@@ -15,6 +15,7 @@ import (
 // The generic HTML API remains consumer-agnostic; configured and directory
 // sites use this small projection for route records and article markup.
 type publicationMetadata struct {
+	NoIndex     bool
 	Authors     []string
 	PublishedAt string
 	ModifiedAt  string
@@ -27,6 +28,14 @@ func publicationMetadataFor(source string, document margo.Metadata, rendered mar
 		PublishedAt: strings.TrimSpace(rendered.PublishedAt),
 		ModifiedAt:  strings.TrimSpace(rendered.ModifiedAt),
 		Tags:        append([]string(nil), rendered.Tags...),
+	}
+
+	if value, exists := document.Additional["noindex"]; exists {
+		var ok bool
+		metadata.NoIndex, ok = value.(bool)
+		if !ok {
+			return publicationMetadata{}, diagnostic("site.indexing_invalid", "noindex must be a boolean", "Use noindex: true to omit a page from search-engine discovery.", source)
+		}
 	}
 
 	// `author` and `date` were common names in existing blog sources. They are
@@ -114,7 +123,7 @@ func hasPublicationMetadata(page Page) bool {
 
 // projectPageMetadata projects declared site metadata into the generated page.
 func projectPageMetadata(document []byte, page Page) ([]byte, error) {
-	if !hasPublicationMetadata(page) && len(page.StructuredData) == 0 {
+	if !page.NoIndex && !hasPublicationMetadata(page) && len(page.StructuredData) == 0 {
 		return document, nil
 	}
 	root, err := html.Parse(bytes.NewReader(document))
@@ -124,6 +133,9 @@ func projectPageMetadata(document []byte, page Page) ([]byte, error) {
 	head := firstElement(root, "head")
 	if head == nil {
 		return nil, diagnostic("site.head_missing", "generated page has no head for publication metadata", "Render a complete HTML document.", page.Source)
+	}
+	if page.NoIndex {
+		appendHeadMeta(head, "name", "robots", "noindex, follow")
 	}
 	if err := projectStructuredData(root, head, page); err != nil {
 		return nil, err
