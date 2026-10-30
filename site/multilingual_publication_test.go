@@ -72,6 +72,12 @@ structured_data:
 			if layout != "" && prefix == "es/" && (!strings.Contains(page, "Destino español") || !strings.Contains(page, "Pie español") || strings.Contains(page, "English destination") || strings.Contains(page, "Destino português")) {
 				t.Fatal("Spanish navigation mixes locale identities")
 			}
+			if layout != "" && !strings.Contains(page, `id="margo-language-menu"`) {
+				t.Fatal("desktop language dropdown missing")
+			}
+			if layout != "" && !strings.Contains(page, `id="margo-header-menu"`) {
+				t.Fatal("mobile combined navigation missing")
+			}
 			if prefix == "es/" && (!strings.Contains(page, "Saltar al contenido") || !strings.Contains(page, `aria-label="Autores"`)) {
 				t.Fatal("Spanish publication chrome is not localized")
 			}
