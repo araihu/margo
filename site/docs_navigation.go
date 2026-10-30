@@ -62,6 +62,8 @@ const docsNavigationScript = `(function () {
   document.addEventListener("htmx:after:swap", function (event) {
     var target = event.detail && event.detail.ctx && event.detail.ctx.target;
     if (!target || (target.id !== "main-content" && target !== document.body)) return;
+    // HTMX assigns ctx.title after this event; route metadata owns it here.
+    event.detail.ctx.title = "";
     var main = document.getElementById("main-content");
     // Ignore a late response whose route has already left the visible main.
     if (!main || (event.detail.ctx.margoPageURL && main.dataset.margoPageUrl !== event.detail.ctx.margoPageURL)) return;
