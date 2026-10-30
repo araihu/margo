@@ -92,7 +92,7 @@ func (b *builder) preparePageSocialImage(ctx context.Context, source Source, met
 }
 
 func (b *builder) pageSocialPreview(page Page) socialPreview {
-	preview := socialPreview{URL: b.socialURL(), Alt: b.config.Site.SocialImage.Alt, MediaType: b.socialMediaType, Width: 1280, Height: 640}
+	preview := socialPreview{URL: b.socialURL(), Alt: b.config.Site.SocialImage.Alt, MediaType: b.socialMediaType, Width: b.socialWidth, Height: b.socialHeight}
 	if image := b.configured[page.Source].socialImage; image != nil {
 		preview = *image
 	}

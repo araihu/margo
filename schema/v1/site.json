@@ -228,7 +228,7 @@
       "required": ["path", "alt"],
       "properties": {
         "path": {
-          "description": "Local JPEG or PNG social preview path; Margo validates a 1280x640 image.",
+          "description": "Local JPEG or PNG social preview path; Margo preserves decoded image dimensions.",
           "type": "string",
           "minLength": 1,
           "examples": ["assets/social.jpg"]

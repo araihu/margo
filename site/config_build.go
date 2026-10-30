@@ -1336,17 +1336,18 @@ func (b *builder) stageSocialImage(config SocialImageConfig) error {
 		return diagnostic("site.social_image_invalid", fmt.Sprintf("cannot read social image: %v", err), "Add the configured preview image.", config.Path)
 	}
 	if len(data) == 0 || len(data) > 1<<20 {
-		return diagnostic("site.social_image_invalid", "social preview image must be non-empty and below 1 MiB", "Use a 1280x640 JPEG or PNG.", config.Path)
+		return diagnostic("site.social_image_invalid", "social preview image must be non-empty and below 1 MiB", "Use a JPEG or PNG below 1 MiB.", config.Path)
 	}
 	mediaType, err := staticimage.DetectContext(context.Background(), data)
 	if err != nil || mediaType != "image/jpeg" && mediaType != "image/png" {
-		return diagnostic("site.social_image_invalid", "social preview image must be JPEG or PNG", "Use a safe 1280x640 JPEG or PNG.", config.Path)
+		return diagnostic("site.social_image_invalid", "social preview image must be JPEG or PNG", "Use a safe JPEG or PNG.", config.Path)
 	}
 	b.socialMediaType = mediaType
 	decoded, format, err := image.DecodeConfig(bytes.NewReader(data))
-	if err != nil || decoded.Width != 1280 || decoded.Height != 640 || format != "jpeg" && format != "png" {
-		return diagnostic("site.social_image_invalid", "social preview image must be exactly 1280x640 JPEG or PNG", "Create an intentional landscape preview image.", config.Path)
+	if err != nil || decoded.Width <= 0 || decoded.Height <= 0 || format != "jpeg" && format != "png" {
+		return diagnostic("site.social_image_invalid", "social preview image must have valid JPEG or PNG dimensions", "Create an intentional landscape preview image.", config.Path)
 	}
+	b.socialWidth, b.socialHeight = decoded.Width, decoded.Height
 	if err := b.addArtifact(config.Path, data); err != nil {
 		return err
 	}
