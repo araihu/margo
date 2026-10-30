@@ -260,6 +260,20 @@
           "uniqueItems": true,
           "items": {"type": "string", "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$"},
           "examples": [["en", "pt-BR"]]
+        },
+        "selector": {
+          "description": "Visible language controls; independent of canonical and hreflang metadata.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {"type": "boolean", "default": true, "description": "Show language controls for available equivalents. Omission preserves existing behavior."},
+            "flags": {
+              "type": "object",
+              "description": "Optional decorative local flag images keyed by supported locale. Countries are explicit consumer choices, not inferred from language tags.",
+              "additionalProperties": {"type": "string", "minLength": 1},
+              "examples": [{"en": "assets/flags/us.svg", "pt-BR": "assets/flags/br.svg"}]
+            }
+          }
         }
       }
     },

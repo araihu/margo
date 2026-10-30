@@ -1117,6 +1117,13 @@ func (b *builder) pageURL(page Page) string {
 }
 
 func (b *builder) stageConfiguredAssets(config Config) error {
+	if config.Locales.selectorEnabled() {
+		for _, flag := range config.Locales.Selector.Flags {
+			if err := b.stageConfigAsset(flag, "locales.selector.flags", ""); err != nil {
+				return err
+			}
+		}
+	}
 	if config.Site.LogoDark != "" {
 		if err := b.stageConfigAsset(config.Site.LogoDark, "site.logo_dark", "image/svg+xml"); err != nil {
 			return err
@@ -2060,6 +2067,9 @@ func (b *builder) paginationFragment(page Page) string {
 }
 
 func (b *builder) localeFragment(page Page) string {
+	if !b.config.Locales.selectorEnabled() || len(page.Alternates) == 0 {
+		return ""
+	}
 	var builder strings.Builder
 	builder.WriteString(`<nav class="margo-locale-controls" aria-label="` + stdhtml.EscapeString(localizedLabel(page.Locale, "language")) + `"><ul>`)
 	for _, alternate := range page.Alternates {
@@ -2067,7 +2077,7 @@ func (b *builder) localeFragment(page Page) string {
 		if b.usesPublicRoutes() {
 			href = b.publicAlternatePath(alternate.URL)
 		}
-		builder.WriteString(`<li><a hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(href) + `">` + stdhtml.EscapeString(alternate.Locale) + `</a></li>`)
+		builder.WriteString(`<li><a hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(href) + `">` + b.localeFlagHTML(alternate.Locale) + stdhtml.EscapeString(localeName(alternate.Locale)) + `</a></li>`)
 	}
 	builder.WriteString(`</ul></nav>`)
 	return builder.String()
