@@ -6,7 +6,7 @@ require (
 	github.com/a-h/templ v0.3.1100
 	github.com/araihu/goshtoso v0.4.6
 	github.com/araihu/goshtoso-app-shells v0.1.9
-	github.com/araihu/goshtoso-charts v0.0.5-0.20261030162347-2b0c54d84b20
+	github.com/araihu/goshtoso-charts v0.0.5
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327
 	github.com/chromedp/chromedp v0.14.2
 	github.com/cli/browser v1.3.0

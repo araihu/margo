@@ -57,11 +57,15 @@ document the compatibility boundary and update the relevant version pin.
 ## Goshtoso compatibility
 
 Margo uses Goshtoso v0.4.6 (HTMX 4 and Alpine.js 3.17.2) with App Shells
-`v0.1.9`, which supplies the compatible
-documentation-shell navigation runtime. The older App Shells v0.1.8 release
+`v0.1.9`, which supplies the compatible documentation-shell navigation runtime. The older App Shells v0.1.8 release
 still uses HTMX 2 events. Upgrade these dependencies together. Margo listeners
 use colon-separated HTMX events, request context in `detail.ctx`, and settle
 tasks in `detail.task`; standalone documents still work without HTMX.
+
+The root `go.mod` selects templ v0.3.1100 for both the runtime and generator.
+Regenerate Margo templates with
+`GOWORK=off go run github.com/a-h/templ/cmd/templ generate`. Application consumers
+should upgrade their compiler and runtime together and regenerate their own templates.
 
 Typed docs restore history through `#main-content` and update family navigation,
 sidebar controls, and the TOC out of band. Keep the sidebar container stable for
