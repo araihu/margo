@@ -400,15 +400,19 @@ values use the normal site/directory/page cascade. Pagination defaults to
 `true`, preserving existing documentation sites. Turning it off removes the
 previous/next markup; the host still owns archives, series order and feeds.
 
-`navigation.links` adds centered global destinations to the native docs header,
-with the brand on the left and theme and search controls on the right. It does
-not create documentation families or change their sidebar, search scopes or
-HTMX lifecycle. Links use full-page navigation, accept root-relative URLs or
-absolute HTTPS URLs, and include `base_path` for root-relative destinations.
-`navigation.footer_links` adds destinations to the native footer, using the
-same URL rules. A compact menu exposes header destinations on smaller screens. Supply short
-labels that fit a navigation bar. Search strings default to localized page
-labels when omitted.
+`navigation.links` supplies global site destinations to the native docs shell.
+At 1024px and wider they appear in the header; below that width, one hamburger
+before the brand opens a drawer containing site links and any enabled contextual
+navigation. `sidebar: false` removes only the contextual docs entries and rail,
+so a blog retains its mobile site menu without listing its posts as docs.
+
+Links accept root-relative or absolute HTTPS URLs and include `base_path` for
+root-relative destinations. Known same-locale docs routes use the normal HTMX
+lifecycle; external links and routes outside that layout retain full-page
+navigation. These links do not acquire documentation-family identity. Language
+selection stays in the header controls and preserves configured labels/flags.
+`navigation.footer_links` adds destinations only to the native footer. Search
+strings default to localized page labels when omitted.
 
 For a wordmark, set `site.hide_name: true`; the home link keeps the site name
 as its accessible label. Set `site.logo_dark` to a second local SVG for dark

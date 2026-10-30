@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const goshtosoComponentDocShellVersion = "v0.1.9-0.20261030162658-e1a09f4d4eb6"
+const goshtosoComponentDocShellVersion = "v0.1.9"
 
 const componentDocShellScrollSpyAssetName = "margo-scroll-spy.js"
 
@@ -662,7 +662,7 @@ func (b *builder) renderResolvedComponentDocShellSource(ctx context.Context, sou
 		Head:         templ.Raw(b.renderResolvedComponentDocShellHead(page)),
 		EnableTOC:    resolvedLayoutBool(layout, "toc"),
 	}
-	component := componentdocshell.Layout(b.typedComponentDocShellConfig(page, searchConfig), shellPage)
+	component := componentdocshell.Layout(b.typedComponentDocShellConfig(page, searchConfig, resolvedLayoutBool(layout, "sidebar")), shellPage)
 	var rendered bytes.Buffer
 	if err := component.Render(ctx, &rendered); err != nil {
 		return err
@@ -944,7 +944,7 @@ func landingShellColorScheme(value string) landingshell.ColorScheme {
 	}
 }
 
-func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Config) componentdocshell.Config {
+func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Config, sidebarEnabled bool) componentdocshell.Config {
 	items := make([]sidebar.Item, 0, len(b.familyPages(page)))
 	for _, candidate := range b.familyPages(page) {
 		items = append(items, sidebar.Item{
@@ -980,11 +980,13 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 	return componentdocshell.Config{
 		Brand: brand,
 		Navigation: componentdocshell.Navigation{
-			Families:          families,
-			Items:             nil,
-			Sections:          []sidebar.Section{{Title: familyTitle, Items: items}},
-			SearchPlaceholder: searchConfig.Placeholder,
-			DisableSearch:     true,
+			GlobalLinks:            b.componentDocShellGlobalLinks(page),
+			DisableLocalNavigation: !sidebarEnabled,
+			Families:               families,
+			Items:                  nil,
+			Sections:               []sidebar.Section{{Title: familyTitle, Items: items}},
+			SearchPlaceholder:      searchConfig.Placeholder,
+			DisableSearch:          true,
 		},
 		Appearance: componentdocshell.AppearanceConfig{
 			DefaultTheme:                  defaultTheme,
@@ -995,12 +997,11 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
 			ThemeStylesheets:              themeStylesheets,
 		},
-		Interactions:     componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderNavigation: b.componentDocShellHeaderNavigation(page),
-		HeaderActions:    componentDocShellSearchWithConfig(searchConfig),
-		Footer:           b.shellFooter(page.Locale),
-		RepositoryURL:    b.config.Site.RepositoryURL,
-		AssetPrefix:      b.shellAssetPrefix,
+		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
+		HeaderActions: b.componentDocShellHeaderActions(page, componentDocShellSearchWithConfig(searchConfig)),
+		Footer:        b.shellFooter(page.Locale),
+		RepositoryURL: b.config.Site.RepositoryURL,
+		AssetPrefix:   b.shellAssetPrefix,
 	}
 }
 
@@ -1071,10 +1072,8 @@ func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 	return builder.String()
 }
 
-// applyTypedComponentDocShellSemantics adds Margo's route hook and bridges the
-// one structural value not exposed by Goshtoso componentdocshell v0.1.7.
-// Keep the sidebar container stable for the shell's Alpine drawer bindings.
-// Disabled sidebar controls stay hidden so subsequent route swaps can restore them.
+// applyTypedComponentDocShellSemantics adds route metadata and localized labels.
+// The shell owns contextual navigation visibility and responsive drawer behavior.
 func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEnabled bool) ([]byte, error) {
 	root, err := html.Parse(bytes.NewReader(document))
 	if err != nil {
@@ -1093,10 +1092,7 @@ func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEna
 		}
 		if node.Type == html.ElementNode && attributeValue(node, "id") == "main-content" {
 			setHTMLAttribute(node, "data-margo-sidebar", fmt.Sprint(sidebarEnabled))
-		}
-		if !sidebarEnabled && node.Type == html.ElementNode &&
-			(hasClass(node, "component-doc-shell__menu-button") || attributeValue(node, "id") == "componentdocshell-sidebar" || hasClass(node, "component-doc-shell__backdrop")) {
-			setHTMLAttribute(node, "style", "display: none")
+			setHTMLAttribute(node, "data-margo-page-url", page.Canonical)
 		}
 	}
 	var walk func(*html.Node)
@@ -1226,6 +1222,7 @@ func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config
 	return componentdocshell.Config{
 		Brand: brand,
 		Navigation: componentdocshell.Navigation{
+			GlobalLinks:   b.componentDocShellGlobalLinks(current),
 			Items:         items,
 			DisableSearch: true,
 		},
@@ -1238,12 +1235,11 @@ func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config
 			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
 			ThemeStylesheets:              themeStylesheets,
 		},
-		Interactions:     componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderActions:    b.componentDocShellSearch(current.Locale),
-		HeaderNavigation: b.componentDocShellHeaderNavigation(current),
-		Footer:           b.shellFooter(current.Locale),
-		RepositoryURL:    b.config.Site.RepositoryURL,
-		AssetPrefix:      b.shellAssetPrefix,
+		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
+		HeaderActions: b.componentDocShellHeaderActions(current, b.componentDocShellSearch(current.Locale)),
+		Footer:        b.shellFooter(current.Locale),
+		RepositoryURL: b.config.Site.RepositoryURL,
+		AssetPrefix:   b.shellAssetPrefix,
 	}
 }
 
@@ -1264,55 +1260,35 @@ func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand
 }
 
 // Global destinations retain host URLs without acquiring docs-family identity.
-func (b *builder) componentDocShellHeaderNavigation(page Page) templ.Component {
-	locale := page.Locale
-	if len(b.config.Navigation.Links) == 0 && (len(page.Alternates) == 0 || !b.config.Locales.selectorEnabled()) {
-		return nil
-	}
-	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
-		var items, languages []dropdown.Item
-		for _, item := range b.config.Navigation.Links {
-			if item.Locale != "" && item.Locale != locale {
-				continue
-			}
-			href := item.Href
-			if strings.HasPrefix(href, "/") {
-				href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
-			}
-			items = append(items, dropdown.Item{Label: item.Label, Href: href})
+func (b *builder) componentDocShellGlobalLinks(page Page) []componentdocshell.GlobalLink {
+	var links []componentdocshell.GlobalLink
+	for _, item := range b.config.Navigation.Links {
+		if item.Locale != "" && item.Locale != page.Locale {
+			continue
 		}
-		for _, alternate := range page.Alternates {
-			if b.config.Locales.selectorEnabled() {
+		href := item.Href
+		if strings.HasPrefix(href, "/") {
+			href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
+		}
+		links = append(links, componentdocshell.GlobalLink{Label: item.Label, Href: href})
+	}
+	return links
+}
+
+func (b *builder) componentDocShellHeaderActions(page Page, search templ.Component) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+		var languages []dropdown.Item
+		if b.config.Locales.selectorEnabled() {
+			for _, alternate := range page.Alternates {
 				languages = append(languages, dropdown.Item{Label: localeName(alternate.Locale), Href: b.publicAlternatePath(alternate.URL), Icon: b.localeFlag(alternate.Locale)})
 			}
 		}
-		if _, err := io.WriteString(writer, `<nav class="margo-header-links" aria-label="`+stdhtml.EscapeString(localizedLabel(locale, "navigation"))+`">`); err != nil {
-			return err
-		}
-		for _, item := range items {
-			if _, err := io.WriteString(writer, `<a href="`+stdhtml.EscapeString(item.Href)+`">`+stdhtml.EscapeString(item.Label)+`</a>`); err != nil {
+		if len(languages) > 0 {
+			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-language-menu", Label: localizedLabel(page.Locale, "language"), TriggerIcon: b.localeFlag(page.Locale), MenuAlign: dropdown.AlignEnd, RootClass: "margo-locale-controls", Sections: []dropdown.Section{{Items: languages}}}).Render(ctx, writer); err != nil {
 				return err
 			}
 		}
-		if len(languages) > 0 {
-			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-language-menu", Label: localizedLabel(locale, "language"), TriggerIcon: b.localeFlag(locale), MenuAlign: dropdown.AlignEnd, RootClass: "margo-locale-controls", Sections: []dropdown.Section{{Items: languages}}}).Render(ctx, writer); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(writer, `</nav>`); err != nil {
-			return err
-		}
-		var sections []dropdown.Section
-		if len(items) > 0 {
-			sections = append(sections, dropdown.Section{Items: items})
-		}
-		if len(languages) > 0 {
-			sections = append(sections, dropdown.Section{Items: languages})
-		}
-		if len(sections) == 0 {
-			return nil
-		}
-		return dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: sections}).Render(ctx, writer)
+		return search.Render(ctx, writer)
 	})
 }
 
@@ -1486,10 +1462,8 @@ func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source So
 				setHTMLAttribute(node, "hx-swap-oob", "outerHTML")
 			case hasClass(node, "component-doc-shell__menu-button"):
 				setHTMLAttribute(node, "id", "margo-sidebar-trigger")
-				setHTMLAttribute(node, "hx-swap-oob", "outerHTML")
 			case hasClass(node, "component-doc-shell__backdrop"):
 				setHTMLAttribute(node, "id", "margo-sidebar-backdrop")
-				setHTMLAttribute(node, "hx-swap-oob", "outerHTML")
 			case attributeValue(node, "id") == "componentdocshell-family-select-control":
 				// The incoming selector owns the route selection, including its
 				// accessible name. Route mobile changes through the same anchors.

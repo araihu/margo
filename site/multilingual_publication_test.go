@@ -75,7 +75,7 @@ structured_data:
 			if layout != "" && !strings.Contains(page, `id="margo-language-menu"`) {
 				t.Fatal("desktop language dropdown missing")
 			}
-			if layout != "" && !strings.Contains(page, `id="margo-header-menu"`) {
+			if layout != "" && !strings.Contains(page, `id="margo-language-menu"`) {
 				t.Fatal("mobile combined navigation missing")
 			}
 			if prefix == "es/" && (!strings.Contains(page, "Saltar al contenido") || !strings.Contains(page, `aria-label="Autores"`)) {

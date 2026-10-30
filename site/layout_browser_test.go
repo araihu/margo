@@ -212,8 +212,7 @@ func TestLayoutBrowserNavigationSwapsKeepShellAndHistoryInSync(t *testing.T) {
 					const trigger = document.querySelector('#componentdocshell-family-trigger');
 					return location.pathname === expected.path && main?.querySelector('h1')?.textContent.trim() === expected.heading &&
 						currentFamilies.length === 1 && currentFamilies[0].textContent.trim() === expected.family &&
-						document.querySelector('.component-doc-shell__scope-family')?.textContent.trim() === expected.family &&
-						active.length === 1 && new URL(active[0].href).pathname === expected.path &&
+						(expected.sidebar ? document.querySelector('.component-doc-shell__scope-family')?.textContent.trim() === expected.family && active.length === 1 && new URL(active[0].href).pathname === expected.path : !document.querySelector('.component-doc-shell__scope-family') && active.length === 0) &&
 						trigger?.getAttribute('aria-label') === 'Current documentation family: ' + expected.family &&
 						window.Alpine.$data(document.querySelector('#componentdocshell-family-select-control')).familyHref === '/' + expected.family.toLowerCase() + '/' &&
 						(expected.section ? !rail.hidden && toc.some(a => a.textContent.trim() === expected.section) && toc.every(a => main.querySelector(a.getAttribute('href'))) : rail.hidden && toc.length === 0) &&

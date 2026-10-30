@@ -1674,8 +1674,8 @@ func TestTypedDocsSidebarFalseUsesSemanticComponentShellBridge(t *testing.T) {
 	}
 	for _, id := range []string{"trigger", "componentdocshell-sidebar", "backdrop"} {
 		node := configElementByID(root, id)
-		if node == nil || attributeValue(node, "style") != "display: none" {
-			t.Fatalf("semantic shell bridge did not hide %q: %s", id, page)
+		if node == nil || attributeValue(node, "style") != "" {
+			t.Fatalf("semantic shell bridge hid stable drawer structure %q: %s", id, page)
 		}
 	}
 }
