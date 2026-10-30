@@ -69,7 +69,7 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 			}
 			// Metadata follows partial navigation and history, including removal on pages without JSON-LD.
 			var homeMetadata string
-			const metadataSnapshot = `JSON.stringify(Array.from(document.head.querySelectorAll('meta[name="description"],meta[property^="og:"],meta[name^="twitter:"],link[rel="canonical"],script[type="application/ld+json"]')).map(n => n.outerHTML).sort())`
+			const metadataSnapshot = `JSON.stringify(Array.from(document.head.querySelectorAll('title,meta[name="description"],meta[property^="og:"],meta[name^="twitter:"],link[rel="canonical"],script[type="application/ld+json"]')).map(n => n.outerHTML).sort())`
 			const postMetadata = `document.querySelector('meta[property="og:image"]')?.content === 'https://margo.example/posts/assets/cover.png' && document.querySelector('meta[name="twitter:image"]')?.content === 'https://margo.example/posts/assets/cover.png' && document.querySelector('[data-margo-publication-date="published"]')?.textContent === '27/10/2026' && location.pathname === '/posts/' && document.title.startsWith('Posts') && document.querySelector('#main-content h1')?.textContent === 'Posts' && document.querySelector('link[rel="canonical"]')?.href.endsWith('/posts/') && document.querySelector('meta[name="description"]')?.content === 'Post summary' && JSON.parse(document.querySelector('script[type="application/ld+json"]')?.textContent || '{}')['@type'] === 'BlogPosting' && document.querySelectorAll('script[type="application/ld+json"]').length === 1`
 			if err := chromedp.Run(ctx,
 				chromedp.Evaluate(metadataSnapshot, &homeMetadata),
@@ -120,7 +120,7 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 				{"post metadata", chromedp.Poll(postMetadata, nil, chromedp.WithPollingTimeout(5*time.Second))},
 				{"context restored", chromedp.Poll(`window.editorialTrigger===document.querySelector('#margo-sidebar-trigger') && document.querySelector('#componentdocshell-sidebar-content').dataset.localNavigation==='true' && !document.querySelector('#componentdocshell-sidebar.is-open')`, nil, chromedp.WithPollingTimeout(5*time.Second))},
 				{"mobile history back", chromedp.Evaluate(`history.back()`, nil)},
-				{"site restored", chromedp.Poll(`location.pathname==='/' && document.querySelector('#main-content h1')?.textContent==='Home' && document.querySelector('#componentdocshell-sidebar-content').dataset.localNavigation==='false' && window.editorialTrigger===document.querySelector('#margo-sidebar-trigger')`, nil, chromedp.WithPollingTimeout(5*time.Second))},
+				{"site restored", chromedp.Poll(`location.pathname==='/' && document.title.startsWith('Home') && document.querySelector('link[rel="canonical"]')?.href==='https://margo.example/' && document.querySelector('#main-content h1')?.textContent==='Home' && document.querySelector('#componentdocshell-sidebar-content').dataset.localNavigation==='false' && window.editorialTrigger===document.querySelector('#margo-sidebar-trigger')`, nil, chromedp.WithPollingTimeout(5*time.Second))},
 			} {
 				if err := chromedp.Run(ctx, step.action); err != nil {
 					var state string

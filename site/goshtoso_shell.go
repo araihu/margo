@@ -1092,6 +1092,7 @@ func applyTypedComponentDocShellSemantics(document []byte, page Page, sidebarEna
 		}
 		if node.Type == html.ElementNode && attributeValue(node, "id") == "main-content" {
 			setHTMLAttribute(node, "data-margo-sidebar", fmt.Sprint(sidebarEnabled))
+			setHTMLAttribute(node, "data-margo-page-url", page.Canonical)
 		}
 	}
 	var walk func(*html.Node)
