@@ -1448,7 +1448,7 @@ func (b *builder) decorateComponentDocShellNavigation(root *html.Node, source So
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
 		if b.shellMode && node.Type == html.ElementNode && attributeValue(node, "id") == "componentdocshell-sidebar-content" {
-			setHTMLAttribute(node, "hx-swap-oob", "outerHTML:#componentdocshell-sidebar-content")
+			setHTMLAttribute(node, "hx-swap-oob", "outerMorph:#componentdocshell-sidebar-content")
 		}
 		if !b.shellMode && node.Type == html.ElementNode {
 			switch {
