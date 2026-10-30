@@ -467,6 +467,11 @@ func (r markdownRenderer) renderRuntimeFence(kind string, source []byte) error {
 
 func mermaidFigureDescription(source []byte, contextLabel string) (string, string) {
 	lines := strings.Split(string(source), "\n")
+	for _, line := range lines {
+		if title, ok := strings.CutPrefix(strings.TrimSpace(line), "accTitle:"); ok && strings.TrimSpace(title) != "" {
+			return strings.TrimSpace(title), ""
+		}
+	}
 	first := ""
 	for _, line := range lines {
 		if first = strings.TrimSpace(line); first != "" {

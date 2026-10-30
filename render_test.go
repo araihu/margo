@@ -178,6 +178,17 @@ func TestMermaidFigureCaptionNormalizesLineBreakMarkup(t *testing.T) {
 	}
 }
 
+func TestMermaidFigureCaptionUsesAuthoredAccessibleTitle(t *testing.T) {
+	markup := renderComponent(t, mustRenderSource(t, "```mermaid\nflowchart TB\n  accTitle: Ciência & computação\n  A[Cliente] --> B[Pesquisa]\n```\n").Content())
+	if !strings.Contains(markup, `<figcaption id="margo-mermaid-caption-0" class="margo-figure-caption">Ciência &amp; computação</figcaption>`) {
+		t.Fatalf("authored title missing or not escaped: %s", markup)
+	}
+	caption, _ := mermaidFigureDescription([]byte("flowchart TB\naccTitle:   \nA[Client] --> B[Research]"), "Flow")
+	if !strings.HasPrefix(caption, "Flowchart connecting") {
+		t.Fatalf("empty title removed fallback: %q", caption)
+	}
+}
+
 func TestSemanticRenderMatchesGolden(t *testing.T) {
 	got := renderComponent(t, mustRenderSource(t, "# Hello\n\nA [safe link](https://example.com).\n\n- one\n- two\n\n> quoted\n").Content())
 	wantBytes, err := os.ReadFile("testdata/render/semantic.html")
