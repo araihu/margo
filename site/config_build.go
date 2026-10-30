@@ -766,7 +766,7 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 	sort.Slice(b.configPages, func(i, j int) bool { return pageRouteLess(b.configPages[i], b.configPages[j]) })
 	for index := range b.configPages {
 		for _, candidate := range b.configPages {
-			if candidate.Locale == b.configPages[index].Locale || routeKey(candidate.Source, b.config.Locales) != routeKey(b.configPages[index].Source, b.config.Locales) {
+			if candidate.NoIndex || b.configPages[index].NoIndex || candidate.Locale == b.configPages[index].Locale || routeKey(candidate.Source, b.config.Locales) != routeKey(b.configPages[index].Source, b.config.Locales) {
 				continue
 			}
 			b.configPages[index].Alternates = append(b.configPages[index].Alternates, Alternate{Locale: candidate.Locale, URL: b.pageURL(candidate)})
@@ -2078,14 +2078,7 @@ func (b *builder) renderPageHeadForLayout(page Page, layout ResolvedLayout, icon
 	builder.WriteString(b.publicationBrandHead(iconURL))
 	builder.WriteString(`<title>` + stdhtml.EscapeString(page.Title) + `</title><meta name="description" content="` + stdhtml.EscapeString(page.Description) + `"><link rel="canonical" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
 	builder.WriteString(b.socialHead(page))
-	for _, alternate := range page.Alternates {
-		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(alternate.URL) + `">`)
-	}
-	if len(page.Alternates) > 0 {
-		for _, alternate := range page.Alternates {
-			builder.WriteString(`<meta property="og:locale:alternate" content="` + stdhtml.EscapeString(openGraphLocale(alternate.Locale)) + `">`)
-		}
-	}
+	builder.WriteString(b.localeHead(page))
 	builder.WriteString(b.themeBootstrap())
 	if layout.Kind != "" {
 		if b.request.Assets == AssetsInline {
@@ -2353,9 +2346,44 @@ func (b *builder) publicAlternatePath(absolute string) string {
 	return parsed.Path
 }
 
+func (b *builder) localeHead(page Page) string {
+	var builder strings.Builder
+	if len(page.Alternates) > 0 {
+		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(page.Locale) + `" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
+		if page.Locale == b.config.Locales.Default {
+			builder.WriteString(`<link rel="alternate" hreflang="x-default" href="` + stdhtml.EscapeString(page.Canonical) + `">`)
+		}
+	}
+	for _, alternate := range page.Alternates {
+		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(alternate.URL) + `">`)
+		if alternate.Locale == b.config.Locales.Default {
+			builder.WriteString(`<link rel="alternate" hreflang="x-default" href="` + stdhtml.EscapeString(alternate.URL) + `">`)
+		}
+	}
+	if len(page.Alternates) > 0 {
+		for _, alternate := range page.Alternates {
+			builder.WriteString(`<meta property="og:locale:alternate" content="` + stdhtml.EscapeString(openGraphLocale(alternate.Locale)) + `">`)
+		}
+	}
+	return builder.String()
+}
+
 func localizedLabel(locale, key string) string {
+	if strings.EqualFold(locale, "es") {
+		return map[string]string{
+			"publication_details": "Detalles de publicación", "authors": "Autores", "tags": "Etiquetas",
+			"navigation": "Menú", "contents": "Contenido", "breadcrumbs": "Ruta de navegación", "article_navigation": "Navegación del artículo",
+			"home": "Inicio", "language": "Idioma", "theme": "Tema", "toc": "En esta página", "skip_content": "Saltar al contenido",
+			"publication_dates": "Fechas de publicación", "published": "Publicado", "updated": "Actualizado",
+			"open_navigation": "Abrir navegación", "close_navigation": "Cerrar navegación", "dark_mode": "Usar modo oscuro",
+			"light_mode": "Usar modo claro", "source_repository": "Repositorio de código", "search_pages": "Buscar páginas",
+			"search_results": "Resultados de búsqueda", "no_matching_pages": "No se encontraron páginas.", "page": "Página",
+			"sidebar_navigation": "Navegación lateral", "active": "activa", "brand_home": "inicio", "previous": "Anterior", "next": "Siguiente",
+		}[key]
+	}
 	if strings.EqualFold(locale, "pt-BR") {
 		return map[string]string{
+			"publication_details": "Detalhes da publicação", "authors": "Autores", "tags": "Tags",
 			"navigation": "Menu", "contents": "Conteúdo", "breadcrumbs": "Navegação estrutural", "article_navigation": "Navegação do artigo",
 			"home": "Início", "language": "Idioma", "theme": "Tema", "toc": "Nesta página", "skip_content": "Ir para o conteúdo",
 			"publication_dates": "Datas de publicação", "published": "Publicado", "updated": "Atualizado",
@@ -2366,6 +2394,7 @@ func localizedLabel(locale, key string) string {
 		}[key]
 	}
 	return map[string]string{
+		"publication_details": "Publication details", "authors": "Authors", "tags": "Tags",
 		"navigation": "Menu", "contents": "Contents", "breadcrumbs": "Breadcrumbs", "article_navigation": "Article navigation", "home": "Home",
 		"language": "Language", "theme": "Theme", "toc": "On this page", "skip_content": "Skip to content",
 		"publication_dates": "Publication dates", "published": "Published", "updated": "Updated",

@@ -117,7 +117,7 @@ func TestEditorialConfigRejectsUnsafeValues(t *testing.T) {
 
 func TestFooterLinksRespectBasePathAndEscapeLabels(t *testing.T) {
 	b := builder{config: &Config{BasePath: "/journal", Navigation: NavigationConfig{FooterLinks: []NavigationLink{{Label: "RSS & <news>", Href: "/index.xml"}}}}}
-	markup, err := renderComponentBytes(b.shellFooter())
+	markup, err := renderComponentBytes(b.shellFooter("en"))
 	if err != nil {
 		t.Fatal(err)
 	}

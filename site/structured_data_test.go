@@ -173,8 +173,11 @@ func TestStructuredDataArticleProjection(t *testing.T) {
 	for name, options := range map[string]map[string]any{
 		"type": {"type": "WebPage"}, "typo": {"type": "Article", "images": "x"},
 		"image": {"type": "Article", "image": "/cover.png"}, "unsafe URL": {"type": "Article", "image": "javascript:alert(1)"},
-		"author":  {"type": "Article", "author_urls": map[string]any{"Guest": "https://example.com/guest/"}},
-		"profile": {"type": "Article", "author_urls": map[string]any{"Ana": "data:text/html,x"}},
+		"author":               {"type": "Article", "author_urls": map[string]any{"Guest": "https://example.com/guest/"}},
+		"profile":              {"type": "Article", "author_urls": map[string]any{"Ana": "data:text/html,x"}},
+		"author type":          {"type": "Article", "author_types": map[string]any{"Ana": "Corporation"}},
+		"unknown typed author": {"type": "Article", "author_types": map[string]any{"Guest": "Organization"}},
+		"invalid type map":     {"type": "Article", "author_types": "Organization"},
 	} {
 		if _, err := articleStructuredData(page, options); err == nil {
 			t.Fatalf("accepted %s", name)

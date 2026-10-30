@@ -269,11 +269,11 @@
       "properties": {
         "links": {
           "type": "array", "description": "Global docs-header destinations, independent of family navigation. Root-relative URLs include base_path.",
-          "items": {"type": "object", "additionalProperties": false, "required": ["label", "href"], "properties": {"label": {"type": "string", "minLength": 1}, "href": {"type": "string", "minLength": 1}}}
+          "items": {"type": "object", "additionalProperties": false, "required": ["label", "href"], "properties": {"label": {"type": "string", "minLength": 1}, "href": {"type": "string", "minLength": 1}, "locale": {"type": "string", "description": "Optional supported BCP 47 locale. Omit for a shared destination."}}}
         },
         "footer_links": {
           "type": "array", "description": "Links appended to the native site footer. Root-relative URLs include base_path.",
-          "items": {"type": "object", "additionalProperties": false, "required": ["label", "href"], "properties": {"label": {"type": "string", "minLength": 1}, "href": {"type": "string", "minLength": 1}}}
+          "items": {"type": "object", "additionalProperties": false, "required": ["label", "href"], "properties": {"label": {"type": "string", "minLength": 1}, "href": {"type": "string", "minLength": 1}, "locale": {"type": "string", "description": "Optional supported BCP 47 locale. Omit for a shared destination."}}}
         },
         "mode": {
           "description": "Navigation strategy for the configured site.",

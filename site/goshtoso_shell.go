@@ -732,7 +732,7 @@ func (b *builder) renderResolvedLandingShellSource(ctx context.Context, source S
 	if err := component.Render(ctx, &rendered); err != nil {
 		return err
 	}
-	footer, err := renderComponentBytes(b.shellFooter())
+	footer, err := renderComponentBytes(b.shellFooter(page.Locale))
 	if err != nil {
 		return err
 	}
@@ -861,9 +861,7 @@ func (b *builder) renderResolvedLandingShellHead(page Page, layout ResolvedLayou
 	builder.WriteString(`<meta property="og:image:type" content="` + stdhtml.EscapeString(preview.MediaType) + `"><meta property="og:image:width" content="` + fmt.Sprint(preview.Width) + `"><meta property="og:image:height" content="` + fmt.Sprint(preview.Height) + `"><meta property="og:image:alt" content="` + stdhtml.EscapeString(preview.Alt) + `"><meta property="og:locale" content="` + stdhtml.EscapeString(openGraphLocale(page.Locale)) + `">`)
 	builder.WriteString(`<meta name="twitter:title" content="` + stdhtml.EscapeString(page.Title) + `"><meta name="twitter:description" content="` + stdhtml.EscapeString(page.Description) + `"><meta name="twitter:image" content="` + stdhtml.EscapeString(preview.URL) + `"><meta name="twitter:image:alt" content="` + stdhtml.EscapeString(preview.Alt) + `">`)
 
-	for _, alternate := range page.Alternates {
-		builder.WriteString(`<link rel="alternate" hreflang="` + stdhtml.EscapeString(alternate.Locale) + `" href="` + stdhtml.EscapeString(alternate.URL) + `"><meta property="og:locale:alternate" content="` + stdhtml.EscapeString(openGraphLocale(alternate.Locale)) + `">`)
-	}
+	builder.WriteString(b.localeHead(page))
 	if b.request.Assets == AssetsInline {
 		if layout.dependencies.siteStyles {
 			builder.WriteString(`<style data-margo-layout-style="site">` + configuredTypedSiteCSS + `</style>`)
@@ -998,9 +996,9 @@ func (b *builder) typedComponentDocShellConfig(page Page, searchConfig search.Co
 			ThemeStylesheets:              themeStylesheets,
 		},
 		Interactions:     componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderNavigation: b.componentDocShellHeaderNavigation(page.Locale),
+		HeaderNavigation: b.componentDocShellHeaderNavigation(page),
 		HeaderActions:    componentDocShellSearchWithConfig(searchConfig),
-		Footer:           b.shellFooter(),
+		Footer:           b.shellFooter(page.Locale),
 		RepositoryURL:    b.config.Site.RepositoryURL,
 		AssetPrefix:      b.shellAssetPrefix,
 	}
@@ -1054,6 +1052,7 @@ func componentDocShellSearchWithConfig(config search.Config) templ.Component {
 
 func (b *builder) renderResolvedComponentDocShellHead(page Page) string {
 	var builder strings.Builder
+	builder.WriteString(b.localeHead(page))
 	builder.WriteString(b.publicationBrandHead(b.publicationArtifactHref(b.config.Site.Icon)))
 	if b.request.Assets == AssetsInline {
 		builder.WriteString(`<style data-margo-layout-style="docs">` + configuredDocsCSS + `</style>`)
@@ -1239,11 +1238,12 @@ func (b *builder) componentDocShellConfig(current Page) componentdocshell.Config
 			DisableDefaultThemeStylesheet: disableDefaultThemeStylesheet,
 			ThemeStylesheets:              themeStylesheets,
 		},
-		Interactions:  componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
-		HeaderActions: b.componentDocShellSearch(current.Locale),
-		Footer:        b.shellFooter(),
-		RepositoryURL: b.config.Site.RepositoryURL,
-		AssetPrefix:   b.shellAssetPrefix,
+		Interactions:     componentdocshell.InteractionConfig{EnableHTMX: true, LocalRuntime: true},
+		HeaderActions:    b.componentDocShellSearch(current.Locale),
+		HeaderNavigation: b.componentDocShellHeaderNavigation(current),
+		Footer:           b.shellFooter(current.Locale),
+		RepositoryURL:    b.config.Site.RepositoryURL,
+		AssetPrefix:      b.shellAssetPrefix,
 	}
 }
 
@@ -1264,8 +1264,9 @@ func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand
 }
 
 // Global destinations retain host URLs without acquiring docs-family identity.
-func (b *builder) componentDocShellHeaderNavigation(locale string) templ.Component {
-	if len(b.config.Navigation.Links) == 0 {
+func (b *builder) componentDocShellHeaderNavigation(page Page) templ.Component {
+	locale := page.Locale
+	if len(b.config.Navigation.Links) == 0 && len(page.Alternates) == 0 {
 		return nil
 	}
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
@@ -1273,6 +1274,9 @@ func (b *builder) componentDocShellHeaderNavigation(locale string) templ.Compone
 		desktop.WriteString(`<nav class="margo-header-links" aria-label="` + stdhtml.EscapeString(localizedLabel(locale, "navigation")) + `">`)
 		items := make([]dropdown.Item, 0, len(b.config.Navigation.Links))
 		for _, item := range b.config.Navigation.Links {
+			if item.Locale != "" && item.Locale != locale {
+				continue
+			}
 			href := item.Href
 			if strings.HasPrefix(href, "/") {
 				href = strings.TrimSuffix(normalizedBasePath(b.config.BasePath), "/") + href
@@ -1284,7 +1288,16 @@ func (b *builder) componentDocShellHeaderNavigation(locale string) templ.Compone
 		if _, err := io.WriteString(writer, desktop.String()); err != nil {
 			return err
 		}
-		return dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: []dropdown.Section{{Items: items}}}).Render(ctx, writer)
+		if len(items) > 0 {
+			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-header-menu", Label: localizedLabel(locale, "navigation"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-header-menu", Sections: []dropdown.Section{{Items: items}}}).Render(ctx, writer); err != nil {
+				return err
+			}
+		}
+		if len(page.Alternates) > 0 {
+			_, err := io.WriteString(writer, b.localeFragment(page))
+			return err
+		}
+		return nil
 	})
 }
 
@@ -1336,7 +1349,7 @@ func (b *builder) componentDocShellSearchItems(locale string) []search.Item {
 	return items
 }
 
-func (b *builder) shellFooter() templ.Component {
+func (b *builder) shellFooter(locale string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		if _, err := io.WriteString(w, `<p class="margo-shell-footer">Margo · `); err != nil {
 			return err
@@ -1382,6 +1395,9 @@ func (b *builder) shellFooter() templ.Component {
 			return err
 		}
 		for _, item := range b.config.Navigation.FooterLinks {
+			if item.Locale != "" && item.Locale != locale {
+				continue
+			}
 			if _, err := io.WriteString(w, ` · `); err != nil {
 				return err
 			}
@@ -1536,6 +1552,7 @@ func (b *builder) shellPageHref(page Page) string {
 
 func (b *builder) renderComponentDocShellHead(page Page) string {
 	var builder strings.Builder
+	builder.WriteString(b.localeHead(page))
 	builder.WriteString(b.publicationBrandHead(b.publicationArtifactHref(b.config.Site.Icon)))
 	builder.WriteString(`<link rel="stylesheet" href="/margo-assets/site.css">`)
 	builder.WriteString(`<script defer src="/` + stdhtml.EscapeString(pageActionsScriptPath) + `"></script>`)

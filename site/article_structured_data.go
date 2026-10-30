@@ -12,7 +12,7 @@ import (
 // article. Images and author profiles must be explicitly supplied by the host.
 func articleStructuredData(page Page, options map[string]any) (map[string]any, error) {
 	for key := range options {
-		if key != "type" && key != "image" && key != "author_urls" {
+		if key != "type" && key != "image" && key != "author_urls" && key != "author_types" {
 			return nil, fmt.Errorf("unknown article structured_data property %q", key)
 		}
 	}
@@ -65,10 +65,26 @@ func articleStructuredData(page Page, options map[string]any) (map[string]any, e
 			}
 		}
 	}
+	types := map[string]any{}
+	if value, exists := options["author_types"]; exists {
+		var ok bool
+		types, ok = value.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("structured_data.author_types must map author names to Person or Organization")
+		}
+		for name, kind := range types {
+			if (kind != "Person" && kind != "Organization") || !slices.Contains(page.Authors, name) {
+				return nil, fmt.Errorf("structured_data.author_types contains an invalid type or an unknown author")
+			}
+		}
+	}
 	if len(page.Authors) > 0 {
 		authors := make([]map[string]string, 0, len(page.Authors))
 		for _, name := range page.Authors {
 			author := map[string]string{"@type": "Person", "name": name}
+			if kind, ok := types[name].(string); ok {
+				author["@type"] = kind
+			}
 			if profile, ok := profiles[name].(string); ok {
 				author["url"] = profile
 			}

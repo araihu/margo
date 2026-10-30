@@ -172,10 +172,10 @@ func publicationHeader(page Page) *html.Node {
 	header := &html.Node{Type: html.ElementNode, DataAtom: atom.Header, Data: "header", Attr: []html.Attribute{
 		{Key: "class", Val: "margo-document__metadata"},
 		{Key: "data-margo-publication-metadata", Val: "true"},
-		{Key: "aria-label", Val: "Publication details"},
+		{Key: "aria-label", Val: localizedLabel(page.Locale, "publication_details")},
 	}}
 	if len(page.Authors) > 0 {
-		address := &html.Node{Type: html.ElementNode, DataAtom: atom.Address, Data: "address", Attr: []html.Attribute{{Key: "aria-label", Val: "Authors"}}}
+		address := &html.Node{Type: html.ElementNode, DataAtom: atom.Address, Data: "address", Attr: []html.Attribute{{Key: "aria-label", Val: localizedLabel(page.Locale, "authors")}}}
 		for index, author := range page.Authors {
 			if index > 0 {
 				address.AppendChild(&html.Node{Type: html.TextNode, Data: ", "})
@@ -205,7 +205,7 @@ func publicationHeader(page Page) *html.Node {
 		header.AppendChild(dates)
 	}
 	if len(page.Tags) > 0 {
-		list := &html.Node{Type: html.ElementNode, DataAtom: atom.Ul, Data: "ul", Attr: []html.Attribute{{Key: "aria-label", Val: "Tags"}, {Key: "data-margo-publication-tags", Val: "true"}}}
+		list := &html.Node{Type: html.ElementNode, DataAtom: atom.Ul, Data: "ul", Attr: []html.Attribute{{Key: "aria-label", Val: localizedLabel(page.Locale, "tags")}, {Key: "data-margo-publication-tags", Val: "true"}}}
 		for _, tag := range page.Tags {
 			item := &html.Node{Type: html.ElementNode, DataAtom: atom.Li, Data: "li", Attr: []html.Attribute{{Key: "data-margo-publication-tag", Val: normalizePublicationText(tag)}}}
 			parent := item

@@ -107,8 +107,9 @@ type SearchConfig struct {
 
 // NavigationLink is a host-owned public destination, independent of docs families.
 type NavigationLink struct {
-	Label string `yaml:"label"`
-	Href  string `yaml:"href"`
+	Label  string `yaml:"label"`
+	Href   string `yaml:"href"`
+	Locale string `yaml:"locale"`
 }
 
 type NavigationConfig struct {
@@ -229,6 +230,12 @@ func (config *Config) validate() error {
 		links []NavigationLink
 	}{{"navigation.links", config.Navigation.Links}, {"navigation.footer_links", config.Navigation.FooterLinks}} {
 		for _, item := range group.links {
+			if item.Locale != "" {
+				tag, err := language.Parse(item.Locale)
+				if err != nil || tag.String() != item.Locale {
+					return diagnostic("site.navigation_invalid", "navigation locale must use canonical BCP 47 spelling", "Use a supported locale or omit locale for a shared link.", group.field)
+				}
+			}
 			if strings.TrimSpace(item.Label) == "" || strings.ContainsAny(item.Label, "\x00\r\n") || !validNavigationURL(item.Href) {
 				return diagnostic("site.navigation_invalid", "navigation links require a label and a root-relative or absolute HTTPS URL", "Use a public destination such as /blog/ or https://example.com/feed.xml.", group.field)
 			}
@@ -288,6 +295,18 @@ func (config *Config) validate() error {
 	if err := validateLocales(config.Locales); err != nil {
 		return err
 	}
+	for _, group := range [][]NavigationLink{config.Navigation.Links, config.Navigation.FooterLinks} {
+		for _, item := range group {
+			found := item.Locale == ""
+			for _, locale := range config.Locales.Supported {
+				found = found || locale == item.Locale
+			}
+			if !found {
+				return diagnostic("site.navigation_invalid", "navigation locale is not supported", "Declare the locale in locales.supported.", "navigation")
+			}
+		}
+	}
+
 	if config.Navigation.Mode == "" {
 		config.Navigation.Mode = "file-tree"
 	}
