@@ -69,12 +69,15 @@ type Source struct {
 
 // Request is one immutable site build request.
 type Request struct {
-	SourceRoot  string
-	Sources     []Source
-	Compiler    *margo.Compiler
-	Assets      AssetMode
-	AssetReader margo.CheckAssetReader
-	PDFEngine   pdf.Engine
+	// AssetBudgetBytes caps distinct source assets across pages. Zero keeps the 16 MiB default.
+	// Each individual source asset remains limited to margo.MaxDocumentBytes.
+	AssetBudgetBytes int64
+	SourceRoot       string
+	Sources          []Source
+	Compiler         *margo.Compiler
+	Assets           AssetMode
+	AssetReader      margo.CheckAssetReader
+	PDFEngine        pdf.Engine
 }
 
 // Artifact is one site-relative output and its exact bytes.
@@ -188,6 +191,9 @@ type siteReference struct {
 
 // Build renders, links, and packages a deterministic site without writing it.
 func Build(ctx context.Context, request Request) (Result, error) {
+	if err := validateAssetBudget(request.AssetBudgetBytes); err != nil {
+		return Result{}, err
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -500,7 +506,7 @@ func (b *builder) rewriteLocalIframe(ctx context.Context, source Source, node *h
 	}
 	asset, cached := b.assets[assetPath]
 	if !cached {
-		remaining := margo.MaxDocumentBytes - b.assetBytes
+		remaining := b.sourceAssetLimit()
 		data, readErr := b.request.AssetReader.ReadAsset(ctx, b.request.SourceRoot, assetPath, remaining)
 		if readErr != nil {
 			if errors.Is(readErr, context.Canceled) || errors.Is(readErr, context.DeadlineExceeded) {
@@ -649,7 +655,7 @@ func (b *builder) rewriteAssetLink(ctx context.Context, source Source, node *htm
 	}
 	asset, cached := b.assets[assetPath]
 	if !cached {
-		remaining := margo.MaxDocumentBytes - b.assetBytes
+		remaining := b.sourceAssetLimit()
 		data, readErr := b.request.AssetReader.ReadAsset(ctx, b.request.SourceRoot, assetPath, remaining)
 		if readErr != nil {
 			// A relative href is not necessarily a downloadable asset. Keep
@@ -711,7 +717,7 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 	}
 	value := node.Attr[index].Val
 	if strings.HasPrefix(strings.ToLower(value), "data:") {
-		_, _, err := staticimage.ValidateDataURL(ctx, value, margo.MaxDocumentBytes-b.assetBytes)
+		_, _, err := staticimage.ValidateDataURL(ctx, value, b.sourceAssetLimit())
 		if err != nil {
 			return diagnostic("site.asset_invalid", err.Error(), "Use a supported static image with matching media type.", source.Path)
 		}
@@ -742,7 +748,7 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 	asset, cached := b.assets[assetPath]
 	sourceCached := cached
 	if !cached {
-		remaining := margo.MaxDocumentBytes - b.assetBytes
+		remaining := b.sourceAssetLimit()
 		data, readErr := b.request.AssetReader.ReadAsset(ctx, b.request.SourceRoot, assetPath, remaining)
 		if readErr != nil {
 			if errors.Is(readErr, os.ErrNotExist) {
@@ -762,6 +768,9 @@ func (b *builder) rewriteImage(ctx context.Context, source Source, node *html.No
 					}
 				}
 			} else {
+				if errors.Is(readErr, margo.ErrCheckAssetTooLarge) {
+					return diagnostic("site.asset_too_large", fmt.Sprintf("image %q exceeds the per-file or remaining site asset byte limit", assetPath), "Reduce the file size or increase asset_budget_bytes for the site aggregate.", source.Path)
+				}
 				return diagnostic("site.asset_unreadable", fmt.Sprintf("cannot read image %q: %v", assetPath, readErr), "Add a readable regular image below the input directory.", source.Path)
 			}
 		}

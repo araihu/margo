@@ -922,3 +922,22 @@ security updates can resolve it from a clean checkout without running an
 engine. Regenerate both binding files with Dagger v0.21.11 after changing the
 module API; do not edit them by hand. Its OpenTelemetry and gRPC patches are
 validated by the standalone module test and the required Dagger pipeline.
+
+
+### Source asset budget for growing sites
+
+The site builder defaults to 16 MiB of distinct source assets across all pages.
+Repeated references to the same source path count once. A trusted site host can
+raise or lower this aggregate budget in `site.yaml`:
+
+```yaml
+asset_budget_bytes: 67108864 # 64 MiB across source images and linked files
+```
+
+The Go API uses `site.Request.AssetBudgetBytes`. Zero preserves the default;
+negative values and values above 256 MiB are rejected. Each individual source
+asset remains capped at 16 MiB, and social images retain their 8 MiB cap.
+This setting does not raise Markdown input limits or count generated runtime
+artifacts and configured branding files as source assets. It controls retained
+source bytes, not total process memory or final inline HTML size. The host must
+budget for copies, rendering and output separately.

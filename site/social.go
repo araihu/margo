@@ -50,7 +50,7 @@ func (b *builder) preparePageSocialImage(ctx context.Context, source Source, met
 	assetPath := path.Join(path.Dir(source.Path), relative)
 	asset, cached := b.assets[assetPath]
 	if !cached {
-		limit := min(int64(8<<20), margo.MaxDocumentBytes-b.assetBytes)
+		limit := min(int64(8<<20), b.sourceAssetLimit())
 		if limit <= 0 {
 			return invalid("social image exceeds the remaining site asset byte budget")
 		}

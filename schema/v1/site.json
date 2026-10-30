@@ -7,6 +7,14 @@
   "additionalProperties": false,
   "required": ["version", "source", "site"],
   "properties": {
+    "asset_budget_bytes": {
+      "description": "Aggregate budget for distinct source assets. Zero keeps 16 MiB. Individual source files remain capped at 16 MiB and social images at 8 MiB. Generated runtime artifacts and configured branding are excluded; process memory and final output need a separate host budget.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 268435456,
+      "default": 0,
+      "examples": [67108864]
+    },
     "version": {
       "description": "Exact site configuration contract version.",
       "const": 1,
