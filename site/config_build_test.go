@@ -476,8 +476,8 @@ func TestLocalizedLabelFallsBackToEnglish(t *testing.T) {
 		"previous":     "Previous",
 		"next":         "Next",
 	} {
-		if got := localizedLabel("es", key); got != want {
-			t.Errorf("localizedLabel(es, %q) = %q, want %q", key, got, want)
+		if got := localizedLabel("fr", key); got != want {
+			t.Errorf("localizedLabel(fr, %q) = %q, want %q", key, got, want)
 		}
 	}
 }

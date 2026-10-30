@@ -47,8 +47,10 @@ structured_data:
 # How the cluster works
 ```
 
-`type` accepts `Article` or `BlogPosting`. Only `image` and `author_urls` are
-additional options. Images and profile URLs must be absolute HTTP(S) URLs;
+`type` accepts `Article` or `BlogPosting`. `image`, `author_urls` and `author_types` are optional.
+`author_types` maps declared author names to `Person` or `Organization`;
+unconfigured authors remain `Person`. Institutional authors must explicitly
+use `Organization`. Images and profile URLs must be absolute HTTP(S) URLs;
 profiles must name an author declared on the page. Unknown options fail.
 The canonical route supplies `url`, `mainEntityOfPage` and `@id`. The ID suffix
 is `#article` or `#blogposting`. The normalized title, description, language,
@@ -91,3 +93,17 @@ This is a serialization contract, not a promise of Google rich results. Check
 [site names](https://developers.google.com/search/docs/appearance/site-names)
 and the relevant [Schema.org types](https://schema.org/docs/schemas.html), then
 validate the final HTML for the host's content model.
+
+## Language equivalents
+
+Configured sites group translations by the source path after its locale prefix.
+Each indexable equivalent emits its self-canonical URL and the complete reciprocal
+`hreflang` set, including itself. `x-default` names the equivalent default-language
+page when it exists. Missing and `noindex` pages are not advertised. A page with
+no indexable equivalent emits no language alternatives. Language controls link to
+the corresponding available document, without browser-language redirects.
+
+English, Brazilian Portuguese and Spanish chrome is localized. Host navigation
+links and footer links accept an optional canonical BCP 47 `locale`, for example
+`{label: Sobre, href: /pt-br/about/, locale: pt-BR}`. Omit `locale` for shared links.
+Labels and destination URLs stay consumer-owned.
