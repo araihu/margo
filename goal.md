@@ -1,488 +1,517 @@
 # Goal: Margo / Marpit slide decks
 
-> Arquivo de acompanhamento local. Intencionalmente não versionado, não deve ser adicionado ao índice Git.
+> Historical development record from 2026-08-19. The original session intended
+> this file to remain local and untracked, but it is present in repository
+> history. Status, evidence and authorization statements below describe that
+> session, not current repository state or permission for new work.
 
-## Natureza iterativa
+## Iterative record
 
-Este é um **goal vivo**: ele evolui durante a sessão e deve ser atualizado após cada decisão relevante, implementação, evidência ou rodada de revisão. O documento deve:
+The original session treated this as a living goal, updated after each relevant
+decision, implementation, evidence item or review round. It was intended to:
 
-- manter o objetivo atual e o próximo resultado verificável;
-- registrar decisões e evidências novas sem apagar contexto útil;
-- mover itens entre aberto, em progresso, bloqueado e concluído;
-- atualizar o loop de revisão e os critérios de saída quando o escopo mudar;
-- continuar local e não versionado ao longo de todo o trabalho.
+- retain the current objective and next verifiable result;
+- record new decisions and evidence without losing useful context;
+- move items between open, in progress, blocked and complete;
+- update the review loop and exit criteria when scope changed;
+- remain local and untracked throughout the work.
 
-## Contexto
+## Context
 
 - Worktree: `/private/tmp/margo-marpit-decks-v001`
 - Branch: `feat/marpit-decks-v001`
-- Data do ciclo: 2026-08-19
-- Commit publicado: `335d9892deb937b1516304aa5dd65acb9bd53a90`
-- Estado atual: slice v0.0.1 implementado, revisado, commitado e publicado na branch; novo ciclo aberto neste task após handoff da sessão `01a01874-d5e8-74a3-9338-191cc438a0f0`.
-- Regra de entrega: preservar o worktree isolado. O commit e o push do slice anterior foram autorizados e concluídos. Qualquer novo commit ou push exige autorização própria. Não criar PR, fazer merge, tag, release ou deploy sem autorização explícita.
+- Cycle date: 2026-08-19
+- Published commit: `335d9892deb937b1516304aa5dd65acb9bd53a90`
+- Recorded state: v0.0.1 slice implemented, reviewed, committed and pushed to the branch; a new cycle began after handoff from session `01a01874-d5e8-74a3-9338-191cc438a0f0`.
+- Delivery boundary at that time: preserve the isolated worktree. The previous slice's commit and push were authorized and complete. Any new commit or push required its own authorization. PR creation, merge, tags, releases and deployment required explicit authorization.
 
-## Ciclo ativo após o handoff
+## Active cycle after handoff
 
-### Objetivo atual
+### Current objective at that checkpoint
 
-Definir e executar o próximo incremento dos decks Margo sobre a baseline
-publicada, sem enfraquecer compatibilidade Marpit, determinismo, acessibilidade
-ou os contratos de runtime/PDF já aprovados.
+Define and implement the next Margo decks increment on the published baseline,
+without weakening Marpit compatibility, determinism, accessibility or approved
+runtime/PDF contracts.
 
-### Baseline congelada
+### Frozen baseline
 
-- [x] perfil Marpit-compatible v0.0.1 implementado;
-- [x] layouts, temas, charts, Mermaid, mídia, notas e HTML standalone;
-- [x] geometria 16:9/4:3, overflow, print/PDF e runtime reports;
-- [x] comparador r6 com 30 pares Margo/Marpit e revisão reproduzível;
-- [x] Impeccable R5 e Checklist Design R5 sem P0/P1;
-- [x] suíte Go, vet, módulos, formatação, diff e sintaxe JS verdes;
-- [x] commit e branch remota verificados no mesmo SHA;
-- [x] nenhum PDF, PPTX, asset ou string TOTVS versionado.
+- [x] Marpit-compatible v0.0.1 profile implemented;
+- [x] layouts, themes, charts, Mermaid, media, notes and standalone HTML;
+- [x] 16:9/4:3 geometry, overflow, print/PDF and runtime reports;
+- [x] r6 comparator with 30 Margo/Marpit pairs and reproducible review;
+- [x] Impeccable R5 and Checklist Design R5 without P0/P1 findings;
+- [x] Go tests, vet, modules, formatting, diff and JavaScript syntax checks passed;
+- [x] commit and remote branch verified at the same SHA;
+- [x] no TOTVS PDF, PPTX, asset or string tracked.
 
-### Decisão de escopo
+### Scope decision
 
-O próximo incremento escolhido é **Composições R1**. A aprovação explícita desta
-sessão autorizou a implementação e a verificação do slice; ela não autoriza
-commit, push, PR, merge, tag, release ou deploy.
+The selected next increment was **Compositions R1**. Explicit approval in that
+session authorized implementation and verification of the slice, not a commit,
+push, PR, merge, tag, release or deployment.
 
-- [x] **Composições R1:** transformar o vocabulário genérico da referência em
-   presets Margo (`content`, `agenda`, `media-split`, `media-stage`, `steps`,
-   `highlight`, `compare-grid`, `hero`, `image-grid`) sem copiar layouts ou
-   assets da origem.
-- [ ] **Dívida de evidência P2:** executar zoom real de navegador a 200%, testes
-   VoiceOver/NVDA, corrigir o idioma do placeholder PT-BR e registrar corpus
-   e sidecars reproduzíveis.
-- [ ] **Proveniência do comparador:** substituir identidade/status sintetizados
-   em `make-compare.mjs` por evidência produzida pelo runtime real e validada
-   no envelope canônico.
-- [ ] **Storytelling de dados R2:** especificar `chart-story`, `data-table`,
-   `cycle` e `timeline-fit`; só implementar depois de fechar o contrato de
-   composição R1.
+- [x] **Compositions R1:** turn the reference's generic vocabulary into Margo
+  presets (`content`, `agenda`, `media-split`, `media-stage`, `steps`,
+  `highlight`, `compare-grid`, `hero`, `image-grid`) without copying source
+  layouts or assets.
+- [ ] **P2 evidence debt:** run actual browser zoom at 200%, test VoiceOver/NVDA,
+  correct the PT-BR placeholder language, and record reproducible corpus bytes
+  and sidecars.
+- [ ] **Comparator provenance:** replace synthesized identity/status in
+  `make-compare.mjs` with evidence from the real runtime, validated through the
+  canonical envelope.
+- [ ] **Data storytelling R2:** specify `chart-story`, `data-table`, `cycle`
+  and `timeline-fit`; implement only after closing the R1 composition contract.
 
-### Decisão arquitetural aprovada
+### Approved architectural decision
 
-Composições R1 terão uma diretiva versionada `composition`, separada de
-`class` e `layout/slot`. A diretiva expressa intenção; o catálogo interno
-resolve a intenção para layout estrutural, contrato de slots, variante visual,
-regras de conteúdo e requisitos de acessibilidade. O DOM receberá
-`data-margo-composition` e continuará determinístico.
+Compositions R1 would introduce a versioned `composition` directive, separate
+from `class` and `layout/slot`. The directive expresses intent; the internal
+catalog resolves structural layout, slot contract, visual variant, content
+rules and accessibility requirements. The DOM receives
+`data-margo-composition` and remains deterministic.
 
-Entradas v0.0.1 sem `composition` permanecem compatíveis. A superfície R1
-acrescenta apenas a diretiva versionada, não aceita HTML/CSS arbitrário, não
-copia layouts TOTVS e não importa assets da referência. A spec fixa nomes,
-aliases, cardinalidades, fallback, diagnósticos, versão do perfil e comportamento
-de print/PDF.
+v0.0.1 input without `composition` remains compatible. R1 adds only the
+versioned directive, accepts no arbitrary HTML/CSS, copies no TOTVS layouts
+and imports no reference assets. The specification fixes names, aliases,
+cardinalities, fallback behavior, diagnostics, profile version and print/PDF
+behavior.
 
-### Próximo resultado verificável
+### Next verifiable result
 
-- [x] escolher uma única frente principal;
-- [x] registrar contrato, arquivos afetados, compatibilidade e não objetivos em
-      `docs/superpowers/specs/2026-08-19-margo-compositions-r1-design.md`;
-- [x] revisar e aprovar a spec arquitetural;
-- [x] escrever o plano de implementação em
-      `docs/superpowers/plans/2026-08-19-margo-compositions-r1.md`;
-- [x] escrever testes que falham para o comportamento escolhido;
-- [x] implementar o menor incremento que fecha esses testes;
-- [x] repetir gates Go, runtime/PDF e review visual proporcionais ao risco;
-- [x] atualizar este documento com evidências e pendências;
-- [x] parar antes de commit, push, PR, merge, tag, release ou deploy sem nova
-      autorização explícita.
+- [x] choose one primary workstream;
+- [x] record the contract, affected files, compatibility and non-goals in
+  `docs/superpowers/specs/2026-08-19-margo-compositions-r1-design.md`;
+- [x] review and approve the architectural specification;
+- [x] write the implementation plan in
+  `docs/superpowers/plans/2026-08-19-margo-compositions-r1.md`;
+- [x] write failing tests for the selected behavior;
+- [x] implement the smallest increment that passes those tests;
+- [x] repeat Go, runtime/PDF and visual review gates proportional to risk;
+- [x] update this record with evidence and remaining work;
+- [x] stop before commit, push, PR, merge, tag, release or deployment without
+  new explicit authorization.
 
-### Critério de saída do ciclo ativo
+### Active cycle exit criteria
 
-O ciclo fecha quando a frente escolhida tem contrato documentado, testes
-reproduzíveis, evidência visual ou de runtime correspondente, nenhuma
-regressão P0/P1 e um inventário claro do que permanece fora de escopo. Gates
-verdes não autorizam publicação.
+The selected workstream needed a documented contract, reproducible tests,
+matching visual or runtime evidence, no P0/P1 regressions and a clear inventory
+of remaining out-of-scope work. Passing gates did not authorize publication.
 
-### Fronteira de sincronização auxiliar
+### Auxiliary synchronization boundary
 
-Há uma linha de trabalho externa inventariando um template TOTVS (PDF/PPTX,
-118 slides, 67 layouts, 5 masters e 174 mídias). Essa entrada serve apenas
-como vocabulário e referência de composição/layout. Não importar, copiar ou
-versionar arquivos, PDFs, PPTX, mídias ou assets TOTVS neste worktree.
+An external workstream inventoried a TOTVS template: PDF/PPTX, 118 slides,
+67 layouts, 5 masters and 174 media files. This input was only a vocabulary
+and composition/layout reference. Its files, PDFs, PPTX, media and assets
+were not to be imported, copied or tracked in the worktree.
 
-O sync final confirmou a regra de generalização: não replicar os 67 layouts.
-Para este slice, as famílias de composição ficam organizadas em oito presets
-R1 (`content`, `agenda`, `media-split`/`media-stage`, `steps`, `highlight`,
-`compare-grid`, `hero`, `image-grid`). O storytelling de dados (`chart-story`,
-`data-table`, `cycle`, `timeline-fit`) fica como R2. `theme` continua sendo
-tokens/fontes/chrome global; `layout` é geometria/slots; `composition` é
-intenção + layout + regras; `variant` é tratamento visual; `asset` é mídia ou
-decoração; `motion` é runtime separado. A superfície pública v0.0.1 permanece
-`class` + `<!-- layout/slot -->`, sem nova diretiva pública neste ciclo.
+Final synchronization confirmed the generalization rule: do not replicate
+67 layouts. The slice grouped composition families into eight R1 presets
+(`content`, `agenda`, `media-split`/`media-stage`, `steps`, `highlight`,
+`compare-grid`, `hero`, `image-grid`). Data storytelling (`chart-story`,
+`data-table`, `cycle`, `timeline-fit`) remained R2. `theme` meant global
+tokens/fonts/chrome; `layout` meant geometry/slots; `composition` meant
+intent + layout + rules; `variant` meant visual treatment; `asset` meant
+media or decoration; `motion` remained a separate runtime. The v0.0.1 public
+contract remained `class` + `<!-- layout/slot -->`, with no new public
+directive in that baseline cycle.
 
-Agendas, recortes/focal point de mídia, grids de 3–4 imagens, steps,
-highlights, compare de 3–4 colunas, heróis, multi-chart, tabelas/merges,
-gauges radiais e outros gaps identificados são roadmap, não devem ser
-interpretados como suporte já entregue. Timelines de objetos, transitions,
-posicionamento absoluto, máscaras/vetores compostos, device mockups, ribbons
-de marca e round-trip PPTX permanecem fora do Markdown/v0.0.1. Nenhum logo,
-foto, ícone, fonte ou asset foi extraído/importado dessa referência.
+Agendas, media cropping/focal points, grids of 3-4 images, steps, highlights,
+3-4-column comparisons, heroes, multiple charts, tables/merges, radial gauges
+and other identified gaps were roadmap items, not delivered support. Object
+timelines, transitions, absolute positioning, composite masks/vectors, device
+mockups, brand ribbons and PPTX round trips remained outside Markdown/v0.0.1.
+No logo, photo, icon, font or asset was extracted or imported from the reference.
 
-Também existe uma guia visual autocontida em
+A self-contained visual guide also existed at
 `/private/tmp/margo-totvs-deck-audit-20260819/margo-decks-visual-reference.html`.
-Ela pode orientar documentação e vocabulário (25 presets, matriz, tokens,
-boundaries e roadmap), mas permanece local/temp: não versionar, não promover
-por inferência e não importar strings, imagens, SVGs ou elementos TOTVS no
-produto.
+It could inform documentation and vocabulary: 25 presets, a matrix, tokens,
+boundaries and roadmap. It remained local/temporary, was not to be tracked or
+promoted by inference, and supplied no TOTVS strings, images, SVGs or elements
+to the product.
 
-## Objetivos
+## Objectives
 
-1. Implementar decks de slides Margo com perfil compatível e explicitamente versionado para Marpit/Marp.
-2. Suportar o conjunto aprovado de layouts e temas Margo, incluindo colunas, sidebar, compare, métricas, timeline e demo.
-3. Suportar as extensões de conteúdo do slice: charts, Mermaid, código, imagens/backgrounds, notas do apresentador e diretivas locais/globais.
-4. Produzir HTML standalone e PDF determinísticos, com geometria fixa, validação de overflow, evidência de print/PDF e identidade de runtime.
-5. Manter acessibilidade semântica: ordem de leitura estável, labels localizados, foco visível, navegação por teclado, alternativas textuais e contraste AA.
-6. Comparar visualmente a saída Margo com uma saída equivalente em Marpit, em 16:9 e 4:3, desktop e viewport estreita.
-7. Preservar contratos de runtime existentes: descriptors/reports raiz, IDs de tarefas, diagnósticos e hashes canônicos.
+1. Implement Margo slide decks with an explicitly versioned Marpit/Marp-compatible profile.
+2. Support the approved layouts and themes, including columns, sidebar, compare, metrics, timeline and demo.
+3. Support the slice's content extensions: charts, Mermaid, code, images/backgrounds, speaker notes and local/global directives.
+4. Produce deterministic standalone HTML and PDF with fixed geometry, overflow validation, print/PDF evidence and runtime identity.
+5. Preserve semantic accessibility: stable reading order, localized labels, visible focus, keyboard navigation, text alternatives and AA contrast.
+6. Compare Margo visually with equivalent Marpit output in 16:9 and 4:3, on desktop and narrow viewports.
+7. Preserve existing runtime contracts: root descriptors/reports, task IDs, diagnostics and canonical hashes.
 
-## Resultado da revisão da especificação
+## Specification review result
 
-Foi executado um loop de revisão independente de especificação com subagentes de desenvolvimento e design. Os bloqueadores foram iterados até o marco de especificação ser considerado aceitável.
+An independent review loop used development and design subagents. Blockers
+were revised until the specification milestone was considered acceptable.
 
-Pontos fechados no contrato:
+Contract decisions closed:
 
-- semântica correta de `headingDivider` escalar e por array;
-- separadores CommonMark com 0–3 espaços e precedência de Setext H2;
-- reset/clear de diretivas herdadas e associação atômica de background + alternativa;
-- geometria lógica/visual, escala, print reset e espaço de medição normalizado;
-- catálogo estrutural, DOM, ordem de leitura e combinações por layout;
-- contraste exaustivo por tema/mode;
-- bundle de fontes canônico, pesos, licenças e digest com preimage reproduzível;
-- descriptor/report raiz profile-neutral, schemas v2 estritos e tarefas screen/print válidas;
-- envelope de evidência PDF não recursivo e hashes conhecidos;
-- diagnóstico separado para `deck.font_bundle_mismatch` e `deck.validator_profile_mismatch`.
+- correct scalar and array `headingDivider` semantics;
+- CommonMark separators with 0-3 spaces and Setext H2 precedence;
+- inherited directive reset/clear and atomic background + alternative association;
+- logical/visual geometry, scaling, print reset and normalized measurement space;
+- structural catalog, DOM, reading order and per-layout combinations;
+- exhaustive contrast checks by theme/mode;
+- canonical font bundle, weights, licenses and digest with reproducible preimage;
+- profile-neutral root descriptor/report, strict v2 schemas and valid screen/print tasks;
+- non-recursive PDF evidence envelope and known hashes;
+- separate `deck.font_bundle_mismatch` and `deck.validator_profile_mismatch` diagnostics.
 
-## Resultado da revisão da implementação visual
+## Visual implementation review result
 
-### Veredito
+### Verdict
 
-**Parcial — 15/32 (Poor).** Duas heurísticas ficaram N/A (#5 e #9); não houve P0, mas existem três P1.
+**Partial, 15/32 (Poor).** Two heuristics were N/A, #5 and #9. There was no
+P0 finding, but three P1 findings remained.
 
-O conteúdo é reconhecivelmente Margo — acento teal editorial, runtime/PDF, charts e evidências — porém o comparador ainda se comporta como uma galeria genérica. A principal falha funcional é que, em 390 px, cada par permanece lado a lado em thumbnails de aproximadamente 158×90, tornando o texto das lâminas ilegível.
+The content was recognizably Margo through its editorial teal accent,
+runtime/PDF, charts and evidence. The comparator still behaved like a generic
+gallery. At 390 px, each pair stayed side by side in roughly 158x90 thumbnails,
+making slide text unreadable.
 
-### Evidência objetiva
+### Objective evidence
 
-- 30 cards de comparação e 60/60 imagens carregadas;
-- imagens com 960×540;
-- testes em 1280×720 e 390×844;
-- sem erros de console, IDs duplicados ou overflow horizontal;
-- `lang=pt-BR`, um H1, 30 H2, `header/main/article` e `alt` não vazio;
-- contraste observado: corpo 13,91:1, parágrafo 5,53:1, labels 4,80:1;
-- detector Impeccable: exit 2, 2 warnings, 0 errors — ambos relativos a `Inter` no harness de comparação e de baixa relevância para o produto;
-- overlay não foi injetado porque a superfície do navegador era somente leitura; foram usados DOM, métricas, screenshots e console.
+- 30 comparison cards and 60/60 images loaded;
+- 960x540 images;
+- tested at 1280x720 and 390x844;
+- no console errors, duplicate IDs or horizontal overflow;
+- `lang=pt-BR`, one H1, 30 H2s, `header/main/article` and nonempty `alt`;
+- observed contrast: body 13.91:1, paragraph 5.53:1, labels 4.80:1;
+- Impeccable detector: exit 2, 2 warnings, 0 errors, both concerning `Inter`
+  in the comparison tool and of low relevance to the product;
+- no overlay was injected because the browser interface was read-only;
+  inspection used the DOM, metrics, screenshots and console.
 
-### Bloqueadores prioritários
+### Priority blockers
 
-Os três P1 abaixo são o registro histórico da rodada R1; as correções foram
-implementadas no ciclo atual e reavaliadas em R2.
+The three P1 items below record the historical R1 round. They were fixed in
+that cycle and reassessed in R2.
 
-#### P1 — inspeção em mobile
+#### P1: mobile inspection
 
-Adicionar modo empilhado, zoom/1:1, fullscreen, navegação por slide e sincronização de pan/zoom. Validar também 200% de zoom.
+Add stacked mode, 1:1 zoom, fullscreen, slide navigation and synchronized
+pan/zoom. Also validate 200% zoom.
 
-#### P1 — tipografia e fidelidade de tema
+#### P1: typography and theme fidelity
 
-Embebedar WOFF2 versionado, validar a fonte computada e resolver o risco de fallback serifado nas lâminas “modern”, que deveriam usar Margo Sans/UI sans.
+Embed versioned WOFF2, validate computed fonts and address serif fallback on
+"modern" slides, which should use Margo Sans/UI sans.
 
-#### P1 — proveniência e significado das diferenças
+#### P1: provenance and meaning of differences
 
-Exibir SHA da fonte, renderer/versão, viewport e geometria PDF, timestamp, legenda de diferenças, status por slide, notas e modo delta.
+Show source SHA, renderer/version, viewport and PDF geometry, timestamp,
+difference captions, per-slide status, notes and delta mode.
 
-#### P2 — arquitetura de revisão
+#### P2: review organization
 
-Agrupar o corpus em Foundations, Layouts, Media, Charts e Runtime/PDF; fornecer índice, âncoras, progresso e filtro de itens não revisados; reduzir sombras e chrome.
+Group the corpus into Foundations, Layouts, Media, Charts and Runtime/PDF.
+Provide an index, anchors, progress and an unreviewed-item filter. Reduce
+shadows and chrome.
 
-#### P2 — semântica das capturas
+#### P2: capture semantics
 
-Usar `figure/figcaption`, resumos de diferença e links para o HTML/PDF de origem, em vez de depender apenas de `alt` genérico.
+Use `figure/figcaption`, difference summaries and links to source HTML/PDF
+instead of relying only on generic `alt` text.
 
-### Review R2 após a primeira correção
+### R2 review after the first fix
 
-- Impeccable Assessment A: **26/40 — Acceptable**, contra 15/32 na R1. O
-  comparador agora é reconhecivelmente uma ferramenta Margo/Marpit, com
-  proveniência, grupos, filtros, estado e zoom.
-- Impeccable Assessment B: detector executado uma vez; o único warning foi um
-  falso positivo de imagem do diálogo fechado. A superfície in-app perdeu o
-  browser durante a rodada, então a evidência viva R2 foi complementada por
-  CDP local reproduzível.
-- Checklist Design: a responsividade R1 foi corrigida, mas a auditoria apontou
-  foco/bordas com contraste insuficiente, idioma misto sem associação `lang`,
-  estado local sem identidade de corpus e manifesto sem identidade de fonte/runtime.
+- Impeccable Assessment A: **26/40, Acceptable**, compared with 15/32 in R1.
+  The comparator now looked like a Margo/Marpit tool, with provenance, groups,
+  filters, state and zoom.
+- Impeccable Assessment B: detector ran once. Its only warning was a false
+  positive for the closed dialog's image. The in-app browser became
+  unavailable during the round, so reproducible local CDP evidence
+  supplemented the live R2 evidence.
+- Checklist Design: R1 responsiveness was fixed, but the audit found
+  insufficient focus/border contrast, mixed language without associated
+  `lang`, local state without corpus identity, and a manifest without
+  font/runtime identity.
 
-Correções aplicadas depois de R2:
+Fixes applied after R2:
 
-- [x] estado local agora usa a identidade dos manifests + corpus; `needs
-  attention` é contado separadamente e reset tem confirmação + undo;
-- [x] zoom 1:1 abre Margo e Marpit juntos, empilhando em viewport estreita;
-- [x] bordas e focus rings usam tokens com contraste >= 3:1 e controles têm
-  alvo mínimo de 44px;
-- [x] documento comparador usa `lang="en"` e marca o lede/legenda em
-  `lang="pt-BR"`;
-- [x] manifesto publica expected/observed font bundle, checks e validation
-  identity `margo/runtime-report/v2`;
-- [x] capturas Margo foram regeneradas com o bundle WOFF2 real em
-  `/tmp/margo-pdf-compare/margo-r3-final4` (960×540), removendo o fallback
-  serifado observado na rodada anterior;
-- [x] handler de teclado do deck não sequestra setas dentro de controls, links
-  ou widgets de chart;
-- [x] reflow extremo simulado via CDP (390px e equivalente a 200%) não
-  apresenta overflow horizontal além da scrollbar vertical.
+- [x] local state now uses manifest + corpus identity; `needs attention` is
+  counted separately and reset has confirmation + undo;
+- [x] 1:1 zoom opens Margo and Marpit together, stacked on narrow viewports;
+- [x] borders and focus rings use tokens with contrast >= 3:1 and controls
+  have a minimum 44px target;
+- [x] the comparator document uses `lang="en"` and marks its introduction and
+  caption with `lang="pt-BR"`;
+- [x] the manifest publishes expected/observed font bundles, checks and
+  `margo/runtime-report/v2` validation identity;
+- [x] Margo captures were regenerated with the real WOFF2 bundle in
+  `/tmp/margo-pdf-compare/margo-r3-final4` at 960x540, removing the serif
+  fallback seen in the previous round;
+- [x] the deck keyboard handler does not intercept arrow keys inside
+  controls, links or chart widgets;
+- [x] extreme reflow simulated through CDP at 390px and an equivalent of
+  200% has no horizontal overflow beyond the vertical scrollbar.
 
-## Loop de revisão executado
+## Review loop performed
 
-### 1. Especificação e contrato
+### 1. Specification and contract
 
-- Brainstorm inicial de layouts e compatibilidade Marpit.
-- Worktree isolado criado para o slice.
-- Revisão paralela da spec por subagentes de desenvolvimento e design.
-- Iteração sobre semântica Marpit, geometria, acessibilidade, fontes, runtime reports, IDs e evidência PDF.
-- Marco de spec encerrado como aceitável antes da implementação.
+- Initial layout and Marpit compatibility brainstorming.
+- Isolated worktree created for the slice.
+- Parallel specification review by development and design subagents.
+- Iteration on Marpit semantics, geometry, accessibility, fonts, runtime
+  reports, IDs and PDF evidence.
+- Specification milestone accepted before implementation.
 
-### 2. Implementação do slice
+### 2. Slice implementation
 
-- Parser/renderizador de decks, temas, layouts e diretivas.
-- Charts, Mermaid e demais extensões previstas.
-- Runtime de navegação, controles localizados, foco e overflow.
-- HTML standalone, PDF e evidência de validação.
-- Corpus de compatibilidade e comparação Margo/Marpit.
+- Deck parser/renderer, themes, layouts and directives.
+- Charts, Mermaid and the other planned extensions.
+- Navigation runtime, localized controls, focus and overflow.
+- Standalone HTML, PDF and validation evidence.
+- Compatibility corpus and Margo/Marpit comparison.
 
-### 3. Comparação visual
+### 3. Visual comparison
 
-- Geração de saída equivalente em Marpit.
-- Página de comparação em `http://127.0.0.1:8765/margo-pdf-compare/index.html?cb=20260819v3`.
-- Inspeção em desktop e viewport estreita.
+- Equivalent Marpit output generated.
+- Comparison page at
+  `http://127.0.0.1:8765/margo-pdf-compare/index.html?cb=20260819v3`.
+- Desktop and narrow-viewport inspection.
 
-### 4. Review com `$impeccable`
+### 4. Review with `$impeccable`
 
-- Preflight de contexto com `context.mjs`.
-- Assessment A em subagente: especificidade, heurísticas de Nielsen, carga cognitiva, jornada emocional, personas e prioridades.
-- Assessment B em subagente: detector, DOM, métricas, screenshots, console e comportamento responsivo.
-- Critique persistido em:
-  `/private/tmp/margo-marpit-decks-v001/.impeccable/critique/2026-08-19T16-52-25Z__index-html.md`
-- Trend: primeiro registro desse alvo; ainda sem tendência comparável.
+- Context preflight with `context.mjs`.
+- Assessment A in a subagent: specificity, Nielsen heuristics, cognitive
+  load, emotional journey, personas and priorities.
+- Assessment B in a subagent: detector, DOM, metrics, screenshots, console
+  and responsive behavior.
+- Critique saved at
+  `/private/tmp/margo-marpit-decks-v001/.impeccable/critique/2026-08-19T16-52-25Z__index-html.md`.
+- Trend: first record for that target, with no comparable trend yet.
 
-### 5. Review com `$using-checklist-design`
+### 5. Review with `$using-checklist-design`
 
-Auditoria independente baseada nos registros do Checklist Design para:
+Independent audit based on Checklist Design records:
 
-- [Carousel](https://www.checklist.design/design-system/carousel): parcial;
-- [Button](https://www.checklist.design/design-system/button): parcial;
-- [Card](https://www.checklist.design/design-system/card): desktop consistente, mobile reprovado por legibilidade;
-- [Typography](https://www.checklist.design/design-system/typography): escala presente, zoom/viewport estreito insuficiente;
-- [Accessibility](https://www.checklist.design/design-system/accessibility): semântica e contraste bons, matriz AT/foco ainda incompleta.
+- [Carousel](https://www.checklist.design/design-system/carousel): partial;
+- [Button](https://www.checklist.design/design-system/button): partial;
+- [Card](https://www.checklist.design/design-system/card): consistent on
+  desktop, failed mobile readability;
+- [Typography](https://www.checklist.design/design-system/typography): scale
+  present, insufficient zoom/narrow-viewport support;
+- [Accessibility](https://www.checklist.design/design-system/accessibility):
+  good semantics and contrast, incomplete assistive-technology/focus matrix.
 
-## Evolução do ciclo atual
+## Progress during that cycle
 
-Implementado após o review 15/32:
+Implemented after the 15/32 review:
 
-- [x] gerador reproduzível em `tools/marpit-compare/make-compare.mjs`;
-- [x] grupos Foundations, Layouts, Media, Charts e Runtime/PDF;
-- [x] índice, busca, filtro por categoria e estado local de revisão;
-- [x] visualização Margo-only/Marpit-only e diálogo de captura 1:1;
-- [x] provenance com SHA-256 do corpus/manifests, renderer, viewport, geometria PDF e timestamp;
-- [x] layout empilhado em viewport estreita; evidência CDP: viewport 390, `scrollWidth=390`, card 366px, captura 336px;
-- [x] fallback tipográfico sans/mono explícito para evitar queda acidental em serif em faces interativas ausentes;
-- [x] substituir placeholders do font bundle por WOFF2 versionados reais, embutir aliases/licença e validar `document.fonts` + digest observado;
-- [x] ligar evidência de fontes ao `RuntimeReport` Chromium v2 (`FontChecks` + `FontBundleDigest`) e falhar com diagnóstico estável quando houver mismatch;
-- [x] vincular o estado de revisão à identidade corpus/manifest, separar `reviewed` de `needs attention` e oferecer confirmação + undo;
-- [x] abrir o zoom como comparação pareada Margo/Marpit, com placeholders válidos, captions e alt contextual;
-- [x] elevar bordas/foco para contraste de componentes e targets de 44px;
-- [x] regenerar as 30 capturas Margo com WOFF2 real e publicar no manifesto a identidade de fonte/runtime observada;
-- [x] proteger o handler de teclado contra controls, links e widgets interativos;
-- [x] recortar cada captura no canvas lógico `.margo-deck__slide`, removendo
-  stage/sombra/borda e congelando 30 PNGs 960×540; `capture-report.json`
-  registra 0 overflow em 16:9;
-- [x] ajustar charts para o canvas fixo e validar 30/30 slides sem overflow em
-  16:9 e 4:3 (`/tmp/margo-exhaustive-4by3-final3`);
-- [x] adicionar manifests por slide, `capture-report.json` e
-  `runtime-report-v2.json` com browser/engine/platform/font identity e hashes
-  reproduzíveis;
-- [x] adicionar modo `fit pair` (padrão) + alternância 1:1 no diálogo pareado;
-- [x] adicionar export JSON do review com identidade, contagens, estados,
-  timestamp e sidecars de evidência;
-- [x] alinhar a taxonomia ao corpus real: Media 13–19, Diagrams/Charts 20–26
-  e Runtime/PDF 27–30;
-- [x] repetir Assessment A, Assessment B e Checklist Design após a nova página.
+- [x] reproducible generator in `tools/marpit-compare/make-compare.mjs`;
+- [x] Foundations, Layouts, Media, Charts and Runtime/PDF groups;
+- [x] index, search, category filter and local review state;
+- [x] Margo-only/Marpit-only views and 1:1 capture dialog;
+- [x] provenance with corpus/manifest SHA-256, renderer, viewport, PDF geometry
+  and timestamp;
+- [x] stacked narrow-viewport layout; CDP evidence: viewport 390,
+  `scrollWidth=390`, 366px card, 336px capture;
+- [x] explicit sans/mono fallback to prevent accidental serif fallback when
+  interactive font faces are absent;
+- [x] replace font-bundle placeholders with real versioned WOFF2, embed
+  aliases/license, validate `document.fonts` and observed digest;
+- [x] connect font evidence to Chromium v2 `RuntimeReport` through `FontChecks`
+  and `FontBundleDigest`, failing with a stable diagnostic on mismatch;
+- [x] bind review state to corpus/manifest identity, separate `reviewed` from
+  `needs attention`, and provide confirmation + undo;
+- [x] open zoom as a paired Margo/Marpit comparison with valid placeholders,
+  captions and contextual alt text;
+- [x] raise border/focus contrast and use 44px targets;
+- [x] regenerate 30 Margo captures with real WOFF2 and publish observed
+  font/runtime identity in the manifest;
+- [x] protect the keyboard handler around controls, links and interactive widgets;
+- [x] crop each capture to logical `.margo-deck__slide`, removing stage,
+  shadow and border, and freeze 30 960x540 PNGs; `capture-report.json`
+  records zero overflow at 16:9;
+- [x] fit charts to the fixed canvas and validate 30/30 slides without
+  overflow at 16:9 and 4:3 in `/tmp/margo-exhaustive-4by3-final3`;
+- [x] add per-slide manifests, `capture-report.json` and
+  `runtime-report-v2.json` with browser/engine/platform/font identity and
+  reproducible hashes;
+- [x] add default `fit pair` mode and a 1:1 toggle in the paired dialog;
+- [x] add review JSON export with identity, counts, states, timestamp and
+  evidence sidecars;
+- [x] align taxonomy with the real corpus: Media 13-19, Diagrams/Charts 20-26
+  and Runtime/PDF 27-30;
+- [x] repeat Assessment A, Assessment B and Checklist Design on the new page.
 
-### 6. Próximo ciclo obrigatório
+### 6. Required next cycle
 
-1. Concluído: reexecutar Assessment A + Assessment B e a auditoria Checklist
-   Design sobre a página r6.
-2. Concluído: revalidar 16:9, 4:3, 1280×720, 390×844, equivalente a 200%,
-   print/PDF, modal, export e acessibilidade estrutural; manter evidência CDP
-   quando o browser in-app não estiver disponível.
-3. Concluído: registrar aprovação visual/funcional e fechar o goal sem merge,
-   push, release ou deploy.
+1. Complete: rerun Assessment A, Assessment B and Checklist Design on r6.
+2. Complete: revalidate 16:9, 4:3, 1280x720, 390x844, the equivalent of 200%,
+   print/PDF, modal, export and structural accessibility. Keep CDP evidence
+   when the in-app browser is unavailable.
+3. Complete: record visual/functional approval and close the goal without
+   merge, push, release or deployment.
 
-## Critério de saída
+## Exit criteria
 
-O objetivo só estará concluído quando o comparador permitir inspeção legível em mobile e desktop, registrar diferenças/proveniência de forma explícita, preservar os contratos determinísticos de HTML/PDF/runtime e passar novamente pelos dois subagentes Impeccable mais o Checklist Design sem P1 aberto. O goal permanece aberto até esse checkpoint, mesmo com os gates de código e CDP verdes.
+The goal required a comparator with readable mobile and desktop inspection,
+explicit differences/provenance, deterministic HTML/PDF/runtime contracts,
+and approval from both Impeccable subagents plus Checklist Design without
+open P1 findings. It remained open until that checkpoint, even when code and
+CDP gates passed.
 
-## Checkpoint R3/R4 — correções pós-review
+## R3/R4 checkpoint: post-review fixes
 
-- O P0 visual foi fechado: os 30 PNGs Margo em `margo-r3-final4` têm 960×540
-  e foram capturados apenas do slide lógico; `capture-report.json` mostra
-  `overflow=false` para todos os slides em 16:9.
-- A mesma matriz de overflow passou em 4:3 com 30/30 slides em
+- The visual P0 was closed: all 30 Margo PNGs in `margo-r3-final4` are
+  960x540, captured only from the logical slide. `capture-report.json`
+  reports `overflow=false` for every 16:9 slide.
+- The same overflow matrix passed at 4:3 for 30/30 slides in
   `/tmp/margo-exhaustive-4by3-final3`.
-- A auditoria CDP do comparador atual (`cb=20260819r5`) encontrou 30 cards,
-  60 figuras/60 imagens, 60/60 imagens carregadas após scroll individual,
-  zero quebradas, zero erros de console e zero overflow horizontal em 1280 e
-  390; no equivalente a 200%, `scrollWidth=204` contra `clientWidth=195`,
-  apenas a scrollbar vertical esperada.
-- O diálogo pareado abre em `fit-pair` com as duas imagens simultâneas e
-  alterna para 1:1; foco retorna ao botão de origem. Reset + undo restaura o
-  estado. O export JSON foi exercitado por CDP e baixou
-  `margo-marpit-review-337ca30e59b9.json`, com `total=30`,
-  `needsAttention=1`, sidecars e `runtimeEvidenceSHA256`.
-- O checkpoint Checklist R4 encontrou um P1 de seletor: o atributo
-  `data-zoom-title` também existia nos botões. O gerador agora usa `#zoom-title`,
-  preserva as 60 imagens após abrir o modal e atualiza o label associado ao
-  diálogo.
-- O equivalente a 200% tinha 9px de largura documental por campos flexíveis e
-  hashes longos. Inputs/selects/toolbar e notas agora têm limites e wrapping;
-  no r6 o documento mede `195/195` sem overflow horizontal.
-- Impeccable R4 aprovou o comparador sem P0/P1 após a correção de captura,
-  fit-pair e export. Checklist R4 anterior foi invalidado pelo seletor stale;
-  Checklist R5 e Impeccable R5 agora aprovam o r6 sem P0/P1.
-- `GOWORK=off go test ./... -count=1` passou depois das alterações de chart e
-  comparação. O navegador serviu o `index.html` com HTTP 200 e bytes idênticos
-  ao arquivo local.
+- The current comparator's CDP audit, `cb=20260819r5`, found 30 cards,
+  60 figures/60 images, 60/60 images loaded after individual scrolling,
+  no broken images, no console errors and no horizontal overflow at 1280 or
+  390. At the equivalent of 200%, `scrollWidth=204` versus `clientWidth=195`
+  represented only the expected vertical scrollbar.
+- The paired dialog opens in `fit-pair` with both images and toggles to 1:1.
+  Focus returns to the originating button. Reset + undo restores state.
+  CDP exercised JSON export and downloaded
+  `margo-marpit-review-337ca30e59b9.json` with `total=30`, `needsAttention=1`,
+  sidecars and `runtimeEvidenceSHA256`.
+- Checklist R4 found a P1 selector defect: `data-zoom-title` also appeared on
+  buttons. The generator now uses `#zoom-title`, preserves all 60 images
+  after opening the modal and updates the dialog's associated label.
+- The equivalent of 200% had 9px of extra document width from flexible fields
+  and long hashes. Inputs, selects, toolbar and notes now have width limits
+  and wrapping. r6 measures `195/195` without horizontal document overflow.
+- Impeccable R4 approved the comparator without P0/P1 after capture, fit-pair
+  and export fixes. The previous Checklist R4 was invalidated by the stale
+  selector. Checklist R5 and Impeccable R5 approved r6 without P0/P1.
+- `GOWORK=off go test ./... -count=1` passed after chart and comparison changes.
+  The browser served `index.html` with HTTP 200 and bytes identical to the
+  local file.
 
-## Checkpoint R5 — encerramento do slice
+## R5 checkpoint: slice completion
 
-- Impeccable R5: **aprovado; nenhum P0/P1**. O r6 servido corresponde ao
-  `index.html` local, SHA-256
-  `8974ffd145e5071e387bc37856b156b5e14355c69c5c0d63c8c973837b0a60ea`.
-- Checklist Design R5: **nenhum P1 restante**. Carousel, Button e Card
-  passaram; Typography, Accessibility e Provenance ficaram parciais apenas
-  por lacunas P2 de evidência.
-- O defeito do seletor foi fechado com `#zoom-title`: abertura do modal mantém
-  60/60 imagens e atualiza `aria-labelledby` para o slide aberto.
-- CDP fresco confirmou fit-pair (~586/586 px), 1:1 (960/960 px), foco
-  restaurado, zero erros/exceções e equivalente a 195 px sem overflow
-  documental (`inner/client/scroll/body = 195`).
-- Export real validado: JSON parseável, contagens/identidade/sidecars
-  consistentes, SHA-256
-  `7d4e7e53daa1c8c009e18e5f6e3b892010a9cf51777415bfcb395139db54d576`.
-- Evidência Margo: 30 PNGs 960×540, 30/30 slides sem overflow em 16:9 e 4:3;
-  60 assets, tamanhos e hashes íntegros; manifests e runtime report
-  recomputáveis dentro do envelope do comparador.
-- Limitações P2 explícitas: não houve execução literal de zoom de navegador a
-  200% nem teste VoiceOver/NVDA; bytes do corpus não acompanham os sidecars;
-  `make-compare.mjs` sintetiza identidade/status do relatório comparativo a
-  partir dos argumentos; placeholder em português ainda herda `lang="en"`.
-  Nenhuma dessas lacunas bloqueia o slice, mas permanecem backlog de evidência.
+- Impeccable R5: **approved, no P0/P1**. Served r6 matched local `index.html`,
+  SHA-256 `8974ffd145e5071e387bc37856b156b5e14355c69c5c0d63c8c973837b0a60ea`.
+- Checklist Design R5: **no remaining P1**. Carousel, Button and Card passed.
+  Typography, Accessibility and Provenance remained partial only because of
+  P2 evidence gaps.
+- The selector defect was fixed with `#zoom-title`: opening the modal keeps
+  60/60 images and updates `aria-labelledby` for the selected slide.
+- Fresh CDP confirmed fit-pair at roughly 586/586 px, 1:1 at 960/960 px,
+  restored focus, no errors/exceptions and a 195 px equivalent with no
+  document overflow: `inner/client/scroll/body = 195`.
+- Actual export validated: parseable JSON, consistent counts/identity/sidecars,
+  SHA-256 `7d4e7e53daa1c8c009e18e5f6e3b892010a9cf51777415bfcb395139db54d576`.
+- Margo evidence: 30 960x540 PNGs, 30/30 slides without overflow at 16:9 and
+  4:3, 60 assets with intact sizes and hashes, manifests and runtime report
+  recomputable within the comparator envelope.
+- Explicit P2 limits: no literal 200% browser zoom or VoiceOver/NVDA run;
+  corpus bytes do not accompany sidecars; `make-compare.mjs` synthesizes
+  comparative report identity/status from arguments; a Portuguese placeholder
+  still inherits `lang="en"`. These gaps did not block the slice but
+  remained evidence backlog.
 
-## Checkpoint Composições R1 — implementação aprovada
+## Compositions R1 checkpoint: approved implementation
 
-O usuário aprovou a execução depois da revisão da spec e do plano. A
-implementação foi concluída neste worktree isolado, sem promover nenhum arquivo
-TOTVS e sem criar commit ou push novo.
+The user approved execution after specification and plan review. Implementation
+was completed in the isolated worktree without promoting TOTVS files or
+creating another commit or push.
 
-### Contrato entregue
+### Delivered contract
 
-- catálogo fechado `r1` com `content`, `agenda`, `media-split`, `media-stage`,
-  `steps`, `highlight`, `compare-grid`, `hero` e `image-grid`; `none` limpa a
-  composição herdada;
-- diretiva em frontmatter, corpo e spot, com herança/clear e diagnósticos
-  `deck.composition_*` estáveis;
-- layouts implícitos ou marcadores explícitos compatíveis, slots semânticos em
-  ordem de origem e família `grid` controlada somente por composição;
-- HTML com identidade de catálogo, composição, variante, família e slots,
-  labels localizados e CSS limitado a tokens/famílias R1;
-- digest de tarefa e envelope de validação canônicos incluem catálogo e inputs
-  de composição; evidência PDF preserva o caminho legado e registra identidade
-  R1 quando usada;
-- fixture Markdown autocontida cobrindo todos os nove nomes, manifesto
-  comparável, documentação pública e categoria `Compositions R1` no gerador.
+- closed `r1` catalog with `content`, `agenda`, `media-split`, `media-stage`,
+  `steps`, `highlight`, `compare-grid`, `hero` and `image-grid`; `none` clears
+  inherited composition;
+- frontmatter, body and spot directive with inheritance/clear and stable
+  `deck.composition_*` diagnostics;
+- implicit layouts or compatible explicit markers, semantic slots in source
+  order, and the `grid` family controlled only through composition;
+- HTML with catalog, composition, variant, family and slot identity,
+  localized labels and CSS limited to R1 tokens/families;
+- canonical task digest and validation envelope include catalog and
+  composition inputs; PDF evidence preserves the legacy path and records R1
+  identity when used;
+- self-contained Markdown fixture covering all nine names, comparable
+  manifest, public documentation and a `Compositions R1` generator category.
 
-### Gates executados
+### Gates executed
 
-Todos passaram:
+All passed:
 
 ```text
 GOWORK=off go test ./... -count=1
 GOWORK=off go vet ./...
 GOWORK=off go mod verify              # all modules verified
-gofmt -l .                             # saída vazia
+gofmt -l .                             # empty output
 git diff --check
 node --check tools/marpit-compare/make-compare.mjs
 GOWORK=off go test ./deck ./pdf ./pdf/chromium ./cmd/margo -count=1
 ```
 
-### Evidência visual e de comparação
+### Visual and comparison evidence
 
-Os artefatos são temporários e permanecem fora do repositório em
+Temporary artifacts remained outside the repository at
 `/tmp/margo-compositions-r1-eNjPpk/`:
 
-- seis HTML (modern, goshtoso e minimal em 16:9 e 4:3) e seis PDFs Chromium;
-  cada PDF tem 10 páginas; 16:9 mede `960 × 540 pt` e 4:3 mede `720 × 540 pt`;
-- PNGs revisados de conteúdo, compare-grid e 4:3 minimal em `png/`;
-- comparador gerado em `compare/`, com `catalogVersion: r1`, SHA-256 do
-  manifesto, nove cards da categoria R1 e nenhuma inclusão da lâmina
-  deliberadamente descomposta;
-- Playwright/CDP verificou desktop `1280/1280` e mobile `390/390` de largura
-  documental, 9 cards R1, 18 labels de composição, filtro de categoria,
-  Margo-only, zoom pareado, alternância 1:1, retorno de foco e fechamento do
-  diálogo.
+- six HTML files: modern, goshtoso and minimal at 16:9 and 4:3, plus six
+  Chromium PDFs. Each PDF has 10 pages; 16:9 measures `960 × 540 pt` and
+  4:3 measures `720 × 540 pt`;
+- reviewed PNGs of content, compare-grid and 4:3 minimal in `png/`;
+- comparator generated in `compare/`, with `catalogVersion: r1`, manifest
+  SHA-256, nine R1 category cards and no deliberately uncomposed slide;
+- Playwright/CDP checked desktop `1280/1280` and mobile `390/390` document
+  widths, 9 R1 cards, 18 composition labels, category filter, Margo-only,
+  paired zoom, 1:1 toggle, focus restoration and dialog closure.
 
-### Estado e pendências
+### Status and remaining work
 
-O ciclo R1 está concluído para fins de implementação e revisão proporcional,
-sem P0/P1 aberto. Permanecem como P2: zoom literal a 200%, VoiceOver/NVDA,
-sidecars completos do corpus, captura de identidade do runtime real no
-comparador e placeholder PT-BR dedicado. O próximo incremento de storytelling
-de dados continua R2 e não foi inferido como suporte atual.
+The R1 cycle was complete for implementation and proportional review, with
+no open P0/P1. P2 items remained: literal 200% zoom, VoiceOver/NVDA, complete
+corpus sidecars, real runtime identity capture in the comparator and a dedicated
+PT-BR placeholder. The next data-storytelling increment remained R2 and was
+not presented as current support.
 
-O commit publicado da baseline continua sendo
-`335d9892deb937b1516304aa5dd65acb9bd53a90`; qualquer novo commit/push, PR,
-merge, tag, release ou deploy exige autorização própria.
+The published baseline remained
+`335d9892deb937b1516304aa5dd65acb9bd53a90`; any new commit, push, PR, merge,
+tag, release or deployment required its own authorization.
 
-## Checkpoint visual — chrome e capa Margo
+## Visual checkpoint: Margo chrome and cover
 
-- [x] Paginação visível reduzida a inteiro (`1`, `2`, …), sempre ancorada no
-  canto inferior direito do canvas lógico;
-- [x] Header/footer retirados do fluxo de conteúdo, aproximados dos cantos e
-  alinhados à esquerda, sem sobreposição no screen ou print;
-- [x] Capa/lead/hero usa container vertical de três linhas, com bloco e texto
-  centralizados no canvas;
-- [x] PDF regenerado e conferido: 42 páginas, `960 × 540 pt`, Tagged; páginas
-  1, 2, 10, 13 e 42 revisadas visualmente;
-- [x] `GOWORK=off go test ./... -count=1` e `git diff --check` verdes;
-- [ ] Commit/push continuam fora do escopo sem autorização nova.
+- [x] visible pagination reduced to an integer, `1`, `2`, etc., always
+  anchored to the logical canvas's bottom-right corner;
+- [x] header/footer removed from content flow, positioned near corners and
+  left-aligned, without screen or print overlap;
+- [x] cover/lead/hero uses a three-row vertical container, with block and
+  text centered on the canvas;
+- [x] PDF regenerated and checked: 42 pages, `960 × 540 pt`, Tagged;
+  pages 1, 2, 10, 13 and 42 reviewed visually;
+- [x] `GOWORK=off go test ./... -count=1` and `git diff --check` passed;
+- [ ] commit/push remained out of scope without new authorization.
 
-## Checkpoint Marpit equivalent — corpus exhaustivo
+## Marpit-equivalent checkpoint: exhaustive corpus
 
-- [x] Gerada saída equivalente do mesmo corpus narrativo de 42 slides usando
-  `@marp-team/marp-core` 4.4.0 sobre `@marp-team/marpit` 3.2.2;
-- [x] Frontmatter convertido para `marp: true`, tema standard, paginação,
-  header/footer e `size: 16:9`; classes Margo projetadas para `_class` Marpit;
-- [x] Conteúdo, tabelas, listas, código, notas, imagens e roadmap preservados;
-  `layout/slot/composition` sem equivalente nativo ficam achatados em ordem de
-  origem, sem CSS arbitrário ou posicionamento absoluto;
-- [x] Mermaid e Goshtoso permanecem fences de código no baseline puro, com
-  limite explicitado no deck; nenhum plugin externo foi fingido como suporte;
-- [x] HTML, fonte Markdown e PDF temporários em
-  `/tmp/margo-marpit-equivalent/`; somente assets Margo já existentes foram
-  staged localmente, sem copiar ou versionar material TOTVS;
-- [x] PDF Chromium verificado: 42 páginas, `960 × 540 pt`, Tagged, 1.973
-  palavras dentro do MediaBox, 42 seções HTML e quatro imagens com `alt`;
-- [x] Amostras visuais revisadas: capa centralizada, agenda, media stage,
-  metrics, timeline, Mermaid, chart fence, matrizes, tema invertido e slide
-  final;
-- [ ] Publicação em commit/push permanece fora deste checkpoint e exige nova
-  autorização explícita.
+- [x] equivalent output generated from the same 42-slide narrative corpus
+  using `@marp-team/marp-core` 4.4.0 on `@marp-team/marpit` 3.2.2;
+- [x] frontmatter converted to `marp: true`, standard theme, pagination,
+  header/footer and `size: 16:9`; Margo classes projected to Marpit `_class`;
+- [x] content, tables, lists, code, notes, images and roadmap preserved;
+  `layout/slot/composition` without a native equivalent were flattened in
+  source order, without arbitrary CSS or absolute positioning;
+- [x] Mermaid and Goshtoso remained code fences in the pure baseline, with
+  limits stated in the deck; no external plugin was presented as native support;
+- [x] temporary HTML, Markdown source and PDF in
+  `/tmp/margo-marpit-equivalent/`; only existing Margo assets were staged
+  locally, without copying or tracking TOTVS material;
+- [x] Chromium PDF checked: 42 pages, `960 × 540 pt`, Tagged, 1,973 words
+  inside the MediaBox, 42 HTML sections and four images with `alt`;
+- [x] visual samples reviewed: centered cover, agenda, media stage, metrics,
+  timeline, Mermaid, chart fence, matrices, inverted theme and final slide;
+- [ ] commit/push publication remained outside this checkpoint and required
+  new explicit authorization.
 
-## Estado do slice base
+## Base slice status
 
-Objetivos de implementação, comparação visual, runtime/PDF, acessibilidade
-estrutural e revisão independente concluídos neste worktree isolado. O slice
-foi publicado no commit `335d9892deb937b1516304aa5dd65acb9bd53a90` da branch
-`feat/marpit-decks-v001`. `goal.md` permanece local e não versionado. O ciclo
-ativo está descrito no início deste documento; não há autorização implícita
-para novo commit ou push, PR, merge, tag, release, deploy ou importação do
-material TOTVS.
+Implementation, visual comparison, runtime/PDF, structural accessibility and
+independent review objectives were complete in the isolated worktree. The slice
+was published at commit `335d9892deb937b1516304aa5dd65acb9bd53a90` on
+`feat/marpit-decks-v001`. The session recorded `goal.md` as local and untracked.
+Its active cycle was described at the start of the original document; it
+conferred no implicit authorization for another commit, push, PR, merge, tag,
+release, deployment or import of TOTVS material.

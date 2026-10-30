@@ -3,6 +3,10 @@
 Thanks for helping improve Margo. Start from a clean branch and keep changes
 focused on one behavior, documentation contract, or dependency update.
 
+## Repository language
+
+Write repository documentation, GoDoc, source-code identifiers, code comments and developer-facing tooling messages in English, including upstream contributions. Published content and UI labels follow the configured locale. Preserve intentional localization/Unicode fixtures and compatibility-sensitive values.
+
 ## Prerequisites
 
 - Go 1.27.3 or newer (`go version`)

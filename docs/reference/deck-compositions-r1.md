@@ -222,7 +222,7 @@ authoritative diagnostics for uncomposed v0.0.1 input.
 The media system reserves a compact inline token for icons:
 
 ```markdown
-Mês/ano :icon-name-here
+Month/year :icon-name-here
 ```
 
 `icon-name-here` is a lower-kebab symbol resolved from the embedded Goshtoso
@@ -257,7 +257,7 @@ deck.WithPaginationIcon(deck.PaginationIconConfig{
 })
 ```
 
-The `Mês/ano :icon-name-here` author token and declared iconpacks remain
+The `Month/year :icon-name-here` author token and declared iconpacks remain
 roadmap work; R1 fails closed for symbols outside the embedded catalog.
 
 ## Confidentiality badge
