@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/png"
 	"net/url"
@@ -28,6 +29,38 @@ func writeTestPNG(t *testing.T, filename string, width, height int) {
 	}
 	if err := os.WriteFile(filename, content.Bytes(), 0644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGlobalSocialImageKeepsNativeDimensions(t *testing.T) {
+	for _, kind := range []string{"docs", "landing"} {
+		for _, size := range []image.Point{{X: 1280, Y: 640}, {X: 1200, Y: 630}} {
+			root, configPath := publicationFixture(t, kind, AssetsLocal)
+			config, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeConfigFile(t, configPath, strings.ReplaceAll(string(config), "assets/social.jpg", "assets/social.png"))
+			filename := filepath.Join(root, "assets/social.png")
+			writeTestPNG(t, filename, size.X, size.Y)
+			original, err := os.ReadFile(filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: configPath})
+			if err != nil {
+				t.Fatal(err)
+			}
+			page := string(configArtifact(t, result, "index.html"))
+			for _, want := range []string{fmt.Sprintf(`property="og:image:width" content="%d"`, size.X), fmt.Sprintf(`property="og:image:height" content="%d"`, size.Y), `property="og:image:type" content="image/png"`} {
+				if !strings.Contains(page, want) {
+					t.Fatalf("%s omits %s", kind, want)
+				}
+			}
+			if !bytes.Equal(configArtifact(t, result, "assets/social.png"), original) {
+				t.Fatal("social artwork bytes changed")
+			}
+		}
 	}
 }
 

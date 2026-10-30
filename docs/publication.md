@@ -29,7 +29,7 @@ byte budget. Dimensions and MIME type come from the image bytes.
 Open Graph and Twitter use the same absolute, base-path-aware image URL and
 alternative text. The image is published as a separate artifact even with
 `assets: inline`, because social crawlers need an HTTP URL. Omit the field to
-use the existing site-wide 1280x640 JPEG or PNG fallback. This setting does not
+use the existing site-wide JPEG or PNG fallback with its decoded dimensions. This setting does not
 insert an image in the visible article or choose its JSON-LD image. Declare
 `structured_data.image` separately when that image represents the article.
 Native `Article` and `BlogPosting` declarations emit `og:type: article`, including

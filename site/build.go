@@ -153,6 +153,8 @@ type builder struct {
 	shellName        string
 	shellAssetPrefix string
 	socialMediaType  string
+	socialWidth      int
+	socialHeight     int
 	layoutPatches    []LayoutPatch
 	configured       map[string]configuredPage
 	configPages      []Page
