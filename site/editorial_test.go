@@ -41,7 +41,7 @@ search:
 	writeConfigFile(t, configPath, config)
 	copyMargoAsset(t, filepath.Join(root, "assets", "dark.svg"), "logo.svg")
 	writeConfigFile(t, filepath.Join(root, "docs", "index.md"), "# Home\n\n## First section\n\n[Link](posts/index.md).\n\n"+strings.Repeat("Paragraph of editorial content.\n\n", 40)+"## Second section\n\n"+strings.Repeat("More content.\n\n", 30))
-	writeConfigFile(t, filepath.Join(root, "docs", "posts", "index.md"), "---\ndescription: Post summary\nauthors: [Ana]\npublishedAt: \"2026-10-27T10:00:00-03:00\"\nstructured_data:\n  type: BlogPosting\nsocial_image:\n  path: ./assets/cover.png\n  alt: Post cover\nlayout:\n  values:\n    pagination: true\n---\n# Posts\n\n## Section\n\nDetails.\n")
+	writeConfigFile(t, filepath.Join(root, "docs", "posts", "index.md"), "---\ndescription: Post summary\nauthors: [Ana]\npublishedAt: \"2026-10-27T10:00:00-03:00\"\nstructured_data:\n  type: BlogPosting\nsocial_image:\n  path: ./assets/cover.png\n  alt: Post cover\nlayout:\n  values:\n    sidebar: true\n    pagination: true\n---\n# Posts\n\n## Section\n\nDetails.\n")
 	writeTestPNG(t, filepath.Join(root, "docs/posts/assets/cover.png"), 960, 540)
 	result, err := BuildConfig(context.Background(), ConfigRequest{ConfigPath: configPath})
 	if err != nil {
@@ -55,7 +55,7 @@ func TestEditorialComposition(t *testing.T) {
 		t.Run(string(mode), func(t *testing.T) {
 			result := editorialFixture(t, mode)
 			home := string(configArtifact(t, result, "index.html"))
-			for _, want := range []string{`class="component-doc-shell__header"`, `class="margo-header-links"`, `Blog &amp; projects`, `margo-theme-logo__dark`, `Search post`, `Find a post`, `No posts found.`, `data-margo-sidebar="false"`, `data-componentdocshell-toc`} {
+			for _, want := range []string{`class="component-doc-shell__header"`, `component-doc-shell__global-navigation--header`, `Blog &amp; projects`, `margo-theme-logo__dark`, `Search post`, `Find a post`, `No posts found.`, `data-margo-sidebar="false"`, `data-componentdocshell-toc`} {
 				if !strings.Contains(home, want) {
 					t.Errorf("missing %s", want)
 				}

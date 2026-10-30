@@ -337,14 +337,7 @@ const configuredHeaderCSS = `
 .margo-theme-logo .margo-theme-logo__dark { display: none; }
 .dark .margo-theme-logo .margo-theme-logo__light { display: none; }
 .dark .margo-theme-logo .margo-theme-logo__dark { display: block; }
-.margo-header-links { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
-.margo-header-links a { color: inherit; text-decoration: none; }
-.margo-header-links a:hover { text-decoration: underline; }
-.margo-header-menu { display: none; }
-@media (max-width: 1023px) {
-  .margo-header-links { display: none; }
-  .margo-header-menu { display: inline-block; }
-}
+
 `
 
 func configuredSiteStylesheet() string {

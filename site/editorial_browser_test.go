@@ -69,12 +69,12 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 			}
 			// Metadata follows partial navigation and history, including removal on pages without JSON-LD.
 			var homeMetadata string
-			const metadataSnapshot = `JSON.stringify(Array.from(document.head.querySelectorAll('meta[name="description"],meta[property^="og:"],meta[name^="twitter:"],link[rel="canonical"],script[type="application/ld+json"]')).map(n => n.outerHTML).sort())`
+			const metadataSnapshot = `JSON.stringify(Array.from(document.head.querySelectorAll('title,meta[name="description"],meta[property^="og:"],meta[name^="twitter:"],link[rel="canonical"],script[type="application/ld+json"]')).map(n => n.outerHTML).sort())`
 			const postMetadata = `document.querySelector('meta[property="og:image"]')?.content === 'https://margo.example/posts/assets/cover.png' && document.querySelector('meta[name="twitter:image"]')?.content === 'https://margo.example/posts/assets/cover.png' && document.querySelector('[data-margo-publication-date="published"]')?.textContent === '27/10/2026' && location.pathname === '/posts/' && document.title.startsWith('Posts') && document.querySelector('#main-content h1')?.textContent === 'Posts' && document.querySelector('link[rel="canonical"]')?.href.endsWith('/posts/') && document.querySelector('meta[name="description"]')?.content === 'Post summary' && JSON.parse(document.querySelector('script[type="application/ld+json"]')?.textContent || '{}')['@type'] === 'BlogPosting' && document.querySelectorAll('script[type="application/ld+json"]').length === 1`
 			if err := chromedp.Run(ctx,
 				chromedp.Evaluate(metadataSnapshot, &homeMetadata),
-				chromedp.Evaluate(`window.editorialNavigationSentinel = true`, nil),
-				chromedp.Click(`.margo-header-links a[href="/posts/"]`, chromedp.ByQuery),
+				chromedp.Evaluate(`window.editorialNavigationSentinel = true;window.editorialTrigger=document.querySelector("#margo-sidebar-trigger")`, nil),
+				chromedp.Click(`.component-doc-shell__global-navigation--header a[href="/posts/"]`, chromedp.ByQuery),
 				chromedp.Poll(postMetadata, nil, chromedp.WithPollingTimeout(5*time.Second)),
 				chromedp.Evaluate(`history.back()`, nil),
 				chromedp.Poll(`location.pathname === '/' && document.title.startsWith('Home') && document.querySelector('#main-content h1')?.textContent === 'Home' && !document.querySelector('script[type="application/ld+json"]') && !document.querySelector('meta[property="article:published_time"]')`, nil),
@@ -90,7 +90,7 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
 			if err := chromedp.Run(ctx,
 				chromedp.Evaluate(`history.forward()`, nil),
 				chromedp.Poll(postMetadata, nil, chromedp.WithPollingTimeout(5*time.Second)),
-				chromedp.Poll(`window.editorialNavigationSentinel === true`, nil),
+				chromedp.Poll(`window.editorialNavigationSentinel === true && window.editorialTrigger === document.querySelector("#margo-sidebar-trigger")`, nil),
 				chromedp.Evaluate(`history.back()`, nil),
 				chromedp.Poll(`location.pathname === '/' && document.title.startsWith('Home') && document.querySelector('#main-content h1')?.textContent === 'Home' && !document.querySelector('script[type="application/ld+json"]')`, nil),
 			); err != nil {
@@ -108,7 +108,28 @@ func TestEditorialBrowserHeaderTOCAndTheme(t *testing.T) {
  })()`, &visible)); err != nil || !visible {
 				t.Fatalf("dark logo/link mismatch: %v %v", visible, err)
 			}
-			if err := chromedp.Run(ctx, chromedp.EmulateViewport(390, 844), chromedp.Poll(`document.documentElement.scrollWidth<=innerWidth && getComputedStyle(document.querySelector('[data-componentdocshell-toc]')).display==='none'`, nil), chromedp.Click(`#margo-header-menu button`, chromedp.ByQuery), chromedp.WaitVisible(`#margo-header-menu a`, chromedp.ByQuery), chromedp.KeyEvent(kb.Escape), chromedp.Click(`#margo-site-search button`, chromedp.ByQuery), chromedp.WaitVisible(`input[placeholder="Find a post"]`, chromedp.ByQuery)); err != nil {
+			// Exercise mobile links after the drawer's opening transition settles.
+			for _, step := range []struct {
+				name   string
+				action chromedp.Action
+			}{
+				{"mobile viewport", chromedp.EmulateViewport(390, 844)},
+				{"open drawer", chromedp.Click(`#margo-sidebar-trigger`, chromedp.ByQuery)},
+				{"drawer exposed", chromedp.Poll(`document.querySelector('#componentdocshell-sidebar.is-open')?.getBoundingClientRect().left >= -0.5`, nil, chromedp.WithPollingTimeout(5*time.Second))},
+				{"global link", chromedp.Click(`.component-doc-shell__global-navigation--drawer a[href="/posts/"]`, chromedp.ByQuery)},
+				{"post metadata", chromedp.Poll(postMetadata, nil, chromedp.WithPollingTimeout(5*time.Second))},
+				{"context restored", chromedp.Poll(`window.editorialTrigger===document.querySelector('#margo-sidebar-trigger') && document.querySelector('#componentdocshell-sidebar-content').dataset.localNavigation==='true' && !document.querySelector('#componentdocshell-sidebar.is-open')`, nil, chromedp.WithPollingTimeout(5*time.Second))},
+				{"mobile history back", chromedp.Evaluate(`history.back()`, nil)},
+				{"site restored", chromedp.Poll(`location.pathname==='/' && document.title.startsWith('Home') && document.querySelector('link[rel="canonical"]')?.href==='https://margo.example/' && document.querySelector('#main-content h1')?.textContent==='Home' && document.querySelector('#componentdocshell-sidebar-content').dataset.localNavigation==='false' && window.editorialTrigger===document.querySelector('#margo-sidebar-trigger')`, nil, chromedp.WithPollingTimeout(5*time.Second))},
+			} {
+				if err := chromedp.Run(ctx, step.action); err != nil {
+					var state string
+					_ = chromedp.Run(ctx, chromedp.Evaluate(`JSON.stringify({url:location.href,h1:document.querySelector('#main-content h1')?.textContent,local:document.querySelector('#componentdocshell-sidebar-content')?.dataset.localNavigation,open:!!document.querySelector('#componentdocshell-sidebar.is-open'),sameTrigger:window.editorialTrigger===document.querySelector('#margo-sidebar-trigger'),image:document.querySelector('meta[property="og:image"]')?.content,active:document.activeElement?.outerHTML})`, &state))
+					t.Fatalf("%s: %v; %s", step.name, err, state)
+				}
+			}
+
+			if err := chromedp.Run(ctx, chromedp.EmulateViewport(390, 844), chromedp.Poll(`document.documentElement.scrollWidth<=innerWidth && getComputedStyle(document.querySelector('[data-componentdocshell-toc]')).display==='none'`, nil), chromedp.Click(`#margo-sidebar-trigger`, chromedp.ByQuery), chromedp.WaitVisible(`.component-doc-shell__global-navigation--drawer a`, chromedp.ByQuery), chromedp.KeyEvent(kb.Escape), chromedp.Click(`#margo-site-search button`, chromedp.ByQuery), chromedp.WaitVisible(`input[placeholder="Find a post"]`, chromedp.ByQuery)); err != nil {
 				t.Fatal(err)
 			}
 		})

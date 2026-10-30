@@ -10,7 +10,7 @@ const docsNavigationScript = `(function () {
   var pendingDependencies = new Map();
   var runtimeQueue = Promise.resolve();
   // Replace route metadata only; scripts, styles and shell state stay installed.
-  var pageMetadataSelector = 'meta[name="description"], meta[name="author"], meta[name="keywords"], meta[name="robots"], meta[property^="og:"], meta[property^="article:"], meta[name^="twitter:"], link[rel="canonical"], link[rel="alternate"][hreflang], script[type="application/ld+json"]';
+  var pageMetadataSelector = 'title, meta[name="description"], meta[name="author"], meta[name="keywords"], meta[name="robots"], meta[property^="og:"], meta[property^="article:"], meta[name^="twitter:"], link[rel="canonical"], link[rel="alternate"][hreflang], script[type="application/ld+json"]';
 
   function loadDependency(dependency) {
     var id = dependency.getAttribute("data-margo-requirement");
@@ -47,22 +47,27 @@ const docsNavigationScript = `(function () {
 
   document.addEventListener("htmx:before:swap", function (event) {
     var target = event.detail && event.detail.ctx && event.detail.ctx.target;
-    if (!target || target.id !== "main-content") return;
+    if (!target || (target.id !== "main-content" && target !== document.body)) return;
     // HTMX parses responses without scripting. Keep noscript fallbacks inert
     // when their containing navigation region is inserted into the live page.
     event.detail.tasks.forEach(function (task) {
       task.fragment.querySelectorAll("noscript").forEach(function (node) { node.remove(); });
     });
     var response = new DOMParser().parseFromString(event.detail.ctx.text, "text/html");
+    event.detail.ctx.margoPageURL = response.querySelector("#main-content")?.dataset.margoPageUrl;
     event.detail.ctx.margoDependencies = Array.from(response.head.querySelectorAll("[data-margo-requirement]"));
     event.detail.ctx.margoPageMetadata = Array.from(response.head.querySelectorAll(pageMetadataSelector));
   });
 
   document.addEventListener("htmx:after:swap", function (event) {
     var target = event.detail && event.detail.ctx && event.detail.ctx.target;
-    if (!target || target.id !== "main-content") return;
+    if (!target || (target.id !== "main-content" && target !== document.body)) return;
+    // HTMX assigns ctx.title after this event; route metadata owns it here.
+    event.detail.ctx.title = "";
     var main = document.getElementById("main-content");
-    if (event.detail.ctx.margoPageMetadata) {
+    // Ignore a late response whose route has already left the visible main.
+    if (!main || (event.detail.ctx.margoPageURL && main.dataset.margoPageUrl !== event.detail.ctx.margoPageURL)) return;
+    if (event.detail.ctx.margoPageMetadata?.length) {
       document.head.querySelectorAll(pageMetadataSelector).forEach(function (node) { node.remove(); });
       event.detail.ctx.margoPageMetadata.forEach(function (node) { document.head.appendChild(document.importNode(node, true)); });
     }
