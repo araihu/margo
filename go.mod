@@ -3,10 +3,10 @@ module github.com/araihu/margo
 go 1.27.3
 
 require (
-	github.com/a-h/templ v0.3.1070
-	github.com/araihu/goshtoso v0.4.0
-	github.com/araihu/goshtoso-app-shells v0.1.9-0.20261029032501-ebb7cf05ce94
-	github.com/araihu/goshtoso-charts v0.0.2
+	github.com/a-h/templ v0.3.1100
+	github.com/araihu/goshtoso v0.4.6-0.20261030162228-79bae652aa33
+	github.com/araihu/goshtoso-app-shells v0.1.9-0.20261030162658-e1a09f4d4eb6
+	github.com/araihu/goshtoso-charts v0.0.5-0.20261030162347-2b0c54d84b20
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327
 	github.com/chromedp/chromedp v0.14.2
 	github.com/cli/browser v1.3.0
@@ -15,17 +15,17 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
 	github.com/yuin/goldmark v1.8.2
-	golang.org/x/image v0.46.0
-	golang.org/x/net v0.59.0
-	golang.org/x/sys v0.48.0
-	golang.org/x/text v0.42.0
+	golang.org/x/image v0.47.0
+	golang.org/x/net v0.61.0
+	golang.org/x/sys v0.49.0
+	golang.org/x/text v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
-	github.com/andybalholm/brotli v1.2.6 // indirect
+	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/araihu/muamba v0.0.6 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
@@ -33,9 +33,9 @@ require (
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.19.0 // indirect
-	github.com/go-analyze/bulk v0.1.4 // indirect
-	github.com/go-analyze/charts v0.6.0 // indirect
-	github.com/go-echarts/go-echarts/v2 v2.7.2 // indirect
+	github.com/go-analyze/bulk v0.1.6 // indirect
+	github.com/go-analyze/charts v0.6.4 // indirect
+	github.com/go-echarts/go-echarts/v2 v2.7.3 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250725192818-e39067aee2d2 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
@@ -48,9 +48,9 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/tools v0.51.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 )
 
 tool (

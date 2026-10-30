@@ -554,11 +554,13 @@ func materializedStandaloneAsset(asset AssetRef, content []byte) AssetRef {
 	return asset
 }
 
-func assetDataURL(asset AssetRef) string {
-	if len(asset.Content) == 0 || asset.MediaType == "" {
+func assetDataURL(asset AssetRef) templ.SafeURL {
+	if len(asset.Content) == 0 || asset.MediaType != "image/svg+xml" {
 		return ""
 	}
-	return "data:" + asset.MediaType + ";base64," + base64.StdEncoding.EncodeToString(asset.Content)
+	// Only the fixed image scheme and base64-encoded bytes are trusted here;
+	// caller-provided URLs never cross this boundary.
+	return templ.SafeURL("data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(asset.Content))
 }
 
 func tableOfContentsComponent(content []byte) (templ.Component, error) {
