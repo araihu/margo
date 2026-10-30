@@ -94,8 +94,15 @@ type GoModuleConfig struct {
 }
 
 type LocaleConfig struct {
-	Default   string   `yaml:"default"`
-	Supported []string `yaml:"supported"`
+	Default   string               `yaml:"default"`
+	Supported []string             `yaml:"supported"`
+	Selector  LocaleSelectorConfig `yaml:"selector"`
+}
+
+// LocaleSelectorConfig controls visible language navigation without changing discovery metadata.
+type LocaleSelectorConfig struct {
+	Enabled *bool             `yaml:"enabled"`
+	Flags   map[string]string `yaml:"flags"`
 }
 
 // SearchConfig overrides localized search copy without changing search behavior.
@@ -493,6 +500,11 @@ func validateLocales(config LocaleConfig) error {
 	}
 	if !foundDefault {
 		return diagnostic("site.locale_default_missing", fmt.Sprintf("default locale %q is not supported", config.Default), "Include default in locales.supported.", "")
+	}
+	for locale, flag := range config.Selector.Flags {
+		if _, supported := seen[locale]; !supported || !validConfigPath(flag) || strings.ContainsAny(flag, ":?#%") {
+			return diagnostic("site.locale_selector_invalid", "locale flags require a supported locale and normalized local image path", "Map supported locales to local flag assets; do not infer countries from languages.", "locales.selector.flags")
+		}
 	}
 	return nil
 }

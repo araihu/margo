@@ -107,3 +107,33 @@ English, Brazilian Portuguese and Spanish chrome is localized. Host navigation
 links and footer links accept an optional canonical BCP 47 `locale`, for example
 `{label: Sobre, href: /pt-br/about/, locale: pt-BR}`. Omit `locale` for shared links.
 Labels and destination URLs stay consumer-owned.
+
+
+### Optional language controls and flags
+
+The visible selector is configured in native `site.yaml` and works for Gazeta
+consumers without an extra blog configuration field:
+
+```yaml
+locales:
+  default: en
+  supported: [en, pt-BR, es]
+  selector:
+    enabled: true
+    flags:
+      en: assets/flags/us.svg
+      pt-BR: assets/flags/br.svg
+      es: assets/flags/es.svg
+```
+
+Omitting `selector` preserves visible language controls without flags.
+`enabled: false` removes controls from desktop/mobile menus and frame bindings.
+Canonical URLs, translated routes and `hreflang` metadata remain unchanged.
+A missing translation is never added to the menu to display its flag.
+
+Flag paths must be normalized local image assets beside `site.yaml`. Margo
+validates and stages them through its existing asset pipeline. Hosts own the
+artwork, licenses and explicit association between a language and country;
+Margo does not infer countries for generic `en` or `es`. Images are decorative
+and language names remain visible and accessible. Native dropdown Icon and
+TriggerIcon slots supply flags without a separate runtime or CDN dependency.

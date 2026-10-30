@@ -1266,7 +1266,7 @@ func (b *builder) componentDocShellBrand(homeURL string) componentdocshell.Brand
 // Global destinations retain host URLs without acquiring docs-family identity.
 func (b *builder) componentDocShellHeaderNavigation(page Page) templ.Component {
 	locale := page.Locale
-	if len(b.config.Navigation.Links) == 0 && len(page.Alternates) == 0 {
+	if len(b.config.Navigation.Links) == 0 && (len(page.Alternates) == 0 || !b.config.Locales.selectorEnabled()) {
 		return nil
 	}
 	return templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
@@ -1282,16 +1282,9 @@ func (b *builder) componentDocShellHeaderNavigation(page Page) templ.Component {
 			items = append(items, dropdown.Item{Label: item.Label, Href: href})
 		}
 		for _, alternate := range page.Alternates {
-			label := alternate.Locale
-			switch alternate.Locale {
-			case "en":
-				label = "English"
-			case "pt-BR":
-				label = "Português"
-			case "es":
-				label = "Español"
+			if b.config.Locales.selectorEnabled() {
+				languages = append(languages, dropdown.Item{Label: localeName(alternate.Locale), Href: b.publicAlternatePath(alternate.URL), Icon: b.localeFlag(alternate.Locale)})
 			}
-			languages = append(languages, dropdown.Item{Label: label, Href: b.publicAlternatePath(alternate.URL)})
 		}
 		if _, err := io.WriteString(writer, `<nav class="margo-header-links" aria-label="`+stdhtml.EscapeString(localizedLabel(locale, "navigation"))+`">`); err != nil {
 			return err
@@ -1302,7 +1295,7 @@ func (b *builder) componentDocShellHeaderNavigation(page Page) templ.Component {
 			}
 		}
 		if len(languages) > 0 {
-			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-language-menu", Label: localizedLabel(locale, "language"), MenuAlign: dropdown.AlignEnd, RootClass: "margo-locale-controls", Sections: []dropdown.Section{{Items: languages}}}).Render(ctx, writer); err != nil {
+			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-language-menu", Label: localizedLabel(locale, "language"), TriggerIcon: b.localeFlag(locale), MenuAlign: dropdown.AlignEnd, RootClass: "margo-locale-controls", Sections: []dropdown.Section{{Items: languages}}}).Render(ctx, writer); err != nil {
 				return err
 			}
 		}
