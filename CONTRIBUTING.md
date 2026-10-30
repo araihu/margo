@@ -57,7 +57,7 @@ document the compatibility boundary and update the relevant version pin.
 ## Goshtoso compatibility
 
 Margo uses Goshtoso v0.4.0 (HTMX 4 and Alpine.js 3.17.2) with App Shells
-`v0.1.9-0.20261030170116-6f60b4f79abb`, which supplies the compatible
+`v0.1.9-0.20261030171122-fa7acfd0d400`, which supplies the compatible
 documentation-shell navigation runtime. The older App Shells v0.1.8 release
 still uses HTMX 2 events. Upgrade these dependencies together. Margo listeners
 use colon-separated HTMX events, request context in `detail.ctx`, and settle
