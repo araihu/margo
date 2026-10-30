@@ -50,6 +50,9 @@ func renderSitemap(pages []Page) ([]byte, error) {
 	}
 	document := sitemapDocument{XMLNS: sitemapNamespace, URLs: make([]sitemapURL, 0, len(routes))}
 	for _, page := range routes {
+		if page.NoIndex {
+			continue
+		}
 		document.URLs = append(document.URLs, sitemapURL{Location: page.Canonical})
 	}
 	data, err := xml.MarshalIndent(document, "", "  ")
@@ -76,6 +79,9 @@ func renderLLMSText(siteConfig SiteConfig, pages []Page) ([]byte, error) {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "# %s\n\n> %s\n\n## Documentation\n\n", name, summary)
 	for _, page := range routes {
+		if page.NoIndex {
+			continue
+		}
 		title := llmsInline(page.Title)
 		if title == "" {
 			title = "Untitled page"

@@ -139,3 +139,18 @@ identity. It emits the same versioned document used by `margo site` and
 reparses HTML or updates route semantics. If the host changes canonical URLs,
 structured data or route records, it must update that metadata too. Filesystem
 staging, publication and deployment remain the host's responsibility.
+
+## Page indexing
+
+Site builds accept a boolean `noindex` frontmatter field. Use it for a generated error page or another utility page that must remain available without being advertised to search engines:
+
+```yaml
+---
+title: Page not found
+noindex: true
+---
+```
+
+Margo emits `<meta name="robots" content="noindex, follow">` in the initial HTML head and omits the page from `sitemap.xml` and `llms.txt`. The artifact, route record, links and internal site navigation remain available. The route manifest records `noindex: true`. Omitting the field or setting it to `false` preserves normal indexing behavior. Non-boolean values fail with `site.indexing_invalid`.
+
+This directive is not access control and does not change the HTTP status returned by the hosting platform. Configure the host to return HTTP 404 for missing URLs. Keep the error document outside the sitemap even when the host serves its explicit file URL with HTTP 200.

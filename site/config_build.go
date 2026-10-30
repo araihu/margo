@@ -700,7 +700,7 @@ func (b *builder) preflightConfigured(ctx context.Context, sources []Source) err
 				description = routeDescription(result.PlainText(), title, b.config.Site.Name)
 			}
 		}
-		page := Page{Source: source.Path, Output: b.pageOutput(source.Path), Locale: locale, Title: title, Description: description, Authors: authors, PublishedAt: publishedAt, ModifiedAt: modifiedAt, Tags: tags, DocumentDigest: documentPayloadDigest(article), ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
+		page := Page{NoIndex: publication.NoIndex, Source: source.Path, Output: b.pageOutput(source.Path), Locale: locale, Title: title, Description: description, Authors: authors, PublishedAt: publishedAt, ModifiedAt: modifiedAt, Tags: tags, DocumentDigest: documentPayloadDigest(article), ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata())}
 		resolvedLayout := ResolvedLayout{}
 		layoutSources := []string(nil)
 		if b.config.Layout != nil {

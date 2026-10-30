@@ -88,6 +88,7 @@ type Artifact struct {
 
 // Page records one deterministic source-to-output mapping.
 type Page struct {
+	NoIndex        bool `json:"noindex,omitempty"`
 	authorLinks    map[string]string
 	tagLinks       map[string]string
 	dateFormat     string
@@ -293,7 +294,7 @@ func (b *builder) renderSource(ctx context.Context, source Source) (failure erro
 	page := Page{
 		Source: source.Path, Output: output, Locale: htmlResult.Metadata().Language, Title: htmlResult.Metadata().Title,
 		Description: htmlResult.Metadata().Description, Authors: authors, PublishedAt: publishedAt, ModifiedAt: modifiedAt,
-		Tags: tags, ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata()),
+		NoIndex: publication.NoIndex, Tags: tags, ImageOverflow: pageImageOverflowForMetadata(document.Metadata()), Actions: pageActionsForMetadata(document.Metadata()),
 	}
 	if page.Locale == "" {
 		page.Locale = "en"
