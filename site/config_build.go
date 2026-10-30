@@ -449,6 +449,7 @@ func buildConfigured(ctx context.Context, request ConfigRequest, config Config) 
 		dependencies: make(map[string]string), pdfEngine: request.PDFEngine, pdfInstances: margo.NewInstanceAllocator(),
 		siteManifest: SiteManifest{ConfigVersion: 1, Layout: layoutIdentity, LayoutSchemaHash: layoutSchemaHash, BaseURL: strings.TrimSuffix(config.Site.BaseURL, "/"), BasePath: normalizedBasePath(config.BasePath)},
 	}
+	b.request.AssetBudgetBytes = config.AssetBudgetBytes
 	ordered, err := b.indexSources()
 	if err != nil {
 		return Result{}, err

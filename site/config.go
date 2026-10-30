@@ -20,24 +20,25 @@ import (
 
 // Config is the v1 declarative documentation-site configuration.
 type Config struct {
-	Version     int                      `yaml:"version"`
-	Source      string                   `yaml:"source"`
-	Output      string                   `yaml:"output"`
-	Assets      string                   `yaml:"assets"`
-	Offline     *bool                    `yaml:"offline"`
-	BasePath    string                   `yaml:"base_path"`
-	Site        SiteConfig               `yaml:"site"`
-	Layout      *LayoutConfig            `yaml:"layout"`
-	Frame       *LayoutSelection         `yaml:"frame"`
-	Shell       *LayoutSelection         `yaml:"shell"`
-	Locales     LocaleConfig             `yaml:"locales"`
-	Search      SearchConfig             `yaml:"search"`
-	Publication PublicationConfig        `yaml:"publication"`
-	Navigation  NavigationConfig         `yaml:"navigation"`
-	Bindings    map[string]BindingConfig `yaml:"bindings"`
-	Themes      []ThemeConfig            `yaml:"themes"`
-	CustomCSS   []CSSConfig              `yaml:"custom_css"`
-	Theme       ThemeSelection           `yaml:"theme"`
+	AssetBudgetBytes int64                    `yaml:"asset_budget_bytes"`
+	Version          int                      `yaml:"version"`
+	Source           string                   `yaml:"source"`
+	Output           string                   `yaml:"output"`
+	Assets           string                   `yaml:"assets"`
+	Offline          *bool                    `yaml:"offline"`
+	BasePath         string                   `yaml:"base_path"`
+	Site             SiteConfig               `yaml:"site"`
+	Layout           *LayoutConfig            `yaml:"layout"`
+	Frame            *LayoutSelection         `yaml:"frame"`
+	Shell            *LayoutSelection         `yaml:"shell"`
+	Locales          LocaleConfig             `yaml:"locales"`
+	Search           SearchConfig             `yaml:"search"`
+	Publication      PublicationConfig        `yaml:"publication"`
+	Navigation       NavigationConfig         `yaml:"navigation"`
+	Bindings         map[string]BindingConfig `yaml:"bindings"`
+	Themes           []ThemeConfig            `yaml:"themes"`
+	CustomCSS        []CSSConfig              `yaml:"custom_css"`
+	Theme            ThemeSelection           `yaml:"theme"`
 
 	familySourceIndexes map[string]int
 }
@@ -172,6 +173,9 @@ func LoadConfig(filename string) (Config, error) {
 }
 
 func (config *Config) validate() error {
+	if err := validateAssetBudget(config.AssetBudgetBytes); err != nil {
+		return err
+	}
 	if config.Version != 1 {
 		return diagnostic("site.config_version", fmt.Sprintf("unsupported config version %d", config.Version), "Use version: 1.", "")
 	}
