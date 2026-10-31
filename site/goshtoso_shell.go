@@ -20,6 +20,7 @@ import (
 	"github.com/araihu/goshtoso-app-shells/landingshell"
 	landingshellassets "github.com/araihu/goshtoso-app-shells/landingshell/assets"
 	goshtosoassets "github.com/araihu/goshtoso/assets"
+	"github.com/araihu/goshtoso/components/button"
 	"github.com/araihu/goshtoso/components/dropdown"
 	"github.com/araihu/goshtoso/components/link"
 	"github.com/araihu/goshtoso/components/search"
@@ -1284,7 +1285,15 @@ func (b *builder) componentDocShellHeaderActions(page Page, search templ.Compone
 			}
 		}
 		if len(languages) > 0 {
-			if err := dropdown.Dropdown(dropdown.Config{ID: "margo-language-menu", Label: localizedLabel(page.Locale, "language"), TriggerIcon: b.localeFlag(page.Locale), MenuAlign: dropdown.AlignEnd, RootClass: "margo-locale-controls", Sections: []dropdown.Section{{Items: languages}}}).Render(ctx, writer); err != nil {
+			label := localizedLabel(page.Locale, "language")
+			config := dropdown.Config{ID: "margo-language-menu", Label: label, MenuAlign: dropdown.AlignEnd, RootClass: "margo-locale-controls", Sections: []dropdown.Section{{Items: languages}}}
+			if flag := b.localeFlag(page.Locale); flag != nil {
+				label += ": " + localeName(page.Locale)
+				config.Trigger = templ.ComponentFunc(func(ctx context.Context, writer io.Writer) error {
+					return button.Button(button.WithAppearance(button.AppearancePlain), button.WithType("button"), button.WithRootClass("min-h-11 min-w-11"), button.WithAttrs(templ.Attributes{"aria-label": label, "title": label})).Render(templ.WithChildren(ctx, flag), writer)
+				})
+			}
+			if err := dropdown.Dropdown(config).Render(ctx, writer); err != nil {
 				return err
 			}
 		}
