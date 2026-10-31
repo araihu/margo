@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/html"
 )
 
 func TestLocaleSelectorConfiguration(t *testing.T) {
@@ -75,6 +77,20 @@ locales:
 					}
 					if !strings.Contains(page, `assets/flags/us.svg`) || !strings.Contains(page, `aria-hidden="true"`) || !strings.Contains(page, "English") || !strings.Contains(page, "Español") {
 						t.Fatal("flag URLs or visible language names missing")
+					}
+					if layout != "" {
+						document, err := html.Parse(strings.NewReader(page))
+						if err != nil {
+							t.Fatal(err)
+						}
+						menu := configElementByID(document, "margo-language-menu")
+						if menu == nil || !configNodeHasAncestorClass(menu, "component-doc-shell__controls") {
+							t.Fatal("language selector missing from header controls")
+						}
+						trigger := firstElement(menu, "button")
+						if trigger == nil || attributeValue(trigger, "aria-label") != "Idioma: Português" || strings.TrimSpace(htmlText(trigger)) != "" || firstElement(trigger, "img") == nil || !hasClass(trigger, "bg-transparent") {
+							t.Fatal("language trigger must be a labelled, plain flag button")
+						}
 					}
 				} else if strings.Contains(page, `<img class="margo-locale-flag"`) {
 					t.Fatal("omitted flags changed existing appearance")
