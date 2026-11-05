@@ -29,6 +29,21 @@ Please include:
 Remove credentials, private URLs, and sensitive content from reports sent
 through channels you do not fully trust.
 
+## Math rendering
+
+The opt-in math capability runs bundled KaTeX with trust-sensitive commands
+disabled, strict expression handling, bounded source/output sizes and macro
+expansion, and fresh macro state for each expression. Enabling unsafe HTML
+does not relax the math profile. Source fallbacks and exception messages are
+inserted as text. Margo's parser identifies math; the engine does not scan
+arbitrary host HTML for delimiters.
+
+KaTeX assets and fonts have pinned acquisition hashes in `muamba.yaml`.
+Generated self-contained CSS embeds the locked WOFF2 files. Updating the engine
+requires regenerating the asset registry/CSS and rerunning browser, font-lock,
+and PDF checks. HTML builds perform Go preflight; expression validation happens
+in the browser. PDF export requires successful runtime and font evidence.
+
 ## What to expect
 
 - Acknowledgement within five business days.

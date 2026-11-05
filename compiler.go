@@ -52,6 +52,9 @@ func New(options ...Option) *Compiler {
 	if err := applyOptions(&config, options); err != nil {
 		panic(err)
 	}
+	if err := validateMathRegistration(config); err != nil {
+		panic(err)
+	}
 	config = config.clone()
 	return &Compiler{
 		config:      config,
@@ -81,7 +84,12 @@ func (c *Compiler) Compile(ctx context.Context, source Source) (*Document, error
 	if int64(len(snapshot.Content)) > inputLimit {
 		return nil, policyDiagnostic("policy.resource.document_too_large", "document exceeds the maximum byte limit")
 	}
-	normalized, err := normalizeSource(snapshot)
+	var normalized sourceNormalization
+	if mathEnabled(config) {
+		normalized, err = normalizeMarkdownSourceWithMath(snapshot, true)
+	} else {
+		normalized, err = normalizeSource(snapshot)
+	}
 	if err != nil {
 		return nil, err
 	}

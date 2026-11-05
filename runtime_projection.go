@@ -17,6 +17,9 @@ type runtimeTaskTemplate struct {
 
 func runtimeTaskTemplates(plan renderPlan) ([]runtimeTaskTemplate, error) {
 	templates := make([]runtimeTaskTemplate, 0)
+	for _, task := range plan.mathTasks {
+		templates = append(templates, runtimeTaskTemplate{kind: "math", inputSHA256: task.InputSHA256, dependsOn: []int{}})
+	}
 	for _, node := range plan.nodes {
 		compiled, ok := node.compiled.(mermaidCompiledTask)
 		if !ok {

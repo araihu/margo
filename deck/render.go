@@ -59,7 +59,7 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 	if err != nil {
 		return nil, err
 	}
-	document, err := Parse(input.Name, input.Markdown)
+	document, err := ParseWithOptions(input.Name, input.Markdown, WithMath(compiler.MathEnabled()))
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +68,6 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 		return nil, err
 	}
 	geometry, err := resolveGeometry(input, renderOptions, document.Directives())
-	if err != nil {
-		return nil, err
-	}
-	validationRequest, err := resolveValidationRequest(theme, renderOptions.validationRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +163,14 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 	if err != nil {
 		return nil, err
 	}
+	mathDigest, err := mathFontDigest(requirements)
+	if err != nil {
+		return nil, err
+	}
+	validationRequest, err := resolveValidationRequest(theme, renderOptions.validationRequest, mathDigest)
+	if err != nil {
+		return nil, err
+	}
 	lang := document.Directives().Lang
 	confidentialityBadge, err := renderConfidentialityBadge(ctx, renderOptions.confidentialityBadgeLabel)
 	if err != nil {
@@ -184,6 +188,12 @@ func Render(ctx context.Context, compiler *margo.Compiler, input RenderInput, op
 		}
 	}
 	article := renderDeckArticle(slides, fragments, slotFragments, headerFragments, footerFragments, geometry, lang, confidentialityBadge, paginationIcon, paginationIconPlacement)
+	if compiler.MathEnabled() {
+		article, err = remapMathSources(input, slides, article)
+		if err != nil {
+			return nil, err
+		}
+	}
 	page, err := renderDeckPage(document.Metadata(), theme, colorMode, lang, geometry, article, requirements, paginationIconSprite)
 	if err != nil {
 		return nil, err
@@ -242,9 +252,16 @@ func renderDeckInlineMarkdown(ctx context.Context, compiler *margo.Compiler, nam
 	if strings.TrimSpace(value) == "" {
 		return nil, margo.HTMLRequirements{}, nil
 	}
+	marker := ""
+	if compiler.MathEnabled() {
+		value, marker = literalDirectiveMath(value)
+	}
 	fragment, _, requirements, err := renderDeckFragment(ctx, compiler, name, []byte(value), baseURL, allocator)
 	if err != nil {
 		return nil, margo.HTMLRequirements{}, fmt.Errorf("deck.%s_render: %w", field, err)
+	}
+	if marker != "" {
+		fragment = bytes.ReplaceAll(fragment, []byte(marker), []byte("$"))
 	}
 	inline, err := extractDeckInlineMarkdown(fragment)
 	if err != nil {

@@ -61,13 +61,15 @@ type Layout struct {
 }
 
 type Slide struct {
-	ordinal     int
-	id          string
-	markdown    []byte
-	directives  DirectiveState
-	composition CompositionSpec
-	notes       []string
-	layout      *Layout
+	ordinal         int
+	id              string
+	markdown        []byte
+	sourceLines     []mathSourceLine
+	slotSourceLines map[string][]mathSourceLine
+	directives      DirectiveState
+	composition     CompositionSpec
+	notes           []string
+	layout          *Layout
 }
 
 func (s Slide) Ordinal() int {
@@ -131,13 +133,15 @@ func (d *Document) Slides() []Slide {
 	result := make([]Slide, len(d.slides))
 	for index, slide := range d.slides {
 		result[index] = Slide{
-			ordinal:     slide.ordinal,
-			id:          slide.id,
-			markdown:    slide.Markdown(),
-			directives:  cloneDirectiveState(slide.directives),
-			composition: cloneCompositionSpec(slide.composition),
-			notes:       slide.Notes(),
-			layout:      slide.Layout(),
+			ordinal:         slide.ordinal,
+			id:              slide.id,
+			markdown:        slide.Markdown(),
+			sourceLines:     append([]mathSourceLine(nil), slide.sourceLines...),
+			slotSourceLines: cloneMathSlotLines(slide.slotSourceLines),
+			directives:      cloneDirectiveState(slide.directives),
+			composition:     cloneCompositionSpec(slide.composition),
+			notes:           slide.Notes(),
+			layout:          slide.Layout(),
 		}
 	}
 	return result

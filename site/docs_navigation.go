@@ -39,10 +39,17 @@ const docsNavigationScript = `(function () {
     // Full documents carry page-specific runtimes in their head. HTMX's main
     // selection omits it, so install missing requirements in declared order.
     for (var dependency of dependencies) await loadDependency(dependency);
-    if (window.margoRuntimeReady) await window.margoRuntimeReady;
+    if (window.margoRuntimeReady) {
+      try { await window.margoRuntimeReady; } catch (_) { /* A new route can recover. */ }
+    }
     if (!main.isConnected) return;
     var mermaid = main.querySelector('[data-margo-runtime-task="mermaid"]');
-    if (mermaid && mermaid.dataset.margoRuntimeStatus !== "succeeded" && window.margoRunMermaid) await window.margoRunMermaid();
+    var math = main.querySelector('[data-margo-runtime-task="math"]');
+    if ((math || mermaid) && window.margoRuntimeCoordinator) {
+      await window.margoRuntimeCoordinator.run();
+    } else if (mermaid && mermaid.dataset.margoRuntimeStatus !== "succeeded" && window.margoRunMermaid) {
+      await window.margoRunMermaid();
+    }
   }
 
   document.addEventListener("htmx:before:swap", function (event) {

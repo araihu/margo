@@ -25,17 +25,20 @@ const (
 )
 
 type loadedPolicy struct {
+	Math            bool
 	Host            margo.Policy
 	Digest          string
 	AllowUnsafeHTML bool
 }
 
 type policyFlags struct {
+	Math            bool
 	Path            string
 	AllowUnsafeHTML bool
 }
 
 func (flags *policyFlags) bind(command *cobra.Command) {
+	command.Flags().BoolVar(&flags.Math, "math", false, "enable LaTeX math expressions in Markdown")
 	command.Flags().StringVar(&flags.Path, "policy", "", "trusted host policy JSON file")
 	bindUnsafeHTMLFlag(command, &flags.AllowUnsafeHTML)
 }
@@ -49,8 +52,8 @@ func bindUnsafeHTMLFlag(command *cobra.Command, target *bool) {
 
 func (flags policyFlags) load(ctx context.Context, reader SourceReader) (*loadedPolicy, error) {
 	if strings.TrimSpace(flags.Path) == "" {
-		if flags.AllowUnsafeHTML {
-			return &loadedPolicy{AllowUnsafeHTML: true}, nil
+		if flags.AllowUnsafeHTML || flags.Math {
+			return &loadedPolicy{AllowUnsafeHTML: flags.AllowUnsafeHTML, Math: flags.Math}, nil
 		}
 		return nil, nil
 	}
@@ -72,6 +75,7 @@ func (flags policyFlags) load(ctx context.Context, reader SourceReader) (*loaded
 		return nil, err
 	}
 	policy.AllowUnsafeHTML = flags.AllowUnsafeHTML
+	policy.Math = flags.Math
 	return &policy, nil
 }
 
@@ -95,6 +99,9 @@ func compilerForPolicy(policy *loadedPolicy, target policyTarget, chartOptions .
 		chartOptions = append(chartOptions, charts.WithDeckProjection(true), charts.WithControlWrapper(false))
 	}
 	options := make([]margo.Option, 0, 2)
+	if policy != nil {
+		options = append(options, margo.WithMath(policy.Math))
+	}
 	if policy != nil && policy.Digest != "" {
 		options = append(options, margo.WithHostPolicy(policy.Host))
 	}

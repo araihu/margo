@@ -510,7 +510,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	root := filepath.Join(filepath.Dir(filename), "..")
 	result, err := BuildConfig(context.Background(), ConfigRequest{
 		ConfigPath: filepath.Join(root, "showcase.yaml"),
-		Compiler: margo.New(margo.WithUnsafeHTML(), margo.WithExtension(charts.Extension(
+		Compiler: margo.New(margo.WithMath(true), margo.WithUnsafeHTML(), margo.WithExtension(charts.Extension(
 			charts.WithExternalizedControlRuntime(true),
 		))),
 		PDFEngine: siteTestPDFEngine{},
@@ -520,7 +520,7 @@ func TestBuildConfiguredShowcasePublicationContract(t *testing.T) {
 	}
 	commandNames := []string{"check", "completion", "deck", "doctor", "html", "pdf", "schema", "serve", "site", "version"}
 	schemaNames := []string{"check-report", "deck-layout-evidence", "deck-pdf-artifact-report", "diagnostic", "doctor-report", "document", "goshtoso-chart", "policy", "runtime-descriptor", "runtime-report", "site", "site-manifest", "site-report"}
-	fencedTypeNames := []string{"code", "goshtoso-chart", "jsonschema", "mermaid"}
+	fencedTypeNames := []string{"code", "goshtoso-chart", "jsonschema", "math", "mermaid"}
 
 	htmlRoutes := make([]string, 0)
 	artifacts := make(map[string][]byte, len(result.Artifacts))

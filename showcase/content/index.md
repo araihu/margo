@@ -48,9 +48,22 @@ metadata, assets, routes, and publication destination.
 Run `margo serve ./docs --open` while editing. It provides loopback preview and
 live reload; it is not a production server.
 
+## Equations, in the reading flow
+
+Explain a relationship inline, such as $E = mc^2$, or give a derivation room
+to breathe:
+
+$$
+\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+
+Enable `--math` for inline expressions, display equations, and fenced `math`
+blocks. KaTeX and its fonts are bundled for offline publishing. Explore the
+[math authoring guide and rendered examples](fenced-types/math/index.md).
+
 ## Markdown stays expressive
 
-Headings, links, tables, code, images, Mermaid, and optional Goshtoso charts stay
+Headings, links, tables, code, images, math, Mermaid, and optional Goshtoso charts stay
 in Markdown. This illustrative output mix makes the projection choices visible;
 the exact-data table keeps every value available without interaction:
 
@@ -104,4 +117,5 @@ lifecycle actions.
 - [Continue with the Module guide — compiler APIs and host-owned composition](module/index.md)
 - [Browse the Schemas — versioned contracts and rendered property trees](schemas/index.md)
 - [Explore Fenced types — diagrams, charts, schemas, and code](fenced-types/index.md)
+- [Write equations — inline LaTeX, display formulas, and math fences](fenced-types/math/index.md)
 - [Trace dependencies and upstream boundaries](module/index.md#dependencies-and-upstream-boundaries)

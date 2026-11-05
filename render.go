@@ -12,6 +12,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/araihu/goshtoso/components/tooltip"
+	"github.com/araihu/margo/internal/mathsyntax"
 	goldast "github.com/yuin/goldmark/ast"
 	tableast "github.com/yuin/goldmark/extension/ast"
 )
@@ -87,6 +88,8 @@ func (r markdownRenderer) renderNode(node goldast.Node) error {
 		delete(r.contextLabels, "lead-pending")
 	}
 	switch value := node.(type) {
+	case *mathsyntax.Block:
+		return r.renderMath(&value.Data)
 	case *goldast.Heading:
 		r.contextLabels["heading"] = plainInlineText(value, r.source)
 		renderLevel := value.Level
@@ -281,6 +284,8 @@ func (r markdownRenderer) renderInlineChildren(node goldast.Node) error {
 
 func (r markdownRenderer) renderInline(node goldast.Node) error {
 	switch value := node.(type) {
+	case *mathsyntax.Inline:
+		return r.renderMath(&value.Data)
 	case *goldast.Text:
 		if _, err := io.WriteString(r.out, html.EscapeString(string(value.Value(r.source)))); err != nil {
 			return err
@@ -375,6 +380,8 @@ func inlineText(node goldast.Node, source []byte) string {
 	var value strings.Builder
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child := child.(type) {
+		case *mathsyntax.Inline:
+			value.Write(child.Payload)
 		case *goldast.Text:
 			value.Write(child.Value(source))
 		case *goldast.String:

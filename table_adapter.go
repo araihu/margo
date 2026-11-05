@@ -10,6 +10,7 @@ import (
 
 	"github.com/a-h/templ"
 	goshtosotable "github.com/araihu/goshtoso/components/table"
+	"github.com/araihu/margo/internal/mathsyntax"
 	goldast "github.com/yuin/goldmark/ast"
 	tableast "github.com/yuin/goldmark/extension/ast"
 )
@@ -59,6 +60,10 @@ func renderMarkdownTable(renderer markdownRenderer, node *tableast.Table, mode T
 			Key:   fmt.Sprintf("column-%d", index),
 			Label: plainInlineText(cell, source),
 		})
+		if inlineContainsMath(cell) {
+			columns[index].Label = ""
+			columns[index].HeaderSuffix = markdownTableCell(renderer, cell).Component
+		}
 	}
 	if len(columns) == 0 {
 		return fmt.Errorf("table.columns_empty: table requires at least one column")
@@ -112,16 +117,35 @@ func renderMarkdownTable(renderer markdownRenderer, node *tableast.Table, mode T
 
 func markdownTableCell(renderer markdownRenderer, cell *tableast.TableCell) goshtosotable.Cell {
 	result := goshtosotable.Cell{Text: plainInlineText(cell, renderer.source)}
-	if !inlineContainsLink(cell) {
+	if !inlineContainsLink(cell) && !inlineContainsMath(cell) {
 		return result
 	}
 	result.Component = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		cellRenderer := renderer
 		cellRenderer.ctx = ctx
 		cellRenderer.out = out
-		return cellRenderer.renderInlineChildren(cell)
+		if _, err := fmt.Fprintf(out, `<span data-margo-sort-value="%s">`, html.EscapeString(result.Text)); err != nil {
+			return err
+		}
+		if err := cellRenderer.renderInlineChildren(cell); err != nil {
+			return err
+		}
+		_, err := io.WriteString(out, `</span>`)
+		return err
 	})
 	return result
+}
+
+func inlineContainsMath(node goldast.Node) bool {
+	found := false
+	_ = goldast.Walk(node, func(current goldast.Node, entering bool) (goldast.WalkStatus, error) {
+		if entering && mathsyntax.Of(current) != nil {
+			found = true
+			return goldast.WalkStop, nil
+		}
+		return goldast.WalkContinue, nil
+	})
+	return found
 }
 
 func inlineContainsLink(node goldast.Node) bool {
@@ -148,6 +172,8 @@ func plainInlineText(node goldast.Node, source []byte) string {
 			return goldast.WalkContinue, nil
 		}
 		switch value := current.(type) {
+		case *mathsyntax.Inline:
+			builder.Write(value.Payload)
 		case *goldast.Text:
 			builder.Write(value.Value(source))
 			if value.HardLineBreak() || value.SoftLineBreak() {

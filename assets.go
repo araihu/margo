@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	goshtosoassets "github.com/araihu/goshtoso/assets"
+	margoassets "github.com/araihu/margo/assets"
 )
 
 // embeddedAssets contains only the reviewed, library-scoped assets. Runtime
@@ -126,6 +127,10 @@ func HTMLAssetHandler() http.Handler {
 	}
 	fileServer := http.StripPrefix("/margo-assets/", http.FileServer(http.FS(assetFS)))
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if strings.HasPrefix(request.URL.Path, "/margo-assets/katex/") {
+			http.StripPrefix("/margo-assets", margoassets.MuambaHTTPHandler()).ServeHTTP(writer, request)
+			return
+		}
 		if strings.HasSuffix(strings.ToLower(request.URL.Path), ".js") {
 			writer.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		}

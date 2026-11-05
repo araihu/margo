@@ -32,6 +32,11 @@ Raw HTML and iframe markup are denied by default. Add
 `--allow-unsafe-html` (or `--allow-raw-html`) for a deliberately embedded HTML
 surface; this is a process-level opt-in and is not stored in `site.yaml`.
 
+Enable `--math` when building a site containing equations. The flag applies
+throughout the build, including requested PDF downloads, and the site emits
+local math assets only where needed. This option is not stored in YAML. See
+[Math and LaTeX](../../fenced-types/math/index.md) for syntax and examples.
+
 Both the report and the generated `margo-manifest.json` have versioned output
 schemas. The trees below are generated at build time from those contracts:
 

@@ -7,6 +7,7 @@
   });
 
   const compare = (left, right) => collator.compare(left.trim(), right.trim());
+  const sortText = cell => cell?.querySelector("[data-margo-sort-value]")?.dataset.margoSortValue ?? cell?.textContent ?? "";
 
   const sortHeaderClass =
     "margo-table-sort-button p-4 cursor-pointer select-none transition-colors";
@@ -26,8 +27,14 @@
     const label = cell.dataset.margoSortLabel || cell.textContent.trim();
     const wrapper = document.createElement("div");
     wrapper.className = "flex items-center gap-1";
-    const text = document.createElement("span");
-    text.textContent = label;
+    let text = cell.querySelector("[data-margo-sort-content]");
+    if (!text) {
+      text = document.createElement("span");
+      text.dataset.margoSortContent = "";
+      // Preserve semantic content and completed math when sorting changes.
+      while (cell.firstChild) text.append(cell.firstChild);
+      if (!text.childNodes.length) text.textContent = label;
+    }
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     icon.setAttribute("aria-hidden", "true");
     icon.setAttribute("viewBox", "0 0 20 20");
@@ -62,8 +69,8 @@
       if (active.state === "source") return sourceOrder;
 
       const value = compare(
-        left.cells[active.column]?.textContent || "",
-        right.cells[active.column]?.textContent || "",
+        sortText(left.cells[active.column]),
+        sortText(right.cells[active.column]),
       );
       if (value === 0) return sourceOrder;
       return active.state === "descending" ? -value : value;
@@ -76,7 +83,7 @@
   const installHeader = (table, tbody, sourceRows, cell, column, active) => {
     cell.className = sortHeaderClass;
     cell.tabIndex = 0;
-    cell.dataset.margoSortLabel = cell.textContent.trim();
+    cell.dataset.margoSortLabel = sortText(cell).trim();
     cell.setAttribute("aria-label", `Sort by ${cell.dataset.margoSortLabel}`);
 
     const activate = () => {
@@ -92,8 +99,12 @@
       cell.focus();
     };
 
-    cell.addEventListener("click", activate);
+    cell.addEventListener("click", event => {
+      if (event.target.closest("a,button,input,select,textarea")) return;
+      activate();
+    });
     cell.addEventListener("keydown", (event) => {
+      if (event.target !== cell) return;
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       activate();

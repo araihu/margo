@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/araihu/margo"
+	"github.com/araihu/margo/internal/mathsyntax"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,7 +16,24 @@ type fenceState struct {
 	line   int
 }
 
-func Parse(name string, source []byte) (*Document, error) {
+// ParseOption configures deck source interpretation before slide splitting.
+type ParseOption func(*parseConfig)
+type parseConfig struct{ math bool }
+
+// WithMath enables the same delimiter grammar as margo.WithMath.
+func WithMath(enabled bool) ParseOption { return func(c *parseConfig) { c.math = enabled } }
+
+func Parse(name string, source []byte) (*Document, error) { return ParseWithOptions(name, source) }
+
+// ParseWithOptions parses a deck with explicit source interpretation options.
+func ParseWithOptions(name string, source []byte, options ...ParseOption) (*Document, error) {
+	config := parseConfig{}
+	for _, option := range options {
+		if option == nil {
+			return nil, deckError("deck.option_invalid", name, 1, "nil parse option")
+		}
+		option(&config)
+	}
 	snapshot := append([]byte(nil), source...)
 	lines := bytes.SplitAfter(snapshot, []byte("\n"))
 	metadata, directives, bodyStart, err := parseMetadata(name, lines)
@@ -25,15 +43,32 @@ func Parse(name string, source []byte) (*Document, error) {
 	if metadata.Marp != nil && !*metadata.Marp {
 		return nil, deckError("deck.activation_conflict", name, 1, "marp: false contradicts explicit deck parsing")
 	}
-	if err := scanGlobalDirectives(name, lines[bodyStart:], bodyStart+1, &directives); err != nil {
+	protected := make([]bool, len(lines)-bodyStart)
+	if config.math {
+		body := bytes.Join(lines[bodyStart:], nil)
+		var issues []mathsyntax.Issue
+		protected, issues = protectDeckMath(body)
+		if len(issues) > 0 {
+			issue := issues[0]
+			line := bodyStart + 1 + bytes.Count(body[:issue.Offset], []byte{'\n'})
+			column := issue.Offset - bytes.LastIndexByte(body[:issue.Offset], '\n')
+			return nil, &margo.DiagnosticError{Diagnostics: []margo.Diagnostic{{Code: issue.Code, Severity: margo.SeverityError, Source: name, Line: line, Column: column, Pointer: "/math", Message: issue.Message, Hint: "Close the math block before its Markdown container ends."}}}
+		}
+	}
+	if err := scanGlobalDirectives(name, lines[bodyStart:], bodyStart+1, &directives, protected); err != nil {
 		return nil, err
 	}
-	slides, err := parseSlides(name, lines[bodyStart:], bodyStart+1, directives)
+	slides, err := parseSlides(name, lines[bodyStart:], bodyStart+1, directives, protected)
 	if err != nil {
 		return nil, err
 	}
-	if err := validateDeckReferences(name, slides); err != nil {
+	if err := validateDeckReferences(name, slides, config.math); err != nil {
 		return nil, err
+	}
+	if config.math {
+		if err := validateDeckMath(name, slides); err != nil {
+			return nil, err
+		}
 	}
 	return &Document{name: name, metadata: metadata, directives: directives, slides: slides}, nil
 }
@@ -114,10 +149,13 @@ func parseMetadata(name string, lines [][]byte) (Metadata, DirectiveState, int, 
 	return metadata, directives, closeIndex + 1, nil
 }
 
-func scanGlobalDirectives(name string, lines [][]byte, firstLine int, directives *DirectiveState) error {
+func scanGlobalDirectives(name string, lines [][]byte, firstLine int, directives *DirectiveState, protected []bool) error {
 	var fence *fenceState
 	for index, line := range lines {
 		lineNumber := firstLine + index
+		if protected[index] {
+			continue
+		}
 		if fence != nil {
 			if closesFence(line, *fence) {
 				fence = nil
@@ -157,7 +195,7 @@ func scanGlobalDirectives(name string, lines [][]byte, firstLine int, directives
 	return nil
 }
 
-func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveState) ([]Slide, error) {
+func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveState, protected []bool) ([]Slide, error) {
 	var slides []Slide
 	builder := newLayoutBuilder()
 	inherited := cloneDirectiveState(global)
@@ -170,8 +208,13 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 	previousLine := ""
 	for index, line := range lines {
 		lineNumber := firstLine + index
+		if protected[index] {
+			builder.write(line, lineNumber)
+			previousLine = ""
+			continue
+		}
 		if fence != nil {
-			builder.write(line)
+			builder.write(line, lineNumber)
 			if closesFence(line, *fence) {
 				fence = nil
 			}
@@ -180,7 +223,7 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 		}
 		if marker, length, ok := opensFence(line); ok {
 			fence = &fenceState{marker: marker, length: length, line: lineNumber}
-			builder.write(line)
+			builder.write(line, lineNumber)
 			previousLine = lineContent(line)
 			continue
 		}
@@ -292,7 +335,7 @@ func parseSlides(name string, lines [][]byte, firstLine int, global DirectiveSta
 			previousLine = ""
 			continue
 		}
-		builder.write(line)
+		builder.write(line, lineNumber)
 		previousLine = lineContent(line)
 	}
 	if fence != nil {
@@ -347,13 +390,15 @@ func appendScannedSlide(slides []Slide, builder *layoutBuilder, name string, lin
 	}
 	ordinal := len(slides) + 1
 	return append(slides, Slide{
-		ordinal:     ordinal,
-		id:          fmt.Sprintf("slide-%04d", ordinal),
-		markdown:    append([]byte(nil), markdown...),
-		directives:  state,
-		composition: cloneCompositionSpec(spec),
-		notes:       append([]string(nil), notes...),
-		layout:      cloneLayout(layout),
+		ordinal:         ordinal,
+		id:              fmt.Sprintf("slide-%04d", ordinal),
+		markdown:        append([]byte(nil), markdown...),
+		sourceLines:     append([]mathSourceLine(nil), builder.contentLines...),
+		slotSourceLines: cloneMathSlotLines(builder.slotLines),
+		directives:      state,
+		composition:     cloneCompositionSpec(spec),
+		notes:           append([]string(nil), notes...),
+		layout:          cloneLayout(layout),
 	}), nil
 }
 

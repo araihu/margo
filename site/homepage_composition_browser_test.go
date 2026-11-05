@@ -34,7 +34,7 @@ func TestShowcaseHomepageComposition(t *testing.T) {
 			config.Assets = string(mode)
 			result, err := buildConfigured(context.Background(), ConfigRequest{
 				ConfigPath: configPath,
-				Compiler:   margo.New(margo.WithUnsafeHTML(), margo.WithExtension(charts.Extension(charts.WithExternalizedControlRuntime(true)))),
+				Compiler:   margo.New(margo.WithMath(true), margo.WithUnsafeHTML(), margo.WithExtension(charts.Extension(charts.WithExternalizedControlRuntime(true)))),
 				PDFEngine:  siteTestPDFEngine{},
 			}, config)
 			if err != nil {

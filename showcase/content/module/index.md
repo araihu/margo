@@ -113,6 +113,27 @@ carry document preferences and site publication actions, but it cannot grant
 itself capabilities. Check documents before rendering when CI needs structured
 diagnostics.
 
+## Math in Markdown
+
+Enable LaTeX math once on the compiler. The same immutable setting follows the
+document through HTML, site, PDF, and deck projections:
+
+```go
+compiler := margo.New(margo.WithMath(true))
+findings, err := margo.Check(ctx, source, margo.WithCheckMath(true))
+```
+
+The host renders the declared math dependencies alongside the content. Await
+`window.margoRuntimeReady` before measuring typeset math or Mermaid. Configured
+documentation navigation reruns the shared executor after page swaps; embedded
+hosts can call `window.margoRunMath()` after mounting new content. PDF export
+validates expressions and fonts before printing.
+
+See [Math and LaTeX](../fenced-types/math/index.md) for syntax, live examples,
+offline behavior, and the supported scope. Math defaults to disabled; a
+`math` fence conflicts with a host extension claiming that name while core
+math is enabled.
+
 ## Select the projection
 
 The compiler API intentionally stops before filesystem publication or browser

@@ -40,6 +40,14 @@ Raw HTML and iframe markup are denied by default. Pass
 `--allow-unsafe-html` when checking a trusted document that intentionally uses
 arbitrary HTML; the alias `--allow-raw-html` is equivalent.
 
+## Math
+
+Use `--math` to check the same delimiters and source limits as compilation.
+When equations are present, `check.math_runtime_validation_required` explains
+that full expression and font validation happens in the browser or PDF export.
+An unmatched inline dollar remains text. See
+[Math and LaTeX](../../fenced-types/math/index.md) for examples and boundaries.
+
 ## Examples
 
 ```sh
@@ -76,6 +84,9 @@ the complete report, then exits `1` with internal status `check.failed`.
 | `check.link_destination_empty` | Give the link a destination |
 | `check.link_relative` | Review target-specific relative-link behavior; ordinary site links are resolved by `margo site` |
 | `check.raw_html` | Remove raw HTML or supply trusted policy authority |
+| `check.math_runtime_validation_required` | Preview HTML or export PDF to validate expressions and bundled fonts |
+| `math.delimiter_unclosed` | Close the display block or math fence in its Markdown container |
+| `math.empty_expression` | Add an expression to the display block |
 | `mermaid.configuration_forbidden` | Remove legacy Mermaid configuration |
 | `chart.renderer_target_unsupported` | Use `renderer: static` for `margo deck`; use `margo html`, `margo site`, or `margo pdf` for interactive charts |
 

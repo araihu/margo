@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/araihu/margo/internal/mathsyntax"
 	internalmermaid "github.com/araihu/margo/internal/mermaid"
 	"github.com/araihu/margo/internal/staticimage"
 	goldast "github.com/yuin/goldmark/ast"
@@ -100,6 +101,7 @@ func (FilesystemCheckAssetReader) ReadAsset(ctx context.Context, root, name stri
 }
 
 type checkConfig struct {
+	math            bool
 	assetReader     CheckAssetReader
 	assetBytes      int64
 	policy          Policy
@@ -221,6 +223,15 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 			return nil, err
 		}
 	}
+	if config.math {
+		for _, registration := range config.extensions {
+			for _, fence := range registration.Fences {
+				if fence == "math" {
+					return nil, fmt.Errorf("math.fence_conflict: host extension %s claims math", registration.Identity.Name)
+				}
+			}
+		}
+	}
 	snapshot := source.clone()
 	if ctx == nil {
 		ctx = context.Background()
@@ -229,7 +240,7 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 	if err != nil {
 		return actionableCheckFailure(snapshot, err), nil
 	}
-	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
+	root := newMarkdownParser(config.math).Parse(text.NewReader(frontmatter.body))
 	effectivePolicy, policyDiagnostics := checkPolicyCompatibility(config, snapshot, frontmatter, root)
 	allowRawHTML := config.allowUnsafeHTML || (config.policySet && len(policyDiagnostics) == 0 && effectivePolicy.RawHTML == RawHTMLSanitized)
 	extensionChecks := make(map[string]ExtensionCheck)
@@ -239,6 +250,19 @@ func Check(ctx context.Context, source Source, options ...CheckOption) ([]Diagno
 		}
 	}
 	diagnostics := append(checkMetadata(snapshot, frontmatter), policyDiagnostics...)
+	if config.math {
+		diagnostics = append(diagnostics, mathSourceDiagnostics(snapshot, frontmatter.bodyOffset, root)...)
+		hasMath := false
+		_ = goldast.Walk(root, func(node goldast.Node, entering bool) (goldast.WalkStatus, error) {
+			if entering && mathsyntax.Of(node) != nil {
+				hasMath = true
+			}
+			return goldast.WalkContinue, nil
+		})
+		if hasMath {
+			diagnostics = append(diagnostics, Diagnostic{Code: "check.math_runtime_validation_required", Severity: SeverityWarning, Source: snapshot.Name, Line: 1, Column: 1, Pointer: "/math", Message: "Math expressions and fonts require browser validation.", Hint: "Preview the HTML or export PDF to validate equations with bundled KaTeX."})
+		}
+	}
 	locator := checkLocator{source: frontmatter.body}
 	lastHeadingLevel := 0
 	rawContainers := make(map[goldast.Node]struct{})

@@ -249,7 +249,7 @@ func inspectHTMLFragment(fragment []byte, allowUnsafeHTML bool) (htmlFragmentIns
 			if htmlAttributeEquals(node, "aria-hidden", "true") {
 				skip = true
 			}
-			semanticText = isHTMLTextElement(node.Data)
+			semanticText = isHTMLTextElement(node.Data) || (htmlAttributeEquals(node, "data-margo-runtime-task", "math") && htmlAttributeEquals(node, "data-margo-math-mode", "display"))
 			if semanticText {
 				semanticDepth++
 			}

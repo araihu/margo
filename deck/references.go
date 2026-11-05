@@ -3,6 +3,8 @@ package deck
 import (
 	"regexp"
 	"strings"
+
+	"github.com/araihu/margo/internal/mathsyntax"
 )
 
 var (
@@ -17,7 +19,7 @@ type referenceLocation struct {
 	slot  string
 }
 
-func validateDeckReferences(name string, slides []Slide) error {
+func validateDeckReferences(name string, slides []Slide, math ...bool) error {
 	definitions := make(map[string]referenceLocation)
 	type scope struct {
 		location referenceLocation
@@ -32,6 +34,12 @@ func validateDeckReferences(name string, slides []Slide) error {
 		}
 		for _, slot := range layout.Slots {
 			scopes = append(scopes, scope{location: referenceLocation{slide: slideIndex, slot: slot.Name}, markdown: slot.Markdown})
+		}
+	}
+	if len(math) > 0 && math[0] {
+		for i := range scopes {
+			masked, _ := mathsyntax.Mask(scopes[i].markdown)
+			scopes[i].markdown = masked
 		}
 	}
 	for _, current := range scopes {

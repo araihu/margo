@@ -5,9 +5,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/yuin/goldmark"
+	"github.com/araihu/margo/internal/mathsyntax"
 	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
@@ -26,11 +25,20 @@ type normalizedMarkdown struct {
 func init() { normalizeSource = normalizeMarkdownSource }
 
 func normalizeMarkdownSource(source Source) (sourceNormalization, error) {
+	return normalizeMarkdownSourceWithMath(source, false)
+}
+
+func normalizeMarkdownSourceWithMath(source Source, enabled bool) (sourceNormalization, error) {
 	frontmatter, err := parseFrontmatter(source)
 	if err != nil {
 		return sourceNormalization{}, err
 	}
-	root := newMarkdownParser().Parse(text.NewReader(frontmatter.body))
+	root := newMarkdownParser(enabled).Parse(text.NewReader(frontmatter.body))
+	if enabled {
+		if diagnostics := mathSourceDiagnostics(source, frontmatter.bodyOffset, root); len(diagnostics) > 0 {
+			return sourceNormalization{}, &DiagnosticError{Diagnostics: diagnostics}
+		}
+	}
 	headingIDs := collectHeadingIDs(root)
 	metadata, err := normalizeSourceMetadata(source, frontmatter.values)
 	if err != nil {
@@ -70,17 +78,8 @@ func collectIframeWarnings(source Source, frontmatter frontmatterResult, root as
 	return diagnostics
 }
 
-func newMarkdownParser() parser.Parser {
-	return goldmark.New(
-		goldmark.WithExtensions(
-			extension.Table,
-			extension.Strikethrough,
-			extension.TaskList,
-			extension.Footnote,
-			extension.Linkify,
-		),
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-	).Parser()
+func newMarkdownParser(math ...bool) parser.Parser {
+	return mathsyntax.NewParser(len(math) > 0 && math[0])
 }
 
 func normalizeSourceMetadata(source Source, values map[string]any) (Metadata, error) {

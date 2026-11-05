@@ -32,6 +32,15 @@ Raw HTML and iframe markup are denied by default. Pass
 `--allow-unsafe-html` (or `--allow-raw-html`) when the deck source intentionally
 contains an embedded HTML surface.
 
+## Math
+
+Use `--math` for equations in slide bodies and composition slots. Inline,
+display, and fenced math share the same syntax as ordinary documents. Math
+blocks protect slide separators and slot-like text inside their bodies.
+Headers, footers, and presenter notes keep their existing interpretation.
+See [Math and LaTeX](../../fenced-types/math/index.md) for rendered examples;
+PDF decks reject equations that would be clipped by the slide canvas.
+
 ## Examples
 
 Create and render a two-slide example:

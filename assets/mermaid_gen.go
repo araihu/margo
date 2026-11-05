@@ -8,47 +8,71 @@ import (
 	"io/fs"
 )
 
-//go:embed mermaid/11.16.1/LICENSE mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6BELYETK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6L755F7B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-W44A43WB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs mermaid/11.16.1/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs mermaid/11.16.1/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs mermaid/11.16.1/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs mermaid/11.16.1/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs mermaid/11.16.1/mermaid.esm.min.mjs mermaid/11.16.1/mermaid.min.js
+//go:embed katex/0.19.1/LICENSE katex/0.19.1/fonts/KaTeX_AMS-Regular.woff2 katex/0.19.1/fonts/KaTeX_Caligraphic-Bold.woff2 katex/0.19.1/fonts/KaTeX_Caligraphic-Regular.woff2 katex/0.19.1/fonts/KaTeX_Fraktur-Bold.woff2 katex/0.19.1/fonts/KaTeX_Fraktur-Regular.woff2 katex/0.19.1/fonts/KaTeX_Main-Bold.woff2 katex/0.19.1/fonts/KaTeX_Main-BoldItalic.woff2 katex/0.19.1/fonts/KaTeX_Main-Italic.woff2 katex/0.19.1/fonts/KaTeX_Main-Regular.woff2 katex/0.19.1/fonts/KaTeX_Math-BoldItalic.woff2 katex/0.19.1/fonts/KaTeX_Math-Italic.woff2 katex/0.19.1/fonts/KaTeX_SansSerif-Bold.woff2 katex/0.19.1/fonts/KaTeX_SansSerif-Italic.woff2 katex/0.19.1/fonts/KaTeX_SansSerif-Regular.woff2 katex/0.19.1/fonts/KaTeX_Script-Regular.woff2 katex/0.19.1/fonts/KaTeX_Size1-Regular.woff2 katex/0.19.1/fonts/KaTeX_Size2-Regular.woff2 katex/0.19.1/fonts/KaTeX_Size3-Regular.woff2 katex/0.19.1/fonts/KaTeX_Size4-Regular.woff2 katex/0.19.1/fonts/KaTeX_Typewriter-Regular.woff2 katex/0.19.1/katex.min.css katex/0.19.1/katex.min.js mermaid/11.16.1/LICENSE mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6BELYETK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6L755F7B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-W44A43WB.mjs mermaid/11.16.1/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs mermaid/11.16.1/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs mermaid/11.16.1/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs mermaid/11.16.1/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs mermaid/11.16.1/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs mermaid/11.16.1/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs mermaid/11.16.1/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs mermaid/11.16.1/mermaid.esm.min.mjs mermaid/11.16.1/mermaid.min.js
 var muambaFiles embed.FS
 
 const (
-	muambaDownloadMermaidBrowserBundle           = "browser-bundle"
-	muambaDownloadMermaidChunk2aehwxpw           = "chunk-2aehwxpw"
-	muambaDownloadMermaidChunk2srehg4o           = "chunk-2srehg4o"
-	muambaDownloadMermaidChunk5iminlnl           = "chunk-5iminlnl"
-	muambaDownloadMermaidChunk5vcl7z4a           = "chunk-5vcl7z4a"
-	muambaDownloadMermaidChunk6belyetk           = "chunk-6belyetk"
-	muambaDownloadMermaidChunk6l755f7b           = "chunk-6l755f7b"
-	muambaDownloadMermaidChunk7cwylc5s           = "chunk-7cwylc5s"
-	muambaDownloadMermaidChunk7fythrhk           = "chunk-7fythrhk"
-	muambaDownloadMermaidChunkA7vwpjgb           = "chunk-a7vwpjgb"
-	muambaDownloadMermaidChunkAq6eadp3           = "chunk-aq6eadp3"
-	muambaDownloadMermaidChunkAzzrmdjm           = "chunk-azzrmdjm"
-	muambaDownloadMermaidChunkKrxbno2n           = "chunk-krxbno2n"
-	muambaDownloadMermaidChunkLahsg3n2           = "chunk-lahsg3n2"
-	muambaDownloadMermaidChunkLiev3eag           = "chunk-liev3eag"
-	muambaDownloadMermaidChunkNlanea3f           = "chunk-nlanea3f"
-	muambaDownloadMermaidChunkPe7dx7zz           = "chunk-pe7dx7zz"
-	muambaDownloadMermaidChunkQ67wd55a           = "chunk-q67wd55a"
-	muambaDownloadMermaidChunkStov2hob           = "chunk-stov2hob"
-	muambaDownloadMermaidChunkSzd42yqk           = "chunk-szd42yqk"
-	muambaDownloadMermaidChunkT5octhi4           = "chunk-t5octhi4"
-	muambaDownloadMermaidChunkTgvd4f4b           = "chunk-tgvd4f4b"
-	muambaDownloadMermaidChunkUat7b5jy           = "chunk-uat7b5jy"
-	muambaDownloadMermaidChunkVe5clxgz           = "chunk-ve5clxgz"
-	muambaDownloadMermaidChunkVy5ubi4v           = "chunk-vy5ubi4v"
-	muambaDownloadMermaidChunkW44a43wb           = "chunk-w44a43wb"
-	muambaDownloadMermaidChunkWjbap47w           = "chunk-wjbap47w"
-	muambaDownloadMermaidCoseBilkentRza4xipr     = "cose-bilkent-rza4xipr"
-	muambaDownloadMermaidDagreK64a6z3x           = "dagre-k64a6z3x"
-	muambaDownloadMermaidFlowDiagramBwe6nhoh     = "flow-diagram-bwe6nhoh"
-	muambaDownloadMermaidKatexC5opue3q           = "katex-c5opue3q"
-	muambaDownloadMermaidLicense                 = "license"
-	muambaDownloadMermaidRuntime                 = "runtime"
-	muambaDownloadMermaidSequenceDiagramUratnsbd = "sequence-diagram-uratnsbd"
-	muambaDownloadMermaidSizeCapture5goragp4     = "size-capture-5goragp4"
-	muambaDownloadMermaidSwimlanesOswoylsk       = "swimlanes-oswoylsk"
-	muambaResourceMermaid                        = "mermaid"
+	muambaDownloadKatexFontsKatexAmsRegularWoff2         = "fonts-katex-ams-regular-woff2"
+	muambaDownloadKatexFontsKatexCaligraphicBoldWoff2    = "fonts-katex-caligraphic-bold-woff2"
+	muambaDownloadKatexFontsKatexCaligraphicRegularWoff2 = "fonts-katex-caligraphic-regular-woff2"
+	muambaDownloadKatexFontsKatexFrakturBoldWoff2        = "fonts-katex-fraktur-bold-woff2"
+	muambaDownloadKatexFontsKatexFrakturRegularWoff2     = "fonts-katex-fraktur-regular-woff2"
+	muambaDownloadKatexFontsKatexMainBoldWoff2           = "fonts-katex-main-bold-woff2"
+	muambaDownloadKatexFontsKatexMainBolditalicWoff2     = "fonts-katex-main-bolditalic-woff2"
+	muambaDownloadKatexFontsKatexMainItalicWoff2         = "fonts-katex-main-italic-woff2"
+	muambaDownloadKatexFontsKatexMainRegularWoff2        = "fonts-katex-main-regular-woff2"
+	muambaDownloadKatexFontsKatexMathBolditalicWoff2     = "fonts-katex-math-bolditalic-woff2"
+	muambaDownloadKatexFontsKatexMathItalicWoff2         = "fonts-katex-math-italic-woff2"
+	muambaDownloadKatexFontsKatexSansserifBoldWoff2      = "fonts-katex-sansserif-bold-woff2"
+	muambaDownloadKatexFontsKatexSansserifItalicWoff2    = "fonts-katex-sansserif-italic-woff2"
+	muambaDownloadKatexFontsKatexSansserifRegularWoff2   = "fonts-katex-sansserif-regular-woff2"
+	muambaDownloadKatexFontsKatexScriptRegularWoff2      = "fonts-katex-script-regular-woff2"
+	muambaDownloadKatexFontsKatexSize1RegularWoff2       = "fonts-katex-size1-regular-woff2"
+	muambaDownloadKatexFontsKatexSize2RegularWoff2       = "fonts-katex-size2-regular-woff2"
+	muambaDownloadKatexFontsKatexSize3RegularWoff2       = "fonts-katex-size3-regular-woff2"
+	muambaDownloadKatexFontsKatexSize4RegularWoff2       = "fonts-katex-size4-regular-woff2"
+	muambaDownloadKatexFontsKatexTypewriterRegularWoff2  = "fonts-katex-typewriter-regular-woff2"
+	muambaDownloadKatexKatexMinCss                       = "katex-min-css"
+	muambaDownloadKatexKatexMinJs                        = "katex-min-js"
+	muambaDownloadKatexLicense                           = "license"
+	muambaDownloadMermaidBrowserBundle                   = "browser-bundle"
+	muambaDownloadMermaidChunk2aehwxpw                   = "chunk-2aehwxpw"
+	muambaDownloadMermaidChunk2srehg4o                   = "chunk-2srehg4o"
+	muambaDownloadMermaidChunk5iminlnl                   = "chunk-5iminlnl"
+	muambaDownloadMermaidChunk5vcl7z4a                   = "chunk-5vcl7z4a"
+	muambaDownloadMermaidChunk6belyetk                   = "chunk-6belyetk"
+	muambaDownloadMermaidChunk6l755f7b                   = "chunk-6l755f7b"
+	muambaDownloadMermaidChunk7cwylc5s                   = "chunk-7cwylc5s"
+	muambaDownloadMermaidChunk7fythrhk                   = "chunk-7fythrhk"
+	muambaDownloadMermaidChunkA7vwpjgb                   = "chunk-a7vwpjgb"
+	muambaDownloadMermaidChunkAq6eadp3                   = "chunk-aq6eadp3"
+	muambaDownloadMermaidChunkAzzrmdjm                   = "chunk-azzrmdjm"
+	muambaDownloadMermaidChunkKrxbno2n                   = "chunk-krxbno2n"
+	muambaDownloadMermaidChunkLahsg3n2                   = "chunk-lahsg3n2"
+	muambaDownloadMermaidChunkLiev3eag                   = "chunk-liev3eag"
+	muambaDownloadMermaidChunkNlanea3f                   = "chunk-nlanea3f"
+	muambaDownloadMermaidChunkPe7dx7zz                   = "chunk-pe7dx7zz"
+	muambaDownloadMermaidChunkQ67wd55a                   = "chunk-q67wd55a"
+	muambaDownloadMermaidChunkStov2hob                   = "chunk-stov2hob"
+	muambaDownloadMermaidChunkSzd42yqk                   = "chunk-szd42yqk"
+	muambaDownloadMermaidChunkT5octhi4                   = "chunk-t5octhi4"
+	muambaDownloadMermaidChunkTgvd4f4b                   = "chunk-tgvd4f4b"
+	muambaDownloadMermaidChunkUat7b5jy                   = "chunk-uat7b5jy"
+	muambaDownloadMermaidChunkVe5clxgz                   = "chunk-ve5clxgz"
+	muambaDownloadMermaidChunkVy5ubi4v                   = "chunk-vy5ubi4v"
+	muambaDownloadMermaidChunkW44a43wb                   = "chunk-w44a43wb"
+	muambaDownloadMermaidChunkWjbap47w                   = "chunk-wjbap47w"
+	muambaDownloadMermaidCoseBilkentRza4xipr             = "cose-bilkent-rza4xipr"
+	muambaDownloadMermaidDagreK64a6z3x                   = "dagre-k64a6z3x"
+	muambaDownloadMermaidFlowDiagramBwe6nhoh             = "flow-diagram-bwe6nhoh"
+	muambaDownloadMermaidKatexC5opue3q                   = "katex-c5opue3q"
+	muambaDownloadMermaidLicense                         = "license"
+	muambaDownloadMermaidRuntime                         = "runtime"
+	muambaDownloadMermaidSequenceDiagramUratnsbd         = "sequence-diagram-uratnsbd"
+	muambaDownloadMermaidSizeCapture5goragp4             = "size-capture-5goragp4"
+	muambaDownloadMermaidSwimlanesOswoylsk               = "swimlanes-oswoylsk"
+	muambaResourceKatex                                  = "katex"
+	muambaResourceMermaid                                = "mermaid"
 )
 
 type MuambaResource struct {
@@ -66,6 +90,31 @@ type MuambaDownload struct {
 }
 
 var muambaResources = []MuambaResource{
+	{Name: "katex", Version: "0.19.1", Downloads: []MuambaDownload{
+		{Name: "fonts-katex-ams-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_AMS-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_AMS-Regular.woff2", Integrity: "sha384-PY9KakbvJJoGRFr9TsImY6e9PzVmMRFtphQ0xTPhQj7VgIR9nnPXP2nA4P49sNux", Hash: "sha384:3d8f4a6a46ef249a06445afd4ec22663a7bd3f356631116da61434c533e1423ed580847d9e73d73f69c0e0fe3db0dbb1"},
+		{Name: "fonts-katex-caligraphic-bold-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Caligraphic-Bold.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Caligraphic-Bold.woff2", Integrity: "sha384-GhFwF3Lk94gRRX3fKvK8qVRIaPRKBawaOWoLpTeJCC1rYaTrY7A8sjVjyaJCdvb0", Hash: "sha384:1a11701772e4f78811457ddf2af2bca9544868f44a05ac1a396a0ba53789082d6b61a4eb63b03cb23563c9a24276f6f4"},
+		{Name: "fonts-katex-caligraphic-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Caligraphic-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Caligraphic-Regular.woff2", Integrity: "sha384-0LpsQdZ8FRkW+0vIhMl+kNMsgYPhTA7pbCJDt43k6AHTpq7dv67sLl+bIaMuOiON", Hash: "sha384:d0ba6c41d67c151916fb4bc884c97e90d32c8183e14c0ee96c2243b78de4e801d3a6aeddbfaeec2e5f9b21a32e3a238d"},
+		{Name: "fonts-katex-fraktur-bold-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Fraktur-Bold.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Fraktur-Bold.woff2", Integrity: "sha384-23N9yDc6628Shv+2pdeDIDYIXemJPKfZaANtneHGjhBoaxqeQsZQFBRLj+0/drG9", Hash: "sha384:db737dc8373aeb6f1286ffb6a5d7832036085de9893ca7d968036d9de1c68e10686b1a9e42c65014144b8fed3f76b1bd"},
+		{Name: "fonts-katex-fraktur-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Fraktur-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Fraktur-Regular.woff2", Integrity: "sha384-N4B5/o3aSwC8EE7MIGghu2mB6cSIwYHNyiY9bhuVnozyLoHpYT+VEEjdYqJ+7mN7", Hash: "sha384:378079fe8dda4b00bc104ecc206821bb6981e9c488c181cdca263d6e1b959e8cf22e81e9613f951048dd62a27eee637b"},
+		{Name: "fonts-katex-main-bold-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Main-Bold.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Main-Bold.woff2", Integrity: "sha384-MnzwPa3V5+Sly78huHTxfNszB+vQQmvhX4O4+m3UZ7LzQoA9wxEhsgxQsvW1y8dV", Hash: "sha384:327cf03dadd5e7e4a5cbbf21b874f17cdb3307ebd0426be15f83b8fa6dd467b2f342803dc31121b20c50b2f5b5cbc755"},
+		{Name: "fonts-katex-main-bolditalic-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Main-BoldItalic.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Main-BoldItalic.woff2", Integrity: "sha384-XtHiL6YLLShFl6oq2ZOcqTQBsloU+AvJDaGE7Xz/76bt4BWZuJn8tsj7dHnKndKi", Hash: "sha384:5ed1e22fa60b2d284597aa2ad9939ca93401b25a14f80bc90da184ed7cffefa6ede01599b899fcb6c8fb7479ca9dd2a2"},
+		{Name: "fonts-katex-main-italic-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Main-Italic.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Main-Italic.woff2", Integrity: "sha384-pZ+saBD2/qiUjsKqk1z1NqixWQMZGxYCRcit0Dqfscp5Mj2xUX8bxMm8iKOYsAsQ", Hash: "sha384:a59fac6810f6fea8948ec2aa935cf536a8b15903191b160245c8add03a9fb1ca79323db1517f1bc4c9bc88a398b00b10"},
+		{Name: "fonts-katex-main-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Main-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Main-Regular.woff2", Integrity: "sha384-K4rU/m6R4ygdFA2s4iphVuNOm4ksiQlo7BPut2DKbuGQFsmOTsh1vie2QdS8+qD/", Hash: "sha384:2b8ad4fe6e91e3281d140dace22a6156e34e9b892c890968ec13eeb760ca6ee19016c98e4ec875be27b641d4bcfaa0ff"},
+		{Name: "fonts-katex-math-bolditalic-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Math-BoldItalic.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Math-BoldItalic.woff2", Integrity: "sha384-/bG/IuB65SsDidFgz28e7vwT1pxHih+EkPgQpjqmDVtOaSsPi/CXI7uT4nJnozAI", Hash: "sha384:fdb1bf22e07ae52b0389d160cf6f1eeefc13d69c478a1f8490f810a63aa60d5b4e692b0f8bf09723bb93e27267a33008"},
+		{Name: "fonts-katex-math-italic-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Math-Italic.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Math-Italic.woff2", Integrity: "sha384-ahAgpD3waV7F+QiHuM0WaQnVF/FMS0RXhS0dsThbGBuwv3RPHoxvT/8UGwzyOATH", Hash: "sha384:6a1020a43df0695ec5f90887b8cd166909d517f14c4b4457852d1db1385b181bb0bf744f1e8c6f4fff141b0cf23804c7"},
+		{Name: "fonts-katex-sansserif-bold-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_SansSerif-Bold.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_SansSerif-Bold.woff2", Integrity: "sha384-FWRmzdMUcxpbgWzOqA1THk/7QOuMshS6cTUeprW3TVnzjVrGnO9oCvWhE9lEwgGX", Hash: "sha384:156466cdd314731a5b816ccea80d531e4ffb40eb8cb214ba71351ea6b5b74d59f38d5ac69cef680af5a113d944c20197"},
+		{Name: "fonts-katex-sansserif-italic-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_SansSerif-Italic.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_SansSerif-Italic.woff2", Integrity: "sha384-cIAn4buHZvRkXL5LFuK8pAPVzxv0niY78zTOBRHvRmalHZh9IYFAzZQPwNnHj05g", Hash: "sha384:708027e1bb8766f4645cbe4b16e2bca403d5cf1bf49e263bf334ce0511ef4666a51d987d218140cd940fc0d9c78f4e60"},
+		{Name: "fonts-katex-sansserif-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_SansSerif-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_SansSerif-Regular.woff2", Integrity: "sha384-hFb2fFUxKsM3r80syP3hRUPdmRjMS09eYDF7almTU926xWabYjc1wdbrC7CaV5N/", Hash: "sha384:8456f67c55312ac337afcd2cc8fde14543dd9918cc4b4f5e60317b6a599353ddbac5669b623735c1d6eb0bb09a57937f"},
+		{Name: "fonts-katex-script-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Script-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Script-Regular.woff2", Integrity: "sha384-A6AdZ/mywRJao07EiGdwk4swWZyx+X1pi9aYMAdEYNUcIzbZzbrOlEnIBFn2tUvI", Hash: "sha384:03a01d67f9b2c1125aa34ec4886770938b30599cb1f97d698bd69830074460d51c2336d9cdbace9449c80459f6b54bc8"},
+		{Name: "fonts-katex-size1-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Size1-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Size1-Regular.woff2", Integrity: "sha384-vXXP3yBdT6+htUbz5gNLFqA/PE6AUmW++GDGZTnxOaHX2IFPIG1ie1qo3Ra6QXHy", Hash: "sha384:bd75cfdf205d4fafa1b546f3e6034b16a03f3c4e805265bef860c66539f139a1d7d8814f206d627b5aa8dd16ba4171f2"},
+		{Name: "fonts-katex-size2-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Size2-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Size2-Regular.woff2", Integrity: "sha384-hCKAtKJzh4FhbOKEWInGgZoaS+sek0VFv7B866K51w2+KRZ5E6GJcpWQHbEPGPZz", Hash: "sha384:842280b4a2738781616ce2845889c6819a1a4beb1e934545bfb07ceba2b9d70dbe29167913a1897295901db10f18f673"},
+		{Name: "fonts-katex-size3-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Size3-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Size3-Regular.woff2", Integrity: "sha384-dJES0vnXQqt06SV8gVM87Qsddvp2jjMCSjJ/jfADNWOP1feq4AqxkHeo/HZRTeya", Hash: "sha384:749112d2f9d742ab74e9257c81533ced0b1d76fa768e33024a327f8df00335638fd5f7aae00ab19077a8fc76514dec9a"},
+		{Name: "fonts-katex-size4-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Size4-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Size4-Regular.woff2", Integrity: "sha384-N0i7aW7M3/ioHKtRjR78Td+YATjbmUh0waMuUQOjBtv/bp4qTWd58I4etzZ71USy", Hash: "sha384:3748bb696eccdff8a81cab518d1efc4ddf980138db994874c1a32e5103a306dbff6e9e2a4d6779f08e1eb7367bd544b2"},
+		{Name: "fonts-katex-typewriter-regular-woff2", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/KaTeX_Typewriter-Regular.woff2", Path: "assets/katex/0.19.1/fonts/KaTeX_Typewriter-Regular.woff2", Integrity: "sha384-EwGF1si4JOX2592vVUMe7CnToRBlq2lo+w+8tVWLrJW5ZiwBuSry7Ozgs+cGHjmB", Hash: "sha384:130185d6c8b824e5f6e7ddaf55431eec29d3a11065ab6968fb0fbcb5558bac95b9662c01b92af2ecece0b3e7061e3981"},
+		{Name: "katex-min-css", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.css", Path: "assets/katex/0.19.1/katex.min.css", Integrity: "sha384-WwGtaC6ywCHxA5cstpj/3+xIZvTez8dq2IcBQaXRkenHZ7FVVq1ZROtURwfbtTlG", Hash: "sha384:5b01ad682eb2c021f103972cb698ffdfec4866f4decfc76ad8870141a5d191e9c767b15556ad5944eb544707dbb53946"},
+		{Name: "katex-min-js", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.js", Path: "assets/katex/0.19.1/katex.min.js", Integrity: "sha384-a1WQdjRj162i159OYq041X6I4K8NenkrI09LlPmiHg0YOb7CR+wJOraXwK9abpnE", Hash: "sha384:6b5590763463d7ada2d79f4e62ad38d57e88e0af0d7a792b234f4b94f9a21e0d1839bec247ec093ab697c0af5a6e99c4"},
+		{Name: "license", URL: "https://cdn.jsdelivr.net/npm/katex@0.19.1/LICENSE", Path: "assets/katex/0.19.1/LICENSE", Integrity: "sha384-8/FKNbIH5mozwy+sV5pgpgutNbMMGyLRBrS03uW5zky5crMM84tQVBEjiOEkDuqL", Hash: "sha384:f3f14a35b207e66a33c32fac579a60a60bad35b30c1b22d106b4b4dee5b9ce4cb972b30cf38b5054112388e1240eea8b"},
+	}},
 	{Name: "mermaid", Version: "11.16.1", Downloads: []MuambaDownload{
 		{Name: "browser-bundle", URL: "https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/mermaid.min.js", Path: "assets/mermaid/11.16.1/mermaid.min.js", Integrity: "sha384-aBQXj4hK6Jm05i7aQAsUV3bLdSUrHX1BGYfMB0166TtWt/RRaw+h0Eelme9OCOvy", Hash: "sha384:6814178f884ae899b4e62eda400b145776cb75252b1d7d411987cc074d7ae93b56b7f4516b0fa1d047a599ef4e08ebf2"},
 		{Name: "chunk-2aehwxpw", URL: "https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs", Path: "assets/mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs", Integrity: "sha384-/nYOcHv1Gka+0IixdQE4DNOaYXiIIdGI1CJnrs4IUhoxWiOh5443H4vAD5O9oNra", Hash: "sha384:fe760e707bf51a46bed088b17501380cd39a61788821d188d42267aece08521a315a23a1e78e371f8bc00f93bda0dada"},
@@ -107,81 +156,127 @@ var muambaResources = []MuambaResource{
 }
 
 var muambaEmbeddedPaths = map[string]string{
-	"mermaid\x00browser-bundle":            "mermaid/11.16.1/mermaid.min.js",
-	"mermaid\x00chunk-2aehwxpw":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs",
-	"mermaid\x00chunk-2srehg4o":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs",
-	"mermaid\x00chunk-5iminlnl":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs",
-	"mermaid\x00chunk-5vcl7z4a":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs",
-	"mermaid\x00chunk-6belyetk":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6BELYETK.mjs",
-	"mermaid\x00chunk-6l755f7b":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6L755F7B.mjs",
-	"mermaid\x00chunk-7cwylc5s":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs",
-	"mermaid\x00chunk-7fythrhk":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs",
-	"mermaid\x00chunk-a7vwpjgb":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs",
-	"mermaid\x00chunk-aq6eadp3":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs",
-	"mermaid\x00chunk-azzrmdjm":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs",
-	"mermaid\x00chunk-krxbno2n":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs",
-	"mermaid\x00chunk-lahsg3n2":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs",
-	"mermaid\x00chunk-liev3eag":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs",
-	"mermaid\x00chunk-nlanea3f":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs",
-	"mermaid\x00chunk-pe7dx7zz":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs",
-	"mermaid\x00chunk-q67wd55a":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs",
-	"mermaid\x00chunk-stov2hob":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs",
-	"mermaid\x00chunk-szd42yqk":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs",
-	"mermaid\x00chunk-t5octhi4":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs",
-	"mermaid\x00chunk-tgvd4f4b":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs",
-	"mermaid\x00chunk-uat7b5jy":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs",
-	"mermaid\x00chunk-ve5clxgz":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs",
-	"mermaid\x00chunk-vy5ubi4v":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs",
-	"mermaid\x00chunk-w44a43wb":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-W44A43WB.mjs",
-	"mermaid\x00chunk-wjbap47w":            "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs",
-	"mermaid\x00cose-bilkent-rza4xipr":     "mermaid/11.16.1/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs",
-	"mermaid\x00dagre-k64a6z3x":            "mermaid/11.16.1/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs",
-	"mermaid\x00flow-diagram-bwe6nhoh":     "mermaid/11.16.1/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs",
-	"mermaid\x00katex-c5opue3q":            "mermaid/11.16.1/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs",
-	"mermaid\x00license":                   "mermaid/11.16.1/LICENSE",
-	"mermaid\x00runtime":                   "mermaid/11.16.1/mermaid.esm.min.mjs",
-	"mermaid\x00sequence-diagram-uratnsbd": "mermaid/11.16.1/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs",
-	"mermaid\x00size-capture-5goragp4":     "mermaid/11.16.1/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs",
-	"mermaid\x00swimlanes-oswoylsk":        "mermaid/11.16.1/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs",
+	"katex\x00fonts-katex-ams-regular-woff2":         "katex/0.19.1/fonts/KaTeX_AMS-Regular.woff2",
+	"katex\x00fonts-katex-caligraphic-bold-woff2":    "katex/0.19.1/fonts/KaTeX_Caligraphic-Bold.woff2",
+	"katex\x00fonts-katex-caligraphic-regular-woff2": "katex/0.19.1/fonts/KaTeX_Caligraphic-Regular.woff2",
+	"katex\x00fonts-katex-fraktur-bold-woff2":        "katex/0.19.1/fonts/KaTeX_Fraktur-Bold.woff2",
+	"katex\x00fonts-katex-fraktur-regular-woff2":     "katex/0.19.1/fonts/KaTeX_Fraktur-Regular.woff2",
+	"katex\x00fonts-katex-main-bold-woff2":           "katex/0.19.1/fonts/KaTeX_Main-Bold.woff2",
+	"katex\x00fonts-katex-main-bolditalic-woff2":     "katex/0.19.1/fonts/KaTeX_Main-BoldItalic.woff2",
+	"katex\x00fonts-katex-main-italic-woff2":         "katex/0.19.1/fonts/KaTeX_Main-Italic.woff2",
+	"katex\x00fonts-katex-main-regular-woff2":        "katex/0.19.1/fonts/KaTeX_Main-Regular.woff2",
+	"katex\x00fonts-katex-math-bolditalic-woff2":     "katex/0.19.1/fonts/KaTeX_Math-BoldItalic.woff2",
+	"katex\x00fonts-katex-math-italic-woff2":         "katex/0.19.1/fonts/KaTeX_Math-Italic.woff2",
+	"katex\x00fonts-katex-sansserif-bold-woff2":      "katex/0.19.1/fonts/KaTeX_SansSerif-Bold.woff2",
+	"katex\x00fonts-katex-sansserif-italic-woff2":    "katex/0.19.1/fonts/KaTeX_SansSerif-Italic.woff2",
+	"katex\x00fonts-katex-sansserif-regular-woff2":   "katex/0.19.1/fonts/KaTeX_SansSerif-Regular.woff2",
+	"katex\x00fonts-katex-script-regular-woff2":      "katex/0.19.1/fonts/KaTeX_Script-Regular.woff2",
+	"katex\x00fonts-katex-size1-regular-woff2":       "katex/0.19.1/fonts/KaTeX_Size1-Regular.woff2",
+	"katex\x00fonts-katex-size2-regular-woff2":       "katex/0.19.1/fonts/KaTeX_Size2-Regular.woff2",
+	"katex\x00fonts-katex-size3-regular-woff2":       "katex/0.19.1/fonts/KaTeX_Size3-Regular.woff2",
+	"katex\x00fonts-katex-size4-regular-woff2":       "katex/0.19.1/fonts/KaTeX_Size4-Regular.woff2",
+	"katex\x00fonts-katex-typewriter-regular-woff2":  "katex/0.19.1/fonts/KaTeX_Typewriter-Regular.woff2",
+	"katex\x00katex-min-css":                         "katex/0.19.1/katex.min.css",
+	"katex\x00katex-min-js":                          "katex/0.19.1/katex.min.js",
+	"katex\x00license":                               "katex/0.19.1/LICENSE",
+	"mermaid\x00browser-bundle":                      "mermaid/11.16.1/mermaid.min.js",
+	"mermaid\x00chunk-2aehwxpw":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2AEHWXPW.mjs",
+	"mermaid\x00chunk-2srehg4o":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-2SREHG4O.mjs",
+	"mermaid\x00chunk-5iminlnl":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5IMINLNL.mjs",
+	"mermaid\x00chunk-5vcl7z4a":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-5VCL7Z4A.mjs",
+	"mermaid\x00chunk-6belyetk":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6BELYETK.mjs",
+	"mermaid\x00chunk-6l755f7b":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-6L755F7B.mjs",
+	"mermaid\x00chunk-7cwylc5s":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7CWYLC5S.mjs",
+	"mermaid\x00chunk-7fythrhk":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-7FYTHRHK.mjs",
+	"mermaid\x00chunk-a7vwpjgb":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-A7VWPJGB.mjs",
+	"mermaid\x00chunk-aq6eadp3":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AQ6EADP3.mjs",
+	"mermaid\x00chunk-azzrmdjm":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-AZZRMDJM.mjs",
+	"mermaid\x00chunk-krxbno2n":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-KRXBNO2N.mjs",
+	"mermaid\x00chunk-lahsg3n2":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LAHSG3N2.mjs",
+	"mermaid\x00chunk-liev3eag":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-LIEV3EAG.mjs",
+	"mermaid\x00chunk-nlanea3f":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-NLANEA3F.mjs",
+	"mermaid\x00chunk-pe7dx7zz":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-PE7DX7ZZ.mjs",
+	"mermaid\x00chunk-q67wd55a":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-Q67WD55A.mjs",
+	"mermaid\x00chunk-stov2hob":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-STOV2HOB.mjs",
+	"mermaid\x00chunk-szd42yqk":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-SZD42YQK.mjs",
+	"mermaid\x00chunk-t5octhi4":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-T5OCTHI4.mjs",
+	"mermaid\x00chunk-tgvd4f4b":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-TGVD4F4B.mjs",
+	"mermaid\x00chunk-uat7b5jy":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-UAT7B5JY.mjs",
+	"mermaid\x00chunk-ve5clxgz":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VE5CLXGZ.mjs",
+	"mermaid\x00chunk-vy5ubi4v":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-VY5UBI4V.mjs",
+	"mermaid\x00chunk-w44a43wb":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-W44A43WB.mjs",
+	"mermaid\x00chunk-wjbap47w":                      "mermaid/11.16.1/chunks/mermaid.esm.min/chunk-WJBAP47W.mjs",
+	"mermaid\x00cose-bilkent-rza4xipr":               "mermaid/11.16.1/chunks/mermaid.esm.min/cose-bilkent-RZA4XIPR.mjs",
+	"mermaid\x00dagre-k64a6z3x":                      "mermaid/11.16.1/chunks/mermaid.esm.min/dagre-K64A6Z3X.mjs",
+	"mermaid\x00flow-diagram-bwe6nhoh":               "mermaid/11.16.1/chunks/mermaid.esm.min/flowDiagram-BWE6NHOH.mjs",
+	"mermaid\x00katex-c5opue3q":                      "mermaid/11.16.1/chunks/mermaid.esm.min/katex-C5OPUE3Q.mjs",
+	"mermaid\x00license":                             "mermaid/11.16.1/LICENSE",
+	"mermaid\x00runtime":                             "mermaid/11.16.1/mermaid.esm.min.mjs",
+	"mermaid\x00sequence-diagram-uratnsbd":           "mermaid/11.16.1/chunks/mermaid.esm.min/sequenceDiagram-URATNSBD.mjs",
+	"mermaid\x00size-capture-5goragp4":               "mermaid/11.16.1/chunks/mermaid.esm.min/sizeCapture-5GORAGP4.mjs",
+	"mermaid\x00swimlanes-oswoylsk":                  "mermaid/11.16.1/chunks/mermaid.esm.min/swimlanes-OSWOYLSK.mjs",
 }
 
 var muambaHashes = map[string]string{
-	"mermaid\x00browser-bundle":            "sha384:6814178f884ae899b4e62eda400b145776cb75252b1d7d411987cc074d7ae93b56b7f4516b0fa1d047a599ef4e08ebf2",
-	"mermaid\x00chunk-2aehwxpw":            "sha384:fe760e707bf51a46bed088b17501380cd39a61788821d188d42267aece08521a315a23a1e78e371f8bc00f93bda0dada",
-	"mermaid\x00chunk-2srehg4o":            "sha384:2ef86959d66d39e862b919d834b4fa6fb7b22aa5d7f36d91149b98e7a266c699415e3c21bb7a35b5756e0ea9f63e4002",
-	"mermaid\x00chunk-5iminlnl":            "sha384:36e0f4a21b20270d1710b2daa43e1d25ef63c8d038977e18dcdd0f149b1bfc88761bacd80ad184d15d77ab3cf3ffcf42",
-	"mermaid\x00chunk-5vcl7z4a":            "sha384:5455a022dccfb010b5d5d3e4644897cf82134c8f3c6ffd012d68e5d6f01f2d722af73cc042b0943a518d83baaae3feed",
-	"mermaid\x00chunk-6belyetk":            "sha384:7333f4f0f3a24dd7b664cb898188816fdfd8dcf7b3f4f88fbcf1d03a751b80ecc31f14dfe5438a6cc2ab4a282db67f85",
-	"mermaid\x00chunk-6l755f7b":            "sha384:cca9e85cfc998319a18d0d6f31ec3583371a626b16ed56390fa216228ffdb08db16a61de7099cc3370519107dd25e8b8",
-	"mermaid\x00chunk-7cwylc5s":            "sha384:0a2f6e42053507bdda0037cf365a321669c9038dc8f7229bf7ff814e800aea00ff2359a99d91ca10f5e550af69419364",
-	"mermaid\x00chunk-7fythrhk":            "sha384:0cc984eb6241635e759bf82ba37afd9760e3e50bb16a2d7dd10dbf1374d820a85b5fbbebd32fe6eb72d1d45f9a9e6028",
-	"mermaid\x00chunk-a7vwpjgb":            "sha384:d8ca254996919632fdcc46b9ede370526b19eeebace70d72b43b184d8983b5e19451c36780a9f8ae71cf6c18218c4a73",
-	"mermaid\x00chunk-aq6eadp3":            "sha384:98e902011cfff9052bc0cb5e4f9b00d72cb8951c6274614ca59d6e354e06b849e13626a0d6de966036a8c60b25d02d69",
-	"mermaid\x00chunk-azzrmdjm":            "sha384:5c8611b21f18dc9dd22fa7b91ea77a00013dd3b608bf076f3e026586bdbc6dd99a3a224a989ff5939b343cc554e515b6",
-	"mermaid\x00chunk-krxbno2n":            "sha384:bc327a33897a221eb0adfcb026f9762c28ec1f33731832ac7694ebaa53c09a4432b2f75d4e5dd39a688087fe2e194604",
-	"mermaid\x00chunk-lahsg3n2":            "sha384:b3d347f13bf9b1aa7215b3a00352e0c356471bff3e09dca3eeadf816cf579eef775e4547213e321c0df3798c64f79030",
-	"mermaid\x00chunk-liev3eag":            "sha384:afd3fbab02155d3fdb8851a923f40f6f06d06a34fd55299acea5069f46eea8f98032c605c73ceb4b98289bcc05177471",
-	"mermaid\x00chunk-nlanea3f":            "sha384:223e38d8d94535a3581ba13c7be00b6a56176afadc8c74ebb19b8df2248fc510dbd6c00fcf656ba6b8cf8b6b19045ef6",
-	"mermaid\x00chunk-pe7dx7zz":            "sha384:f465adef713e20241e8a206c61dd6e55e7fe50ced90aa793333476d23d0d867b6ed77ad8bd182887210e1973fc99a125",
-	"mermaid\x00chunk-q67wd55a":            "sha384:52920aec36d63d0dc7d6995e9a14ab4b23ef2bdf4771074c30dfb980355899a73a75d0227460dfc0f09dbf01ba7279c0",
-	"mermaid\x00chunk-stov2hob":            "sha384:17775c821dca7e33520c80ee9e6360f325085640674e565baff70a20944011866e9dce266db9cc50148c0735d8c8ea73",
-	"mermaid\x00chunk-szd42yqk":            "sha384:4d4bd4c1c1e635d412f06f8f32a4b4ecaed7893cd5afb6a1e97a7b2baef29644de26d7cb581e22e4a547d453a6172cff",
-	"mermaid\x00chunk-t5octhi4":            "sha384:c13593c4e473b4c8dc23ef038b2a66b94d2e2ff22310bf28c1922e91b37fad2863b2078bcece0c974b4ddb626f16c75b",
-	"mermaid\x00chunk-tgvd4f4b":            "sha384:ae139a649fee49605c26d2f397a766f960c9d81c183b34ab739208d09011d8bd8a41e7f16dbad517e5d7638430dc1513",
-	"mermaid\x00chunk-uat7b5jy":            "sha384:dc3c71a70a93bb0ce25c30207a6543d3586ff3ac3cbaafb4e6ea985a63c2d22adf1ebfa86262c9b16fa50b1a5a52dccd",
-	"mermaid\x00chunk-ve5clxgz":            "sha384:a240f553a31107b5f1c9498359715a907fbddc5427b60988980e4da2a7d7badaaae72150f2a38cf5f537fcdc918ea62f",
-	"mermaid\x00chunk-vy5ubi4v":            "sha384:f8b9dca42d3fc798a514216924460b5bdb423ccee6c3f70aeb684ffa20370d94f52ecc6e1ac138eaa5c1e5a158076e9b",
-	"mermaid\x00chunk-w44a43wb":            "sha384:ca247bbaa223f3c927568752f7a083745f886565243247775020254534180e5021196e9727dfe1fc2aefb5b84df9e825",
-	"mermaid\x00chunk-wjbap47w":            "sha384:4cebb04e9e6a869ad58cd1b21b211b0405468d726fbd6247493b46ec9e7873ededcfdf4fe7dac217fd10450ea343927f",
-	"mermaid\x00cose-bilkent-rza4xipr":     "sha384:69f1126e5e69dfae65b907c499052b9488947e614d2720e5b0bcc810065707b559534a80df293e41db4e13822251317f",
-	"mermaid\x00dagre-k64a6z3x":            "sha384:bf7c57f62debb6996f43e941933050b511e45f72a165bbb712b8d242f011aae123973f1451377244a07de5c47e31e840",
-	"mermaid\x00flow-diagram-bwe6nhoh":     "sha384:6c038e8c0f25e9eb8c9d14675acb2cb01b5aea5b81499358edb03641e9b14361b55ed280313b2bcbf420704d7b7fc58b",
-	"mermaid\x00katex-c5opue3q":            "sha384:d100abefa62bc6bd3a4c6026c9e50b077fb6c35f1c3564290e81f60226af562175807106aa3688e7830b708543eb8322",
-	"mermaid\x00license":                   "sha384:1429e45b135c0ea49e332195ec3ce10387961e221b7fc98d2ccae53d31fe689feeda61a32904afc28d7486ee481f40c2",
-	"mermaid\x00runtime":                   "sha384:4ebed2d056672dc504310c8a5be4d28abe2b2a08c0c11487650801f9528cb8cb2ad6faf66bbb1ae9db2aeff023fd414f",
-	"mermaid\x00sequence-diagram-uratnsbd": "sha384:0de6318dd4221d5916236ab67600f1d382a89d2618ca2a8a0af4b974723cac070904cd9043e67d1e06b3d70c84ab1d7e",
-	"mermaid\x00size-capture-5goragp4":     "sha384:054ae33d38502bbb6873eeb2b8a1f59914b7c51fa334e2571ff2066881a5c1d5e3a5d81950a6043da342651daf9aed23",
-	"mermaid\x00swimlanes-oswoylsk":        "sha384:fd65d5f9d50435fcd7cb8fe158133b5d4b0138386475d1ae540f32b7f923a51e6b2428165ad7442394e69d36d51cd898",
+	"katex\x00fonts-katex-ams-regular-woff2":         "sha384:3d8f4a6a46ef249a06445afd4ec22663a7bd3f356631116da61434c533e1423ed580847d9e73d73f69c0e0fe3db0dbb1",
+	"katex\x00fonts-katex-caligraphic-bold-woff2":    "sha384:1a11701772e4f78811457ddf2af2bca9544868f44a05ac1a396a0ba53789082d6b61a4eb63b03cb23563c9a24276f6f4",
+	"katex\x00fonts-katex-caligraphic-regular-woff2": "sha384:d0ba6c41d67c151916fb4bc884c97e90d32c8183e14c0ee96c2243b78de4e801d3a6aeddbfaeec2e5f9b21a32e3a238d",
+	"katex\x00fonts-katex-fraktur-bold-woff2":        "sha384:db737dc8373aeb6f1286ffb6a5d7832036085de9893ca7d968036d9de1c68e10686b1a9e42c65014144b8fed3f76b1bd",
+	"katex\x00fonts-katex-fraktur-regular-woff2":     "sha384:378079fe8dda4b00bc104ecc206821bb6981e9c488c181cdca263d6e1b959e8cf22e81e9613f951048dd62a27eee637b",
+	"katex\x00fonts-katex-main-bold-woff2":           "sha384:327cf03dadd5e7e4a5cbbf21b874f17cdb3307ebd0426be15f83b8fa6dd467b2f342803dc31121b20c50b2f5b5cbc755",
+	"katex\x00fonts-katex-main-bolditalic-woff2":     "sha384:5ed1e22fa60b2d284597aa2ad9939ca93401b25a14f80bc90da184ed7cffefa6ede01599b899fcb6c8fb7479ca9dd2a2",
+	"katex\x00fonts-katex-main-italic-woff2":         "sha384:a59fac6810f6fea8948ec2aa935cf536a8b15903191b160245c8add03a9fb1ca79323db1517f1bc4c9bc88a398b00b10",
+	"katex\x00fonts-katex-main-regular-woff2":        "sha384:2b8ad4fe6e91e3281d140dace22a6156e34e9b892c890968ec13eeb760ca6ee19016c98e4ec875be27b641d4bcfaa0ff",
+	"katex\x00fonts-katex-math-bolditalic-woff2":     "sha384:fdb1bf22e07ae52b0389d160cf6f1eeefc13d69c478a1f8490f810a63aa60d5b4e692b0f8bf09723bb93e27267a33008",
+	"katex\x00fonts-katex-math-italic-woff2":         "sha384:6a1020a43df0695ec5f90887b8cd166909d517f14c4b4457852d1db1385b181bb0bf744f1e8c6f4fff141b0cf23804c7",
+	"katex\x00fonts-katex-sansserif-bold-woff2":      "sha384:156466cdd314731a5b816ccea80d531e4ffb40eb8cb214ba71351ea6b5b74d59f38d5ac69cef680af5a113d944c20197",
+	"katex\x00fonts-katex-sansserif-italic-woff2":    "sha384:708027e1bb8766f4645cbe4b16e2bca403d5cf1bf49e263bf334ce0511ef4666a51d987d218140cd940fc0d9c78f4e60",
+	"katex\x00fonts-katex-sansserif-regular-woff2":   "sha384:8456f67c55312ac337afcd2cc8fde14543dd9918cc4b4f5e60317b6a599353ddbac5669b623735c1d6eb0bb09a57937f",
+	"katex\x00fonts-katex-script-regular-woff2":      "sha384:03a01d67f9b2c1125aa34ec4886770938b30599cb1f97d698bd69830074460d51c2336d9cdbace9449c80459f6b54bc8",
+	"katex\x00fonts-katex-size1-regular-woff2":       "sha384:bd75cfdf205d4fafa1b546f3e6034b16a03f3c4e805265bef860c66539f139a1d7d8814f206d627b5aa8dd16ba4171f2",
+	"katex\x00fonts-katex-size2-regular-woff2":       "sha384:842280b4a2738781616ce2845889c6819a1a4beb1e934545bfb07ceba2b9d70dbe29167913a1897295901db10f18f673",
+	"katex\x00fonts-katex-size3-regular-woff2":       "sha384:749112d2f9d742ab74e9257c81533ced0b1d76fa768e33024a327f8df00335638fd5f7aae00ab19077a8fc76514dec9a",
+	"katex\x00fonts-katex-size4-regular-woff2":       "sha384:3748bb696eccdff8a81cab518d1efc4ddf980138db994874c1a32e5103a306dbff6e9e2a4d6779f08e1eb7367bd544b2",
+	"katex\x00fonts-katex-typewriter-regular-woff2":  "sha384:130185d6c8b824e5f6e7ddaf55431eec29d3a11065ab6968fb0fbcb5558bac95b9662c01b92af2ecece0b3e7061e3981",
+	"katex\x00katex-min-css":                         "sha384:5b01ad682eb2c021f103972cb698ffdfec4866f4decfc76ad8870141a5d191e9c767b15556ad5944eb544707dbb53946",
+	"katex\x00katex-min-js":                          "sha384:6b5590763463d7ada2d79f4e62ad38d57e88e0af0d7a792b234f4b94f9a21e0d1839bec247ec093ab697c0af5a6e99c4",
+	"katex\x00license":                               "sha384:f3f14a35b207e66a33c32fac579a60a60bad35b30c1b22d106b4b4dee5b9ce4cb972b30cf38b5054112388e1240eea8b",
+	"mermaid\x00browser-bundle":                      "sha384:6814178f884ae899b4e62eda400b145776cb75252b1d7d411987cc074d7ae93b56b7f4516b0fa1d047a599ef4e08ebf2",
+	"mermaid\x00chunk-2aehwxpw":                      "sha384:fe760e707bf51a46bed088b17501380cd39a61788821d188d42267aece08521a315a23a1e78e371f8bc00f93bda0dada",
+	"mermaid\x00chunk-2srehg4o":                      "sha384:2ef86959d66d39e862b919d834b4fa6fb7b22aa5d7f36d91149b98e7a266c699415e3c21bb7a35b5756e0ea9f63e4002",
+	"mermaid\x00chunk-5iminlnl":                      "sha384:36e0f4a21b20270d1710b2daa43e1d25ef63c8d038977e18dcdd0f149b1bfc88761bacd80ad184d15d77ab3cf3ffcf42",
+	"mermaid\x00chunk-5vcl7z4a":                      "sha384:5455a022dccfb010b5d5d3e4644897cf82134c8f3c6ffd012d68e5d6f01f2d722af73cc042b0943a518d83baaae3feed",
+	"mermaid\x00chunk-6belyetk":                      "sha384:7333f4f0f3a24dd7b664cb898188816fdfd8dcf7b3f4f88fbcf1d03a751b80ecc31f14dfe5438a6cc2ab4a282db67f85",
+	"mermaid\x00chunk-6l755f7b":                      "sha384:cca9e85cfc998319a18d0d6f31ec3583371a626b16ed56390fa216228ffdb08db16a61de7099cc3370519107dd25e8b8",
+	"mermaid\x00chunk-7cwylc5s":                      "sha384:0a2f6e42053507bdda0037cf365a321669c9038dc8f7229bf7ff814e800aea00ff2359a99d91ca10f5e550af69419364",
+	"mermaid\x00chunk-7fythrhk":                      "sha384:0cc984eb6241635e759bf82ba37afd9760e3e50bb16a2d7dd10dbf1374d820a85b5fbbebd32fe6eb72d1d45f9a9e6028",
+	"mermaid\x00chunk-a7vwpjgb":                      "sha384:d8ca254996919632fdcc46b9ede370526b19eeebace70d72b43b184d8983b5e19451c36780a9f8ae71cf6c18218c4a73",
+	"mermaid\x00chunk-aq6eadp3":                      "sha384:98e902011cfff9052bc0cb5e4f9b00d72cb8951c6274614ca59d6e354e06b849e13626a0d6de966036a8c60b25d02d69",
+	"mermaid\x00chunk-azzrmdjm":                      "sha384:5c8611b21f18dc9dd22fa7b91ea77a00013dd3b608bf076f3e026586bdbc6dd99a3a224a989ff5939b343cc554e515b6",
+	"mermaid\x00chunk-krxbno2n":                      "sha384:bc327a33897a221eb0adfcb026f9762c28ec1f33731832ac7694ebaa53c09a4432b2f75d4e5dd39a688087fe2e194604",
+	"mermaid\x00chunk-lahsg3n2":                      "sha384:b3d347f13bf9b1aa7215b3a00352e0c356471bff3e09dca3eeadf816cf579eef775e4547213e321c0df3798c64f79030",
+	"mermaid\x00chunk-liev3eag":                      "sha384:afd3fbab02155d3fdb8851a923f40f6f06d06a34fd55299acea5069f46eea8f98032c605c73ceb4b98289bcc05177471",
+	"mermaid\x00chunk-nlanea3f":                      "sha384:223e38d8d94535a3581ba13c7be00b6a56176afadc8c74ebb19b8df2248fc510dbd6c00fcf656ba6b8cf8b6b19045ef6",
+	"mermaid\x00chunk-pe7dx7zz":                      "sha384:f465adef713e20241e8a206c61dd6e55e7fe50ced90aa793333476d23d0d867b6ed77ad8bd182887210e1973fc99a125",
+	"mermaid\x00chunk-q67wd55a":                      "sha384:52920aec36d63d0dc7d6995e9a14ab4b23ef2bdf4771074c30dfb980355899a73a75d0227460dfc0f09dbf01ba7279c0",
+	"mermaid\x00chunk-stov2hob":                      "sha384:17775c821dca7e33520c80ee9e6360f325085640674e565baff70a20944011866e9dce266db9cc50148c0735d8c8ea73",
+	"mermaid\x00chunk-szd42yqk":                      "sha384:4d4bd4c1c1e635d412f06f8f32a4b4ecaed7893cd5afb6a1e97a7b2baef29644de26d7cb581e22e4a547d453a6172cff",
+	"mermaid\x00chunk-t5octhi4":                      "sha384:c13593c4e473b4c8dc23ef038b2a66b94d2e2ff22310bf28c1922e91b37fad2863b2078bcece0c974b4ddb626f16c75b",
+	"mermaid\x00chunk-tgvd4f4b":                      "sha384:ae139a649fee49605c26d2f397a766f960c9d81c183b34ab739208d09011d8bd8a41e7f16dbad517e5d7638430dc1513",
+	"mermaid\x00chunk-uat7b5jy":                      "sha384:dc3c71a70a93bb0ce25c30207a6543d3586ff3ac3cbaafb4e6ea985a63c2d22adf1ebfa86262c9b16fa50b1a5a52dccd",
+	"mermaid\x00chunk-ve5clxgz":                      "sha384:a240f553a31107b5f1c9498359715a907fbddc5427b60988980e4da2a7d7badaaae72150f2a38cf5f537fcdc918ea62f",
+	"mermaid\x00chunk-vy5ubi4v":                      "sha384:f8b9dca42d3fc798a514216924460b5bdb423ccee6c3f70aeb684ffa20370d94f52ecc6e1ac138eaa5c1e5a158076e9b",
+	"mermaid\x00chunk-w44a43wb":                      "sha384:ca247bbaa223f3c927568752f7a083745f886565243247775020254534180e5021196e9727dfe1fc2aefb5b84df9e825",
+	"mermaid\x00chunk-wjbap47w":                      "sha384:4cebb04e9e6a869ad58cd1b21b211b0405468d726fbd6247493b46ec9e7873ededcfdf4fe7dac217fd10450ea343927f",
+	"mermaid\x00cose-bilkent-rza4xipr":               "sha384:69f1126e5e69dfae65b907c499052b9488947e614d2720e5b0bcc810065707b559534a80df293e41db4e13822251317f",
+	"mermaid\x00dagre-k64a6z3x":                      "sha384:bf7c57f62debb6996f43e941933050b511e45f72a165bbb712b8d242f011aae123973f1451377244a07de5c47e31e840",
+	"mermaid\x00flow-diagram-bwe6nhoh":               "sha384:6c038e8c0f25e9eb8c9d14675acb2cb01b5aea5b81499358edb03641e9b14361b55ed280313b2bcbf420704d7b7fc58b",
+	"mermaid\x00katex-c5opue3q":                      "sha384:d100abefa62bc6bd3a4c6026c9e50b077fb6c35f1c3564290e81f60226af562175807106aa3688e7830b708543eb8322",
+	"mermaid\x00license":                             "sha384:1429e45b135c0ea49e332195ec3ce10387961e221b7fc98d2ccae53d31fe689feeda61a32904afc28d7486ee481f40c2",
+	"mermaid\x00runtime":                             "sha384:4ebed2d056672dc504310c8a5be4d28abe2b2a08c0c11487650801f9528cb8cb2ad6faf66bbb1ae9db2aeff023fd414f",
+	"mermaid\x00sequence-diagram-uratnsbd":           "sha384:0de6318dd4221d5916236ab67600f1d382a89d2618ca2a8a0af4b974723cac070904cd9043e67d1e06b3d70c84ab1d7e",
+	"mermaid\x00size-capture-5goragp4":               "sha384:054ae33d38502bbb6873eeb2b8a1f59914b7c51fa334e2571ff2066881a5c1d5e3a5d81950a6043da342651daf9aed23",
+	"mermaid\x00swimlanes-oswoylsk":                  "sha384:fd65d5f9d50435fcd7cb8fe158133b5d4b0138386475d1ae540f32b7f923a51e6b2428165ad7442394e69d36d51cd898",
 }
 
 func MuambaResources() []MuambaResource {

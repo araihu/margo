@@ -7,6 +7,7 @@ import (
 
 	"github.com/araihu/goshtoso/components/icon/heroicons"
 	"github.com/araihu/margo"
+	"github.com/araihu/margo/internal/mathfonts"
 )
 
 // RenderOption overrides one immutable deck render setting.
@@ -176,10 +177,13 @@ func applyRenderOptions(options []RenderOption) (renderOptions, error) {
 	return result, nil
 }
 
-func resolveValidationRequest(theme margo.ThemeName, override *margo.RuntimeValidationRequest) (margo.RuntimeValidationRequest, error) {
+func resolveValidationRequest(theme margo.ThemeName, override *margo.RuntimeValidationRequest, mathDigest ...string) (margo.RuntimeValidationRequest, error) {
 	digest, err := bundledFontDigest(theme)
 	if err != nil {
 		return margo.RuntimeValidationRequest{}, err
+	}
+	if len(mathDigest) > 0 && mathDigest[0] != "" {
+		digest = mathfonts.Combine(digest, mathDigest[0])
 	}
 	request := margo.RuntimeValidationRequest{
 		ViewportWidth: 1440, ViewportHeight: 900, DeviceScaleFactor: 1, Zoom: 1,

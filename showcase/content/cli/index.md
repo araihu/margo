@@ -139,6 +139,21 @@ Each command has its own page in this CLI family:
 For the rendered contract trees and their consumers, see the
 [Schemas family](../schemas/index.md).
 
+## Math across commands
+
+`--math` enables inline `$…$`, display `$$…$$`, and fenced `math` expressions
+on `check`, `html`, `pdf`, `site`, `serve`, and `deck`. It defaults to false
+and is not enabled through frontmatter or site YAML.
+
+```sh
+margo html docs/guide.md --math --output build/guide.html
+margo serve ./docs --math
+```
+
+See [Math and LaTeX](../fenced-types/math/index.md) for rendered examples and
+authoring rules. HTML generation keeps expression validation in the browser;
+PDF exports require successful typesetting and font loading.
+
 ## Shared input, policy, and diagnostic rules
 
 `check`, `html`, `pdf`, and `deck` accept exactly one Markdown path or `-` for

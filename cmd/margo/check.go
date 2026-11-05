@@ -63,6 +63,7 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 				margo.WithCheckTarget(margo.RenderTarget(target)),
 				margo.WithCheckExtension(charts.Extension()),
 			}
+			checkOptions = append(checkOptions, margo.WithCheckMath(policyOptions.Math))
 			if policy != nil && policy.Digest != "" {
 				checkOptions = append(checkOptions, margo.WithCheckPolicy(policy.Host))
 			}
@@ -74,7 +75,7 @@ func newCheckCommand(deps Dependencies) *cobra.Command {
 				return reportCommandError(command, format, err)
 			}
 			if target == string(margo.TargetDeck) {
-				if _, err := deck.Parse(source.Name, source.Content); err != nil {
+				if _, err := deck.ParseWithOptions(source.Name, source.Content, deck.WithMath(policyOptions.Math)); err != nil {
 					return reportCommandError(command, format, err)
 				}
 			}

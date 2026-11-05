@@ -25,6 +25,13 @@ stderr and never mix with HTML bytes.
 for the standalone artifact; unsupported or external resource forms are
 rejected instead of producing a silently broken page.
 
+## Math
+
+Add `--math` to typeset inline expressions, display equations, and `math`
+fences. KaTeX, styles, and fonts are bundled, so the standalone file works
+offline. HTML generation leaves expression validation to the browser.
+See [Math and LaTeX](../../fenced-types/math/index.md) for source and results.
+
 ## Built-in page actions
 
 HTML documentation pages can expose source and export controls. The primary

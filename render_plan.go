@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
+	"github.com/araihu/margo/internal/mathsyntax"
 	"github.com/yuin/goldmark/ast"
 	tableast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
@@ -18,6 +20,7 @@ type renderPlan struct {
 	registrations       []ExtensionRegistration
 	nodes               []plannedExtensionNode
 	htmlRequirements    HTMLRequirements
+	mathTasks           []mathTask
 }
 
 const extensionSlotAttribute = "margo-extension-slot"
@@ -40,6 +43,7 @@ func extensionSlot(node *ast.FencedCodeBlock) (uint32, bool) {
 }
 
 func (p renderPlan) clone() renderPlan {
+	p.mathTasks = append([]mathTask(nil), p.mathTasks...)
 	registrations := p.registrations
 	nodes := p.nodes
 	p.registrations = make([]ExtensionRegistration, len(registrations))
@@ -62,6 +66,25 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		registrations:       registry.clone().registrations,
 	}
 	if parsed, ok := normalized.parsed.(normalizedMarkdown); ok && parsed.root != nil {
+		// Footnotes are moved to the end of the AST. Freeze math occurrences in
+		// authored source order independently of their eventual DOM order.
+		var equations []*mathsyntax.Data
+		_ = ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+			if entering {
+				if data := mathsyntax.Of(node); data != nil {
+					equations = append(equations, data)
+				}
+			}
+			return ast.WalkContinue, nil
+		})
+		sort.SliceStable(equations, func(i, j int) bool { return equations[i].Offset < equations[j].Offset })
+		for ordinal, data := range equations {
+			task, err := compileMathTask(source, parsed.frontmatter.bodyOffset, data, uint32(ordinal))
+			if err != nil {
+				return renderPlan{}, err
+			}
+			plan.mathTasks = append(plan.mathTasks, task)
+		}
 		fenceOwners := make(map[string]int)
 		for registrationIndex, registration := range plan.registrations {
 			for _, fence := range registration.Fences {
@@ -82,6 +105,9 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 		walkErr := ast.Walk(parsed.root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 			if !entering {
 				return ast.WalkContinue, nil
+			}
+			if data := mathsyntax.Of(node); data != nil {
+				return ast.WalkSkipChildren, nil
 			}
 			if image, ok := node.(*ast.Image); ok && normalized.metadata.Margo.ImageViewer && len(image.Title) > 0 {
 				_, paragraph := image.Parent().(*ast.Paragraph)
@@ -182,6 +208,13 @@ func buildRenderPlan(source Source, normalized sourceNormalization, registry ext
 				return renderPlan{}, err
 			}
 			requirementCandidates = append(requirementCandidates, coreWithCodeCopy[len(coreWithCodeCopy)-1])
+		}
+		if len(plan.mathTasks) > 0 {
+			mathRequirements, err := mathHTMLRequirements()
+			if err != nil {
+				return renderPlan{}, err
+			}
+			requirementCandidates = append(requirementCandidates, mathRequirements...)
 		}
 		requirements, err := mergeHTMLRequirements(requirementCandidates)
 		if err != nil {

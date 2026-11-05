@@ -27,6 +27,11 @@
 // configuration that created it. Pass WithExtension to New to register
 // optional integrations such as charts.
 //
+// WithMath(true) enables inline dollar expressions, double-dollar display
+// blocks, and fenced math blocks. Math rendering uses bundled KaTeX and fonts
+// in the browser. WithCheckMath(true) selects the same grammar for Go preflight;
+// full expression validation and font readiness are required for PDF export.
+//
 // The root package is the common compile/render layer, not a high-level
 // filesystem converter. Choose the boundary after rendering: use
 // RenderStandalone for one offline HTML page, RenderHTML and RenderHTMLPage for

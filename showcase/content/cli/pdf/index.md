@@ -35,6 +35,12 @@ Raw HTML and iframe markup are denied by default. Pass
 `--allow-unsafe-html` only when the PDF input is trusted and arbitrary HTML is
 part of the intended output.
 
+## Math
+
+Use `--math` for equations in the source. Export waits for typesetting and
+bundled fonts, and rejects invalid or clipped equations before publishing a
+PDF. See [Math and LaTeX](../../fenced-types/math/index.md) for authoring rules.
+
 ## Examples
 
 Run a compatibility check and renderer check before conversion:

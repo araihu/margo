@@ -17,15 +17,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/cdproto/emulation"
-	"github.com/chromedp/cdproto/page"
-	cdpruntime "github.com/chromedp/cdproto/runtime"
-	"github.com/chromedp/chromedp"
-
 	margo "github.com/araihu/margo"
 	"github.com/araihu/margo/assets"
 	"github.com/araihu/margo/internal/browserlaunch"
 	"github.com/araihu/margo/pdf"
+	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/page"
+	cdpruntime "github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/chromedp"
 )
 
 const defaultTimeout = 30 * time.Second
@@ -121,6 +120,10 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 
 	var metrics margo.LayoutMetrics
 	var runtimeOutput browserRuntimeOutput
+	var mathOutput browserMathOutput
+	var mathFailure error
+	var mathOverflow string
+	var mathOverflowDetail string
 	var printOverflow string
 	var pdfBytes []byte
 	stage := "initializing"
@@ -139,6 +142,11 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	}
 	actions = append(actions,
 		stageAction("navigate", chromedp.Navigate(server.URL)),
+		stageAction("math tasks", chromedp.Evaluate(mathRuntimeExpression(request.Runtime), &mathOutput, awaitPromise)),
+		chromedp.ActionFunc(func(context.Context) error {
+			mathFailure = validateMathOutput(request.Runtime, mathOutput)
+			return mathFailure
+		}),
 		stageAction("runtime tasks", chromedp.Evaluate(runtimeExpression, &runtimeOutput, awaitPromise)),
 		stageAction("print preparation", chromedp.Evaluate(`(async () => {
 			if (typeof globalThis.margoPreparePrint === "function") await globalThis.margoPreparePrint();
@@ -158,6 +166,14 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 			if (typeof globalThis.margoValidateDeckPrint !== "function") return "";
 			return globalThis.margoValidateDeckPrint();
 		})()`, &printOverflow)),
+		stageAction("validate math print overflow", chromedp.Evaluate(mathPrintExpression(request.Page), &mathOverflow)),
+		chromedp.Evaluate(`JSON.stringify(globalThis.margoMathPrintDiagnostic || {})`, &mathOverflowDetail),
+		chromedp.ActionFunc(func(context.Context) error {
+			if mathOverflow != "" {
+				return chromiumError(mathOverflow, "equation exceeds the printable content box")
+			}
+			return nil
+		}),
 		chromedp.ActionFunc(func(context.Context) error {
 			stage = "check print overflow"
 			if printOverflow != "" {
@@ -178,6 +194,13 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 		}),
 	)
 	if err := chromedp.Run(browserCtx, actions...); err != nil {
+		if mathFailure != nil {
+			return pdf.Result{Runtime: failedMathReport(request, mathOutput, mathFailure)}, mathFailure
+		}
+		if mathOverflow != "" {
+			failure := mathPrintFailure(mathOverflowDetail)
+			return pdf.Result{Runtime: failedMathReport(request, mathOutput, failure)}, failure
+		}
 		if printOverflow != "" {
 			return pdf.Result{}, chromiumError("pdf.deck_print_overflow", printOverflow)
 		}
@@ -199,6 +222,15 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	status := margo.RuntimeReady
 	var diagnostic *margo.Diagnostic
 	fontDigest := runtimeOutput.FontBundleDigest
+	for _, font := range mathOutput.FontChecks {
+		found := false
+		for _, existing := range runtimeOutput.FontChecks {
+			found = found || existing.Family == font.Family && existing.Query == font.Query
+		}
+		if !found {
+			runtimeOutput.FontChecks = append(runtimeOutput.FontChecks, font)
+		}
+	}
 	for _, check := range runtimeOutput.FontChecks {
 		if !check.Loaded {
 			status = margo.RuntimeFailed
@@ -208,7 +240,7 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	}
 	if request.Runtime.Protocol == margo.RuntimeProtocolV2 && fontDigest != request.Runtime.ValidationRequest.ExpectedFontBundleDigest {
 		status = margo.RuntimeFailed
-		diagnostic = &margo.Diagnostic{Code: "deck.font_bundle_mismatch", Severity: margo.SeverityError, Message: "observed deck font bundle differs from the descriptor lock"}
+		diagnostic = &margo.Diagnostic{Code: "deck.font_bundle_mismatch", Severity: margo.SeverityError, Message: "observed deck font bundle " + fontDigest + " differs from descriptor lock " + request.Runtime.ValidationRequest.ExpectedFontBundleDigest}
 	}
 	report := margo.RuntimeReport{
 		Protocol:            request.Runtime.Protocol,
@@ -221,6 +253,16 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 		BlockedRequests:     []margo.BlockedRequest{},
 		Layout:              metrics,
 		Diagnostic:          diagnostic,
+	}
+	mathReports := mathTaskReports(request.Runtime.Tasks, mathOutput)
+	byMathID := map[string]margo.RuntimeTaskReport{}
+	for _, task := range mathReports {
+		byMathID[task.ID] = task
+	}
+	for index, task := range report.Tasks {
+		if task.Kind == "math" {
+			report.Tasks[index] = byMathID[task.ID]
+		}
 	}
 	if request.Runtime.Protocol == margo.RuntimeProtocolV2 {
 		platformProfile := runtime.GOOS + "-" + runtime.GOARCH
@@ -236,6 +278,9 @@ func (engine *Engine) Export(ctx context.Context, request pdf.Request) (pdf.Resu
 	}
 	if err := margo.ValidateRuntimeReport(request.Runtime, request.ExecutionID, report); err != nil {
 		return pdf.Result{}, chromiumError("pdf.runtime_report_invalid", err.Error())
+	}
+	if status == margo.RuntimeFailed {
+		return pdf.Result{Runtime: report}, chromiumError(diagnostic.Code, diagnostic.Message)
 	}
 	return pdf.Result{
 		PDF:     pdfBytes,
@@ -269,6 +314,13 @@ func validateRequest(request pdf.Request) error {
 	}
 	if err := margo.ValidateRuntimeDescriptor(request.Runtime); err != nil {
 		return chromiumError("pdf.request_invalid", err.Error())
+	}
+	for _, task := range request.Runtime.Tasks {
+		switch task.Kind {
+		case "math", "mermaid", "deck-layout-screen", "deck-layout-print-dom":
+		default:
+			return chromiumError("runtime.task_unknown", "no executor for task kind "+task.Kind)
+		}
 	}
 	if err := validateOfflineHTML(request.HTML); err != nil {
 		return err

@@ -141,6 +141,27 @@ remain opt-in for library consumers:
 compiler := margo.New(margo.WithExtension(charts.Extension()))
 ```
 
+### Math in Markdown
+
+Enable inline `$…$`, display `$$…$$`, and fenced `math` equations with `--math`:
+
+```sh
+margo html guide.md --math --output guide.html
+margo pdf guide.md --math --output guide.pdf
+margo serve ./docs --math
+```
+
+Go callers use `margo.New(margo.WithMath(true))`. KaTeX and its fonts are
+bundled for offline HTML, sites, PDF, and decks. HTML typesetting runs in the
+browser; PDF export validates equations and fonts before printing.
+See [math authoring and validation](docs/reference/math.md) for escaping,
+supported syntax, limits, and the Go preflight API. `.tex` document input and
+snippet imports are outside this feature's scope.
+
+The showcase includes [rendered math examples](showcase/content/fenced-types/math/index.md).
+Preview the real site from this checkout with
+`go run ./cmd/margo serve showcase.yaml --math --allow-unsafe-html`.
+
 ### Choose an output from Go
 
 The root module is the compiler and semantic renderer; it is not a single

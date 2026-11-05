@@ -17,6 +17,7 @@ import (
 )
 
 type serveRequest struct {
+	Math            bool
 	Input           string
 	Host            string
 	Port            int
@@ -28,6 +29,7 @@ type serveRequest struct {
 type serveFunc func(context.Context, serveRequest) error
 
 type serveProject struct {
+	math       bool
 	deps       Dependencies
 	root       string
 	inputDir   string
@@ -46,6 +48,7 @@ func newServeCommand(deps Dependencies) *cobra.Command {
 	port := 0
 	open := false
 	allowUnsafeHTML := false
+	math := false
 	diagnostics := string(diagnosticText)
 	command := &cobra.Command{
 		Use:   "serve [INPUT_DIR|CONFIG]",
@@ -73,7 +76,7 @@ func newServeCommand(deps Dependencies) *cobra.Command {
 			if deps.ServeSite == nil {
 				return reportCommandError(command, diagnosticText, fmt.Errorf("serve.unavailable: development server is unavailable"))
 			}
-			if err := deps.ServeSite(command.Context(), serveRequest{Input: input, Host: host, Port: port, PortExplicit: explicitPort, Open: open, AllowUnsafeHTML: allowUnsafeHTML}); err != nil {
+			if err := deps.ServeSite(command.Context(), serveRequest{Input: input, Host: host, Port: port, PortExplicit: explicitPort, Open: open, AllowUnsafeHTML: allowUnsafeHTML, Math: math}); err != nil {
 				return reportCommandError(command, diagnosticText, err)
 			}
 			return nil
@@ -83,6 +86,7 @@ func newServeCommand(deps Dependencies) *cobra.Command {
 	command.Flags().IntVar(&port, "port", port, "development server port; omitted selects an available port")
 	command.Flags().BoolVar(&open, "open", open, "open the development site in the default browser")
 	bindUnsafeHTMLFlag(command, &allowUnsafeHTML)
+	command.Flags().BoolVar(&math, "math", false, "enable LaTeX math expressions in Markdown")
 	bindDiagnosticFlagErrors(command, &diagnostics)
 	return command
 }
@@ -144,7 +148,7 @@ func (project *serveProject) Build(ctx context.Context) (devserver.Snapshot, err
 		project.updateConfig(config, "")
 		result, err = site.BuildConfig(ctx, site.ConfigRequest{
 			ConfigPath:  project.configPath,
-			Compiler:    compilerForPolicy(&loadedPolicy{AllowUnsafeHTML: project.allowUnsafeHTML}, policyTargetSite),
+			Compiler:    compilerForPolicy(&loadedPolicy{AllowUnsafeHTML: project.allowUnsafeHTML, Math: project.math}, policyTargetSite),
 			AssetReader: project.deps.CheckAssetReader,
 		})
 		if err == nil {
@@ -158,7 +162,7 @@ func (project *serveProject) Build(ctx context.Context) (devserver.Snapshot, err
 		result, err = site.Build(ctx, site.Request{
 			SourceRoot:  root,
 			Sources:     sources,
-			Compiler:    compilerForPolicy(&loadedPolicy{AllowUnsafeHTML: project.allowUnsafeHTML}, policyTargetSite),
+			Compiler:    compilerForPolicy(&loadedPolicy{AllowUnsafeHTML: project.allowUnsafeHTML, Math: project.math}, policyTargetSite),
 			Assets:      site.AssetsLocal,
 			AssetReader: project.deps.CheckAssetReader,
 		})
@@ -303,6 +307,7 @@ func runDevelopmentServer(ctx context.Context, deps Dependencies, request serveR
 		return err
 	}
 	project.allowUnsafeHTML = request.AllowUnsafeHTML
+	project.math = request.Math
 	listener, port, err := devserver.Listen(request.Host, request.Port, request.PortExplicit, nil)
 	if err != nil {
 		return err

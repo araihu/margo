@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/araihu/margo"
+	"github.com/araihu/margo/internal/mathfonts"
 )
 
 func bundledFontFaces(theme margo.ThemeName) ([]FontFaceAsset, error) {
@@ -44,6 +45,15 @@ func bundledFontDigest(theme margo.ThemeName) (string, error) {
 		return "", err
 	}
 	return FontBundleDigestV1(faces)
+}
+
+func mathFontDigest(requirements margo.HTMLRequirements) (string, error) {
+	for _, requirement := range requirements.List() {
+		if requirement.ID == "margo.math.styles" {
+			return mathfonts.Digest(requirement.Inline.Content)
+		}
+	}
+	return "", nil
 }
 
 func fontAssetFile(family string) string {

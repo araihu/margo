@@ -35,6 +35,17 @@ Raw HTML and iframe markup are denied by default. Use
 `--allow-unsafe-html` (or `--allow-raw-html`) when a development preview needs
 to embed a trusted local HTML artifact.
 
+## Math
+
+Start with `--math` to typeset equations in the preview and retain that setting
+on every rebuild. For this repository's showcase:
+
+```sh
+go run ./cmd/margo serve showcase.yaml --math --allow-unsafe-html
+```
+
+See [Math and LaTeX](../../fenced-types/math/index.md) for live examples.
+
 ## Examples
 
 ```sh

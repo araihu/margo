@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var structuralLayoutClasses = map[string]struct{}{
@@ -67,6 +68,9 @@ type layoutBuilder struct {
 	activeLine    int
 	current       bytes.Buffer
 	content       bytes.Buffer
+	currentLines  []mathSourceLine
+	contentLines  []mathSourceLine
+	slotLines     map[string][]mathSourceLine
 	slots         []LayoutSlot
 	seen          map[string]struct{}
 	firstLine     int
@@ -77,12 +81,14 @@ func newLayoutBuilder() *layoutBuilder {
 	return &layoutBuilder{seen: make(map[string]struct{})}
 }
 
-func (builder *layoutBuilder) write(line []byte) {
+func (builder *layoutBuilder) write(line []byte, sourceLine int) {
 	if builder.started && builder.activeSlot != "" {
 		_, _ = builder.current.Write(line)
+		builder.currentLines = append(builder.currentLines, mathSourceLine{line: sourceLine})
 		return
 	}
 	_, _ = builder.content.Write(line)
+	builder.contentLines = append(builder.contentLines, mathSourceLine{line: sourceLine})
 }
 
 func (builder *layoutBuilder) start(class string, line int) error {
@@ -139,7 +145,10 @@ func (builder *layoutBuilder) setComposition(name CompositionName, line int) err
 		builder.activeLine = 0
 		builder.current.Reset()
 		builder.content.Reset()
+		builder.currentLines = nil
+		builder.contentLines = nil
 		builder.slots = nil
+		builder.slotLines = nil
 		builder.seen = make(map[string]struct{})
 	}
 	if builder.started && !structural {
@@ -151,7 +160,10 @@ func (builder *layoutBuilder) setComposition(name CompositionName, line int) err
 		builder.activeLine = 0
 		builder.current.Reset()
 		builder.content.Reset()
+		builder.currentLines = nil
+		builder.contentLines = nil
 		builder.slots = nil
+		builder.slotLines = nil
 		builder.seen = make(map[string]struct{})
 	}
 	builder.composition = name
@@ -183,6 +195,7 @@ func (builder *layoutBuilder) slot(name string, line int) error {
 	builder.activeSlot = name
 	builder.activeLine = line
 	builder.current.Reset()
+	builder.currentLines = nil
 	return nil
 }
 
@@ -205,6 +218,14 @@ func (builder *layoutBuilder) finishSlot() error {
 	if len(markdown) == 0 {
 		return fmt.Errorf("slot %q is empty", builder.activeSlot)
 	}
+	prefix := len(builder.current.Bytes()) - len(bytes.TrimLeftFunc(builder.current.Bytes(), unicode.IsSpace))
+	lineIndex := bytes.Count(builder.current.Bytes()[:prefix], []byte{'\n'})
+	positions := append([]mathSourceLine(nil), builder.currentLines[lineIndex:]...)
+	positions[0].column = prefix - bytes.LastIndexByte(builder.current.Bytes()[:prefix], '\n') - 1
+	if builder.slotLines == nil {
+		builder.slotLines = map[string][]mathSourceLine{}
+	}
+	builder.slotLines[builder.activeSlot] = positions
 	builder.slots = append(builder.slots, LayoutSlot{
 		Name:       builder.activeSlot,
 		Markdown:   append(append([]byte(nil), markdown...), '\n'),
@@ -212,6 +233,7 @@ func (builder *layoutBuilder) finishSlot() error {
 	})
 	builder.activeSlot = ""
 	builder.current.Reset()
+	builder.currentLines = nil
 	return nil
 }
 

@@ -103,6 +103,7 @@ jobs:
           go run ./cmd/margo site showcase.yaml \
             --output-dir showcase/dist \
             --assets local \
+            --math \
             --allow-unsafe-html \
             --diagnostics text
           test -s showcase/dist/index.html

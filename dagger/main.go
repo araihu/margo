@@ -302,6 +302,7 @@ const requiredScript = `
 module_files="$(find . -name go.mod -not -path './.git/*' -not -path '*/vendor/*' -not -path './dagger/*' -print | sort)"
 test "$module_files" = './go.mod'
 go mod verify
+go tool muamba verify katex
 go vet ./...
 go test ./... -count=1
 go build ./...

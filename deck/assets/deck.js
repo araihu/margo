@@ -71,7 +71,14 @@
     const preimage = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.byteLength, 0));
     let offset = 0;
     for (const chunk of chunks) { preimage.set(chunk, offset); offset += chunk.byteLength; }
-    return { fontChecks: checks, fontBundleDigest: await hexDigest(preimage) };
+    let digest = await hexDigest(preimage);
+    if (document.querySelector('[data-margo-runtime-task="math"]')) {
+      if (typeof globalThis.margoGetMathFontEvidence !== "function") return {fontChecks:checks,fontBundleDigest:""};
+      const math = await globalThis.margoGetMathFontEvidence();
+      checks.push(...math.fontChecks);
+      digest = await hexDigest(encoder.encode(`margo-font-bundle/math-v1\0${digest}\0${math.fontBundleDigest}`));
+    }
+    return { fontChecks: checks, fontBundleDigest: digest };
   };
 
   globalThis.margoGetDeckFontEvidence = getDeckFontEvidence;
@@ -231,6 +238,18 @@
     ".margo-deck__bottom-chrome, .margo-deck__pagination, .margo-mermaid__accessible-source"
   ));
 
+  // KaTeX deliberately clips its accessible MathML to a one-pixel box.
+  // Its scroll metrics describe the hidden duplicate, not visible slide ink.
+  const isMathAccessibility = (element) => Boolean(element.closest(
+    '.margo-math__output .katex-mathml'
+  ));
+
+  // Radical/stretchy SVG paths extend beyond their clipped SVG viewport by
+  // design. Measure the viewport itself, whose bounds remain authoritative.
+  const isMathSVGPath = (element) => element.localName !== "svg" && Boolean(element.closest(
+    '.margo-math__output .katex-html svg'
+  ));
+
   const isLocalScrollContainer = (element) => {
     const style = getComputedStyle(element);
     return [style.overflowX, style.overflowY].some((value) => value === "auto" || value === "scroll");
@@ -270,7 +289,7 @@
   const hasVisibleOverflow = (slide) => {
     const slideRect = slide.getBoundingClientRect();
     for (const element of [slide, ...slide.querySelectorAll("*")]) {
-      if (element !== slide && (!isVisible(element) || isPresentationChrome(element))) continue;
+      if (element !== slide && (!isVisible(element) || isPresentationChrome(element) || isMathAccessibility(element) || isMathSVGPath(element))) continue;
       if (element !== slide && hasLocalScrollAncestor(element, slide)) continue;
       const rect = element.getBoundingClientRect();
       if (element !== slide && rect.width > 0 && rect.height > 0 && exceeds(rect, slideRect) &&
@@ -282,7 +301,10 @@
       // metrics remain useful for unwrapped text, while vertical metrics on
       // visible-flow elements include normal line-box ink in Chromium and
       // would make ordinary headings fail. Clipped descendants still fail.
-      if (element !== slide && !isLocalScrollContainer(element)) {
+      // KaTeX's positioned glyph/strut boxes intentionally have larger scroll
+      // metrics than their line boxes. Their visible bounds above still count.
+      const mathGlyph = element.closest('.margo-math__output .katex-html');
+      if (element !== slide && !isLocalScrollContainer(element) && !mathGlyph) {
         const style = getComputedStyle(element);
         if (element.scrollWidth > element.clientWidth + 1 ||
             (["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1)) return true;
@@ -353,4 +375,10 @@
   });
 
   show(0, false);
+  // Typesetting can change the slide after its initial fallback was measured.
+  // Revalidate only after all registered runtimes and their fonts complete.
+  Promise.resolve(globalThis.margoRuntimeReady).then(() => document.fonts?.ready).then(() => {
+    resizeStage();
+    validateScreenLayout();
+  }).catch(() => {});
 })();

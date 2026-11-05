@@ -118,6 +118,16 @@ func mermaidBrowserCapabilities() ([]string, error) {
 				return
 			}
 		}
+		coordinator, err := runtimeCoordinatorRequirement()
+		if err != nil {
+			mermaidBrowserCapabilityCache.err = err
+			return
+		}
+		coordinatorCapability, err := HTMLRequirementCapability(coordinator)
+		if err != nil {
+			mermaidBrowserCapabilityCache.err = err
+			return
+		}
 		executor := []byte(mermaidBrowserExecutor)
 		viewer, err := mediaViewerRequirement()
 		if err != nil {
@@ -147,7 +157,7 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			ID:        "margo.mermaid.execute",
 			Kind:      HTMLScript,
 			LocalURL:  "/margo-assets/runtime/mermaid-run.js",
-			LoadAfter: []string{"margo.mermaid.runtime", "goshtoso.runtime.first-party", "margo.media-viewer"},
+			LoadAfter: []string{"margo.mermaid.runtime", "goshtoso.runtime.first-party", "margo.media-viewer", "margo.runtime.coordinator"},
 			Inline: AssetRef{
 				Path: "mermaid-run.js", MediaType: "application/javascript",
 				SHA256: hex.EncodeToString(executorDigest[:]), Content: executor,
@@ -157,7 +167,7 @@ func mermaidBrowserCapabilities() ([]string, error) {
 			mermaidBrowserCapabilityCache.err = err
 			return
 		}
-		mermaidBrowserCapabilityCache.capabilities = append(helpCapabilities, viewerCapability, runtimeCapability, executorCapability)
+		mermaidBrowserCapabilityCache.capabilities = append(helpCapabilities, viewerCapability, runtimeCapability, coordinatorCapability, executorCapability)
 	})
 	return append([]string(nil), mermaidBrowserCapabilityCache.capabilities...), mermaidBrowserCapabilityCache.err
 }
@@ -258,7 +268,6 @@ var mermaidBrowserExecutor = `(() => {
     }
     const nodes = [...document.querySelectorAll('[data-margo-runtime-task="mermaid"]')];
     if (nodes.length === 0) {
-      document.documentElement.dataset.margoRuntimeStatus = "ready";
       return [];
     }
     const engine = globalThis.mermaid;
@@ -300,7 +309,6 @@ var mermaidBrowserExecutor = `(() => {
       outputs.push(svg ? svg.outerHTML : rendered.svg);
       if (svg) window.margoMediaViewer.attach(node, svg, position);
     }
-    document.documentElement.dataset.margoRuntimeStatus = "ready";
     return outputs;
   };
 
@@ -314,18 +322,18 @@ var mermaidBrowserExecutor = `(() => {
       const next = margoMermaidThemeSignature();
       if (!next || next === signature) return;
       signature = next;
-      themeRenderQueue = themeRenderQueue.catch(() => {}).then(() => execute()).catch(() => {
+      themeRenderQueue = themeRenderQueue.catch(() => {}).then(() => globalThis.margoRunMermaid()).catch(() => {
         document.documentElement.dataset.margoRuntimeStatus = "failed";
         for (const node of document.querySelectorAll('[data-margo-runtime-task="mermaid"]')) node.dataset.margoRuntimeStatus = "failed";
       });
-      globalThis.margoRuntimeReady = themeRenderQueue;
+
     });
     observer.observe(document.documentElement, {attributes: true, attributeFilter: ["class", "data-theme"]});
     globalThis.margoMermaidThemeObserver = observer;
   }
 
   const run = () => {
-    const promise = execute().then((outputs) => {
+    return execute().then((outputs) => {
       observeMermaidTheme();
       return outputs;
     }).catch((error) => {
@@ -333,11 +341,10 @@ var mermaidBrowserExecutor = `(() => {
       for (const node of document.querySelectorAll('[data-margo-runtime-task="mermaid"]')) node.dataset.margoRuntimeStatus = "failed";
       throw error;
     });
-    globalThis.margoRuntimeReady = promise;
-    return promise;
   };
-  globalThis.margoRunMermaid = run;
-  globalThis.margoRuntimeReady = run();
+  globalThis.margoRunMermaid = () => globalThis.margoRuntimeCoordinator.run("mermaid");
+  globalThis.margoRuntimeCoordinator.register("mermaid", run);
+  // margoRuntimeReady is owned by the shared coordinator.
 })();`
 
 func compileMermaidNode(compileContext extensionCompileContext, node ExtensionNode, ordinal uint32) (ExtensionNode, error) {

@@ -25,6 +25,7 @@ import (
 	"github.com/araihu/goshtoso/components/link"
 	"github.com/araihu/goshtoso/components/search"
 	"github.com/araihu/goshtoso/components/sidebar"
+	"github.com/araihu/margo/internal/mathsyntax"
 	internalmermaid "github.com/araihu/margo/internal/mermaid"
 	"github.com/araihu/margo/ssg"
 	"golang.org/x/net/html"
@@ -56,6 +57,8 @@ const componentDocShellScrollSpy = `(function () {
   var automaticHold = false;
   var mermaidLoadPromise;
   var mermaidRunnerLoadPromise;
+  var coordinatorLoadPromise;
+  var mathLoads = new Map();
   var mediaViewerLoadPromise;
   var mermaidRenderQueue = Promise.resolve();
   var shellAssetBase = document.currentScript && document.currentScript.src
@@ -63,6 +66,8 @@ const componentDocShellScrollSpy = `(function () {
     : new URL("margo-assets/", document.baseURI);
   var mermaidRuntimeURL = new URL("mermaid/` + internalmermaid.RuntimeVersion + `/mermaid.min.js", shellAssetBase).toString();
   var mermaidRunnerURL = new URL("runtime/mermaid-run.js", shellAssetBase).toString();
+  var coordinatorURL = new URL("runtime-coordinator.js", shellAssetBase).toString();
+  var mathEngineURL = new URL("katex/` + mathsyntax.EngineVersion + `/katex.min.js", shellAssetBase).toString();
   var mediaViewerURL = new URL("media-viewer.js", shellAssetBase).toString();
 
   function headings() {
@@ -291,6 +296,32 @@ const componentDocShellScrollSpy = `(function () {
     );
   }
 
+  function loadMathAsset(id, url, stylesheet) {
+    if (mathLoads.has(id)) return mathLoads.get(id);
+    if (document.querySelector('[data-margo-requirement="' + id + '"]')) return Promise.resolve();
+    var promise = new Promise(function (resolve, reject) {
+      var node = document.createElement(stylesheet ? "link" : "script");
+      node.setAttribute("data-margo-requirement", id);
+      if (stylesheet) { node.rel = "stylesheet"; node.href = url; } else { node.src = url; }
+      node.onload = resolve;
+      node.onerror = function () { node.remove(); mathLoads.delete(id); reject(new Error("Math dependency unavailable: " + id)); };
+      document.head.appendChild(node);
+    });
+    mathLoads.set(id, promise);
+    return promise;
+  }
+
+  async function renderMathAfterSwap() {
+    var nodes = document.querySelectorAll('[data-margo-runtime-task="math"]');
+    if (!nodes.length || Array.prototype.every.call(nodes, function (node) { return node.dataset.margoRuntimeStatus === "succeeded"; })) return;
+    await loadMathAsset("margo.math.styles", new URL("math.css", shellAssetBase).toString(), true);
+    if (!window.margoRuntimeCoordinator) await loadMathAsset("margo.runtime.coordinator", coordinatorURL, false);
+    if (!window.katex) await loadMathAsset("margo.math.engine", mathEngineURL, false);
+    if (!window.margoRunMath) await loadMathAsset("margo.math.execute", new URL("math-run.js", shellAssetBase).toString(), false);
+    if (window.margoRuntimeReady) { try { await window.margoRuntimeReady; } catch (_) {} }
+    await window.margoRunMath();
+  }
+
   async function renderMermaidAfterSwap() {
     if (document.querySelector('[data-margo-image-viewer], [data-margo-runtime-task="mermaid"]')) {
       if (!window.margoMediaViewer) {
@@ -321,6 +352,10 @@ const componentDocShellScrollSpy = `(function () {
         await mermaidLoadPromise;
       }
       var runnerWasLoaded = typeof window.margoRunMermaid === "function";
+      if (!window.margoRuntimeCoordinator) {
+        if (!coordinatorLoadPromise) coordinatorLoadPromise = loadScript(coordinatorURL).catch(function (error) { coordinatorLoadPromise = null; throw error; });
+        await coordinatorLoadPromise;
+      }
       if (typeof window.margoRunMermaid !== "function") {
         if (!mermaidRunnerLoadPromise) {
           mermaidRunnerLoadPromise = loadScript(mermaidRunnerURL).catch(function (error) {
@@ -351,7 +386,10 @@ const componentDocShellScrollSpy = `(function () {
   }
 
   function queueMermaidRender() {
-    mermaidRenderQueue = mermaidRenderQueue.catch(function () {}).then(renderMermaidAfterSwap);
+    mermaidRenderQueue = mermaidRenderQueue.catch(function () {}).then(async function () {
+      var results = await Promise.allSettled([renderMathAfterSwap(), renderMermaidAfterSwap()]);
+      if (results.some(function (result) { return result.status === "rejected"; })) document.documentElement.dataset.margoRuntimeStatus = "failed";
+    });
     return mermaidRenderQueue;
   }
 

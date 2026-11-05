@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/araihu/margo"
+	"github.com/araihu/margo/internal/mathfonts"
 )
 
 func renderDeckPage(metadata Metadata, theme margo.ThemeName, colorMode margo.ColorMode, lang string, geometry DeckGeometry, article []byte, requirements margo.HTMLRequirements, iconSprite []byte) ([]byte, error) {
@@ -34,6 +35,13 @@ func renderDeckPage(metadata Metadata, theme margo.ThemeName, colorMode margo.Co
 	fontDigest, err := bundledFontDigest(theme)
 	if err != nil {
 		return nil, err
+	}
+	mathDigest, err := mathFontDigest(requirements)
+	if err != nil {
+		return nil, err
+	}
+	if mathDigest != "" {
+		fontDigest = mathfonts.Combine(fontDigest, mathDigest)
 	}
 	fontCSS, err := embeddedDeckFontCSS()
 	if err != nil {
