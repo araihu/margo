@@ -28,6 +28,20 @@ const MaxChatBytes = 1 << 20
 // The returned component contains immutable pre-rendered content and is safe to
 // reuse concurrently. Source/resource failures return an error for host fallback.
 func RenderChat(ctx context.Context, source string) (templ.Component, error) {
+	return RenderChatWithOptions(ctx, source, ChatOptions{})
+}
+
+// ChatOptions selects additive chat syntax behavior. Its zero value preserves
+// RenderChat's CommonMark syntax, including lazy blockquote continuation.
+type ChatOptions struct {
+	// ExplicitBlockquotes requires a quote marker at each active quote depth on
+	// every quoted line. An unmarked line starts content outside that quote.
+	ExplicitBlockquotes bool
+}
+
+// RenderChatWithOptions renders the same safe static fragment as RenderChat,
+// with optional chat syntax behavior. It never modifies the caller's source.
+func RenderChatWithOptions(ctx context.Context, source string, options ChatOptions) (templ.Component, error) {
 	if err := contextError(ctx); err != nil {
 		return nil, err
 	}
@@ -41,7 +55,11 @@ func RenderChat(ctx context.Context, source string) (templ.Component, error) {
 		r.out.WriteString("</p>")
 		r.source = r.source[end:]
 	}
-	root := newMarkdownParser(false).Parse(text.NewReader(r.source))
+	markdown := newMarkdownParser(false)
+	if options.ExplicitBlockquotes {
+		configureExplicitChatQuotes(markdown)
+	}
+	root := markdown.Parse(text.NewReader(r.source))
 	if err := r.node(root, 0); err != nil {
 		return nil, err
 	}
