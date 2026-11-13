@@ -966,3 +966,22 @@ This setting does not raise Markdown input limits or count generated runtime
 artifacts and configured branding files as source assets. It controls retained
 source bytes, not total process memory or final inline HTML size. The host must
 budget for copies, rendering and output separately.
+
+### Static chat fragments
+
+`margo.RenderChat(ctx, source)` returns a reusable `templ.Component` for chat
+messages, without document assets or runtime features. It uses Margo's existing
+Markdown grammar for emphasis, strike, nested quotes, lists, links, and static
+code. Soft newlines and frontmatter remain visible. Raw HTML is escaped, images
+become readable links, and only absolute HTTP(S) and mailto links are clickable.
+Sources are bounded by `margo.MaxChatBytes`; callers can fall back to escaped
+original text if rendering returns an error. Ordinary `Compile` and `Render`
+behavior is unchanged.
+
+```go
+content, err := margo.RenderChat(ctx, ">> Quoted **message**\n> Reply")
+if err != nil {
+    return err
+}
+return content.Render(ctx, writer)
+```
