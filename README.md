@@ -985,3 +985,18 @@ if err != nil {
 }
 return content.Render(ctx, writer)
 ```
+
+For chat clients that require an explicit `>` marker on every quoted line, use
+an opt-in rendering option:
+
+```go
+fragment, err := margo.RenderChatWithOptions(ctx, source, margo.ChatOptions{
+    ExplicitBlockquotes: true,
+})
+```
+
+With this option, `> quoted\nreply` renders the reply outside the quote, and
+`>> nested\n> outer` returns to one quote level on the second line. Fenced code
+and escaped quote markers retain their existing interpretation. The original
+source is unchanged. `RenderChat` and the zero-value options preserve CommonMark
+lazy quote continuation; document compilation and rendering are unchanged.
