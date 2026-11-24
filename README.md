@@ -944,9 +944,11 @@ Margo is licensed under the [MIT License](LICENSE).
 
 The `dagger/` module includes its generated Go SDK bindings so dependency
 security updates can resolve it from a clean checkout without running an
-engine. Regenerate both binding files with Dagger v0.21.11 after changing the
-module API; do not edit them by hand. Its OpenTelemetry and gRPC patches are
-validated by the standalone module test and the required Dagger pipeline.
+engine. Run `dagger develop` with Dagger v0.21.11 after changing the module
+API. The adapter in `dagger/sdk` uses Dagger's Go generator for bindings and
+builds the runtime with the checked-in `go.mod` and `go.sum`. This keeps the
+generator's legacy Logs overrides out of the runtime. CI regenerates the
+bindings, checks for drift, and exercises the module and release builds.
 
 
 ### Source asset budget for growing sites

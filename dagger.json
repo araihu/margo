@@ -2,7 +2,7 @@
   "name": "margo",
   "engineVersion": "v0.21.11",
   "sdk": {
-    "source": "go"
+    "source": "./dagger/sdk"
   },
   "source": "dagger"
 }

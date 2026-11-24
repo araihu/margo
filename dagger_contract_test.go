@@ -23,7 +23,7 @@ func TestDaggerModuleAndAdaptersStayPinned(t *testing.T) {
 	if err := json.Unmarshal(configData, &config); err != nil {
 		t.Fatal(err)
 	}
-	if config.Name != "margo" || config.EngineVersion != "v0.21.11" || config.Source != "dagger" || config.SDK.Source != "go" {
+	if config.Name != "margo" || config.EngineVersion != "v0.21.11" || config.Source != "dagger" || config.SDK.Source != "./dagger/sdk" {
 		t.Fatalf("unexpected Dagger configuration: %#v", config)
 	}
 
