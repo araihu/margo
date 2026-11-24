@@ -1,0 +1,43 @@
+pub description = "Build Margo's Dagger module with its checked-in Go dependencies"
+
+type MargoGoSdk {
+  let compiler(): Container! {
+    container().from("golang:1.27.4-bookworm@sha256:b754301872c53d3dff666ec39e3fae971dc6f5ecd5a9b01fdefabbebb0f59901")
+  }
+
+  # Dagger v0.21.11 rewrites the Logs dependencies while generating bindings.
+  let source(modSource: ModuleSource!): Directory! {
+    let original = modSource.contextDirectory
+    let path = modSource.sourceSubpath
+    let root = modSource.sourceRootSubpath
+    modSource.withSDK("go").generatedContextChangeset.after
+      .withFile(path + "/go.mod", original.file(path + "/go.mod"))
+      .withFile(path + "/go.sum", original.file(path + "/go.sum"))
+      .withFile(root + "/dagger.json", original.file(root + "/dagger.json"))
+  }
+
+  pub codegen(modSource: ModuleSource!, introspectionJson: File!): GeneratedCode! {
+    generatedCode(source(modSource))
+      .withVCSGeneratedPaths(["dagger.gen.go", "internal/dagger/**", "internal/telemetry/**"])
+      .withVCSIgnoredPaths(["internal/telemetry", ".env"])
+  }
+
+  pub moduleTypes(modSource: ModuleSource!, introspectionJson: File!, outputFilePath: String!): Container! {
+    let definition = modSource.withSDK("go").asModule.id
+    compiler()
+      .withNewFile(outputFilePath, JSON.encode(definition))
+      .withEntrypoint(["/bin/true"])
+  }
+
+  pub moduleRuntime(modSource: ModuleSource!, introspectionJson: File!): Container! {
+    compiler()
+      .withDirectory("/src", source(modSource))
+      .withWorkdir("/src/" + modSource.sourceSubpath)
+      .withEnvVariable("GOTOOLCHAIN", "local")
+      .withEnvVariable("GOWORK", "off")
+      .withEnvVariable("GOFLAGS", "-mod=readonly")
+      .withExec(["go", "build", "-trimpath", "-ldflags=-s -w", "-o", "/runtime", "."])
+      .withEntrypoint(["/runtime"])
+      .withWorkdir("/scratch")
+  }
+}
